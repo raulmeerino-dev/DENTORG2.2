@@ -187,6 +187,14 @@ export interface VideoConsultaResponse {
   estado: string;
 }
 
+export interface RecordatorioCitaResponse {
+  citaId: string;
+  canal: 'whatsapp' | 'email' | 'ambos';
+  estado: string;
+  whatsappUrl?: string | null;
+  emailUrl?: string | null;
+}
+
 export interface Cita {
   id: string;
   paciente_id: string;

@@ -10,6 +10,7 @@ import {
   getIngresosReporte,
   getInventario,
   getMovimientosInventario,
+  getReportKpis,
   importPacientes,
   registrarMovimientoInventario,
   syncOffline,
@@ -33,6 +34,7 @@ export default function AdminExtrasPage() {
   const [twoFactor, setTwoFactor] = useState<{ secret: string; qrDataUrl: string; otpauthUrl: string } | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const reportCanvas = useRef<HTMLCanvasElement | null>(null);
+  const citasCanvas = useRef<HTMLCanvasElement | null>(null);
   const online = typeof navigator === 'undefined' ? true : navigator.onLine;
 
   const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
@@ -43,6 +45,7 @@ export default function AdminExtrasPage() {
     enabled: Boolean(productoActivoId),
   });
   const ingresosQuery = useQuery({ queryKey: ['ingresos', desde, hasta], queryFn: () => getIngresosReporte(desde, hasta) });
+  const kpisQuery = useQuery({ queryKey: ['admin-report-kpis'], queryFn: getReportKpis, enabled: tab === 'reportes' });
 
   const crearClinica = useMutation({
     mutationFn: () => createClinica(clinicaForm),
@@ -119,6 +122,43 @@ export default function AdminExtrasPage() {
     });
     return () => chart.destroy();
   }, [ingresosQuery.data, tab]);
+
+  useEffect(() => {
+    if (!citasCanvas.current || tab !== 'reportes') return undefined;
+    const citas = kpisQuery.data?.citas ?? { asistencia: 0, faltas: 0, total: 0 };
+    const chart = new Chart(citasCanvas.current, {
+      type: 'doughnut',
+      data: {
+        labels: ['Cumplidas', 'No asistió', 'Pendientes/otras'],
+        datasets: [{
+          data: [citas.asistencia, citas.faltas, Math.max(0, citas.total - citas.asistencia - citas.faltas)],
+          backgroundColor: ['#16a34a', '#dc2626', '#94a3b8'],
+          borderWidth: 0,
+        }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+    });
+    return () => chart.destroy();
+  }, [kpisQuery.data, tab]);
+
+  useEffect(() => {
+    async function flushOfflineQueue() {
+      if (!navigator.onLine) return;
+      const pending = await getOfflinePending();
+      if (!pending.length) {
+        setPendingCount(0);
+        return;
+      }
+      const pacientes = pending.filter((item) => item.type === 'paciente').map((item) => item.payload);
+      const citas = pending.filter((item) => item.type === 'cita').map((item) => item.payload);
+      await syncOffline({ pacientes, citas });
+      await clearOfflinePending();
+      setPendingCount(0);
+    }
+    window.addEventListener('online', flushOfflineQueue);
+    void flushOfflineQueue();
+    return () => window.removeEventListener('online', flushOfflineQueue);
+  }, []);
 
   function submitClinica(event: FormEvent) {
     event.preventDefault();
@@ -217,10 +257,16 @@ export default function AdminExtrasPage() {
       )}
 
       {tab === 'reportes' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Ingresos</strong><label>Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label></div>
-          <div className="bi-chart"><canvas ref={reportCanvas} aria-label="Ingresos por origen" /></div>
-        </section>
+        <div className="fichero-grid">
+          <section className="desk-panel">
+            <div className="panel-caption"><strong>Ingresos</strong><label>Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label></div>
+            <div className="bi-chart"><canvas ref={reportCanvas} aria-label="Ingresos por origen" /></div>
+          </section>
+          <section className="desk-panel">
+            <div className="panel-caption"><strong>Citas cumplidas / no-shows</strong></div>
+            <div className="bi-chart"><canvas ref={citasCanvas} aria-label="Citas cumplidas y no asistidas" /></div>
+          </section>
+        </div>
       )}
 
       {tab === 'offline' && (
@@ -248,6 +294,10 @@ export default function AdminExtrasPage() {
       {tab === 'importacion' && (
         <section className="desk-panel settings-form">
           <div className="panel-caption"><strong>Importar pacientes CSV</strong></div>
+          <input type="file" accept=".csv,text/csv" onChange={async (event) => {
+            const file = event.target.files?.[0];
+            if (file) setImportText(await file.text());
+          }} />
           <textarea value={importText} onChange={(e) => setImportText(e.target.value)} />
           <button onClick={() => importar.mutate()}>Importar</button>
           {importar.data && <p>Creados: {importar.data.creados}. Errores: {importar.data.errores.length}</p>}

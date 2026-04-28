@@ -94,6 +94,15 @@ async def test_crud_cita(client: AsyncClient, db_session: AsyncSession):
     assert created.status_code == 201
     cita = created.json()
 
+    reminder = await client.post(
+        f"/api/citas/{cita['id']}/recordatorio",
+        headers=headers,
+        json={"canal": "whatsapp"},
+    )
+    assert reminder.status_code == 200
+    assert reminder.json()["estado"] == "enviado"
+    assert reminder.json()["whatsappUrl"]
+
     patched = await client.patch(f"/api/citas/{cita['id']}", headers=headers, json={"estado": "anulada"})
     assert patched.status_code == 200
     assert patched.json()["estado"] == "anulada"
