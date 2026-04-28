@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { createCita, createPaciente, getCitas, getDoctores, getPacientes, getTelefonear, updateCita } from '../../lib/api';
-import type { ApiPaciente, Cita, Doctor, TelefonearPendiente } from '../../types/api';
+import { buscarHuecosLibres, createCita, createPaciente, getCitas, getDoctores, getPacientes, getTelefonear, updateCita } from '../../lib/api';
+import type { ApiPaciente, Cita, Doctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
 
 type SlotDraft = {
   day: string;
   slot: string;
   doctorId: string;
   pacienteId?: string;
+};
+
+type HuecoResultado = HuecoLibre & {
+  doctorNombre: string;
+  doctorColor: string | null;
 };
 
 const ESTADOS = [
@@ -60,14 +65,47 @@ function isoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysIso(day: string, days: number) {
+  const date = new Date(`${day}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return isoDate(date);
+}
+
 function slotIso(day: string, slot: string) {
   return `${day}T${slot}:00`;
+}
+
+function minutesFromTime(time: string) {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour * 60 + minute;
 }
 
 function addMinutes(time: string, minutes: number) {
   const [hour, minute] = time.split(':').map(Number);
   const total = hour * 60 + minute + minutes;
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function dateTimeLabel(value: string) {
+  return new Date(value).toLocaleString('es-ES', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function dateRangeIso(from: string, days: number) {
+  return Array.from({ length: Math.max(1, days) }, (_, index) => addDaysIso(from, index));
+}
+
+function overlaps(start: string, duration: number, cita: Cita) {
+  const slotStart = new Date(start).getTime();
+  const slotEnd = slotStart + duration * 60_000;
+  const citaStart = new Date(cita.fecha_hora).getTime();
+  const citaEnd = citaStart + cita.duracion_min * 60_000;
+  return slotStart < citaEnd && slotEnd > citaStart;
 }
 
 function getVisualStatus(cita: Cita) {
@@ -239,6 +277,172 @@ function CitaModal({
   );
 }
 
+function BuscarHuecoModal({
+  day,
+  doctorId,
+  pacientes,
+  doctores,
+  onClose,
+  onSelect,
+}: {
+  day: string;
+  doctorId: string;
+  pacientes: ApiPaciente[];
+  doctores: Doctor[];
+  onClose: () => void;
+  onSelect: (hueco: HuecoResultado, pacienteId?: string) => void;
+}) {
+  const [selectedDoctorId, setSelectedDoctorId] = useState(doctorId);
+  const [pacienteQuery, setPacienteQuery] = useState('');
+  const [pacienteId, setPacienteId] = useState(sessionStorage.getItem('dentorg_selected_patient_id') ?? '');
+  const [turno, setTurno] = useState<'todo' | 'manana' | 'tarde'>('todo');
+  const [fechaDesde, setFechaDesde] = useState(day);
+  const [dias, setDias] = useState('14');
+  const [duracion, setDuracion] = useState('30');
+  const [resultados, setResultados] = useState<HuecoResultado[]>([]);
+  const [error, setError] = useState('');
+  const [buscando, setBuscando] = useState(false);
+
+  const filteredPatients = useMemo(() => {
+    const q = pacienteQuery.trim().toLowerCase();
+    if (!q) return pacientes.slice(0, 30);
+    return pacientes.filter((paciente) =>
+      `${paciente.nombre} ${paciente.apellidos} ${paciente.telefono ?? ''} ${paciente.num_historial} ${paciente.codigo ?? ''}`
+        .toLowerCase()
+        .includes(q),
+    ).slice(0, 30);
+  }, [pacientes, pacienteQuery]);
+
+  async function search(event?: FormEvent) {
+    event?.preventDefault();
+    setError('');
+    const targets = selectedDoctorId ? doctores.filter((doctor) => doctor.id === selectedDoctorId) : doctores;
+    if (!targets.length) {
+      setError('No hay doctores activos para buscar huecos.');
+      return;
+    }
+    setBuscando(true);
+    try {
+      const hasta = addDaysIso(fechaDesde, Math.max(0, Number(dias || 1) - 1));
+      const duration = Number(duracion);
+      const responses = await Promise.all(targets.map(async (doctor) => {
+        const huecos = await buscarHuecosLibres({
+          doctor_id: doctor.id,
+          duracion_min: duration,
+          desde: `${fechaDesde}T00:00:00`,
+          hasta: `${hasta}T23:59:59`,
+          solo_manana: turno === 'manana',
+          solo_tarde: turno === 'tarde',
+          max_resultados: 20,
+        });
+        return huecos.map((hueco) => ({
+          ...hueco,
+          doctorNombre: doctor.nombre,
+          doctorColor: doctor.color_agenda,
+        }));
+      }));
+      let merged = responses.flat().sort((a, b) => a.fecha_hora_inicio.localeCompare(b.fecha_hora_inicio)).slice(0, 40);
+
+      if (!merged.length) {
+        const citas = await getCitas({ fecha_desde: `${fechaDesde}T00:00:00`, fecha_hasta: `${hasta}T23:59:59` });
+        const baseSlots = turno === 'manana'
+          ? ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30']
+          : turno === 'tarde'
+            ? ['15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00']
+            : ['09:00', '09:30', '10:00', '10:30', '11:30', '12:30', '15:00', '15:30', '16:00', '17:00', '18:00', '19:00'];
+        merged = dateRangeIso(fechaDesde, Number(dias || 1)).flatMap((date) => targets.flatMap((doctor) => baseSlots.map((slot) => ({
+          doctor_id: doctor.id,
+          fecha_hora_inicio: `${date}T${slot}:00`,
+          fecha_hora_fin: `${date}T${addMinutes(slot, duration)}:00`,
+          duracion_min: duration,
+          doctorNombre: doctor.nombre,
+          doctorColor: doctor.color_agenda,
+        })).filter((hueco) => !citas.some((cita) => cita.doctor_id === doctor.id && !['anulada', 'falta'].includes(cita.estado) && overlaps(hueco.fecha_hora_inicio, duration, cita))))).slice(0, 40);
+      }
+
+      setResultados(merged);
+    } catch (err) {
+      setError((err as Error).message || 'No se pudieron buscar huecos.');
+    } finally {
+      setBuscando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <form className="slot-search-modal" onSubmit={search} onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <div>
+            <strong>Buscar hueco libre</strong>
+            <span>Filtra por doctor, paciente, turno y rango de fechas.</span>
+          </div>
+          <button type="button" onClick={onClose}>Cerrar</button>
+        </header>
+
+        <div className="slot-search-grid">
+          <label>Doctor
+            <select value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)}>
+              <option value="">General - todos</option>
+              {doctores.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>)}
+            </select>
+          </label>
+          <label>Paciente
+            <input value={pacienteQuery} onChange={(event) => setPacienteQuery(event.target.value)} placeholder="Nombre, teléfono o historia" />
+          </label>
+          <label>Seleccionar paciente
+            <select value={pacienteId} onChange={(event) => setPacienteId(event.target.value)}>
+              <option value="">Sin paciente cargado</option>
+              {filteredPatients.map((paciente) => (
+                <option key={paciente.id} value={paciente.id}>{paciente.num_historial} - {paciente.apellidos}, {paciente.nombre}</option>
+              ))}
+            </select>
+          </label>
+          <label>Turno
+            <select value={turno} onChange={(event) => setTurno(event.target.value as typeof turno)}>
+              <option value="todo">Todo el día</option>
+              <option value="manana">Mañana</option>
+              <option value="tarde">Tarde</option>
+            </select>
+          </label>
+          <label>Desde<input type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} /></label>
+          <label>Lapso
+            <select value={dias} onChange={(event) => setDias(event.target.value)}>
+              <option value="1">Solo ese día</option>
+              <option value="3">3 días</option>
+              <option value="7">1 semana</option>
+              <option value="14">2 semanas</option>
+              <option value="30">1 mes</option>
+            </select>
+          </label>
+          <label>Duración
+            <select value={duracion} onChange={(event) => setDuracion(event.target.value)}>
+              {[10, 20, 30, 40, 50, 60, 90, 120].map((value) => <option key={value} value={value}>{value} min</option>)}
+            </select>
+          </label>
+          <button type="submit" disabled={buscando}>{buscando ? 'Buscando...' : 'Buscar'}</button>
+        </div>
+
+        <div className="slot-results">
+          {error && <p className="form-error">{error}</p>}
+          {!error && !resultados.length && <p>Elige los filtros y pulsa Buscar.</p>}
+          {resultados.map((hueco) => (
+            <button
+              type="button"
+              key={`${hueco.doctor_id}-${hueco.fecha_hora_inicio}`}
+              style={{ '--doctor-color': hueco.doctorColor ?? '#0f7cad' } as CSSProperties}
+              onClick={() => onSelect(hueco, pacienteId || undefined)}
+            >
+              <b>{dateTimeLabel(hueco.fecha_hora_inicio)}</b>
+              <span>{hueco.doctorNombre}</span>
+              <em>{hueco.duracion_min} min</em>
+            </button>
+          ))}
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function AgendaPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -247,6 +451,8 @@ export default function AgendaPage() {
   const [modalCita, setModalCita] = useState<Cita | null>(null);
   const [slotDraft, setSlotDraft] = useState<SlotDraft | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cita: Cita } | null>(null);
+  const [showBuscarHueco, setShowBuscarHueco] = useState(false);
+  const [now, setNow] = useState(new Date());
 
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
   const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
@@ -317,8 +523,13 @@ export default function AgendaPage() {
     },
   });
 
-  const slots = Array.from({ length: 46 }, (_, i) => {
-    const totalMinutes = 13 * 60 + i * 10;
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const slots = Array.from({ length: 70 }, (_, i) => {
+    const totalMinutes = 9 * 60 + i * 10;
     const hour = Math.floor(totalMinutes / 60);
     const minute = totalMinutes % 60;
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -330,11 +541,20 @@ export default function AgendaPage() {
   const doctores = doctoresQuery.data ?? [];
   const pacientes = pacientesQuery.data ?? [];
   const doctorById = useMemo(() => new Map(doctores.map((doctor) => [doctor.id, doctor])), [doctores]);
+  const nowDay = isoDate(now);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const visibleStart = minutesFromTime(slots[0]);
+  const visibleEnd = minutesFromTime(addMinutes(slots[slots.length - 1], 10));
+  const showNowLine = day === nowDay && nowMinutes >= visibleStart && nowMinutes <= visibleEnd;
+  const nowSlot = slots.find((slot) => {
+    const start = minutesFromTime(slot);
+    return nowMinutes >= start && nowMinutes < start + 10;
+  });
 
-  function openNew(slot: string, pacienteId?: string) {
+  function openNew(slot: string, pacienteId?: string, targetDay = day, targetDoctorId = doctorId || doctores[0]?.id || '') {
     setContextMenu(null);
     setModalCita(null);
-    setSlotDraft({ day, slot, doctorId: doctorId || doctores[0]?.id || '', pacienteId });
+    setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId });
   }
 
   function openPatient(cita: Cita) {
@@ -373,9 +593,7 @@ export default function AgendaPage() {
   }
 
   function buscarHuecoLibre() {
-    const occupied = new Set((citasQuery.data ?? []).map((cita) => cita.fecha_hora.slice(11, 16)));
-    const slot = slots.find((item) => !occupied.has(item));
-    if (slot) openNew(slot);
+    setShowBuscarHueco(true);
   }
 
   function verOcupacion() {
@@ -481,6 +699,14 @@ export default function AgendaPage() {
                     openNew(slot, parsed.pacienteId);
                   }}
                 >
+                  {showNowLine && nowSlot === slot && (
+                    <div
+                      className="agenda-now-line"
+                      style={{ '--now-offset': `${((nowMinutes - minutesFromTime(slot)) / 10) * 100}%` } as CSSProperties}
+                    >
+                      <span>{now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  )}
                   {citasSlot.map((cita) => {
                     const visual = STATUS_META[getVisualStatus(cita)] ?? STATUS_META.programada;
                     return (
@@ -521,6 +747,24 @@ export default function AgendaPage() {
           onClose={() => { setModalCita(null); setSlotDraft(null); }}
           onSubmit={(data) => saveMutation.mutate(data)}
           onCreateTemporaryPaciente={(data) => createTempPatient.mutateAsync(data)}
+        />
+      )}
+
+      {showBuscarHueco && (
+        <BuscarHuecoModal
+          day={day}
+          doctorId={doctorId}
+          pacientes={pacientes}
+          doctores={doctores}
+          onClose={() => setShowBuscarHueco(false)}
+          onSelect={(hueco, pacienteId) => {
+            const targetDay = hueco.fecha_hora_inicio.slice(0, 10);
+            const targetSlot = hueco.fecha_hora_inicio.slice(11, 16);
+            setDay(targetDay);
+            setDoctorId(hueco.doctor_id);
+            setShowBuscarHueco(false);
+            openNew(targetSlot, pacienteId, targetDay, hueco.doctor_id);
+          }}
         />
       )}
 

@@ -12,6 +12,7 @@ import type {
   FormaPago,
   HistorialClinico,
   HorarioDoctor,
+  HuecoLibre,
   Laboratorio,
   OdontogramaPlan,
   PlantillaConsentimiento,
@@ -34,6 +35,12 @@ export const api = axios.create({
 
 export const AUTH_TOKEN_KEY = 'dentorg_token';
 const DEMO_TOKEN_PREFIX = 'demo:';
+
+function addMinutesLocal(time: string, minutes: number) {
+  const [hour, minute] = time.split(':').map(Number);
+  const total = hour * 60 + minute + minutes;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
 
 export function getStoredAuthToken() {
   return sessionStorage.getItem(AUTH_TOKEN_KEY) ?? localStorage.getItem(AUTH_TOKEN_KEY);
@@ -616,6 +623,29 @@ export async function getCitas(params: Record<string, string>) {
     return true;
   });
   return withDemoFallback(api.get<Cita[]>('/citas', { params }), filtered);
+}
+
+export async function buscarHuecosLibres(params: {
+  doctor_id: string;
+  duracion_min: number;
+  desde: string;
+  hasta: string;
+  solo_manana?: boolean;
+  solo_tarde?: boolean;
+  max_resultados?: number;
+}) {
+  const day = params.desde.slice(0, 10);
+  const fallbackSlots = params.solo_tarde
+    ? ['15:00', '15:30', '16:00', '16:30', '17:00', '18:00']
+    : params.solo_manana
+      ? ['09:00', '09:30', '10:00', '10:30', '11:30', '12:00']
+      : ['09:00', '09:30', '10:00', '11:00', '15:00', '16:00'];
+  return withDemoFallback(api.get<HuecoLibre[]>('/citas/buscar-hueco', { params }), fallbackSlots.slice(0, params.max_resultados ?? 20).map((slot) => ({
+    doctor_id: params.doctor_id,
+    fecha_hora_inicio: `${day}T${slot}:00`,
+    fecha_hora_fin: `${day}T${addMinutesLocal(slot, params.duracion_min)}:00`,
+    duracion_min: params.duracion_min,
+  })));
 }
 
 export async function createCita(data: {
