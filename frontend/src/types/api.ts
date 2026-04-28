@@ -148,6 +148,13 @@ export interface Cita {
   doctor?: { nombre: string; color_agenda: string | null };
 }
 
+export interface HuecoLibre {
+  doctor_id: string;
+  fecha_hora_inicio: string;
+  fecha_hora_fin: string;
+  duracion_min: number;
+}
+
 export interface TelefonearPendiente {
   id: string;
   paciente: { nombre: string; apellidos: string; telefono: string | null } | null;
