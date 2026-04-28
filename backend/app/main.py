@@ -8,6 +8,7 @@ from app.config import get_settings
 from app.core.audit import AuditLogMiddleware
 from app.core.http_security import SecurityHeadersMiddleware
 from app.api import auth, pacientes, citas, doctores, tratamientos, presupuestos, facturas, reportes, admin, pdf, documentos, laboratorio, consentimientos, clinicas, inventario, sync_import
+from app.services.backup_scheduler import start_backup_scheduler
 
 settings = get_settings()
 
@@ -15,6 +16,7 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    start_backup_scheduler()
     yield
     # Shutdown
 
