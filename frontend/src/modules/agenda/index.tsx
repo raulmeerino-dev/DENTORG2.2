@@ -613,6 +613,28 @@ export default function AgendaPage() {
     recordatorioMutation.mutate({ cita, canal });
   }
 
+  function copiarTelefono(cita: Cita) {
+    const telefono = cita.paciente?.telefono;
+    if (!telefono) {
+      window.alert('Esta cita no tiene telefono de paciente.');
+      setContextMenu(null);
+      return;
+    }
+    void navigator.clipboard?.writeText(telefono);
+    setContextMenu(null);
+  }
+
+  function reprogramarCita(cita: Cita) {
+    setModalCita(cita);
+    setContextMenu(null);
+  }
+
+  async function iniciarVideoDesdeMenu(cita: Cita) {
+    const url = await videoMutation.mutateAsync(cita);
+    window.open(url, '_blank');
+    setContextMenu(null);
+  }
+
   function buscarCita() {
     const query = window.prompt('Buscar cita por paciente o tratamiento');
     if (!query) return;
@@ -806,18 +828,25 @@ export default function AgendaPage() {
 
       {contextMenu && (
         <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
-          <button onClick={() => setModalCita(contextMenu.cita)}>Editar cita</button>
+          <strong>Agenda</strong>
+          <button onClick={() => { setModalCita(contextMenu.cita); setContextMenu(null); }}>Editar cita</button>
           <button onClick={() => openPatient(contextMenu.cita)}>Abrir ficha del paciente</button>
+          <button onClick={() => reprogramarCita(contextMenu.cita)}>Reprogramar / cambiar hora</button>
+          <button onClick={() => copiarTelefono(contextMenu.cita)}>Copiar telefono</button>
+          <button onClick={() => void iniciarVideoDesdeMenu(contextMenu.cita)}>Iniciar videollamada</button>
+          <span />
           <button onClick={() => setStatus(contextMenu.cita, 'confirmada')}>Confirmar cita</button>
           <button onClick={() => setStatus(contextMenu.cita, 'programada')}>Pendiente de confirmar</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Mensaje enviado</button>
           <button onClick={() => setStatus(contextMenu.cita, 'en_clinica')}>Paciente en clinica</button>
           <button onClick={() => setStatus(contextMenu.cita, 'en_clinica', 'En tratamiento')}>En tratamiento</button>
           <button onClick={() => setStatus(contextMenu.cita, 'atendida')}>Finalizada</button>
+          <span />
           <button onClick={() => cancelCita(contextMenu.cita, 'anulada')}>Cancelar cita</button>
           <button onClick={() => cancelCita(contextMenu.cita, 'falta')}>No asistio</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Recordatorio WhatsApp</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'email')}>Recordatorio email</button>
+          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'ambos')}>Recordatorio WhatsApp + email</button>
         </div>
       )}
     </section>
