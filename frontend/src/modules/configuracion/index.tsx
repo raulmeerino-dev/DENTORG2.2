@@ -4,11 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLE_LABELS, WORKFLOW_ITEMS, canRoleAccess } from '../../config/workflow';
 import {
+  crearBackup,
   createDoctor,
   createFamiliaTratamiento,
   createTratamientoCatalogo,
   deactivateTratamientoCatalogo,
   getDoctores,
+  getBackups,
   getFamiliasTratamiento,
   getFormasPago,
   getHorarios,
@@ -17,6 +19,7 @@ import {
   updateDoctor,
   updateHorarioDoctor,
   updateTratamientoCatalogo,
+  verificarBackup,
 } from '../../lib/api';
 import type { Doctor, HorarioDoctor, TratamientoCatalogo } from '../../types/api';
 
@@ -192,6 +195,7 @@ export default function ConfiguracionPage() {
   const tratamientosQuery = useQuery({ queryKey: ['tratamientos-catalogo'], queryFn: () => getTratamientosCatalogo({ solo_activos: true }) });
   const laboratoriosQuery = useQuery({ queryKey: ['laboratorios'], queryFn: () => getLaboratorios({ solo_activos: true }) });
   const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
+  const backupsQuery = useQuery({ queryKey: ['backups'], queryFn: getBackups, enabled: tab === 'seguridad' });
 
   const isAdmin = user?.rol === 'admin';
   const canEditClinical = canRoleAccess(user?.rol, ['admin', 'doctor']);
@@ -304,6 +308,16 @@ export default function ConfiguracionPage() {
       setTratamientoForm((prev) => ({ ...prev, familia_id: familia.id }));
       void queryClient.invalidateQueries({ queryKey: ['familias-tratamiento'] });
     },
+  });
+
+  const crearBackupMutation = useMutation({
+    mutationFn: crearBackup,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['backups'] }),
+  });
+
+  const verificarBackupMutation = useMutation({
+    mutationFn: verificarBackup,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['backups'] }),
   });
 
   return (
@@ -597,15 +611,42 @@ export default function ConfiguracionPage() {
 
       {tab === 'seguridad' && (
         <section className="desk-panel security-map">
-          <div className="panel-caption"><strong>Seguridad, privacidad y copias</strong><AccessPill allowed={isAdmin} /></div>
+          <div className="panel-caption">
+            <strong>Seguridad, privacidad y copias</strong>
+            <AccessPill allowed={isAdmin} />
+            <button disabled={!isAdmin || crearBackupMutation.isPending} onClick={() => crearBackupMutation.mutate()}>
+              Crear backup cifrado
+            </button>
+          </div>
           <div className="security-grid">
             <div><strong>Accesos</strong><span>Usuarios por rol, sesiones con caducidad, bloqueo por intentos y permisos por modulo.</span><em>Activo</em></div>
             <div><strong>Historia clinica</strong><span>Acceso restringido, auditoria de lectura y separacion entre notas generales y clinicas.</span><em>Reforzado</em></div>
             <div><strong>Archivos medicos</strong><span>Subida validada por firma real de archivo, limite de tamano y descarga sin cache.</span><em>Protegido</em></div>
-            <div><strong>Backups</strong><span>Preparado para diario completo, cifrado, registro de estado y prueba de restauracion.</span><em>Pendiente tarea</em></div>
+            <div><strong>Backups</strong><span>Archivo cifrado, hash SHA-256, registro de estado y verificacion de restaurabilidad.</span><em>Activo</em></div>
             <div><strong>Facturacion</strong><span>Facturas selladas sin borrado destructivo, RF encadenado y PDF fiscal persistido.</span><em>SIF</em></div>
             <div><strong>Auditoria</strong><span>Registro de acciones criticas, accesos a datos sensibles y cambios de agenda/documentos.</span><em>Activo</em></div>
           </div>
+          <table className="euro-table backup-table">
+            <thead><tr><th>Inicio</th><th>Estado</th><th>Tamaño</th><th>Cifrado</th><th>Hash</th><th></th></tr></thead>
+            <tbody>
+              {(backupsQuery.data ?? []).map((backup) => (
+                <tr key={backup.id}>
+                  <td>{new Date(backup.started_at).toLocaleString('es-ES')}</td>
+                  <td>{backup.estado}</td>
+                  <td>{backup.tamano_bytes ? `${Math.round(backup.tamano_bytes / 1024)} KB` : '-'}</td>
+                  <td>{backup.cifrado ? 'Si' : 'No'}</td>
+                  <td>{backup.hash_sha256 ? backup.hash_sha256.slice(0, 12) : backup.error ?? '-'}</td>
+                  <td><button disabled={!isAdmin || verificarBackupMutation.isPending} onClick={() => verificarBackupMutation.mutate(backup.id)}>Verificar</button></td>
+                </tr>
+              ))}
+              {!backupsQuery.isLoading && !(backupsQuery.data ?? []).length && <tr><td colSpan={6}>No hay copias registradas.</td></tr>}
+            </tbody>
+          </table>
+          {verificarBackupMutation.data && (
+            <p className={verificarBackupMutation.data.ok ? 'form-success' : 'form-error'}>
+              {verificarBackupMutation.data.ok ? `Backup correcto: ${verificarBackupMutation.data.tablas} tablas verificadas.` : `Backup no válido: ${verificarBackupMutation.data.motivo}`}
+            </p>
+          )}
         </section>
       )}
 

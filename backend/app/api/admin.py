@@ -18,10 +18,13 @@ from app.core.security import hash_password
 from app.database import get_db
 from app.models.entidad import Entidad
 from app.models.factura import Factura
+from app.models.backup import BackupRegistro
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.usuario import Usuario
 from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
+from app.schemas.extras import BackupRegistroResponse
+from app.services.backup_service import crear_backup_cifrado, verificar_backup_archivo
 from app.services.verifactu_service import registrar_evento_sif
 from app.services.verifactu_service import obtener_resumen_cumplimiento_sif
 
@@ -287,3 +290,33 @@ async def exportar_cumplimiento_sif(
         media_type="application/json",
         headers={"Content-Disposition": 'attachment; filename="cumplimiento_sif.json"'},
     )
+
+
+@router.get("/backups", response_model=list[BackupRegistroResponse], dependencies=[RequireAdmin])
+async def listar_backups(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[BackupRegistroResponse]:
+    result = await db.execute(select(BackupRegistro).order_by(BackupRegistro.started_at.desc()).limit(50))
+    return [BackupRegistroResponse.model_validate(item) for item in result.scalars().all()]
+
+
+@router.post("/backups", response_model=BackupRegistroResponse, status_code=201, dependencies=[RequireAdmin])
+async def crear_backup(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> BackupRegistroResponse:
+    registro = await crear_backup_cifrado(db, created_by_id=current_user.user_id)
+    await db.commit()
+    await db.refresh(registro)
+    return BackupRegistroResponse.model_validate(registro)
+
+
+@router.get("/backups/{backup_id}/verificar", dependencies=[RequireAdmin])
+async def verificar_backup(
+    backup_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    registro = await db.get(BackupRegistro, backup_id)
+    if not registro:
+        raise HTTPException(status_code=404, detail="Backup no encontrado")
+    return verificar_backup_archivo(registro)

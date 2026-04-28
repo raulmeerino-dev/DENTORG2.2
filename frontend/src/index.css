@@ -224,6 +224,12 @@ a {
   color: var(--red);
 }
 
+.form-success {
+  margin: 0;
+  color: #167245;
+  font-weight: 700;
+}
+
 .patient-screen {
   height: calc(100vh - 96px);
   min-height: 620px;
@@ -2413,6 +2419,15 @@ body {
   font-style: normal;
   font-weight: 800;
   font-size: 11px;
+}
+
+.backup-table {
+  margin-top: 14px;
+}
+
+.backup-table td:nth-child(5) {
+  font-family: Consolas, monospace;
+  font-size: .82rem;
 }
 
 @media (max-width: 1180px) {

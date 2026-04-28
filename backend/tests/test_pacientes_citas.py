@@ -128,3 +128,18 @@ async def test_inventario_registra_movimientos(client: AsyncClient, db_session: 
         json={"tipo": "salida", "cantidad": 99},
     )
     assert exceso.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_backup_cifrado_y_verificable(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers(client, db_session)
+    created = await client.post("/api/admin/backups", headers=headers)
+    assert created.status_code == 201
+    backup = created.json()
+    assert backup["estado"] == "correcto"
+    assert backup["cifrado"] is True
+    assert backup["hash_sha256"]
+
+    verified = await client.get(f"/api/admin/backups/{backup['id']}/verificar", headers=headers)
+    assert verified.status_code == 200
+    assert verified.json()["ok"] is True

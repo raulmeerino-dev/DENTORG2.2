@@ -2,6 +2,7 @@ import axios from 'axios';
 import type { AxiosError } from 'axios';
 import type {
   ApiPaciente,
+  BackupRegistro,
   Cita,
   Clinica,
   Consentimiento,
@@ -973,6 +974,20 @@ export async function getIngresosReporte(desde: string, hasta: string) {
     pac: 6789,
     seg: 4556,
   });
+}
+
+export async function getBackups() {
+  return withDemoFallback(api.get<BackupRegistro[]>('/admin/backups'), []);
+}
+
+export async function crearBackup() {
+  const { data } = await api.post<BackupRegistro>('/admin/backups');
+  return data;
+}
+
+export async function verificarBackup(backupId: string) {
+  const { data } = await api.get<{ ok: boolean; motivo?: string; hash_actual?: string; tamano_bytes?: number; tablas?: number; created_at?: string }>(`/admin/backups/${backupId}/verificar`);
+  return data;
 }
 
 export function recetaPdfUrl(facturaId: string) {
