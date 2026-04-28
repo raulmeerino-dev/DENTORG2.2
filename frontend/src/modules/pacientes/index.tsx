@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import OdontogramaPlanView from '../../components/OdontogramaPlan';
 import {
   addPresupuestoLinea,
@@ -40,14 +40,26 @@ type TreatmentVisual = { codigo?: string | null; nombre?: string | null; familia
 
 const WORK_TABS: Array<{ id: WorkTab; label: string; icon: string }> = [
   { id: 'pacientes', label: 'Pacientes', icon: 'PA' },
-  { id: 'realizados', label: 'Tratamientos Realizados', icon: 'TR' },
-  { id: 'pendiente', label: 'Trabajo Pendiente', icon: 'TP' },
-  { id: 'presupuestos', label: 'Presupuestos', icon: 'PR' },
   { id: 'primera', label: 'Primera Visita', icon: '1' },
-  { id: 'facturacion', label: 'Historial Facturacion', icon: 'HF' },
+  { id: 'presupuestos', label: 'Presupuestos', icon: 'PR' },
+  { id: 'pendiente', label: 'Tratamientos Pendientes', icon: 'TP' },
+  { id: 'realizados', label: 'Tratamientos Realizados', icon: 'TR' },
+  { id: 'facturacion', label: 'Historial / Facturacion', icon: 'HF' },
 ];
 
 type DocumentDesignerMode = 'consentimiento' | 'circular';
+type PrimeraVisitaData = {
+  fecha?: string;
+  motivo?: string;
+  dientes_ausentes?: string;
+  implantes_previos?: string;
+  protesis_previas?: string;
+  caries_visibles?: string;
+  periodontal?: string;
+  higiene?: string;
+  plan_recomendado?: string;
+  observaciones_boca?: string;
+};
 
 const CONSENTIMIENTO_TEXTOS: Record<string, string> = {
   Implantes: 'Yo, {{paciente}}, he sido informado/a por la clinica sobre el tratamiento de implantes dentales, sus beneficios, alternativas, cuidados posteriores y posibles complicaciones. Declaro haber podido preguntar mis dudas y autorizo la realizacion del tratamiento indicado.',
@@ -157,6 +169,39 @@ function money(value: string | number) {
 function fullName(paciente?: ApiPaciente | null) {
   if (!paciente) return '';
   return `${paciente.nombre} ${paciente.apellidos}`.trim();
+}
+
+function getPrimeraVisita(paciente?: ApiPaciente | null): PrimeraVisitaData {
+  const data = paciente?.datos_salud?.primera_visita;
+  if (data && typeof data === 'object' && !Array.isArray(data)) return data as PrimeraVisitaData;
+  return {
+    fecha: new Date().toISOString().slice(0, 10),
+    motivo: '',
+    dientes_ausentes: '',
+    implantes_previos: '',
+    protesis_previas: '',
+    caries_visibles: '',
+    periodontal: '',
+    higiene: '',
+    plan_recomendado: '',
+    observaciones_boca: '',
+  };
+}
+
+function hasFinishedState(value?: string | null) {
+  const estado = normalizeText(value);
+  return estado.includes('realizado') || estado.includes('facturado') || estado.includes('cobrado') || estado.includes('atendido') || estado.includes('finalizado');
+}
+
+function findCitaForTreatment(citas: Cita[], linea: PresupuestoLinea) {
+  const target = normalizeText(linea.tratamiento?.nombre);
+  if (!target) return null;
+  return citas.find((cita) => {
+    const estado = normalizeText(cita.estado);
+    const motivo = normalizeText(cita.motivo);
+    if (estado.includes('anulada') || estado.includes('falta') || estado.includes('cancel')) return false;
+    return Boolean(motivo) && (motivo.includes(target) || target.includes(motivo));
+  }) ?? null;
 }
 
 function renderTemplate(text: string, paciente: ApiPaciente) {
@@ -694,6 +739,175 @@ function ClinicalHistoryPanel({ historial, onFacturar, onCobrar, onVerDeuda, onA
   );
 }
 
+function PrimeraVisitaPanel({
+  paciente,
+  onSave,
+  saving,
+}: {
+  paciente: ApiPaciente | null;
+  onSave: (data: PrimeraVisitaData) => void;
+  saving: boolean;
+}) {
+  const [data, setData] = useState<PrimeraVisitaData>(() => getPrimeraVisita(paciente));
+
+  useEffect(() => {
+    setData(getPrimeraVisita(paciente));
+  }, [paciente?.id, paciente?.datos_salud]);
+
+  function update<K extends keyof PrimeraVisitaData>(key: K, value: PrimeraVisitaData[K]) {
+    setData((current) => ({ ...current, [key]: value }));
+  }
+
+  return (
+    <section className="desk-panel first-visit-panel">
+      <div className="panel-caption">
+        <strong>Primera visita</strong>
+        <span>Estado inicial de la boca. Se guarda como base clinica y no sustituye al historial diario.</span>
+        <button onClick={() => onSave(data)} disabled={!paciente || saving}>Guardar base</button>
+      </div>
+      <div className="first-visit-grid">
+        <label>Fecha primera visita
+          <input type="date" value={data.fecha ?? ''} onChange={(event) => update('fecha', event.target.value)} disabled={!paciente} />
+        </label>
+        <label>Motivo de consulta
+          <input value={data.motivo ?? ''} onChange={(event) => update('motivo', event.target.value)} disabled={!paciente} />
+        </label>
+        <label>Dientes ausentes
+          <textarea value={data.dientes_ausentes ?? ''} onChange={(event) => update('dientes_ausentes', event.target.value)} disabled={!paciente} placeholder="Ej. 18, 36, 46..." />
+        </label>
+        <label>Implantes ya existentes
+          <textarea value={data.implantes_previos ?? ''} onChange={(event) => update('implantes_previos', event.target.value)} disabled={!paciente} placeholder="Implantes previos, coronas sobre implante, aditamentos..." />
+        </label>
+        <label>Protesis, coronas o puentes previos
+          <textarea value={data.protesis_previas ?? ''} onChange={(event) => update('protesis_previas', event.target.value)} disabled={!paciente} />
+        </label>
+        <label>Caries o reconstrucciones visibles
+          <textarea value={data.caries_visibles ?? ''} onChange={(event) => update('caries_visibles', event.target.value)} disabled={!paciente} />
+        </label>
+        <label>Estado periodontal
+          <textarea value={data.periodontal ?? ''} onChange={(event) => update('periodontal', event.target.value)} disabled={!paciente} />
+        </label>
+        <label>Higiene y mucosas
+          <textarea value={data.higiene ?? ''} onChange={(event) => update('higiene', event.target.value)} disabled={!paciente} />
+        </label>
+        <label className="wide">Plan recomendado inicial
+          <textarea value={data.plan_recomendado ?? ''} onChange={(event) => update('plan_recomendado', event.target.value)} disabled={!paciente} />
+        </label>
+        <label className="wide">Observaciones especificas de la boca
+          <textarea value={data.observaciones_boca ?? ''} onChange={(event) => update('observaciones_boca', event.target.value)} disabled={!paciente} />
+        </label>
+      </div>
+    </section>
+  );
+}
+
+function TrabajoPendientePanel({
+  presupuestos,
+  citas,
+  onDarCita,
+}: {
+  presupuestos: Presupuesto[];
+  citas: Cita[];
+  onDarCita: (linea: PresupuestoLinea) => void;
+}) {
+  const rows = presupuestos.flatMap((presupuesto) => (
+    presupuesto.lineas
+      .filter((linea) => linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
+      .map((linea) => ({ presupuesto, linea, cita: findCitaForTreatment(citas, linea) }))
+  ));
+
+  return (
+    <section className="desk-panel">
+      <div className="panel-caption">
+        <strong>Tratamientos pendientes</strong>
+        <span>Solo trabajos aceptados o pasados a pendiente; muestra si ya tienen cita.</span>
+      </div>
+      <table className="euro-table">
+        <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Importe</th><th>Cita</th><th>Estado</th><th>Accion</th></tr></thead>
+        <tbody>
+          {rows.map(({ presupuesto, linea, cita }) => (
+            <tr key={linea.id} className="treatment-coded-row" style={{ '--treatment-color': colorForTreatment(linea.tratamiento) } as CSSProperties}>
+              <td>{presupuesto.numero}</td>
+              <td><TreatmentBadge tratamiento={linea.tratamiento} /></td>
+              <td>{linea.tratamiento?.nombre ?? 'Tratamiento'}</td>
+              <td>{linea.pieza_dental ?? ''}</td>
+              <td className="num">{money(linea.importe_neto)}</td>
+              <td>{cita ? `${formatDate(cita.fecha_hora)} ${cita.fecha_hora.slice(11, 16)}` : 'Sin cita'}</td>
+              <td>{cita ? cita.estado : (linea.aceptado ? 'Aceptado' : 'Pendiente')}</td>
+              <td><button onClick={() => onDarCita(linea)}>Dar cita</button></td>
+            </tr>
+          ))}
+          {!rows.length && <tr><td colSpan={8}>Sin tratamientos pendientes aceptados.</td></tr>}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function TratamientosRealizadosPanel({
+  historial,
+  consentimientos,
+  presupuestos,
+  doctorName,
+  doctorColor,
+  tratamientos,
+}: {
+  historial: HistorialClinico[];
+  consentimientos: Consentimiento[];
+  presupuestos: Presupuesto[];
+  doctorName: string;
+  doctorColor?: string | null;
+  tratamientos: TratamientoCatalogo[];
+}) {
+  const realizados = historial.filter((entrada) => hasFinishedState(entrada.estado));
+
+  function consentimientoFor(entrada: HistorialClinico) {
+    const tratamiento = normalizeText(entrada.tratamiento?.nombre);
+    return consentimientos.find((item) => (
+      (entrada.tratamiento_id && item.tratamiento_id === entrada.tratamiento_id)
+      || (tratamiento && normalizeText(item.tipo).includes(tratamiento))
+    ));
+  }
+
+  return (
+    <div className="realizados-workspace">
+      <section className="desk-panel">
+        <div className="panel-caption">
+          <strong>Tratamientos realizados</strong>
+          <span>Trabajo terminado con fecha, precio, pieza y consentimiento cuando procede.</span>
+        </div>
+        <table className="euro-table">
+          <thead><tr><th>Fecha</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Doctor</th><th>Precio</th><th>Factura</th><th>Consentimiento</th></tr></thead>
+          <tbody>
+            {realizados.map((entrada) => {
+              const consentimiento = consentimientoFor(entrada);
+              return (
+                <tr key={entrada.id} className="treatment-coded-row" style={{ '--treatment-color': colorForTreatment(entrada.tratamiento) } as CSSProperties}>
+                  <td>{formatDate(entrada.fecha)}</td>
+                  <td><TreatmentBadge tratamiento={entrada.tratamiento} /></td>
+                  <td>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</td>
+                  <td>{entrada.pieza_dental ?? ''}</td>
+                  <td>{entrada.doctor?.nombre ?? ''}</td>
+                  <td className="num">{entrada.importe ? money(entrada.importe) : ''}</td>
+                  <td>{entrada.factura_id ? 'Vinculada' : 'Pendiente'}</td>
+                  <td>{consentimiento ? consentimiento.estado : 'No adjunto'}</td>
+                </tr>
+              );
+            })}
+            {!realizados.length && <tr><td colSpan={8}>Sin tratamientos realizados en historial.</td></tr>}
+          </tbody>
+        </table>
+      </section>
+      <TreatmentBoard
+        presupuestos={presupuestos}
+        doctorName={doctorName}
+        doctorColor={doctorColor}
+        tratamientos={tratamientos}
+      />
+    </div>
+  );
+}
+
 function CitasPacientePanel({ citas }: { citas: Cita[] }) {
   return (
     <section className="desk-panel">
@@ -996,6 +1210,7 @@ function LaboratorioPacientePanel({ trabajos }: { trabajos: TrabajoLaboratorio[]
 
 export default function PacientesPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selected, setSelected] = useState<ApiPaciente | null>(null);
   const [tab, setTab] = useState<WorkTab>('pacientes');
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
@@ -1160,6 +1375,23 @@ export default function PacientesPage() {
     },
   });
 
+  const guardarPrimeraVisita = useMutation({
+    mutationFn: async (data: PrimeraVisitaData) => {
+      if (!active) throw new Error('Sin paciente');
+      return updatePaciente(active.id, {
+        datos_salud: {
+          ...(active.datos_salud ?? {}),
+          primera_visita: data,
+        },
+      });
+    },
+    onSuccess: (paciente) => {
+      setSelected(paciente);
+      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', paciente.id] });
+      void pacientesQuery.refetch();
+    },
+  });
+
   function focusPacienteSearch() {
     setTab('pacientes');
     window.setTimeout(() => document.getElementById('patient-search-input')?.focus(), 0);
@@ -1190,6 +1422,14 @@ export default function PacientesPage() {
 
   function abrirEnlaces() {
     setTab('documentos');
+  }
+
+  function darCitaParaTratamiento(linea: PresupuestoLinea) {
+    if (!active) return;
+    sessionStorage.setItem('dentorg_selected_patient_id', active.id);
+    sessionStorage.setItem('dentorg_selected_patient_name', fullName(active));
+    sessionStorage.setItem('dentorg_selected_treatment', linea.tratamiento?.nombre ?? 'Tratamiento dental');
+    navigate('/agenda');
   }
 
   return (
@@ -1231,7 +1471,9 @@ export default function PacientesPage() {
       <main className="patient-desk">
         {tab === 'pacientes' && <PatientForm paciente={active} facturas={facturas} />}
         {tab === 'realizados' && (
-          <TreatmentBoard
+          <TratamientosRealizadosPanel
+            historial={historialQuery.data ?? []}
+            consentimientos={consentimientosQuery.data ?? []}
             presupuestos={presupuestos}
             doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
             doctorColor={doctoresQuery.data?.[0]?.color_agenda}
@@ -1239,26 +1481,11 @@ export default function PacientesPage() {
           />
         )}
         {tab === 'pendiente' && (
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Trabajo pendiente</strong><span>Lineas planificadas o aceptadas pendientes de realizar</span></div>
-            <table className="euro-table">
-              <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Caras</th><th>Importe</th><th>Estado</th></tr></thead>
-              <tbody>
-                {presupuestos.flatMap((presupuesto) => presupuesto.lineas.map((linea) => (
-                  <tr key={linea.id} className="treatment-coded-row" style={{ '--treatment-color': colorForTreatment(linea.tratamiento) } as CSSProperties}>
-                    <td>{presupuesto.numero}</td>
-                    <td><TreatmentBadge tratamiento={linea.tratamiento} /></td>
-                    <td>{linea.tratamiento?.nombre ?? 'Tratamiento'}</td>
-                    <td>{linea.pieza_dental ?? ''}</td>
-                    <td>{linea.caras ?? ''}</td>
-                    <td className="num">{money(linea.importe_neto)}</td>
-                    <td>{linea.aceptado ? 'Aceptado' : 'Planificado'}</td>
-                  </tr>
-                )))}
-                {!presupuestos.length && <tr><td colSpan={7}>Sin trabajo pendiente.</td></tr>}
-              </tbody>
-            </table>
-          </section>
+          <TrabajoPendientePanel
+            presupuestos={presupuestos}
+            citas={citasPacienteQuery.data ?? []}
+            onDarCita={darCitaParaTratamiento}
+          />
         )}
         {tab === 'presupuestos' && (
           <>
@@ -1275,13 +1502,11 @@ export default function PacientesPage() {
           </>
         )}
         {tab === 'primera' && (
-          <section className="desk-panel first-visit-grid">
-            <div className="panel-caption"><strong>Primera visita</strong><span>Revision inicial y notas clinicas</span></div>
-            <TextBox label="Motivo de consulta" value="" />
-            <TextBox label="Antecedentes" value={active?.datos_salud ? JSON.stringify(active.datos_salud) : ''} />
-            <TextBox label="Plan recomendado" value="" />
-            <TextBox label="Observaciones" value={active?.observaciones} />
-          </section>
+          <PrimeraVisitaPanel
+            paciente={active}
+            onSave={(data) => guardarPrimeraVisita.mutate(data)}
+            saving={guardarPrimeraVisita.isPending}
+          />
         )}
         {tab === 'historial' && (
           <ClinicalHistoryPanel
@@ -1294,12 +1519,21 @@ export default function PacientesPage() {
         )}
         {tab === 'citas' && <CitasPacientePanel citas={citasPacienteQuery.data ?? []} />}
         {tab === 'facturacion' && (
-          <BillingHistory
-            facturas={facturas}
-            onCobrar={() => cobrarFactura.mutate()}
-            onOrtodoncia={() => setTab('realizados')}
-            onRecibos={abrirRecibos}
-          />
+          <div className="historial-facturacion-workspace">
+            <ClinicalHistoryPanel
+              historial={historialQuery.data ?? []}
+              onFacturar={() => emitirFactura.mutate()}
+              onCobrar={() => cobrarFactura.mutate()}
+              onVerDeuda={verSaldoPaciente}
+              onAsociarFactura={asociarFactura}
+            />
+            <BillingHistory
+              facturas={facturas}
+              onCobrar={() => cobrarFactura.mutate()}
+              onOrtodoncia={() => setTab('realizados')}
+              onRecibos={abrirRecibos}
+            />
+          </div>
         )}
         {tab === 'consentimientos' && (
           <ConsentimientosPanel

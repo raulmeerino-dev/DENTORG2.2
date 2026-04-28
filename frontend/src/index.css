@@ -2739,7 +2739,7 @@ body {
 }
 
 .patient-command-row {
-  grid-template-columns: minmax(420px, 1fr) repeat(3, 112px);
+  grid-template-columns: minmax(420px, 1fr) repeat(4, 112px);
   padding: 6px 8px;
 }
 
@@ -2768,6 +2768,102 @@ body {
   border: 1px solid #bfd0da;
   border-radius: 8px;
   padding: 4px 8px;
+}
+
+.first-visit-panel .panel-caption {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.first-visit-grid label {
+  display: grid;
+  gap: 5px;
+  color: #3b5263;
+  font-weight: 700;
+}
+
+.first-visit-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.first-visit-grid input,
+.first-visit-grid textarea {
+  min-height: 34px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #ffffff;
+}
+
+.first-visit-grid textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+
+.realizados-workspace {
+  display: grid;
+  grid-template-rows: auto minmax(430px, 1fr);
+  gap: 10px;
+}
+
+.historial-facturacion-workspace {
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(320px, 1fr);
+  gap: 10px;
+}
+
+.historial-facturacion-workspace .billing-panel {
+  min-height: 340px;
+}
+
+.dashboard-screen {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.dashboard-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 10px 0;
+}
+
+.dashboard-flow a {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #c8d7e0;
+  border-left: 6px solid #0f7cad;
+  border-radius: 10px;
+  color: #0f3146;
+  background: #ffffff;
+}
+
+.dashboard-flow a:nth-child(2) {
+  border-left-color: #23a373;
+}
+
+.dashboard-flow a:nth-child(3) {
+  border-left-color: #d08c00;
+}
+
+.dashboard-flow a:nth-child(4) {
+  border-left-color: #7b61d1;
+}
+
+.dashboard-flow strong {
+  font-size: 14px;
+}
+
+.dashboard-flow span {
+  overflow: hidden;
+  color: #60717f;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
 }
 
 .treatment-editor-panel {
