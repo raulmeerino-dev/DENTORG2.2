@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import OdontogramaPlanView from '../../components/OdontogramaPlan';
@@ -18,6 +18,7 @@ import {
   getFacturas,
   getFormasPago,
   getHistorialPaciente,
+  getPaciente,
   getPacientes,
   getPlantillasConsentimiento,
   getPresupuestos,
@@ -28,6 +29,7 @@ import {
   registrarCobro,
   saveOdontograma,
   updatePresupuestoLinea,
+  updatePaciente,
   uploadDocumentoPaciente,
 } from '../../lib/api';
 import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, OdontogramaPlan, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
@@ -378,32 +380,34 @@ function PatientForm({ paciente, facturas }: { paciente: ApiPaciente | null; fac
   const total = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
   const cobrado = facturas.reduce((sum, factura) => sum + Number(factura.total_cobrado), 0);
   const saldo = facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0);
+  const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
 
   return (
     <div className="patient-form-grid">
-      <FieldBox label="Codigo" value={paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`} />
+      {temporal && <div className="temporary-patient-banner">Paciente temporal: completar datos en clínica.</div>}
+      <FieldBox label="Código" value={paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`} />
       <FieldBox label="N Historial" value={paciente?.num_historial} />
       <FieldBox label="F.Nacimiento" value={formatDate(paciente?.fecha_nacimiento)} />
-      <FieldBox label="Telefono" value={paciente?.telefono} />
-      <FieldBox label="Telefono movil" value={paciente?.telefono2} />
+      <FieldBox label="Teléfono" value={paciente?.telefono} />
+      <FieldBox label="Teléfono móvil" value={paciente?.telefono2} />
       <FieldBox label="Nombre" value={fullName(paciente)} wide />
-      <FieldBox label="Direccion" value={paciente?.direccion} wide />
-      <FieldBox label="Poblacion" value={paciente?.ciudad} />
+      <FieldBox label="Dirección" value={paciente?.direccion} wide />
+      <FieldBox label="Población" value={paciente?.ciudad} />
       <FieldBox label="Provincia" value={paciente?.provincia} />
       <FieldBox label="E-mail" value={paciente?.email} wide />
       <FieldBox label="F. 1 visita" value="" />
       <FieldBox label="F. Ult. visita" value="" />
       <FieldBox label="F. Prox. visita" value="" />
-      <FieldBox label="N.I.F." value="" />
+      <FieldBox label="N.I.F." value={paciente?.dni_nie} />
       <FieldBox label="Sexo" value="" />
       <FieldBox label="Edad" value={calcAge(paciente?.fecha_nacimiento)} />
       <div className="payer-box">
         <span>Pagador factura</span>
         <div className="payer-grid">
           <FieldBox label="Nombre" value={fullName(paciente)} />
-          <FieldBox label="Direccion" value={paciente?.direccion} />
-          <FieldBox label="N.I.F." value="" />
-          <FieldBox label="Telefono" value={paciente?.telefono} />
+          <FieldBox label="Dirección" value={paciente?.direccion} />
+          <FieldBox label="N.I.F." value={paciente?.dni_nie} />
+          <FieldBox label="Teléfono" value={paciente?.telefono} />
         </div>
       </div>
       <FieldBox label="Entidad sanitaria" value="" />
@@ -416,6 +420,85 @@ function PatientForm({ paciente, facturas }: { paciente: ApiPaciente | null; fac
         <span>Pagos</span><strong>{money(cobrado)}</strong>
         <span>Saldo</span><strong>{money(saldo)}</strong>
       </div>
+    </div>
+  );
+}
+
+function PatientEditModal({
+  paciente,
+  onClose,
+  onSave,
+}: {
+  paciente: ApiPaciente;
+  onClose: () => void;
+  onSave: (data: Partial<ApiPaciente>) => void;
+}) {
+  const [form, setForm] = useState({
+    nombre: paciente.nombre ?? '',
+    apellidos: paciente.apellidos ?? '',
+    fecha_nacimiento: paciente.fecha_nacimiento ?? '',
+    dni_nie: paciente.dni_nie ?? '',
+    telefono: paciente.telefono ?? '',
+    telefono2: paciente.telefono2 ?? '',
+    email: paciente.email ?? '',
+    direccion: paciente.direccion ?? '',
+    codigo_postal: paciente.codigo_postal ?? '',
+    ciudad: paciente.ciudad ?? '',
+    provincia: paciente.provincia ?? '',
+    observaciones: paciente.observaciones ?? '',
+    alergias: typeof paciente.datos_salud?.alergias === 'string' ? paciente.datos_salud.alergias : '',
+  });
+
+  function setField(field: keyof typeof form, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    onSave({
+      nombre: form.nombre.trim(),
+      apellidos: form.apellidos.trim(),
+      fecha_nacimiento: form.fecha_nacimiento || null,
+      dni_nie: form.dni_nie || null,
+      telefono: form.telefono || null,
+      telefono2: form.telefono2 || null,
+      email: form.email || null,
+      direccion: form.direccion || null,
+      codigo_postal: form.codigo_postal || null,
+      ciudad: form.ciudad || null,
+      provincia: form.provincia || null,
+      observaciones: form.observaciones || null,
+      datos_salud: { ...(paciente.datos_salud ?? {}), alergias: form.alergias },
+    });
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <form className="patient-edit-modal" onSubmit={submit}>
+        <div className="modal-titlebar">
+          <strong>Editar ficha del paciente</strong>
+          <button type="button" onClick={onClose}>Cerrar</button>
+        </div>
+        <div className="patient-edit-grid">
+          <label>Nombre<input value={form.nombre} onChange={(event) => setField('nombre', event.target.value)} required /></label>
+          <label>Apellidos<input value={form.apellidos} onChange={(event) => setField('apellidos', event.target.value)} required /></label>
+          <label>F. nacimiento<input type="date" value={form.fecha_nacimiento} onChange={(event) => setField('fecha_nacimiento', event.target.value)} /></label>
+          <label>N.I.F.<input value={form.dni_nie} onChange={(event) => setField('dni_nie', event.target.value)} /></label>
+          <label>Teléfono<input value={form.telefono} onChange={(event) => setField('telefono', event.target.value)} /></label>
+          <label>Móvil<input value={form.telefono2} onChange={(event) => setField('telefono2', event.target.value)} /></label>
+          <label className="wide">E-mail<input value={form.email} onChange={(event) => setField('email', event.target.value)} /></label>
+          <label className="wide">Dirección<input value={form.direccion} onChange={(event) => setField('direccion', event.target.value)} /></label>
+          <label>Cód. postal<input value={form.codigo_postal} onChange={(event) => setField('codigo_postal', event.target.value)} /></label>
+          <label>Población<input value={form.ciudad} onChange={(event) => setField('ciudad', event.target.value)} /></label>
+          <label>Provincia<input value={form.provincia} onChange={(event) => setField('provincia', event.target.value)} /></label>
+          <label className="wide">Alergias / contraindicaciones<textarea value={form.alergias} onChange={(event) => setField('alergias', event.target.value)} /></label>
+          <label className="wide">Observaciones generales<textarea value={form.observaciones} onChange={(event) => setField('observaciones', event.target.value)} /></label>
+        </div>
+        <footer className="modal-actions">
+          <button type="button" onClick={onClose}>Cancelar</button>
+          <button type="submit">Guardar ficha</button>
+        </footer>
+      </form>
     </div>
   );
 }
@@ -910,14 +993,22 @@ function LaboratorioPacientePanel({ trabajos }: { trabajos: TrabajoLaboratorio[]
 }
 
 export default function PacientesPage() {
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<ApiPaciente | null>(null);
   const [tab, setTab] = useState<WorkTab>('pacientes');
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
+  const [editingPatient, setEditingPatient] = useState(false);
   const [searchParams] = useSearchParams();
   const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
   const pacientes = pacientesQuery.data ?? [];
   const requestedPatientId = searchParams.get('paciente_id') ?? sessionStorage.getItem('dentorg_selected_patient_id');
-  const active = selected ?? pacientes.find((paciente) => paciente.id === requestedPatientId) ?? pacientes[0] ?? null;
+  const activeSummary = selected ?? pacientes.find((paciente) => paciente.id === requestedPatientId) ?? pacientes[0] ?? null;
+  const pacienteDetalleQuery = useQuery({
+    queryKey: ['paciente-detalle', activeSummary?.id],
+    queryFn: () => getPaciente(activeSummary!.id),
+    enabled: Boolean(activeSummary),
+  });
+  const active = pacienteDetalleQuery.data ?? activeSummary;
 
   const presupuestosQuery = useQuery({
     queryKey: ['presupuestos', active?.id],
@@ -1054,6 +1145,19 @@ export default function PacientesPage() {
     },
   });
 
+  const guardarFichaPaciente = useMutation({
+    mutationFn: async (data: Partial<ApiPaciente>) => {
+      if (!active) throw new Error('Sin paciente');
+      return updatePaciente(active.id, data);
+    },
+    onSuccess: (paciente) => {
+      setSelected(paciente);
+      setEditingPatient(false);
+      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', paciente.id] });
+      void pacientesQuery.refetch();
+    },
+  });
+
   function focusPacienteSearch() {
     setTab('pacientes');
     window.setTimeout(() => document.getElementById('patient-search-input')?.focus(), 0);
@@ -1111,6 +1215,7 @@ export default function PacientesPage() {
         <button onClick={() => nuevoPresupuesto.mutate()} disabled={!active || nuevoPresupuesto.isPending}>Nuevo ppto</button>
         <button onClick={() => emitirFactura.mutate()} disabled={!active || emitirFactura.isPending}>Emitir factura</button>
         <button onClick={() => cobrarFactura.mutate()} disabled={!active || cobrarFactura.isPending}>Cobrar</button>
+        <button onClick={() => setEditingPatient(true)} disabled={!active}>Editar ficha</button>
       </div>
 
       <aside className="patient-summary-strip">
@@ -1232,6 +1337,13 @@ export default function PacientesPage() {
           initialTipo={designer.tipo}
           onClose={() => setDesigner(null)}
           onSave={(data) => guardarDocumentoDisenado.mutate(data)}
+        />
+      )}
+      {editingPatient && active && (
+        <PatientEditModal
+          paciente={active}
+          onClose={() => setEditingPatient(false)}
+          onSave={(data) => guardarFichaPaciente.mutate(data)}
         />
       )}
     </section>

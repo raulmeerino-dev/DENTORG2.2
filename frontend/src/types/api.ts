@@ -15,10 +15,12 @@ export interface ApiPaciente {
   nombre: string;
   apellidos: string;
   fecha_nacimiento: string | null;
+  dni_nie?: string | null;
   telefono: string | null;
   telefono2?: string | null;
   email?: string | null;
   direccion?: string | null;
+  codigo_postal?: string | null;
   ciudad?: string | null;
   provincia?: string | null;
   observaciones?: string | null;

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { createCita, getCitas, getDoctores, getPacientes, getTelefonear, updateCita } from '../../lib/api';
+import { createCita, createPaciente, getCitas, getDoctores, getPacientes, getTelefonear, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, TelefonearPendiente } from '../../types/api';
 
 type SlotDraft = {
@@ -92,6 +92,7 @@ function CitaModal({
   doctores,
   onClose,
   onSubmit,
+  onCreateTemporaryPaciente,
 }: {
   cita: Cita | null;
   draft: SlotDraft | null;
@@ -109,6 +110,7 @@ function CitaModal({
     observaciones: string;
     gabinete_id: string | null;
   }) => void;
+  onCreateTemporaryPaciente: (data: { nombreCompleto: string; telefono: string }) => Promise<ApiPaciente>;
 }) {
   const [query, setQuery] = useState('');
   const initialPacienteId = cita?.paciente_id ?? draft?.pacienteId ?? sessionStorage.getItem('dentorg_selected_patient_id') ?? pacientes[0]?.id ?? '';
@@ -121,6 +123,9 @@ function CitaModal({
   const [motivo, setMotivo] = useState(cita?.motivo ?? '');
   const [observaciones, setObservaciones] = useState(cita?.observaciones ?? '');
   const [gabinete, setGabinete] = useState(cita?.gabinete_id ?? '');
+  const [tempName, setTempName] = useState('');
+  const [tempPhone, setTempPhone] = useState('');
+  const [creatingTemp, setCreatingTemp] = useState(false);
 
   const filteredPatients = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -151,6 +156,22 @@ function CitaModal({
     });
   }
 
+  async function createTempPatient() {
+    if (!tempName.trim() || !tempPhone.trim()) {
+      window.alert('Indique nombre y teléfono para el paciente temporal');
+      return;
+    }
+    setCreatingTemp(true);
+    try {
+      const paciente = await onCreateTemporaryPaciente({ nombreCompleto: tempName, telefono: tempPhone });
+      setPacienteId(paciente.id);
+      setQuery(`${paciente.nombre} ${paciente.apellidos}`);
+      setObservaciones((prev) => `${prev}\nPaciente temporal: completar datos en clínica.`.trim());
+    } finally {
+      setCreatingTemp(false);
+    }
+  }
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <form className="appointment-modal" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
@@ -173,6 +194,12 @@ function CitaModal({
               ))}
             </select>
           </label>
+          <div className="temporary-patient-box wide">
+            <strong>Nuevo paciente temporal</strong>
+            <input value={tempName} onChange={(event) => setTempName(event.target.value)} placeholder="Nombre y apellidos" />
+            <input value={tempPhone} onChange={(event) => setTempPhone(event.target.value)} placeholder="Teléfono" />
+            <button type="button" onClick={() => void createTempPatient()} disabled={creatingTemp}>Crear temporal</button>
+          </div>
           <label>Fecha<input type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} /></label>
           <label>Hora inicio<input type="time" value={hora} onChange={(event) => setHora(event.target.value)} /></label>
           <label>Hora fin<input readOnly value={addMinutes(hora, duracion)} /></label>
@@ -269,6 +296,24 @@ export default function AgendaPage() {
     onSuccess: () => {
       setContextMenu(null);
       void queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
+  const createTempPatient = useMutation({
+    mutationFn: async ({ nombreCompleto, telefono }: { nombreCompleto: string; telefono: string }) => {
+      const parts = nombreCompleto.trim().split(/\s+/);
+      const nombre = parts.shift() ?? nombreCompleto.trim();
+      const apellidos = parts.join(' ') || 'TEMPORAL';
+      return createPaciente({
+        nombre,
+        apellidos,
+        telefono,
+        observaciones: 'PACIENTE TEMPORAL - completar ficha en clínica.',
+        datos_salud: { temporal: true, pendiente_completar: true },
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['pacientes'] });
     },
   });
 
@@ -475,6 +520,7 @@ export default function AgendaPage() {
           doctores={doctores}
           onClose={() => { setModalCita(null); setSlotDraft(null); }}
           onSubmit={(data) => saveMutation.mutate(data)}
+          onCreateTemporaryPaciente={(data) => createTempPatient.mutateAsync(data)}
         />
       )}
 

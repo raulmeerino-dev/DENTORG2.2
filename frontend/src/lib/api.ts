@@ -305,6 +305,42 @@ export async function getPacientes() {
   return withDemoFallback(api.get<ApiPaciente[]>('/pacientes'), DEMO_PACIENTES);
 }
 
+export async function getPaciente(pacienteId: string) {
+  return withDemoFallback(api.get<ApiPaciente>(`/pacientes/${pacienteId}`), DEMO_PACIENTES.find((item) => item.id === pacienteId) ?? DEMO_PACIENTES[0]);
+}
+
+export async function createPaciente(data: Partial<ApiPaciente> & { nombre: string; apellidos: string }) {
+  const fallback: ApiPaciente = {
+    id: `demo-pac-${Date.now()}`,
+    codigo: null,
+    num_historial: Math.floor(Date.now() / 1000),
+    nombre: data.nombre,
+    apellidos: data.apellidos,
+    fecha_nacimiento: data.fecha_nacimiento ?? null,
+    dni_nie: data.dni_nie ?? null,
+    telefono: data.telefono ?? null,
+    telefono2: data.telefono2 ?? null,
+    email: data.email ?? null,
+    direccion: data.direccion ?? null,
+    codigo_postal: data.codigo_postal ?? null,
+    ciudad: data.ciudad ?? null,
+    provincia: data.provincia ?? null,
+    observaciones: data.observaciones ?? null,
+    datos_salud: data.datos_salud ?? null,
+    activo: true,
+  };
+  return withDemoFallback(api.post<ApiPaciente>('/pacientes', data), fallback);
+}
+
+export async function updatePaciente(pacienteId: string, data: Partial<ApiPaciente>) {
+  const fallback = DEMO_PACIENTES.find((item) => item.id === pacienteId);
+  return withDemoFallback(api.patch<ApiPaciente>(`/pacientes/${pacienteId}`, data), {
+    ...(fallback ?? DEMO_PACIENTES[0]),
+    ...data,
+    id: pacienteId,
+  } as ApiPaciente);
+}
+
 export async function getPresupuestos(pacienteId: string) {
   return withDemoFallback(
     api.get<Presupuesto[]>('/presupuestos', { params: { paciente_id: pacienteId } }),
