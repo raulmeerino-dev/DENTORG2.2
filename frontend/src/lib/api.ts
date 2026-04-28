@@ -24,6 +24,7 @@ import type {
   ReportKpis,
   ReportPaciente,
   ReportTopTratamiento,
+  RecordatorioCitaResponse,
   IngresosReporte,
   MovimientoInventario,
   ProductoInventario,
@@ -660,6 +661,16 @@ export async function iniciarVideoConsulta(citaId: string) {
     citaId,
     videoUrl: `https://meet.jit.si/dentorg2-demo-${citaId}`,
     estado: 'iniciada',
+  });
+}
+
+export async function enviarRecordatorioCita(citaId: string, canal: 'whatsapp' | 'email' | 'ambos', mensaje?: string) {
+  return withDemoFallback(api.post<RecordatorioCitaResponse>(`/citas/${citaId}/recordatorio`, { canal, mensaje }), {
+    citaId,
+    canal,
+    estado: 'enviado',
+    whatsappUrl: canal !== 'email' ? `https://wa.me/?text=${encodeURIComponent(mensaje ?? 'Recordatorio de cita dental')}` : null,
+    emailUrl: canal !== 'whatsapp' ? `mailto:?subject=${encodeURIComponent('Recordatorio de cita dental')}&body=${encodeURIComponent(mensaje ?? '')}` : null,
   });
 }
 

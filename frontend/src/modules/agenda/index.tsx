@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buscarHuecosLibres, createCita, createPaciente, getCitas, getDoctores, getPacientes, getTelefonear, iniciarVideoConsulta, updateCita } from '../../lib/api';
+import { buscarHuecosLibres, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getPacientes, getTelefonear, iniciarVideoConsulta, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
 
 type SlotDraft = {
@@ -110,6 +110,7 @@ function overlaps(start: string, duration: number, cita: Cita) {
 
 function getVisualStatus(cita: Cita) {
   const obs = cita.observaciones?.toLowerCase() ?? '';
+  if (cita.estado === 'programada' && cita.recordatorio_enviado) return 'mensaje_enviado';
   if (cita.estado === 'programada' && obs.includes('recordatorio')) return 'mensaje_enviado';
   if (cita.estado === 'en_clinica' && obs.includes('en tratamiento')) return 'en_tratamiento';
   return cita.estado;
@@ -266,8 +267,8 @@ function CitaModal({
 
         <aside className="appointment-info">
           <span>Paciente en clinica: {estado === 'en_clinica' ? 'Si' : 'No'}</span>
-          <span>Recordatorio: {observaciones.toLowerCase().includes('recordatorio') ? 'Enviado' : 'No enviado'}</span>
-          <span>Canal: {observaciones.toLowerCase().includes('whatsapp') ? 'WhatsApp' : observaciones.toLowerCase().includes('email') ? 'Email' : '-'}</span>
+          <span>Recordatorio: {cita?.recordatorio_enviado ? 'Enviado' : 'No enviado'}</span>
+          <span>Canal: {cita?.recordatorio_canal ?? '-'}</span>
           <span>Confirmacion: {estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}</span>
         </aside>
         {cita && (
@@ -522,6 +523,19 @@ export default function AgendaPage() {
     },
   });
 
+  const recordatorioMutation = useMutation({
+    mutationFn: async ({ cita, canal }: { cita: Cita; canal: 'whatsapp' | 'email' | 'ambos' }) => {
+      const response = await enviarRecordatorioCita(cita.id, canal);
+      if (response.whatsappUrl) window.open(response.whatsappUrl, '_blank');
+      if (response.emailUrl) window.open(response.emailUrl, '_blank');
+      return response;
+    },
+    onSuccess: () => {
+      setContextMenu(null);
+      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
   const createTempPatient = useMutation({
     mutationFn: async ({ nombreCompleto, telefono }: { nombreCompleto: string; telefono: string }) => {
       const parts = nombreCompleto.trim().split(/\s+/);
@@ -593,6 +607,10 @@ export default function AgendaPage() {
     const motivo = window.prompt('Motivo: cancelada por paciente, cancelada por clinica, no vino, reprogramada u otro', estado === 'falta' ? 'No vino' : 'Cancelada por paciente');
     if (motivo === null) return;
     setStatus(cita, estado, `Cancelacion: ${motivo}`);
+  }
+
+  function enviarRecordatorio(cita: Cita, canal: 'whatsapp' | 'email' | 'ambos') {
+    recordatorioMutation.mutate({ cita, canal });
   }
 
   function buscarCita() {
@@ -792,14 +810,14 @@ export default function AgendaPage() {
           <button onClick={() => openPatient(contextMenu.cita)}>Abrir ficha del paciente</button>
           <button onClick={() => setStatus(contextMenu.cita, 'confirmada')}>Confirmar cita</button>
           <button onClick={() => setStatus(contextMenu.cita, 'programada')}>Pendiente de confirmar</button>
-          <button onClick={() => setStatus(contextMenu.cita, 'programada', `Recordatorio WhatsApp enviado ${new Date().toLocaleString()}`)}>Mensaje enviado</button>
+          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Mensaje enviado</button>
           <button onClick={() => setStatus(contextMenu.cita, 'en_clinica')}>Paciente en clinica</button>
           <button onClick={() => setStatus(contextMenu.cita, 'en_clinica', 'En tratamiento')}>En tratamiento</button>
           <button onClick={() => setStatus(contextMenu.cita, 'atendida')}>Finalizada</button>
           <button onClick={() => cancelCita(contextMenu.cita, 'anulada')}>Cancelar cita</button>
           <button onClick={() => cancelCita(contextMenu.cita, 'falta')}>No asistio</button>
-          <button onClick={() => setStatus(contextMenu.cita, contextMenu.cita.estado, `Recordatorio WhatsApp enviado ${new Date().toLocaleString()}`)}>Recordatorio WhatsApp</button>
-          <button onClick={() => setStatus(contextMenu.cita, contextMenu.cita.estado, `Recordatorio email enviado ${new Date().toLocaleString()}`)}>Recordatorio email</button>
+          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Recordatorio WhatsApp</button>
+          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'email')}>Recordatorio email</button>
         </div>
       )}
     </section>

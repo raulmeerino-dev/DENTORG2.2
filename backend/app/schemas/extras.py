@@ -25,6 +25,19 @@ class VideoResponse(BaseModel):
     estado: str
 
 
+class RecordatorioCreate(BaseModel):
+    canal: str = Field(..., pattern=r"^(whatsapp|email|ambos)$")
+    mensaje: str | None = Field(None, max_length=800)
+
+
+class RecordatorioResponse(BaseModel):
+    citaId: UUID
+    canal: str
+    estado: str
+    whatsappUrl: str | None = None
+    emailUrl: str | None = None
+
+
 class ProductoCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=150)
     stock_min: int = Field(0, ge=0)

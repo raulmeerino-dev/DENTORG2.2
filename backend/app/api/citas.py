@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from typing import Annotated
 from uuid import UUID
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
@@ -29,7 +30,7 @@ from app.schemas.cita import (
     CitaUpdate,
     HuecoLibre,
 )
-from app.schemas.extras import VideoResponse
+from app.schemas.extras import RecordatorioCreate, RecordatorioResponse, VideoResponse
 from app.services.agenda_service import buscar_huecos_libres, esta_dentro_disponibilidad, hay_solapamiento
 
 router = APIRouter()
@@ -329,6 +330,49 @@ async def iniciar_video(
     await db.commit()
     await db.refresh(teleconsulta)
     return VideoResponse(citaId=cita_id, videoUrl=teleconsulta.url, estado=teleconsulta.estado)
+
+
+@router.post("/{cita_id}/recordatorio", response_model=RecordatorioResponse)
+async def enviar_recordatorio(
+    cita_id: UUID,
+    data: RecordatorioCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: CurrentUser,
+) -> RecordatorioResponse:
+    cita = await _get_cita_or_404(db, cita_id)
+    paciente = cita.paciente or await db.get(Paciente, cita.paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+    telefono = await descifrar_bytes(db, paciente.telefono) if paciente.telefono else None
+    email = await descifrar_bytes(db, paciente.email) if paciente.email else None
+    nombre = f"{paciente.nombre} {paciente.apellidos}".strip()
+    fecha = cita.fecha_hora.strftime("%d/%m/%Y %H:%M")
+    mensaje = data.mensaje or (
+        f"Hola {nombre}, le recordamos su cita en la clinica dental el {fecha}. "
+        "Por favor confirme o avise si necesita cambiarla."
+    )
+
+    whatsapp_url = None
+    email_url = None
+    if data.canal in {"whatsapp", "ambos"} and telefono:
+        phone = "".join(ch for ch in telefono if ch.isdigit())
+        whatsapp_url = f"https://wa.me/{phone}?text={quote(mensaje)}"
+    if data.canal in {"email", "ambos"} and email:
+        email_url = f"mailto:{email}?subject={quote('Recordatorio de cita dental')}&body={quote(mensaje)}"
+
+    cita.recordatorio_enviado = True
+    cita.recordatorio_canal = data.canal
+    cita.recordatorio_estado = "enviado"
+    cita.recordatorio_at = datetime.now(timezone.utc)
+    await db.commit()
+    return RecordatorioResponse(
+        citaId=cita_id,
+        canal=data.canal,
+        estado="enviado",
+        whatsappUrl=whatsapp_url,
+        emailUrl=email_url,
+    )
 
 
 @router.patch("/{cita_id}", response_model=CitaResponse)
