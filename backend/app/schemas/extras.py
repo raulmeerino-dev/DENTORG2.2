@@ -123,3 +123,19 @@ class IngresosResponse(BaseModel):
     total: float
     pac: float
     seg: float
+
+
+class BackupRegistroResponse(BaseModel):
+    id: UUID
+    tipo: str
+    estado: str
+    ubicacion: str | None
+    hash_sha256: str | None
+    tamano_bytes: int | None
+    cifrado: bool
+    error: str | None
+    created_by_id: UUID | None
+    started_at: datetime
+    finished_at: datetime | None
+
+    model_config = {"from_attributes": True}

@@ -167,6 +167,20 @@ export interface IngresosReporte {
   seg: number;
 }
 
+export interface BackupRegistro {
+  id: string;
+  tipo: string;
+  estado: string;
+  ubicacion: string | null;
+  hash_sha256: string | null;
+  tamano_bytes: number | null;
+  cifrado: boolean;
+  error: string | null;
+  created_by_id: string | null;
+  started_at: string;
+  finished_at: string | null;
+}
+
 export interface VideoConsultaResponse {
   citaId: string;
   videoUrl: string;

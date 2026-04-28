@@ -22,6 +22,7 @@ from app.models.audit_log import AuditLog
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.auth_session import AuthSession
+from app.models.backup import BackupRegistro
 
 __all__ = [
     "Doctor",
@@ -63,4 +64,5 @@ __all__ = [
     "RegistroEventoSIF",
     "RegistroFacturacion",
     "AuthSession",
+    "BackupRegistro",
 ]
