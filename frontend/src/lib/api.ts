@@ -50,10 +50,10 @@ export function clearStoredAuthToken() {
 }
 
 const DEMO_DOCTORES: Doctor[] = [
-  { id: 'demo-doc-1', nombre: 'Dr. Garcia Ruiz', color_agenda: '#2563eb', activo: true },
-  { id: 'demo-doc-2', nombre: 'Dra. Lopez Herrera', color_agenda: '#16a34a', activo: true },
-  { id: 'demo-doc-3', nombre: 'Dr. Martin Torres', color_agenda: '#dc2626', activo: true },
-  { id: 'demo-doc-4', nombre: 'Dra. Sanchez Vega', color_agenda: '#9333ea', activo: true },
+  { id: 'demo-doc-1', nombre: 'Dr. Garcia Ruiz', especialidad: 'Implantologia', color_agenda: '#2563eb', es_auxiliar: false, porcentaje: '35.00', activo: true },
+  { id: 'demo-doc-2', nombre: 'Dra. Lopez Herrera', especialidad: 'Ortodoncia', color_agenda: '#16a34a', es_auxiliar: false, porcentaje: '40.00', activo: true },
+  { id: 'demo-doc-3', nombre: 'Dr. Martin Torres', especialidad: 'Endodoncia', color_agenda: '#dc2626', es_auxiliar: false, porcentaje: '35.00', activo: true },
+  { id: 'demo-doc-4', nombre: 'Dra. Sanchez Vega', especialidad: 'Higiene', color_agenda: '#9333ea', es_auxiliar: true, porcentaje: '0.00', activo: true },
 ];
 
 const DEMO_PACIENTES: ApiPaciente[] = [
@@ -702,6 +702,40 @@ export async function getDoctores() {
   return withDemoFallback(api.get<Doctor[]>('/doctores'), DEMO_DOCTORES);
 }
 
+export async function createDoctor(data: {
+  nombre: string;
+  especialidad?: string | null;
+  color_agenda?: string | null;
+  es_auxiliar?: boolean;
+  porcentaje?: string | number | null;
+}) {
+  return withDemoFallback(api.post<Doctor>('/doctores', data), {
+    id: `demo-doc-${Date.now()}`,
+    nombre: data.nombre,
+    especialidad: data.especialidad ?? null,
+    color_agenda: data.color_agenda ?? '#2563eb',
+    es_auxiliar: Boolean(data.es_auxiliar),
+    porcentaje: data.porcentaje ?? null,
+    activo: true,
+  });
+}
+
+export async function updateDoctor(doctorId: string, data: Partial<{
+  nombre: string;
+  especialidad: string | null;
+  color_agenda: string | null;
+  es_auxiliar: boolean;
+  porcentaje: string | number | null;
+  activo: boolean;
+}>) {
+  const fallback = DEMO_DOCTORES.find((doctor) => doctor.id === doctorId) ?? DEMO_DOCTORES[0];
+  return withDemoFallback(api.patch<Doctor>(`/doctores/${doctorId}`, data), {
+    ...fallback,
+    ...data,
+    id: doctorId,
+  });
+}
+
 export async function getHorarios(doctorId: string) {
   return withDemoFallback(api.get<HorarioDoctor[]>(`/doctores/${doctorId}/horarios`), [0, 1, 2, 3, 4].map((dia) => ({
     id: `demo-hor-${doctorId}-${dia}`,
@@ -711,6 +745,21 @@ export async function getHorarios(doctorId: string) {
     bloques: [{ inicio: '09:00', fin: '13:30' }, { inicio: '15:00', fin: '20:30' }],
     intervalo_min: 10,
   })));
+}
+
+export async function updateHorarioDoctor(doctorId: string, diaSemana: number, data: {
+  tipo_dia: string;
+  bloques: Array<{ inicio: string; fin: string }>;
+  intervalo_min: number;
+}) {
+  return withDemoFallback(api.put<HorarioDoctor>(`/doctores/${doctorId}/horarios/${diaSemana}`, data), {
+    id: `demo-hor-${doctorId}-${diaSemana}`,
+    doctor_id: doctorId,
+    dia_semana: diaSemana,
+    tipo_dia: data.tipo_dia,
+    bloques: data.bloques,
+    intervalo_min: data.intervalo_min,
+  });
 }
 
 export async function getFamiliasTratamiento() {
