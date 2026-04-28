@@ -24,6 +24,7 @@ import type {
   ReportPaciente,
   ReportTopTratamiento,
   IngresosReporte,
+  MovimientoInventario,
   ProductoInventario,
   TelefonearPendiente,
   TrabajoLaboratorio,
@@ -943,6 +944,26 @@ export async function updateProductoInventario(id: string, data: Partial<Product
     stock_act: data.stock_act ?? 0,
     proveedor_id: data.proveedor_id ?? null,
     activo: data.activo ?? true,
+  });
+}
+
+export async function getMovimientosInventario(productoId: string) {
+  return withDemoFallback(api.get<MovimientoInventario[]>(`/inventario/${productoId}/movimientos`), []);
+}
+
+export async function registrarMovimientoInventario(productoId: string, data: {
+  tipo: MovimientoInventario['tipo'];
+  cantidad: number;
+  motivo?: string | null;
+  factura_id?: string | null;
+}) {
+  return withDemoFallback(api.post<ProductoInventario>(`/inventario/${productoId}/movimientos`, data), {
+    id: productoId,
+    nombre: 'Producto',
+    stock_min: 0,
+    stock_act: data.tipo === 'entrada' || data.tipo === 'ajuste' ? data.cantidad : 0,
+    proveedor_id: null,
+    activo: true,
   });
 }
 

@@ -2936,6 +2936,39 @@ body {
   font-family: Consolas, monospace;
 }
 
+.inventory-side,
+.inventory-side form,
+.movement-form {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.movement-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #cbd8df;
+}
+
+.movement-form select {
+  min-height: 32px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #fff;
+}
+
+.movement-list {
+  display: grid;
+  gap: 4px;
+  color: #425a6a;
+  font-size: .86rem;
+}
+
+.movement-list p {
+  margin: 0;
+}
+
 .offline-pill,
 .online-pill {
   padding: 7px 12px;

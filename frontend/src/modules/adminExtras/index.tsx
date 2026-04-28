@@ -9,19 +9,24 @@ import {
   getClinicas,
   getIngresosReporte,
   getInventario,
+  getMovimientosInventario,
   importPacientes,
+  registrarMovimientoInventario,
   syncOffline,
   updateProductoInventario,
 } from '../../lib/api';
 import { addOfflinePending, clearOfflinePending, getOfflinePending } from '../../lib/offline';
 
 type Tab = 'clinicas' | 'inventario' | 'reportes' | 'offline' | 'importacion' | 'seguridad';
+type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
 
 export default function AdminExtrasPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('clinicas');
   const [clinicaForm, setClinicaForm] = useState({ nombre: '', direccion: '' });
   const [productoForm, setProductoForm] = useState({ nombre: '', stock_min: '0', stock_act: '0' });
+  const [productoActivoId, setProductoActivoId] = useState('');
+  const [movimientoForm, setMovimientoForm] = useState<{ tipo: MovimientoTipo; cantidad: string; motivo: string }>({ tipo: 'entrada', cantidad: '1', motivo: '' });
   const [desde, setDesde] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [hasta, setHasta] = useState(new Date().toISOString().slice(0, 10));
   const [importText, setImportText] = useState('nombre,apellidos,dni_nie,telefono\nAna,Garcia,12345678A,600000000');
@@ -32,6 +37,11 @@ export default function AdminExtrasPage() {
 
   const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
   const inventarioQuery = useQuery({ queryKey: ['inventario'], queryFn: getInventario });
+  const movimientosQuery = useQuery({
+    queryKey: ['inventario-movimientos', productoActivoId],
+    queryFn: () => getMovimientosInventario(productoActivoId),
+    enabled: Boolean(productoActivoId),
+  });
   const ingresosQuery = useQuery({ queryKey: ['ingresos', desde, hasta], queryFn: () => getIngresosReporte(desde, hasta) });
 
   const crearClinica = useMutation({
@@ -57,6 +67,19 @@ export default function AdminExtrasPage() {
   const actualizarProducto = useMutation({
     mutationFn: ({ id, stock_act }: { id: string; stock_act: number }) => updateProductoInventario(id, { stock_act }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['inventario'] }),
+  });
+
+  const registrarMovimiento = useMutation({
+    mutationFn: () => registrarMovimientoInventario(productoActivoId, {
+      tipo: movimientoForm.tipo,
+      cantidad: Number(movimientoForm.cantidad),
+      motivo: movimientoForm.motivo || null,
+    }),
+    onSuccess: () => {
+      setMovimientoForm({ tipo: 'entrada', cantidad: '1', motivo: '' });
+      void queryClient.invalidateQueries({ queryKey: ['inventario'] });
+      void queryClient.invalidateQueries({ queryKey: ['inventario-movimientos', productoActivoId] });
+    },
   });
 
   const importar = useMutation({
@@ -156,18 +179,40 @@ export default function AdminExtrasPage() {
                 <tr key={producto.id} className={producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
                   <td>{producto.nombre}</td><td>{producto.stock_min}</td>
                   <td><input className="stock-input" defaultValue={producto.stock_act} onBlur={(e) => actualizarProducto.mutate({ id: producto.id, stock_act: Number(e.target.value) })} /></td>
-                  <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td><td></td>
+                  <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td>
+                  <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Mov.</button></td>
                 </tr>
               ))}
             </tbody></table>
           </section>
-          <form className="desk-panel settings-form" onSubmit={submitProducto}>
-            <div className="panel-caption"><strong>Nuevo producto</strong></div>
-            <label>Nombre<input value={productoForm.nombre} onChange={(e) => setProductoForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
-            <label>Stock mínimo<input value={productoForm.stock_min} onChange={(e) => setProductoForm((p) => ({ ...p, stock_min: e.target.value }))} /></label>
-            <label>Stock actual<input value={productoForm.stock_act} onChange={(e) => setProductoForm((p) => ({ ...p, stock_act: e.target.value }))} /></label>
-            <button type="submit">Crear producto</button>
-          </form>
+          <div className="desk-panel settings-form inventory-side">
+            <form onSubmit={submitProducto}>
+              <div className="panel-caption"><strong>Nuevo producto</strong></div>
+              <label>Nombre<input value={productoForm.nombre} onChange={(e) => setProductoForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
+              <label>Stock mínimo<input value={productoForm.stock_min} onChange={(e) => setProductoForm((p) => ({ ...p, stock_min: e.target.value }))} /></label>
+              <label>Stock actual<input value={productoForm.stock_act} onChange={(e) => setProductoForm((p) => ({ ...p, stock_act: e.target.value }))} /></label>
+              <button type="submit">Crear producto</button>
+            </form>
+            {productoActivoId && (
+              <form className="movement-form" onSubmit={(event) => { event.preventDefault(); registrarMovimiento.mutate(); }}>
+                <div className="panel-caption"><strong>Movimiento</strong></div>
+                <label>Tipo<select value={movimientoForm.tipo} onChange={(e) => setMovimientoForm((p) => ({ ...p, tipo: e.target.value as MovimientoTipo }))}>
+                  <option value="entrada">Entrada</option>
+                  <option value="salida">Salida</option>
+                  <option value="ajuste">Ajuste a cantidad</option>
+                  <option value="consumo_factura">Consumo por factura</option>
+                </select></label>
+                <label>Cantidad<input value={movimientoForm.cantidad} onChange={(e) => setMovimientoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
+                <label>Motivo<input value={movimientoForm.motivo} onChange={(e) => setMovimientoForm((p) => ({ ...p, motivo: e.target.value }))} /></label>
+                <button type="submit">Registrar movimiento</button>
+                <div className="movement-list">
+                  {(movimientosQuery.data ?? []).slice(0, 5).map((mov) => (
+                    <p key={mov.id}><strong>{mov.tipo}</strong> {mov.cantidad} → {mov.stock_resultante}</p>
+                  ))}
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       )}
 

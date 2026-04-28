@@ -227,7 +227,10 @@ async def crear_cita(
                 detail="La cita queda fuera del horario configurado del doctor",
             )
 
-    cita = Cita(**data.model_dump(exclude={"forzar_fuera_horario"}))
+    campos = data.model_dump(exclude={"forzar_fuera_horario"})
+    if campos.get("clinica_id") is None:
+        campos["clinica_id"] = current_user.clinica_id or pac.clinica_id or doc.clinica_id
+    cita = Cita(**campos)
     db.add(cita)
     await db.commit()
     await db.refresh(cita)

@@ -74,11 +74,12 @@ async def _create_auth_session(
     return session
 
 
-def _build_token_data(usuario: Usuario, session: AuthSession) -> dict[str, str]:
+def _build_token_data(usuario: Usuario, session: AuthSession) -> dict[str, str | None]:
     return {
         "sub": str(usuario.id),
         "username": usuario.username,
         "rol": usuario.rol,
+        "clinica_id": str(usuario.clinica_id) if usuario.clinica_id else None,
         "sid": str(session.id),
         "rnonce": session.refresh_nonce,
     }
