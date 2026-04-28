@@ -3,7 +3,7 @@ Exporta todos los modelos para que Alembic los detecte en autogenerate.
 El orden de importación respeta las dependencias entre tablas.
 """
 from app.models.doctor import Doctor
-from app.models.clinica import Clinica, PacienteTemp, Producto, Proveedor, Receta, Teleconsulta
+from app.models.clinica import Clinica, MovimientoInventario, PacienteTemp, Producto, Proveedor, Receta, Teleconsulta
 from app.models.gabinete import Gabinete
 from app.models.entidad import Entidad
 from app.models.usuario import Usuario
@@ -29,6 +29,7 @@ __all__ = [
     "Teleconsulta",
     "Proveedor",
     "Producto",
+    "MovimientoInventario",
     "Receta",
     "PacienteTemp",
     "Gabinete",

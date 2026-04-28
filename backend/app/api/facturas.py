@@ -204,6 +204,7 @@ async def crear_factura(
     factura = Factura(
         paciente_id=data.paciente_id,
         entidad_id=data.entidad_id,
+        clinica_id=current_user.clinica_id or paciente.clinica_id,
         serie=data.serie,
         numero=numero,
         fecha=data.fecha,
@@ -425,6 +426,7 @@ async def rectificar_factura(
     factura_rectificativa = Factura(
         paciente_id=original.paciente_id,
         entidad_id=original.entidad_id,
+        clinica_id=original.clinica_id,
         serie=serie,
         numero=numero,
         fecha=data.fecha,

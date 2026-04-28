@@ -95,7 +95,7 @@ async def _leer_datos_salud(db: AsyncSession, paciente: Paciente) -> dict:
 @router.get("", response_model=list[PacienteResumen])
 async def listar_pacientes(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     q: str | None = Query(None, description="Texto libre: nombre, apellidos o código"),
     solo_activos: bool = Query(True),
     limit: int = Query(50, ge=1, le=200),
@@ -107,6 +107,9 @@ async def listar_pacientes(
     - Con `q`: filtra por nombre, apellidos o código (ILIKE).
     """
     stmt = select(Paciente).order_by(Paciente.apellidos, Paciente.nombre)
+
+    if current_user.clinica_id and current_user.rol != "admin":
+        stmt = stmt.where(or_(Paciente.clinica_id == current_user.clinica_id, Paciente.clinica_id.is_(None)))
 
     if solo_activos:
         stmt = stmt.where(Paciente.activo == True)  # noqa: E712
@@ -163,6 +166,8 @@ async def crear_paciente(
     )
 
     campos_planos = data.model_dump(exclude={"dni_nie", "telefono", "telefono2", "email", "datos_salud"})
+    if campos_planos.get("clinica_id") is None and current_user.clinica_id:
+        campos_planos["clinica_id"] = current_user.clinica_id
     paciente = Paciente(**campos_planos, **cifrados)
     paciente.datos_salud_cifrado = await cifrar_json(db, data.datos_salud)
     paciente.datos_salud = None

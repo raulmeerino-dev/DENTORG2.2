@@ -149,6 +149,18 @@ export interface ProductoInventario {
   activo: boolean;
 }
 
+export interface MovimientoInventario {
+  id: string;
+  producto_id: string;
+  tipo: 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
+  cantidad: number;
+  stock_resultante: number;
+  motivo: string | null;
+  factura_id: string | null;
+  usuario_id: string | null;
+  created_at: string;
+}
+
 export interface IngresosReporte {
   total: number;
   pac: number;

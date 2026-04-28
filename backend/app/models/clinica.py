@@ -54,6 +54,28 @@ class Producto(UUIDMixin, TimestampMixin, Base):
     proveedor: Mapped["Proveedor"] = relationship("Proveedor")  # noqa: F821
 
 
+class MovimientoInventario(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "movimientos_inventario"
+
+    producto_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("productos.id"), nullable=False, index=True
+    )
+    tipo: Mapped[str] = mapped_column(String(30), nullable=False)
+    cantidad: Mapped[int] = mapped_column(Integer, nullable=False)
+    stock_resultante: Mapped[int] = mapped_column(Integer, nullable=False)
+    motivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    factura_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("facturas.id"), nullable=True, index=True
+    )
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True
+    )
+
+    producto: Mapped["Producto"] = relationship("Producto")  # noqa: F821
+    factura: Mapped["Factura"] = relationship("Factura")  # noqa: F821
+    usuario: Mapped["Usuario"] = relationship("Usuario")  # noqa: F821
+
+
 class Receta(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "recetas"
 

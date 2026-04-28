@@ -97,3 +97,34 @@ async def test_crud_cita(client: AsyncClient, db_session: AsyncSession):
     patched = await client.patch(f"/api/citas/{cita['id']}", headers=headers, json={"estado": "anulada"})
     assert patched.status_code == 200
     assert patched.json()["estado"] == "anulada"
+
+
+@pytest.mark.asyncio
+async def test_inventario_registra_movimientos(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers(client, db_session)
+    created = await client.post(
+        "/api/inventario",
+        headers=headers,
+        json={"nombre": "Anestesia carpules", "stock_min": 5, "stock_act": 10},
+    )
+    assert created.status_code == 201
+    producto_id = created.json()["id"]
+
+    salida = await client.post(
+        f"/api/inventario/{producto_id}/movimientos",
+        headers=headers,
+        json={"tipo": "salida", "cantidad": 3, "motivo": "Reposicion gabinete"},
+    )
+    assert salida.status_code == 201
+    assert salida.json()["stock_act"] == 7
+
+    movimientos = await client.get(f"/api/inventario/{producto_id}/movimientos", headers=headers)
+    assert movimientos.status_code == 200
+    assert movimientos.json()[0]["stock_resultante"] == 7
+
+    exceso = await client.post(
+        f"/api/inventario/{producto_id}/movimientos",
+        headers=headers,
+        json={"tipo": "salida", "cantidad": 99},
+    )
+    assert exceso.status_code == 409

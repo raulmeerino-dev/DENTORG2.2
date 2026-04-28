@@ -51,6 +51,27 @@ class ProductoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class MovimientoInventarioCreate(BaseModel):
+    tipo: str = Field(..., pattern=r"^(entrada|salida|ajuste|consumo_factura)$")
+    cantidad: int = Field(..., gt=0)
+    motivo: str | None = Field(None, max_length=500)
+    factura_id: UUID | None = None
+
+
+class MovimientoInventarioResponse(BaseModel):
+    id: UUID
+    producto_id: UUID
+    tipo: str
+    cantidad: int
+    stock_resultante: int
+    motivo: str | None
+    factura_id: UUID | None
+    usuario_id: UUID | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class SyncPaciente(BaseModel):
     idTemp: str
     nombre: str
