@@ -234,7 +234,10 @@ export interface HorarioDoctor {
 export interface Doctor {
   id: string;
   nombre: string;
+  especialidad?: string | null;
   color_agenda: string | null;
+  es_auxiliar?: boolean;
+  porcentaje?: string | number | null;
   activo: boolean;
 }
 

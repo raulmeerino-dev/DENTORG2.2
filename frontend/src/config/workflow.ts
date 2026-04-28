@@ -62,11 +62,11 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   },
   {
     id: 'ficheros',
-    label: 'Ficheros',
-    description: 'Doctores, horarios, tratamientos, laboratorios, documentos y usuarios.',
+    label: 'Ajustes',
+    description: 'Ajustes generales: doctores, horarios, tratamientos, laboratorios, documentos y usuarios.',
     roles: ['admin'],
     route: '/configuracion',
-    shortcut: 'FI',
+    shortcut: 'AJ',
   },
   {
     id: 'clinica',

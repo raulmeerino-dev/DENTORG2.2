@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLE_LABELS, WORKFLOW_ITEMS, canRoleAccess } from '../../config/workflow';
 import {
+  createDoctor,
   createFamiliaTratamiento,
   createTratamientoCatalogo,
   deactivateTratamientoCatalogo,
@@ -13,12 +14,14 @@ import {
   getHorarios,
   getLaboratorios,
   getTratamientosCatalogo,
+  updateDoctor,
+  updateHorarioDoctor,
   updateTratamientoCatalogo,
 } from '../../lib/api';
-import type { TratamientoCatalogo } from '../../types/api';
+import type { Doctor, HorarioDoctor, TratamientoCatalogo } from '../../types/api';
 
-const DAYS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'];
-const FICHEROS = ['clinica', 'tratamientos', 'agenda', 'laboratorio', 'caja', 'documentos', 'seguridad', 'roles'] as const;
+const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+const FICHEROS = ['general', 'doctores', 'tratamientos', 'agenda', 'roles', 'caja', 'laboratorio', 'documentos', 'seguridad'] as const;
 type FicheroTab = typeof FICHEROS[number];
 
 const FAMILY_COLORS: Record<string, string> = {
@@ -66,6 +69,25 @@ type TreatmentForm = {
   activo: boolean;
 };
 
+type DoctorForm = {
+  id: string | null;
+  nombre: string;
+  especialidad: string;
+  color_agenda: string;
+  porcentaje: string;
+  es_auxiliar: boolean;
+  activo: boolean;
+};
+
+type HorarioForm = {
+  tipo_dia: string;
+  manana_inicio: string;
+  manana_fin: string;
+  tarde_inicio: string;
+  tarde_fin: string;
+  intervalo_min: string;
+};
+
 const EMPTY_TREATMENT_FORM: TreatmentForm = {
   id: null,
   familia_id: '',
@@ -76,6 +98,25 @@ const EMPTY_TREATMENT_FORM: TreatmentForm = {
   requiere_pieza: false,
   requiere_caras: false,
   activo: true,
+};
+
+const EMPTY_DOCTOR_FORM: DoctorForm = {
+  id: null,
+  nombre: '',
+  especialidad: '',
+  color_agenda: '#2563eb',
+  porcentaje: '0',
+  es_auxiliar: false,
+  activo: true,
+};
+
+const DEFAULT_HORARIO_FORM: HorarioForm = {
+  tipo_dia: 'laborable',
+  manana_inicio: '09:00',
+  manana_fin: '13:30',
+  tarde_inicio: '15:00',
+  tarde_fin: '20:30',
+  intervalo_min: '10',
 };
 
 function formFromTreatment(tratamiento: TratamientoCatalogo): TreatmentForm {
@@ -92,11 +133,51 @@ function formFromTreatment(tratamiento: TratamientoCatalogo): TreatmentForm {
   };
 }
 
+function formFromDoctor(doctor: Doctor): DoctorForm {
+  return {
+    id: doctor.id,
+    nombre: doctor.nombre,
+    especialidad: doctor.especialidad ?? '',
+    color_agenda: doctor.color_agenda ?? '#2563eb',
+    porcentaje: String(doctor.porcentaje ?? '0'),
+    es_auxiliar: Boolean(doctor.es_auxiliar),
+    activo: doctor.activo,
+  };
+}
+
+function horarioToForm(horario?: HorarioDoctor): HorarioForm {
+  const bloques = horario?.bloques ?? [];
+  const manana = bloques[0];
+  const tarde = bloques[1];
+  return {
+    tipo_dia: horario?.tipo_dia ?? DEFAULT_HORARIO_FORM.tipo_dia,
+    manana_inicio: manana?.inicio ?? DEFAULT_HORARIO_FORM.manana_inicio,
+    manana_fin: manana?.fin ?? DEFAULT_HORARIO_FORM.manana_fin,
+    tarde_inicio: tarde?.inicio ?? DEFAULT_HORARIO_FORM.tarde_inicio,
+    tarde_fin: tarde?.fin ?? DEFAULT_HORARIO_FORM.tarde_fin,
+    intervalo_min: String(horario?.intervalo_min ?? DEFAULT_HORARIO_FORM.intervalo_min),
+  };
+}
+
+function horarioPayload(form: HorarioForm) {
+  const bloques = form.tipo_dia === 'festivo' ? [] : [
+    { inicio: form.manana_inicio, fin: form.manana_fin },
+    { inicio: form.tarde_inicio, fin: form.tarde_fin },
+  ].filter((bloque) => bloque.inicio && bloque.fin && bloque.inicio < bloque.fin);
+  return {
+    tipo_dia: form.tipo_dia,
+    bloques,
+    intervalo_min: Number(form.intervalo_min || 10),
+  };
+}
+
 export default function ConfiguracionPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<FicheroTab>('clinica');
+  const [tab, setTab] = useState<FicheroTab>('general');
   const [doctorId, setDoctorId] = useState('');
+  const [doctorForm, setDoctorForm] = useState<DoctorForm>(EMPTY_DOCTOR_FORM);
+  const [horarioForms, setHorarioForms] = useState<Record<number, HorarioForm>>({});
   const [tratamientoForm, setTratamientoForm] = useState<TreatmentForm>(EMPTY_TREATMENT_FORM);
   const [tratamientoSearch, setTratamientoSearch] = useState('');
 
@@ -118,10 +199,60 @@ export default function ConfiguracionPage() {
   const canEditTreatments = isAdmin;
   const familias = familiasQuery.data ?? [];
   const tratamientos = tratamientosQuery.data ?? [];
+  const doctores = doctoresQuery.data ?? [];
+  const activeDoctorRecord = doctores.find((doctor) => doctor.id === activeDoctor) ?? doctores[0] ?? null;
   const filteredTratamientos = tratamientos.filter((tratamiento) => {
     const q = tratamientoSearch.trim().toLowerCase();
     if (!q) return true;
     return `${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`.toLowerCase().includes(q);
+  });
+
+  useEffect(() => {
+    if (activeDoctorRecord) {
+      setDoctorForm(formFromDoctor(activeDoctorRecord));
+    }
+  }, [activeDoctorRecord?.id, activeDoctorRecord?.nombre, activeDoctorRecord?.color_agenda, activeDoctorRecord?.porcentaje]);
+
+  useEffect(() => {
+    const next: Record<number, HorarioForm> = {};
+    DAYS.forEach((_, index) => {
+      next[index] = horarioToForm((horariosQuery.data ?? []).find((horario) => horario.dia_semana === index));
+    });
+    setHorarioForms(next);
+  }, [horariosQuery.data]);
+
+  const saveDoctorMutation = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        nombre: doctorForm.nombre.trim(),
+        especialidad: doctorForm.especialidad.trim() || null,
+        color_agenda: doctorForm.color_agenda || '#2563eb',
+        porcentaje: doctorForm.porcentaje ? Number(doctorForm.porcentaje.replace(',', '.')) : null,
+        es_auxiliar: doctorForm.es_auxiliar,
+        activo: doctorForm.activo,
+      };
+      if (!payload.nombre) throw new Error('Nombre requerido');
+      if (doctorForm.id) {
+        return updateDoctor(doctorForm.id, payload);
+      }
+      return createDoctor(payload);
+    },
+    onSuccess: (doctor) => {
+      setDoctorId(doctor.id);
+      setDoctorForm(formFromDoctor(doctor));
+      void queryClient.invalidateQueries({ queryKey: ['doctores'] });
+    },
+  });
+
+  const saveHorarioMutation = useMutation({
+    mutationFn: async (diaSemana: number) => {
+      if (!activeDoctor) throw new Error('Seleccione un doctor');
+      const form = horarioForms[diaSemana] ?? DEFAULT_HORARIO_FORM;
+      return updateHorarioDoctor(activeDoctor, diaSemana, horarioPayload(form));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['horarios', activeDoctor] });
+    },
   });
 
   const saveTreatmentMutation = useMutation({
@@ -179,8 +310,8 @@ export default function ConfiguracionPage() {
     <section className="page fichero-screen">
       <div className="toolbar">
         <div>
-          <p className="eyebrow">Ficheros</p>
-          <h1>Datos maestros y organizacion de la clinica</h1>
+          <p className="eyebrow">Admin</p>
+          <h1>Ajustes generales de la clínica</h1>
         </div>
         <div className="role-status">
           <span>Rol activo</span>
@@ -191,10 +322,11 @@ export default function ConfiguracionPage() {
       <nav className="file-tabs">
         {FICHEROS.map((item) => (
           <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
-            {item === 'clinica' && 'Clinica'}
+            {item === 'general' && 'General'}
+            {item === 'doctores' && 'Doctores'}
             {item === 'tratamientos' && 'Tratamientos'}
             {item === 'agenda' && 'Agenda'}
-            {item === 'laboratorio' && 'Protesicos'}
+            {item === 'laboratorio' && 'Protésicos'}
             {item === 'caja' && 'Caja'}
             {item === 'documentos' && 'Documentos'}
             {item === 'seguridad' && 'Seguridad/Backups'}
@@ -203,27 +335,78 @@ export default function ConfiguracionPage() {
         ))}
       </nav>
 
-      {tab === 'clinica' && (
+      {tab === 'general' && (
+        <div className="settings-overview-grid">
+          <section className="desk-panel">
+            <div className="panel-caption"><strong>Resumen de ajustes</strong><AccessPill allowed={isAdmin} /></div>
+            <div className="settings-kpis">
+              <button onClick={() => setTab('doctores')}><strong>{doctores.length}</strong><span>Doctores/auxiliares</span></button>
+              <button onClick={() => setTab('tratamientos')}><strong>{tratamientos.length}</strong><span>Tratamientos activos</span></button>
+              <button onClick={() => setTab('agenda')}><strong>{horariosQuery.data?.length ?? 0}</strong><span>Horarios del doctor</span></button>
+              <button onClick={() => setTab('roles')}><strong>{WORKFLOW_ITEMS.length}</strong><span>Secciones con permisos</span></button>
+            </div>
+          </section>
+          <section className="desk-panel">
+            <div className="panel-caption"><strong>Ficheros administrativos</strong><AccessPill allowed={isAdmin} /></div>
+            <div className="file-card-grid">
+              <div><strong>Doctores</strong><span>Nombre, especialidad, color de agenda, comisión y activo.</span></div>
+              <div><strong>Tratamientos</strong><span>Precios, IVA, familia, iconos, pieza/caras y estado.</span></div>
+              <div><strong>Horarios</strong><span>Agenda semanal por profesional, intervalos y festivos.</span></div>
+              <div><strong>Gabinetes</strong><span>Boxes, sillones, tiempos y color.</span></div>
+              <div><strong>Entidades sanitarias</strong><span>Mutuas, pólizas y pagadores.</span></div>
+              <div><strong>Datos clínica</strong><span>Empresa, locales, series y documentos.</span></div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {tab === 'doctores' && (
         <div className="fichero-grid">
           <section className="desk-panel">
-            <div className="panel-caption"><strong>Doctores y auxiliares</strong><AccessPill allowed={isAdmin} /></div>
+            <div className="panel-caption"><strong>Doctores, auxiliares y colores</strong><AccessPill allowed={isAdmin} /></div>
             <table className="euro-table">
-              <thead><tr><th>Nombre</th><th>Color agenda</th><th>Activo</th></tr></thead>
+              <thead><tr><th>Color</th><th>Nombre</th><th>Especialidad</th><th>%</th><th>Tipo</th><th>Activo</th></tr></thead>
               <tbody>
-                {(doctoresQuery.data ?? []).map((doctor) => (
-                  <tr key={doctor.id}><td>{doctor.nombre}</td><td>{doctor.color_agenda ?? ''}</td><td>{doctor.activo ? 'Si' : 'No'}</td></tr>
+                {doctores.map((doctor) => (
+                  <tr
+                    key={doctor.id}
+                    className={doctorForm.id === doctor.id ? 'selected-row' : ''}
+                    onClick={() => { setDoctorId(doctor.id); setDoctorForm(formFromDoctor(doctor)); }}
+                  >
+                    <td><span className="doctor-color-dot" style={{ background: doctor.color_agenda ?? '#8092a0' }} /></td>
+                    <td>{doctor.nombre}</td>
+                    <td>{doctor.especialidad ?? ''}</td>
+                    <td className="num">{doctor.porcentaje ?? '0'}</td>
+                    <td>{doctor.es_auxiliar ? 'Auxiliar' : 'Doctor'}</td>
+                    <td>{doctor.activo ? 'Sí' : 'No'}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
           </section>
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Gabinetes, entidades y referencias</strong><AccessPill allowed={isAdmin} /></div>
-            <div className="file-card-grid">
-              <div><strong>Gabinetes</strong><span>Boxes, sillones, tiempos y color.</span></div>
-              <div><strong>Entidades sanitarias</strong><span>Mutuas, polizas y pagadores.</span></div>
-              <div><strong>Referencias</strong><span>Origen del paciente y campanas.</span></div>
-              <div><strong>Datos clinica</strong><span>Empresa, locales, series y documentos.</span></div>
+          <section className="desk-panel treatment-editor-panel">
+            <div className="panel-caption"><strong>{doctorForm.id ? 'Editar profesional' : 'Nuevo profesional'}</strong><AccessPill allowed={isAdmin} /></div>
+            <div className="treatment-editor doctor-editor">
+              <label className="wide">Nombre
+                <input value={doctorForm.nombre} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, nombre: event.target.value }))} />
+              </label>
+              <label className="wide">Especialidad
+                <input value={doctorForm.especialidad} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, especialidad: event.target.value }))} />
+              </label>
+              <label>Color agenda
+                <input type="color" value={doctorForm.color_agenda} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, color_agenda: event.target.value }))} />
+              </label>
+              <label>% doctor
+                <input value={doctorForm.porcentaje} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, porcentaje: event.target.value }))} />
+              </label>
+              <label className="checkline"><input type="checkbox" checked={doctorForm.es_auxiliar} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, es_auxiliar: event.target.checked }))} /> Auxiliar</label>
+              <label className="checkline"><input type="checkbox" checked={doctorForm.activo} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, activo: event.target.checked }))} /> Activo</label>
             </div>
+            <div className="editor-actions">
+              <button onClick={() => { setDoctorId(''); setDoctorForm(EMPTY_DOCTOR_FORM); }}>Nuevo</button>
+              <button disabled={!isAdmin || saveDoctorMutation.isPending} onClick={() => saveDoctorMutation.mutate()}>Guardar</button>
+            </div>
+            {saveDoctorMutation.error && <p className="form-error">{String((saveDoctorMutation.error as Error).message)}</p>}
           </section>
         </div>
       )}
@@ -321,28 +504,51 @@ export default function ConfiguracionPage() {
             <strong>Horarios semanales por doctor</strong>
             <AccessPill allowed={isAdmin} />
             <select value={activeDoctor} onChange={(e) => setDoctorId(e.target.value)}>
-              {(doctoresQuery.data ?? []).map((doctor) => (
+              {doctores.map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
               ))}
             </select>
           </div>
-          <table className="euro-table">
-            <thead><tr><th>Dia</th><th>Tipo</th><th>Bloques</th><th>Intervalo</th><th>Excepciones</th></tr></thead>
+          <table className="euro-table horario-editor-table">
+            <thead><tr><th>Día</th><th>Tipo</th><th>Mañana</th><th>Tarde</th><th>Intervalo</th><th></th></tr></thead>
             <tbody>
               {DAYS.map((day, index) => {
-                const horario = (horariosQuery.data ?? []).find((item) => item.dia_semana === index);
+                const form = horarioForms[index] ?? DEFAULT_HORARIO_FORM;
                 return (
                   <tr key={day}>
                     <td>{day}</td>
-                    <td>{horario?.tipo_dia ?? 'sin configurar'}</td>
-                    <td>{horario?.bloques.map((b) => `${b.inicio}-${b.fin}`).join(', ') ?? '-'}</td>
-                    <td>{horario ? `${horario.intervalo_min} min` : '-'}</td>
-                    <td>Festivos, vacaciones, bloqueos y permisos puntuales</td>
+                    <td>
+                      <select disabled={!isAdmin} value={form.tipo_dia} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, tipo_dia: event.target.value } }))}>
+                        <option value="laborable">Laborable</option>
+                        <option value="semilaborable">Semi</option>
+                        <option value="festivo">Festivo</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.manana_inicio} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, manana_inicio: event.target.value } }))} />
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.manana_fin} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, manana_fin: event.target.value } }))} />
+                    </td>
+                    <td>
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.tarde_inicio} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, tarde_inicio: event.target.value } }))} />
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.tarde_fin} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, tarde_fin: event.target.value } }))} />
+                    </td>
+                    <td>
+                      <select disabled={!isAdmin} value={form.intervalo_min} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, intervalo_min: event.target.value } }))}>
+                        <option value="10">10 min</option>
+                        <option value="15">15 min</option>
+                        <option value="20">20 min</option>
+                        <option value="30">30 min</option>
+                        <option value="45">45 min</option>
+                        <option value="60">60 min</option>
+                      </select>
+                    </td>
+                    <td><button disabled={!isAdmin || saveHorarioMutation.isPending} onClick={() => saveHorarioMutation.mutate(index)}>Guardar</button></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          {saveHorarioMutation.error && <p className="form-error">{String((saveHorarioMutation.error as Error).message)}</p>}
         </section>
       )}
 
