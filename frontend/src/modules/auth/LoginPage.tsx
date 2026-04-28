@@ -7,6 +7,7 @@ export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -17,9 +18,9 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(username, password);
+      await login(username, password, otp || undefined);
     } catch {
-      setError('Usuario o contraseña incorrectos');
+      setError('Usuario, contraseña o código 2FA incorrectos');
     } finally {
       setLoading(false);
     }
@@ -39,6 +40,10 @@ export default function LoginPage() {
         <label>
           Contraseña
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        </label>
+        <label>
+          Código 2FA
+          <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="Solo si está activado" inputMode="numeric" />
         </label>
         {error && <p className="form-error">{error}</p>}
         <button className="primary-button" disabled={loading || !username || !password}>

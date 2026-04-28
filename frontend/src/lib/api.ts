@@ -3,6 +3,7 @@ import type { AxiosError } from 'axios';
 import type {
   ApiPaciente,
   Cita,
+  Clinica,
   Consentimiento,
   CumplimientoSif,
   DocumentoPaciente,
@@ -22,10 +23,13 @@ import type {
   ReportKpis,
   ReportPaciente,
   ReportTopTratamiento,
+  IngresosReporte,
+  ProductoInventario,
   TelefonearPendiente,
   TrabajoLaboratorio,
   TratamientoCatalogo,
   UsuarioMe,
+  VideoConsultaResponse,
 } from '../types/api';
 
 export const api = axios.create({
@@ -283,9 +287,9 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-export async function login(username: string, password: string) {
+export async function login(username: string, password: string, otp?: string) {
   try {
-    const { data } = await api.post<{ access_token: string }>('/auth/login', { username, password });
+    const { data } = await api.post<{ access_token: string }>('/auth/login', { username, password, otp });
     setStoredAuthToken(data.access_token);
     return data.access_token;
   } catch (error) {
@@ -310,6 +314,24 @@ export async function getMe() {
 
 export async function getPacientes() {
   return withDemoFallback(api.get<ApiPaciente[]>('/pacientes'), DEMO_PACIENTES);
+}
+
+export async function getClinicas() {
+  return withDemoFallback(api.get<Clinica[]>('/clinicas'), [
+    { id: 'demo-clinica-1', nombre: 'Clínica Norte', direccion: 'Av. Ejemplo 123', telefono: null, email: null, cif: null, activa: true },
+  ]);
+}
+
+export async function createClinica(data: Partial<Clinica> & { nombre: string }) {
+  return withDemoFallback(api.post<Clinica>('/clinicas', data), {
+    id: `demo-clinica-${Date.now()}`,
+    nombre: data.nombre,
+    direccion: data.direccion ?? null,
+    telefono: data.telefono ?? null,
+    email: data.email ?? null,
+    cif: data.cif ?? null,
+    activa: true,
+  });
 }
 
 export async function getPaciente(pacienteId: string) {
@@ -625,6 +647,20 @@ export async function getCitas(params: Record<string, string>) {
   return withDemoFallback(api.get<Cita[]>('/citas', { params }), filtered);
 }
 
+export async function getPacienteCitas(pacienteId: string) {
+  const day = new Date().toISOString().slice(0, 10);
+  const fallback = await getCitas({ paciente_id: pacienteId, fecha_desde: day });
+  return withDemoFallback(api.get<Cita[]>(`/pacientes/${pacienteId}/citas`), fallback);
+}
+
+export async function iniciarVideoConsulta(citaId: string) {
+  return withDemoFallback(api.post<VideoConsultaResponse>(`/citas/${citaId}/video`), {
+    citaId,
+    videoUrl: `https://meet.jit.si/dentorg2-demo-${citaId}`,
+    estado: 'iniciada',
+  });
+}
+
 export async function buscarHuecosLibres(params: {
   doctor_id: string;
   duracion_min: number;
@@ -879,6 +915,75 @@ export async function deactivateTratamientoCatalogo(id: string) {
     id,
     activo: false,
   });
+}
+
+export async function getInventario() {
+  return withDemoFallback(api.get<ProductoInventario[]>('/inventario'), [
+    { id: 'demo-prod-1', nombre: 'Amoxicilina', stock_min: 10, stock_act: 50, proveedor_id: null, activo: true },
+    { id: 'demo-prod-2', nombre: 'Guantes nitrilo M', stock_min: 20, stock_act: 8, proveedor_id: null, activo: true },
+  ]);
+}
+
+export async function createProductoInventario(data: { nombre: string; stock_min: number; stock_act: number }) {
+  return withDemoFallback(api.post<ProductoInventario>('/inventario', data), {
+    id: `demo-prod-${Date.now()}`,
+    nombre: data.nombre,
+    stock_min: data.stock_min,
+    stock_act: data.stock_act,
+    proveedor_id: null,
+    activo: true,
+  });
+}
+
+export async function updateProductoInventario(id: string, data: Partial<ProductoInventario>) {
+  return withDemoFallback(api.patch<ProductoInventario>(`/inventario/${id}`, data), {
+    id,
+    nombre: data.nombre ?? 'Producto',
+    stock_min: data.stock_min ?? 0,
+    stock_act: data.stock_act ?? 0,
+    proveedor_id: data.proveedor_id ?? null,
+    activo: data.activo ?? true,
+  });
+}
+
+export async function getIngresosReporte(desde: string, hasta: string) {
+  return withDemoFallback(api.get<IngresosReporte>('/reportes/ingresos', { params: { desde, hasta } }), {
+    total: 12345,
+    pac: 6789,
+    seg: 4556,
+  });
+}
+
+export function recetaPdfUrl(facturaId: string) {
+  return `${api.defaults.baseURL}/facturas/${facturaId}/receta`;
+}
+
+export async function emitirRecetaPdf(facturaId: string) {
+  const { data } = await api.post<Blob>(`/facturas/${facturaId}/receta`, undefined, { responseType: 'blob' });
+  const url = URL.createObjectURL(data);
+  const opened = window.open(url, '_blank');
+  if (!opened) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `receta-${facturaId}.pdf`;
+    link.click();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function enableTwoFactor() {
+  const { data } = await api.post<{ secret: string; otpauthUrl: string; qrDataUrl: string }>('/auth/2fa-enable');
+  return data;
+}
+
+export async function syncOffline(payload: { pacientes: unknown[]; citas: unknown[] }) {
+  const { data } = await api.post<{ pacientes: Record<string, string>; citas: Record<string, string>; pendientes: number }>('/sync', payload);
+  return data;
+}
+
+export async function importPacientes(payload: Array<Record<string, string>>) {
+  const { data } = await api.post<{ creados: number; errores: Array<Record<string, unknown>> }>('/import/pacientes', payload);
+  return data;
 }
 
 export async function getLaboratorios(params: { solo_activos?: boolean } = {}) {

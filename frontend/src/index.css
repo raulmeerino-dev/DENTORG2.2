@@ -2099,6 +2099,22 @@ body {
   text-align: right;
 }
 
+.video-consult-panel {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #c8d7e0;
+  border-radius: 12px;
+  background: #f7fbfd;
+}
+
+.video-consult-panel iframe {
+  width: 100%;
+  height: 260px;
+  border: 1px solid #bfd0da;
+  border-radius: 10px;
+}
+
 .context-menu {
   position: fixed;
   z-index: 60;
@@ -2891,6 +2907,184 @@ body {
   border-radius: 8px;
   background: linear-gradient(#ffffff, #edf5f8);
   font-weight: 700;
+}
+
+.admin-extras .settings-form {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.admin-extras .settings-form label {
+  display: grid;
+  gap: 4px;
+  color: #3b5263;
+  font-weight: 700;
+}
+
+.admin-extras input,
+.admin-extras textarea,
+.stock-input {
+  min-height: 32px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.admin-extras textarea {
+  min-height: 180px;
+  font-family: Consolas, monospace;
+}
+
+.offline-pill,
+.online-pill {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.online-pill {
+  color: #0c4a2d;
+  background: #dff4e7;
+}
+
+.offline-pill {
+  color: #7a1d23;
+  background: #ffe1e4;
+}
+
+.stock-alert-row td {
+  color: #971b2f;
+  background: #fff1f3;
+  font-weight: 700;
+}
+
+.bi-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.bi-bars div {
+  display: grid;
+  grid-template-columns: 110px 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.bi-bars i {
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0f7cad, #23a373);
+}
+
+.bi-chart {
+  height: 320px;
+  min-height: 320px;
+  padding: 10px 6px 0;
+}
+
+.qr-preview {
+  width: 180px;
+  height: 180px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+}
+
+.mobile-portal {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 18px;
+}
+
+.mobile-portal-head {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.mobile-portal-head h1 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.mobile-portal-head select,
+.mobile-cita-actions button {
+  min-height: 42px;
+  border: 1px solid #b6c7d2;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.mobile-patient-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-block: 1px solid #c9d5dd;
+  color: #244253;
+}
+
+.mobile-cita-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.mobile-cita-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #c5d2dc;
+  border-left: 7px solid #2563eb;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 22px rgb(24 52 70 / 8%);
+}
+
+.mobile-cita-card p {
+  margin: 0;
+}
+
+.mobile-cita-card div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #244253;
+}
+
+.mobile-cita-state {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #e8f1f7;
+  color: #244253;
+  font-size: .8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mobile-cita-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mobile-cita-card.status-anulada,
+.mobile-cita-card.status-cancelada {
+  border-left-color: #9ca3af;
+  opacity: .76;
+}
+
+.mobile-cita-card.status-confirmada {
+  border-left-color: #16a34a;
+}
+
+@media (max-width: 640px) {
+  .mobile-patient-strip,
+  .mobile-cita-card div:first-child {
+    display: grid;
+  }
 }
 
 @media (max-width: 980px) {

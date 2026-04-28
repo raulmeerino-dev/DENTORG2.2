@@ -10,7 +10,8 @@ export type AppSection =
   | 'caja'
   | 'documentos'
   | 'laboratorio'
-  | 'seguridad';
+  | 'seguridad'
+  | 'adminExtras';
 
 export interface WorkflowItem {
   id: AppSection;
@@ -67,6 +68,14 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     roles: ['admin'],
     route: '/configuracion',
     shortcut: 'AJ',
+  },
+  {
+    id: 'adminExtras',
+    label: 'Admin Pro',
+    description: 'Clinicas, inventario, BI, importacion, offline y doble factor.',
+    roles: ['admin'],
+    route: '/admin-extras',
+    shortcut: 'AD',
   },
   {
     id: 'clinica',

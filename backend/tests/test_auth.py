@@ -57,9 +57,9 @@ async def test_login_contraseña_incorrecta(client: AsyncClient, db_session: Asy
 
 @pytest.mark.asyncio
 async def test_get_me_sin_token(client: AsyncClient):
-    """GET /auth/me sin token devuelve 403."""
+    """GET /auth/me sin token devuelve 401."""
     response = await client.get("/api/auth/me")
-    assert response.status_code == 403
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio

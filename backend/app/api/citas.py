@@ -3,6 +3,7 @@ Router de citas — agenda.
 Fase 2: CRUD completo + búsqueda de huecos + panel Telefonear.
 """
 from datetime import datetime, timezone
+from uuid import uuid4
 from typing import Annotated
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from app.core.crypto import descifrar_bytes
 from app.core.permissions import CurrentUser, RequireAdmin, get_current_user
 from app.database import get_db
 from app.models.cita import Cita, CitaTelefonear, HistorialFaltas
+from app.models.clinica import Teleconsulta
 from app.models.doctor import Doctor
 from app.models.paciente import Paciente
 from app.schemas.cita import (
@@ -27,6 +29,7 @@ from app.schemas.cita import (
     CitaUpdate,
     HuecoLibre,
 )
+from app.schemas.extras import VideoResponse
 from app.services.agenda_service import buscar_huecos_libres, esta_dentro_disponibilidad, hay_solapamiento
 
 router = APIRouter()
@@ -297,6 +300,32 @@ async def obtener_cita(
     _: CurrentUser,
 ) -> CitaResponse:
     return await _to_response(db, await _get_cita_or_404(db, cita_id))
+
+
+@router.post("/{cita_id}/video", response_model=VideoResponse)
+async def iniciar_video(
+    cita_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: CurrentUser,
+) -> VideoResponse:
+    cita = await _get_cita_or_404(db, cita_id)
+    result = await db.execute(select(Teleconsulta).where(Teleconsulta.cita_id == cita_id))
+    teleconsulta = result.scalar_one_or_none()
+    if not teleconsulta:
+        token = uuid4().hex
+        teleconsulta = Teleconsulta(
+            cita_id=cita_id,
+            url=f"https://meet.jit.si/dentorg2-{token}",
+            estado="iniciada",
+        )
+        db.add(teleconsulta)
+    else:
+        teleconsulta.estado = "iniciada"
+    if cita.estado == "programada":
+        cita.estado = "confirmada"
+    await db.commit()
+    await db.refresh(teleconsulta)
+    return VideoResponse(citaId=cita_id, videoUrl=teleconsulta.url, estado=teleconsulta.estado)
 
 
 @router.patch("/{cita_id}", response_model=CitaResponse)

@@ -1,7 +1,9 @@
 """
 Router de autenticacion con sesiones revocables.
 """
+import base64
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -14,6 +16,8 @@ from app.core.permissions import CurrentUser
 from app.core.security import (
     create_access_token,
     create_refresh_token,
+    generate_totp_secret,
+    verify_totp,
     verify_password,
     verify_refresh_token,
 )
@@ -22,6 +26,7 @@ from app.database import get_db
 from app.models.auth_session import AuthSession
 from app.models.usuario import Usuario
 from app.schemas.auth import AuthSessionResponse, LoginRequest, RefreshRequest, TokenResponse, UsuarioMe
+from app.schemas.extras import TwoFactorEnableResponse
 
 router = APIRouter()
 settings = get_settings()
@@ -127,6 +132,13 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario o contrasena incorrectos",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    if usuario.two_factor_secret and not verify_totp(usuario.two_factor_secret, credentials.otp or ""):
+        register_login_failure(throttle_key)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Codigo 2FA requerido o incorrecto",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -279,7 +291,33 @@ async def get_me(
     usuario = result.scalar_one_or_none()
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
-    return UsuarioMe.model_validate(usuario)
+    data = UsuarioMe.model_validate(usuario)
+    data.two_factor_enabled = bool(usuario.two_factor_secret)
+    return data
+
+
+@router.post("/2fa-enable", response_model=TwoFactorEnableResponse)
+async def enable_2fa(
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> TwoFactorEnableResponse:
+    usuario = await db.get(Usuario, current_user.user_id)
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
+    secret = usuario.two_factor_secret or generate_totp_secret()
+    usuario.two_factor_secret = secret
+    issuer = "DentOrg2"
+    otpauth = f"otpauth://totp/{issuer}:{usuario.username}?secret={secret}&issuer={issuer}&digits=6&period=30"
+    try:
+        import qrcode
+        image = qrcode.make(otpauth)
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        qr_data_url = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    except Exception:
+        qr_data_url = ""
+    await db.commit()
+    return TwoFactorEnableResponse(secret=secret, otpauthUrl=otpauth, qrDataUrl=qr_data_url)
 
 
 @router.get("/sessions", response_model=list[AuthSessionResponse])

@@ -8,7 +8,7 @@ interface AuthContextValue {
   user: UsuarioMe | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, otp?: string) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -28,8 +28,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: data ?? null,
     isLoading,
     isAuthenticated: Boolean(data),
-    login: async (username, password) => {
-      await loginRequest(username, password);
+    login: async (username, password, otp) => {
+      await loginRequest(username, password, otp);
       setHasToken(true);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
     },

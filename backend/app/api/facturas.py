@@ -8,17 +8,20 @@ Router de facturas.
 - Integridad y eventos del SIF
 """
 from datetime import datetime, timezone
+import base64
+from io import BytesIO
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import CurrentUser, RequireAdmin
 from app.database import get_db
+from app.models.clinica import Receta
 from app.models.factura import Cobro, Factura, FacturaLinea, FormaPago
 from app.models.historial import HistorialClinico
 from app.models.paciente import Paciente
@@ -264,6 +267,47 @@ async def obtener_factura(
     _: CurrentUser,
 ) -> FacturaResponse:
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_id))
+
+
+@router.post("/{factura_id}/receta")
+async def generar_receta(
+    factura_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> Response:
+    factura = await _get_factura_or_404(db, factura_id)
+    result = await db.execute(select(Receta).where(Receta.factura_id == factura_id))
+    receta = result.scalar_one_or_none()
+    if not receta:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+
+        buffer = BytesIO()
+        pdf = canvas.Canvas(buffer, pagesize=A4)
+        pdf.setTitle(f"Receta factura {factura.serie}-{factura.numero}")
+        pdf.setFont("Helvetica-Bold", 16)
+        pdf.drawString(50, 800, "RECETA ELECTRONICA")
+        pdf.setFont("Helvetica", 10)
+        pdf.drawString(50, 780, "Formato interno DentOrg2. Validar integracion oficial antes de uso sanitario real.")
+        pdf.drawString(50, 750, f"Paciente: {factura.paciente.nombre} {factura.paciente.apellidos}")
+        pdf.drawString(50, 730, f"Factura: {factura.serie}-{factura.numero}  Fecha: {factura.fecha.isoformat()}")
+        y = 700
+        for linea in factura.lineas:
+            pdf.drawString(60, y, f"- {linea.concepto} ({linea.cantidad})")
+            y -= 18
+        pdf.drawString(50, 120, f"Emitida por usuario: {current_user.username}")
+        pdf.showPage()
+        pdf.save()
+        contenido = base64.b64encode(buffer.getvalue()).decode("ascii")
+        receta = Receta(factura_id=factura_id, contenido_base64=contenido)
+        db.add(receta)
+        factura.tiene_receta_electronica = True
+        await db.commit()
+    return Response(
+        content=base64.b64decode(receta.contenido_base64),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="receta-{factura.serie}-{factura.numero}.pdf"'},
+    )
 
 
 @router.patch("/{factura_id}", response_model=FacturaResponse)

@@ -20,6 +20,9 @@ class Paciente(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "pacientes"
 
     codigo: Mapped[str | None] = mapped_column(String(20), unique=True, nullable=True, index=True)
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
     num_historial: Mapped[int] = mapped_column(
         Integer,
         server_default=text("nextval('pacientes_num_historial_seq')"),

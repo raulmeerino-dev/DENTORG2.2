@@ -7,6 +7,7 @@ from datetime import datetime
 class LoginRequest(BaseModel):
     username: str = Field(..., min_length=1, max_length=50)
     password: str = Field(..., min_length=1)
+    otp: str | None = Field(None, min_length=6, max_length=8)
 
 
 class TokenResponse(BaseModel):
@@ -27,6 +28,8 @@ class UsuarioMe(BaseModel):
     nombre: str
     rol: str
     doctor_id: UUID | None = None
+    clinica_id: UUID | None = None
+    two_factor_enabled: bool = False
 
     model_config = {"from_attributes": True}
 

@@ -12,11 +12,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from datetime import datetime, timezone
 
 from app.core.crypto import cifrar_campos_paciente, cifrar_json, descifrar_json, descifrar_paciente
 from app.core.permissions import CurrentUser, RequireAdmin, RequireDoctor
 from app.database import get_db
 from app.models.paciente import Paciente
+from app.models.cita import Cita
+from app.schemas.cita import CitaResponse
+from app.api.citas import _to_response as cita_to_response
 from app.models.referencia import Referencia
 from app.schemas.paciente import (
     AsignarReferenciasRequest,
@@ -49,6 +53,7 @@ async def _build_response(db: AsyncSession, p: Paciente, include_health: bool) -
     descifrados = await descifrar_paciente(db, p)
     data = {
         "id": p.id,
+        "clinica_id": p.clinica_id,
         "codigo": p.codigo,
         "num_historial": p.num_historial,
         "nombre": p.nombre,
@@ -258,6 +263,22 @@ async def actualizar_salud(
     p.datos_salud_cifrado = await cifrar_json(db, existing)
     p.datos_salud = None
     await db.commit()
+
+
+@router.get("/{paciente_id}/citas", response_model=list[CitaResponse])
+async def proximas_citas_paciente(
+    paciente_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: CurrentUser,
+) -> list[CitaResponse]:
+    await _get_paciente_or_404(db, paciente_id)
+    result = await db.execute(
+        select(Cita)
+        .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
+        .where(Cita.paciente_id == paciente_id, Cita.fecha_hora >= datetime.now(timezone.utc))
+        .order_by(Cita.fecha_hora)
+    )
+    return [await cita_to_response(db, cita) for cita in result.scalars().all()]
     return existing
 
 

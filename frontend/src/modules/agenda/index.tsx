@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buscarHuecosLibres, createCita, createPaciente, getCitas, getDoctores, getPacientes, getTelefonear, updateCita } from '../../lib/api';
+import { buscarHuecosLibres, createCita, createPaciente, getCitas, getDoctores, getPacientes, getTelefonear, iniciarVideoConsulta, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
 
 type SlotDraft = {
@@ -131,6 +131,7 @@ function CitaModal({
   onClose,
   onSubmit,
   onCreateTemporaryPaciente,
+  onStartVideo,
 }: {
   cita: Cita | null;
   draft: SlotDraft | null;
@@ -149,6 +150,7 @@ function CitaModal({
     gabinete_id: string | null;
   }) => void;
   onCreateTemporaryPaciente: (data: { nombreCompleto: string; telefono: string }) => Promise<ApiPaciente>;
+  onStartVideo: (cita: Cita) => Promise<string>;
 }) {
   const [query, setQuery] = useState('');
   const initialPacienteId = cita?.paciente_id ?? draft?.pacienteId ?? sessionStorage.getItem('dentorg_selected_patient_id') ?? pacientes[0]?.id ?? '';
@@ -164,6 +166,7 @@ function CitaModal({
   const [tempName, setTempName] = useState('');
   const [tempPhone, setTempPhone] = useState('');
   const [creatingTemp, setCreatingTemp] = useState(false);
+  const [videoUrl, setVideoUrl] = useState('');
 
   const filteredPatients = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -267,6 +270,12 @@ function CitaModal({
           <span>Canal: {observaciones.toLowerCase().includes('whatsapp') ? 'WhatsApp' : observaciones.toLowerCase().includes('email') ? 'Email' : '-'}</span>
           <span>Confirmacion: {estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}</span>
         </aside>
+        {cita && (
+          <div className="video-consult-panel">
+            <button type="button" onClick={async () => setVideoUrl(await onStartVideo(cita))}>Iniciar videollamada</button>
+            {videoUrl && <div><strong>Videoconsulta iniciada</strong><iframe title="Videollamada" src={videoUrl} allow="camera; microphone; fullscreen" /></div>}
+          </div>
+        )}
 
         <footer>
           <button type="button" onClick={onClose}>Cerrar</button>
@@ -502,6 +511,14 @@ export default function AgendaPage() {
     onSuccess: () => {
       setContextMenu(null);
       void queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
+  const videoMutation = useMutation({
+    mutationFn: async (cita: Cita) => {
+      const response = await iniciarVideoConsulta(cita.id);
+      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      return response.videoUrl;
     },
   });
 
@@ -747,6 +764,7 @@ export default function AgendaPage() {
           onClose={() => { setModalCita(null); setSlotDraft(null); }}
           onSubmit={(data) => saveMutation.mutate(data)}
           onCreateTemporaryPaciente={(data) => createTempPatient.mutateAsync(data)}
+          onStartVideo={(cita) => videoMutation.mutateAsync(cita)}
         />
       )}
 
