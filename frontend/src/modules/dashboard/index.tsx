@@ -19,6 +19,7 @@ function hour(value: string) {
 export default function DashboardPage() {
   const { user } = useAuth();
   const day = todayIso();
+  const isAdmin = user?.rol === 'admin';
   const citasQuery = useQuery({
     queryKey: ['dashboard-citas', day],
     queryFn: () => getCitas({ fecha_desde: `${day}T00:00:00`, fecha_hasta: `${day}T23:59:59` }),
@@ -39,16 +40,24 @@ export default function DashboardPage() {
     <section className="page dashboard-screen">
       <header className="dashboard-hero">
         <div>
-          <p className="eyebrow">Panel diario</p>
-          <h1>Hoy en la clinica</h1>
-          <span>{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })} · {user?.nombre}</span>
+          <p className="eyebrow">Inicio</p>
+          <h1>Trabajo de hoy</h1>
+          <span>{new Date().toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })} - {user?.nombre}</span>
         </div>
         <nav className="dashboard-actions">
           <Link to="/agenda">Abrir agenda</Link>
-          <Link to="/pacientes">Ficha paciente</Link>
-          <Link to="/listados">Caja y listados</Link>
+          <Link to="/pacientes">Buscar paciente</Link>
+          {isAdmin && <Link to="/listados">Caja y listados</Link>}
+          {isAdmin && <Link to="/ajustes">Ajustes generales</Link>}
         </nav>
       </header>
+
+      <nav className="dashboard-flow">
+        <Link to="/pacientes"><strong>Pacientes</strong><span>Ficha, primera visita, presupuestos y tratamientos</span></Link>
+        <Link to="/agenda"><strong>Agenda</strong><span>Huecos, llamadas, estados y recordatorios</span></Link>
+        {isAdmin && <Link to="/listados"><strong>Gestion</strong><span>Caja, reportes, deuda y laboratorio</span></Link>}
+        {isAdmin && <Link to="/ajustes"><strong>Ajustes</strong><span>Doctores, precios, roles, colores y horarios</span></Link>}
+      </nav>
 
       <div className="dashboard-metrics">
         <div><span>Citas hoy</span><strong>{citas.length}</strong><small>{enClinica.length} en clinica</small></div>
@@ -59,7 +68,7 @@ export default function DashboardPage() {
 
       <main className="dashboard-grid">
         <section className="dashboard-panel schedule-panel">
-          <div className="panel-caption"><strong>Citas de hoy</strong><span>flujo de recepcion y gabinete</span></div>
+          <div className="panel-caption"><strong>Citas de hoy</strong><span>flujo de recepcion, auxiliar y doctor</span></div>
           <table className="euro-table">
             <thead><tr><th>Hora</th><th>Paciente</th><th>Doctor</th><th>Tratamiento</th><th>Estado</th></tr></thead>
             <tbody>
@@ -77,50 +86,54 @@ export default function DashboardPage() {
           </table>
         </section>
 
-        <section className="dashboard-panel">
-          <div className="panel-caption"><strong>Pacientes con deuda</strong><span>prioridad de caja</span></div>
-          <table className="euro-table">
-            <thead><tr><th>Historia</th><th>Paciente</th><th>Saldo</th></tr></thead>
-            <tbody>
-              {pacientesConSaldo.map((paciente) => (
-                <tr key={paciente.id}>
-                  <td>{paciente.num_historial}</td>
-                  <td>{paciente.apellidos}, {paciente.nombre}</td>
-                  <td className="num">{money(paciente.saldo_pendiente)}</td>
-                </tr>
-              ))}
-              {!pacientesConSaldo.length && <tr><td colSpan={3}>Sin saldos pendientes destacados.</td></tr>}
-            </tbody>
-          </table>
-        </section>
+        {isAdmin && (
+          <section className="dashboard-panel">
+            <div className="panel-caption"><strong>Pacientes con deuda</strong><span>prioridad de caja</span></div>
+            <table className="euro-table">
+              <thead><tr><th>Historia</th><th>Paciente</th><th>Saldo</th></tr></thead>
+              <tbody>
+                {pacientesConSaldo.map((paciente) => (
+                  <tr key={paciente.id}>
+                    <td>{paciente.num_historial}</td>
+                    <td>{paciente.apellidos}, {paciente.nombre}</td>
+                    <td className="num">{money(paciente.saldo_pendiente)}</td>
+                  </tr>
+                ))}
+                {!pacientesConSaldo.length && <tr><td colSpan={3}>Sin saldos pendientes destacados.</td></tr>}
+              </tbody>
+            </table>
+          </section>
+        )}
 
         <section className="dashboard-panel">
-          <div className="panel-caption"><strong>Alertas</strong><span>confirmacion, asistencia y laboratorio</span></div>
+          <div className="panel-caption"><strong>Alertas</strong><span>confirmacion, asistencia y pendientes</span></div>
           <div className="alert-list">
             <div><strong>{confirmar.length}</strong><span>citas pendientes de confirmar</span></div>
             <div><strong>{fallidas.length}</strong><span>canceladas o no asistidas hoy</span></div>
-            <div><strong>{lab.length}</strong><span>trabajos de laboratorio activos</span></div>
+            <div><strong>{enClinica.length}</strong><span>pacientes actualmente en clinica</span></div>
             <div><strong>{kpis?.citas.faltas ?? 0}</strong><span>faltas en el periodo</span></div>
           </div>
         </section>
 
-        <section className="dashboard-panel">
-          <div className="panel-caption"><strong>Laboratorio</strong><span>proximas entregas</span></div>
-          <table className="euro-table">
-            <thead><tr><th>Paciente</th><th>Trabajo</th><th>Estado</th><th>Entrega</th></tr></thead>
-            <tbody>
-              {lab.slice(0, 6).map((trabajo) => (
-                <tr key={trabajo.id}>
-                  <td>{trabajo.paciente ? `${trabajo.paciente.apellidos}, ${trabajo.paciente.nombre}` : ''}</td>
-                  <td>{trabajo.descripcion}</td>
-                  <td>{trabajo.estado}</td>
-                  <td>{trabajo.fecha_entrega_prevista ?? ''}</td>
-                </tr>
-              ))}
-              {!lab.length && <tr><td colSpan={4}>Sin trabajos pendientes.</td></tr>}
-            </tbody>
-          </table>
-        </section>
+        {isAdmin && (
+          <section className="dashboard-panel">
+            <div className="panel-caption"><strong>Laboratorio</strong><span>proximas entregas</span></div>
+            <table className="euro-table">
+              <thead><tr><th>Paciente</th><th>Trabajo</th><th>Estado</th><th>Entrega</th></tr></thead>
+              <tbody>
+                {lab.slice(0, 6).map((trabajo) => (
+                  <tr key={trabajo.id}>
+                    <td>{trabajo.paciente ? `${trabajo.paciente.apellidos}, ${trabajo.paciente.nombre}` : ''}</td>
+                    <td>{trabajo.descripcion}</td>
+                    <td>{trabajo.estado}</td>
+                    <td>{trabajo.fecha_entrega_prevista ?? ''}</td>
+                  </tr>
+                ))}
+                {!lab.length && <tr><td colSpan={4}>Sin trabajos pendientes.</td></tr>}
+              </tbody>
+            </table>
+          </section>
+        )}
       </main>
     </section>
   );
