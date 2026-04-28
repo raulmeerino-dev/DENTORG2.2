@@ -1,0 +1,27 @@
+# Python
+backend/.venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+
+# Local runtime data
+backend/.env
+backend/uploads/
+backend/*.log
+frontend/*.log
+output/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local assistant/runtime folders
+.claude/
