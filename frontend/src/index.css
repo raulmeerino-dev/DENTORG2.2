@@ -2409,6 +2409,79 @@ body {
   grid-template-columns: 96px 104px 112px 150px 180px minmax(180px, 1fr) 108px;
 }
 
+.temporary-patient-banner {
+  grid-column: 1 / -1;
+  border: 1px solid #d8a028;
+  background: #fff7da;
+  color: #714d00;
+  padding: 6px 8px;
+  font-weight: 700;
+}
+
+.patient-edit-modal {
+  width: min(900px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+  background: #f8fbfd;
+  border: 1px solid #91afc1;
+  box-shadow: 0 18px 50px rgba(12, 24, 35, 0.28);
+}
+
+.patient-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+
+.patient-edit-grid label {
+  display: grid;
+  gap: 4px;
+  color: #345064;
+  font-weight: 700;
+}
+
+.patient-edit-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.patient-edit-grid input,
+.patient-edit-grid textarea {
+  min-height: 32px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: #ffffff;
+}
+
+.patient-edit-grid textarea {
+  min-height: 86px;
+  resize: vertical;
+}
+
+.temporary-patient-box {
+  display: grid;
+  grid-template-columns: 1fr 150px 120px;
+  gap: 8px;
+  align-items: end;
+  padding: 8px;
+  border: 1px solid #d5c18a;
+  border-radius: 10px;
+  background: #fffaf0;
+}
+
+.temporary-patient-box strong {
+  grid-column: 1 / -1;
+  color: #694b00;
+}
+
+@media (max-width: 900px) {
+  .patient-edit-grid,
+  .temporary-patient-box {
+    grid-template-columns: 1fr;
+  }
+}
+
 .euro-table th,
 .euro-table td,
 .data-table th,
