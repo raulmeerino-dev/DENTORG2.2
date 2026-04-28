@@ -18,8 +18,27 @@ from app.models.historial import HistorialClinico
 from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto
 from app.models.tratamiento import TratamientoCatalogo
+from app.schemas.extras import IngresosResponse
 
 router = APIRouter()
+
+
+@router.get("/ingresos", response_model=IngresosResponse)
+async def ingresos(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: CurrentUser,
+    desde: date = Query(...),
+    hasta: date = Query(...),
+) -> IngresosResponse:
+    result = await db.execute(
+        select(
+            func.coalesce(func.sum(Factura.total), Decimal("0")),
+            func.coalesce(func.sum(Factura.total).filter(Factura.tipo == "paciente"), Decimal("0")),
+            func.coalesce(func.sum(Factura.total).filter(Factura.tipo != "paciente"), Decimal("0")),
+        ).where(Factura.fecha >= desde, Factura.fecha <= hasta, Factura.estado != "anulada")
+    )
+    total, pac, seg = result.one()
+    return IngresosResponse(total=float(total), pac=float(pac), seg=float(seg))
 
 
 # ─── KPIs del dashboard ───────────────────────────────────────────────────────

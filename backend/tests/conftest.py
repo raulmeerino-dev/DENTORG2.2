@@ -5,6 +5,7 @@ Usa una BD de test separada y prepara extensiones/secuencias necesarias
 para que el metadata del proyecto pueda crearse en limpio.
 """
 import os
+from pathlib import Path
 from collections.abc import AsyncGenerator
 
 import pytest_asyncio
@@ -56,7 +57,7 @@ async def create_tables(create_test_database: None) -> AsyncGenerator[None, None
 
     previous_database_url = os.environ.get("DATABASE_URL")
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
-    alembic_cfg = Config("/app/alembic.ini")
+    alembic_cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(alembic_cfg, "head")
     yield
     async with test_engine.begin() as conn:

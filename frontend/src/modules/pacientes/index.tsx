@@ -9,6 +9,7 @@ import {
   createFacturaManual,
   createPresupuesto,
   deletePresupuestoLinea,
+  emitirRecetaPdf,
   facturaPdfUrl,
   generarDocumentoPdfPaciente,
   getCitas,
@@ -654,6 +655,7 @@ function BillingHistory({
         <button onClick={() => facturas[0] && window.open(facturaPdfUrl(facturas[0].id), '_blank')}>Imprimir</button>
         <button onClick={onCobrar}>Cobrar</button>
         <button onClick={() => facturas[0] && window.open(facturaPdfUrl(facturas[0].id), '_blank')}>Facturas</button>
+        <button onClick={() => facturas[0] && void emitirRecetaPdf(facturas[0].id)}>Emitir receta</button>
         <button onClick={onRecibos}>Recibos</button>
       </div>
     </div>

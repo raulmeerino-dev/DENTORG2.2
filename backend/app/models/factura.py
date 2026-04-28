@@ -26,6 +26,9 @@ class Factura(UUIDMixin, TimestampMixin, Base):
     paciente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
     )
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
     entidad_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("entidades.id"), nullable=True
     )
@@ -57,6 +60,7 @@ class Factura(UUIDMixin, TimestampMixin, Base):
     factura_rectificada_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("facturas.id"), nullable=True
     )
+    tiene_receta_electronica: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="facturas")  # noqa: F821
     entidad: Mapped["Entidad"] = relationship("Entidad")  # noqa: F821

@@ -167,6 +167,7 @@ class FacturaResponse(BaseModel):
     enviada_aeat_at: datetime | None = None
     es_rectificativa: bool = False
     factura_rectificada_id: UUID | None = None
+    tiene_receta_electronica: bool = False
     paciente: PacienteResumen | None = None
     entidad: EntidadResumen | None = None
     lineas: list[FacturaLineaResponse] = []

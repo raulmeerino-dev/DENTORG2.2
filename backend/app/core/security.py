@@ -1,4 +1,10 @@
 from datetime import UTC, datetime, timedelta
+import base64
+import hashlib
+import hmac
+import secrets
+import struct
+import time
 from typing import Any
 
 import bcrypt
@@ -65,3 +71,24 @@ def verify_refresh_token(token: str) -> dict[str, Any] | None:
         return payload
     except JWTError:
         return None
+
+
+def generate_totp_secret() -> str:
+    return base64.b32encode(secrets.token_bytes(20)).decode("ascii").rstrip("=")
+
+
+def verify_totp(secret: str, code: str, window: int = 1) -> bool:
+    if not code or not code.isdigit():
+        return False
+    normalized = secret.upper()
+    padding = "=" * ((8 - len(normalized) % 8) % 8)
+    key = base64.b32decode(normalized + padding)
+    counter = int(time.time() // 30)
+    for offset in range(-window, window + 1):
+        msg = struct.pack(">Q", counter + offset)
+        digest = hmac.new(key, msg, hashlib.sha1).digest()
+        o = digest[-1] & 0x0F
+        token = (struct.unpack(">I", digest[o:o + 4])[0] & 0x7FFFFFFF) % 1_000_000
+        if hmac.compare_digest(f"{token:06d}", code):
+            return True
+    return False

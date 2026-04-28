@@ -21,9 +21,14 @@ class Usuario(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     doctor_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True
     )
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
+    two_factor_secret: Mapped[str | None] = mapped_column(String(64), nullable=True)
     ultimo_acceso: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 
     # Relaciones
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="usuario", foreign_keys=[doctor_id])  # noqa: F821
+    clinica: Mapped["Clinica"] = relationship("Clinica")  # noqa: F821

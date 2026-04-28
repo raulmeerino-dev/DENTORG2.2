@@ -31,6 +31,7 @@ class PacienteCreate(BaseModel):
     no_correo: bool = False
     observaciones: str | None = None
     datos_salud: dict[str, Any] | None = None
+    clinica_id: UUID | None = None
 
 
 class PacienteUpdate(BaseModel):
@@ -51,6 +52,7 @@ class PacienteUpdate(BaseModel):
     observaciones: str | None = None
     datos_salud: dict[str, Any] | None = None
     activo: bool | None = None
+    clinica_id: UUID | None = None
 
 
 class ReferenciaResponse(BaseModel):
@@ -84,6 +86,7 @@ class PacienteResponse(BaseModel):
     observaciones: str | None
     datos_salud: dict[str, Any] | None = None
     activo: bool
+    clinica_id: UUID | None = None
     referencias: list[ReferenciaResponse] = []
 
     model_config = {"from_attributes": True}

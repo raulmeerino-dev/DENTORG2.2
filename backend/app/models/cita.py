@@ -25,6 +25,9 @@ class Cita(UUIDMixin, TimestampMixin, Base):
     paciente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
     )
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
     doctor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=False, index=True
     )

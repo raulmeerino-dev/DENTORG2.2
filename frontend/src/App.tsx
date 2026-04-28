@@ -10,6 +10,8 @@ import ListadosPage from './modules/listados';
 import ConfiguracionPage from './modules/configuracion';
 import LoginPage from './modules/auth/LoginPage';
 import DashboardPage from './modules/dashboard';
+import AdminExtrasPage from './modules/adminExtras';
+import MisCitasPage from './modules/misCitas';
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,8 @@ export default function App() {
               <Route path="agenda" element={<AgendaPage />} />
               <Route path="listados" element={<RoleProtected roles={['admin']}><ListadosPage /></RoleProtected>} />
               <Route path="configuracion" element={<RoleProtected roles={['admin']}><ConfiguracionPage /></RoleProtected>} />
+              <Route path="admin-extras" element={<RoleProtected roles={['admin']}><AdminExtrasPage /></RoleProtected>} />
+              <Route path="mis-citas" element={<MisCitasPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

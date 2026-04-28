@@ -6,6 +6,8 @@ export interface UsuarioMe {
   nombre: string;
   rol: UserRole;
   doctor_id: string | null;
+  clinica_id?: string | null;
+  two_factor_enabled?: boolean;
 }
 
 export interface ApiPaciente {
@@ -125,6 +127,38 @@ export interface Factura {
   cobros: Cobro[];
   total_cobrado: string;
   pendiente: string;
+  tiene_receta_electronica?: boolean;
+}
+
+export interface Clinica {
+  id: string;
+  nombre: string;
+  direccion: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  cif?: string | null;
+  activa: boolean;
+}
+
+export interface ProductoInventario {
+  id: string;
+  nombre: string;
+  stock_min: number;
+  stock_act: number;
+  proveedor_id: string | null;
+  activo: boolean;
+}
+
+export interface IngresosReporte {
+  total: number;
+  pac: number;
+  seg: number;
+}
+
+export interface VideoConsultaResponse {
+  citaId: string;
+  videoUrl: string;
+  estado: string;
 }
 
 export interface Cita {
