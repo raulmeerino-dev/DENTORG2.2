@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent } from 'react';
+import type { CSSProperties, FormEvent, MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import OdontogramaPlanView from '../../components/OdontogramaPlan';
@@ -37,6 +37,16 @@ import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, His
 
 type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type TreatmentVisual = { codigo?: string | null; nombre?: string | null; familia?: { icono?: string | null; nombre?: string | null } | null } | null;
+type PatientContextMenu =
+  | { x: number; y: number; kind: 'paciente' }
+  | { x: number; y: number; kind: 'linea'; linea: PresupuestoLinea }
+  | { x: number; y: number; kind: 'factura'; factura: Factura }
+  | { x: number; y: number; kind: 'documento'; documento: DocumentoPaciente };
+type PatientContextDraft =
+  | { kind: 'paciente' }
+  | { kind: 'linea'; linea: PresupuestoLinea }
+  | { kind: 'factura'; factura: Factura }
+  | { kind: 'documento'; documento: DocumentoPaciente };
 
 const WORK_TABS: Array<{ id: WorkTab; label: string; icon: string }> = [
   { id: 'pacientes', label: 'Pacientes', icon: 'PA' },
@@ -658,11 +668,13 @@ function BillingHistory({
   onCobrar,
   onOrtodoncia,
   onRecibos,
+  onContextFactura,
 }: {
   facturas: Factura[];
   onCobrar: () => void;
   onOrtodoncia: () => void;
   onRecibos: () => void;
+  onContextFactura: (event: MouseEvent, factura: Factura) => void;
 }) {
   return (
     <div className="billing-panel">
@@ -675,7 +687,11 @@ function BillingHistory({
         </thead>
         <tbody>
           {facturas.map((factura, index) => (
-            <tr key={factura.id} className={index === facturas.length - 1 ? 'selected-row' : ''}>
+            <tr
+              key={factura.id}
+              className={index === facturas.length - 1 ? 'selected-row' : ''}
+              onContextMenu={(event) => onContextFactura(event, factura)}
+            >
               <td>{formatDate(factura.fecha)}</td>
               <td>{factura.lineas[0]?.concepto ?? 'Tratamiento dental'}</td>
               <td>{factura.lineas[0]?.concepto_ficticio ?? ''}</td>
@@ -805,10 +821,12 @@ function TrabajoPendientePanel({
   presupuestos,
   citas,
   onDarCita,
+  onContextLinea,
 }: {
   presupuestos: Presupuesto[];
   citas: Cita[];
   onDarCita: (linea: PresupuestoLinea) => void;
+  onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
 }) {
   const rows = presupuestos.flatMap((presupuesto) => (
     presupuesto.lineas
@@ -826,7 +844,12 @@ function TrabajoPendientePanel({
         <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Importe</th><th>Cita</th><th>Estado</th><th>Accion</th></tr></thead>
         <tbody>
           {rows.map(({ presupuesto, linea, cita }) => (
-            <tr key={linea.id} className="treatment-coded-row" style={{ '--treatment-color': colorForTreatment(linea.tratamiento) } as CSSProperties}>
+            <tr
+              key={linea.id}
+              className="treatment-coded-row"
+              style={{ '--treatment-color': colorForTreatment(linea.tratamiento) } as CSSProperties}
+              onContextMenu={(event) => onContextLinea(event, linea)}
+            >
               <td>{presupuesto.numero}</td>
               <td><TreatmentBadge tratamiento={linea.tratamiento} /></td>
               <td>{linea.tratamiento?.nombre ?? 'Tratamiento'}</td>
@@ -977,10 +1000,12 @@ function DocumentosPanel({
   pacienteId,
   documentos,
   onSubir,
+  onContextDocumento,
 }: {
   pacienteId: string | null;
   documentos: DocumentoPaciente[];
   onSubir: (data: { archivo: File; categoria: string; descripcion?: string; fecha_documento?: string; etiquetas?: string }) => void;
+  onContextDocumento: (event: MouseEvent, documento: DocumentoPaciente) => void;
 }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [categoria, setCategoria] = useState('otro');
@@ -1022,7 +1047,7 @@ function DocumentosPanel({
         <thead><tr><th>Fecha</th><th>Categoria</th><th>Archivo</th><th>Tratamiento</th><th>Profesional</th><th>Notas</th><th>Etiquetas</th><th>Acciones</th></tr></thead>
         <tbody>
           {documentos.map((doc) => (
-            <tr key={doc.id}>
+            <tr key={doc.id} onContextMenu={(event) => onContextDocumento(event, doc)}>
               <td>{formatDate(doc.fecha_documento ?? doc.created_at)}</td>
               <td>{doc.categoria}</td>
               <td>{doc.nombre_original}</td>
@@ -1215,6 +1240,7 @@ export default function PacientesPage() {
   const [tab, setTab] = useState<WorkTab>('pacientes');
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
   const [editingPatient, setEditingPatient] = useState(false);
+  const [contextMenu, setContextMenu] = useState<PatientContextMenu | null>(null);
   const [searchParams] = useSearchParams();
   const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
   const pacientes = pacientesQuery.data ?? [];
@@ -1312,6 +1338,29 @@ export default function PacientesPage() {
       return registrarCobro(factura.id, forma.id, Number(factura.pendiente));
     },
     onSuccess: () => {
+      void facturasQuery.refetch();
+      setTab('facturacion');
+    },
+  });
+
+  const aceptarLineaPendiente = useMutation({
+    mutationFn: async (linea: PresupuestoLinea) => updatePresupuestoLinea(linea.presupuesto_id, linea.id, { aceptado: true }),
+    onSuccess: () => {
+      setContextMenu(null);
+      void presupuestosQuery.refetch();
+      setTab('pendiente');
+    },
+  });
+
+  const facturarLinea = useMutation({
+    mutationFn: async (linea: PresupuestoLinea) => {
+      if (!active) throw new Error('Sin paciente');
+      const importe = Number(linea.importe_neto || linea.precio_unitario || 0);
+      if (!Number.isFinite(importe) || importe <= 0) throw new Error('Importe no valido');
+      return createFacturaManual(active.id, linea.tratamiento?.nombre ?? 'Tratamiento dental', importe);
+    },
+    onSuccess: () => {
+      setContextMenu(null);
       void facturasQuery.refetch();
       setTab('facturacion');
     },
@@ -1424,16 +1473,53 @@ export default function PacientesPage() {
     setTab('documentos');
   }
 
+  function openContext(event: MouseEvent, menu: PatientContextDraft) {
+    event.preventDefault();
+    setContextMenu({ ...menu, x: event.clientX, y: event.clientY } as PatientContextMenu);
+  }
+
+  function abrirAgendaPaciente() {
+    if (!active) return;
+    sessionStorage.setItem('dentorg_selected_patient_id', active.id);
+    sessionStorage.setItem('dentorg_selected_patient_name', fullName(active));
+    setContextMenu(null);
+    navigate('/agenda');
+  }
+
+  function copiarDatosPaciente() {
+    if (!active) return;
+    const datos = `${fullName(active)} - H ${active.num_historial}${active.telefono ? ` - ${active.telefono}` : ''}`;
+    void navigator.clipboard?.writeText(datos);
+    setContextMenu(null);
+  }
+
+  function abrirPdfFactura(factura: Factura) {
+    window.open(facturaPdfUrl(factura.id), '_blank');
+    setContextMenu(null);
+  }
+
+  function emitirRecetaFactura(factura: Factura) {
+    void emitirRecetaPdf(factura.id);
+    setContextMenu(null);
+  }
+
+  function abrirDocumento(documento: DocumentoPaciente) {
+    if (!active) return;
+    void openDocumentoPaciente(active.id, documento.id, documento.nombre_original);
+    setContextMenu(null);
+  }
+
   function darCitaParaTratamiento(linea: PresupuestoLinea) {
     if (!active) return;
     sessionStorage.setItem('dentorg_selected_patient_id', active.id);
     sessionStorage.setItem('dentorg_selected_patient_name', fullName(active));
     sessionStorage.setItem('dentorg_selected_treatment', linea.tratamiento?.nombre ?? 'Tratamiento dental');
+    setContextMenu(null);
     navigate('/agenda');
   }
 
   return (
-    <section className={`page patient-screen${tab === 'pacientes' ? '' : ' no-bottom-bar'}`}>
+    <section className={`page patient-screen${tab === 'pacientes' ? '' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
       <div className="patient-titlebar">
         <strong>{active ? `${fullName(active)} // CLINICA DENTAL` : 'Pacientes // CLINICA DENTAL'}</strong>
       </div>
@@ -1460,7 +1546,7 @@ export default function PacientesPage() {
         <button onClick={() => setEditingPatient(true)} disabled={!active}>Editar ficha</button>
       </div>
 
-      <aside className="patient-summary-strip">
+      <aside className="patient-summary-strip" onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
         <span><b>Paciente</b>{active ? fullName(active) : 'Sin seleccionar'} · Hª {active?.num_historial ?? '-'}</span>
         <span><b>Próxima</b>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)} · ${nextCita.motivo ?? ''}` : 'sin cita programada'}</span>
         <span><b>Realizados</b>{tratamientosRealizados}</span>
@@ -1469,7 +1555,11 @@ export default function PacientesPage() {
       </aside>
 
       <main className="patient-desk">
-        {tab === 'pacientes' && <PatientForm paciente={active} facturas={facturas} />}
+        {tab === 'pacientes' && (
+          <div onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
+            <PatientForm paciente={active} facturas={facturas} />
+          </div>
+        )}
         {tab === 'realizados' && (
           <TratamientosRealizadosPanel
             historial={historialQuery.data ?? []}
@@ -1485,6 +1575,7 @@ export default function PacientesPage() {
             presupuestos={presupuestos}
             citas={citasPacienteQuery.data ?? []}
             onDarCita={darCitaParaTratamiento}
+            onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
           />
         )}
         {tab === 'presupuestos' && (
@@ -1532,6 +1623,7 @@ export default function PacientesPage() {
               onCobrar={() => cobrarFactura.mutate()}
               onOrtodoncia={() => setTab('realizados')}
               onRecibos={abrirRecibos}
+              onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
             />
           </div>
         )}
@@ -1547,6 +1639,7 @@ export default function PacientesPage() {
             pacienteId={active?.id ?? null}
             documentos={documentosQuery.data ?? []}
             onSubir={(data) => subirDocumento.mutate(data)}
+            onContextDocumento={(event, documento) => openContext(event, { kind: 'documento', documento })}
           />
         )}
         {tab === 'laboratorio' && <LaboratorioPacientePanel trabajos={laboratorioPacienteQuery.data ?? []} />}
@@ -1564,6 +1657,57 @@ export default function PacientesPage() {
           <button onClick={abrirRecetas}>Recetas</button>
           <button onClick={abrirEnlaces}>Enlaces</button>
         </footer>
+      )}
+      {contextMenu && (
+        <div className="context-menu patient-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
+          {contextMenu.kind === 'paciente' && (
+            <>
+              <strong>Paciente</strong>
+              <button onClick={() => { setEditingPatient(true); setContextMenu(null); }}>Editar ficha</button>
+              <button onClick={() => { setContextMenu(null); focusPacienteSearch(); }}>Buscar / cambiar paciente</button>
+              <button onClick={abrirAgendaPaciente}>Abrir agenda / nueva cita</button>
+              <button onClick={() => { nuevoPresupuesto.mutate(); setContextMenu(null); }} disabled={!active || nuevoPresupuesto.isPending}>Nuevo presupuesto</button>
+              <span />
+              <button onClick={() => { setTab('primera'); setContextMenu(null); }}>Primera visita</button>
+              <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Consentimiento informado</button>
+              <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Circular / justificante</button>
+              <button onClick={() => { setTab('documentos'); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
+              <span />
+              <button onClick={() => { emitirFactura.mutate(); setContextMenu(null); }} disabled={!active || emitirFactura.isPending}>Emitir factura</button>
+              <button onClick={() => { cobrarFactura.mutate(); setContextMenu(null); }} disabled={!active || cobrarFactura.isPending}>Registrar cobro</button>
+              <button onClick={() => { setTab('facturacion'); setContextMenu(null); }}>Historial / facturacion</button>
+              <button onClick={copiarDatosPaciente}>Copiar datos paciente</button>
+            </>
+          )}
+          {contextMenu.kind === 'linea' && (
+            <>
+              <strong>Tratamiento pendiente</strong>
+              <button onClick={() => darCitaParaTratamiento(contextMenu.linea)}>Dar cita para este tratamiento</button>
+              <button onClick={() => aceptarLineaPendiente.mutate(contextMenu.linea)} disabled={aceptarLineaPendiente.isPending}>Marcar aceptado</button>
+              <button onClick={() => facturarLinea.mutate(contextMenu.linea)} disabled={facturarLinea.isPending}>Facturar tratamiento</button>
+              <button onClick={() => { setDesigner(active ? { mode: 'consentimiento', tipo: contextMenu.linea.tratamiento?.nombre } : null); setContextMenu(null); }}>Consentimiento de tratamiento</button>
+              <button onClick={() => { setTab('presupuestos'); setContextMenu(null); }}>Abrir presupuesto</button>
+            </>
+          )}
+          {contextMenu.kind === 'factura' && (
+            <>
+              <strong>Factura</strong>
+              <button onClick={() => abrirPdfFactura(contextMenu.factura)}>Ver / imprimir PDF</button>
+              <button onClick={() => { cobrarFactura.mutate(); setContextMenu(null); }} disabled={cobrarFactura.isPending || Number(contextMenu.factura.pendiente) <= 0}>Registrar cobro pendiente</button>
+              <button onClick={() => emitirRecetaFactura(contextMenu.factura)}>Emitir receta</button>
+              <button onClick={() => { setTab('documentos'); setContextMenu(null); }}>Ver documentos del paciente</button>
+            </>
+          )}
+          {contextMenu.kind === 'documento' && (
+            <>
+              <strong>Documento</strong>
+              <button onClick={() => abrirDocumento(contextMenu.documento)}>Abrir documento</button>
+              <button onClick={() => { setTab('documentos'); setContextMenu(null); }}>Adjuntar otro archivo</button>
+              <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Crear consentimiento</button>
+              <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Crear circular</button>
+            </>
+          )}
+        </div>
       )}
       {designer && active && (
         <DocumentDesignerModal

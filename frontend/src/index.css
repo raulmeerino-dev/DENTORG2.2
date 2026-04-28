@@ -2143,9 +2143,36 @@ body {
   text-align: left;
 }
 
+.context-menu strong {
+  display: block;
+  padding: 8px 12px;
+  color: #0f3146;
+  background: #edf8fd;
+  border-bottom: 1px solid #d7e4ec;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.context-menu span {
+  display: block;
+  height: 1px;
+  margin: 4px 0;
+  background: #dbe7ee;
+}
+
+.context-menu button:disabled {
+  color: #7d8a94;
+  background: #f5f8fa;
+}
+
 .context-menu button:hover {
   color: #064d73;
   background: #edf8fd;
+}
+
+.context-menu button:disabled:hover {
+  color: #7d8a94;
+  background: #f5f8fa;
 }
 
 .status-programada {
