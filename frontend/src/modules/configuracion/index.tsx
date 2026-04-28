@@ -622,7 +622,7 @@ export default function ConfiguracionPage() {
             <div><strong>Accesos</strong><span>Usuarios por rol, sesiones con caducidad, bloqueo por intentos y permisos por modulo.</span><em>Activo</em></div>
             <div><strong>Historia clinica</strong><span>Acceso restringido, auditoria de lectura y separacion entre notas generales y clinicas.</span><em>Reforzado</em></div>
             <div><strong>Archivos medicos</strong><span>Subida validada por firma real de archivo, limite de tamano y descarga sin cache.</span><em>Protegido</em></div>
-            <div><strong>Backups</strong><span>Archivo cifrado, hash SHA-256, registro de estado y verificacion de restaurabilidad.</span><em>Activo</em></div>
+            <div><strong>Backups</strong><span>Backup automatico diario, archivo cifrado, hash SHA-256, registro de estado y verificacion.</span><em>Activo</em></div>
             <div><strong>Facturacion</strong><span>Facturas selladas sin borrado destructivo, RF encadenado y PDF fiscal persistido.</span><em>SIF</em></div>
             <div><strong>Auditoria</strong><span>Registro de acciones criticas, accesos a datos sensibles y cambios de agenda/documentos.</span><em>Activo</em></div>
           </div>
