@@ -310,8 +310,7 @@ function CitaModal({
               aria-expanded={showTempPatient}
               onClick={() => setShowTempPatient((value) => !value)}
             >
-              <span>+</span>
-              Paciente
+              <span aria-hidden="true">P+</span>
             </button>
           </div>
           {query.trim() && (
