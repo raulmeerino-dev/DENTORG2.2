@@ -275,6 +275,22 @@ function PatientFinder({
           </option>
         ))}
       </select>
+      {query.trim() && (
+        <div className="patient-live-results patient-finder-results">
+          {filtered.slice(0, 5).map((paciente) => (
+            <button
+              type="button"
+              className={paciente.id === selectedId ? 'active' : ''}
+              key={paciente.id}
+              onClick={() => onSelect(paciente)}
+            >
+              <strong>{paciente.apellidos}, {paciente.nombre}</strong>
+              <span>{paciente.telefono ?? 'sin telefono'} · H{paciente.num_historial}</span>
+            </button>
+          ))}
+          {!filtered.length && <span>No hay pacientes con ese criterio.</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -295,6 +311,14 @@ function TextBox({ label, value }: { label: string; value?: string | null }) {
       <textarea readOnly value={value ?? ''} />
     </label>
   );
+}
+
+function readableHealthData(datos?: Record<string, unknown> | null) {
+  if (!datos) return '';
+  return Object.entries(datos)
+    .filter(([key]) => !['temporal', 'pendiente_completar'].includes(key))
+    .map(([key, value]) => `${key}: ${String(value)}`)
+    .join('\n');
 }
 
 function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupuesto; tratamientos: TratamientoCatalogo[] }) {
@@ -432,50 +456,59 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
   );
 }
 
-function PatientForm({ paciente, facturas }: { paciente: ApiPaciente | null; facturas: Factura[] }) {
+function PatientForm({ paciente, facturas, onEdit }: { paciente: ApiPaciente | null; facturas: Factura[]; onEdit: () => void }) {
   const total = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
   const cobrado = facturas.reduce((sum, factura) => sum + Number(factura.total_cobrado), 0);
   const saldo = facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
+  const address = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
+  const initials = paciente ? `${paciente.nombre?.[0] ?? ''}${paciente.apellidos?.[0] ?? ''}`.toUpperCase() : '--';
+  const healthText = readableHealthData(paciente?.datos_salud);
 
   return (
     <div className="patient-form-grid">
-      {temporal && <div className="temporary-patient-banner">Paciente temporal: completar datos en clínica.</div>}
-      <FieldBox label="Código" value={paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`} />
-      <FieldBox label="N Historial" value={paciente?.num_historial} />
-      <FieldBox label="F.Nacimiento" value={formatDate(paciente?.fecha_nacimiento)} />
-      <FieldBox label="Teléfono" value={paciente?.telefono} />
-      <FieldBox label="Teléfono móvil" value={paciente?.telefono2} />
-      <FieldBox label="Nombre" value={fullName(paciente)} wide />
-      <FieldBox label="Dirección" value={paciente?.direccion} wide />
-      <FieldBox label="Población" value={paciente?.ciudad} />
-      <FieldBox label="Provincia" value={paciente?.provincia} />
-      <FieldBox label="E-mail" value={paciente?.email} wide />
-      <FieldBox label="F. 1 visita" value="" />
-      <FieldBox label="F. Ult. visita" value="" />
-      <FieldBox label="F. Prox. visita" value="" />
-      <FieldBox label="N.I.F." value={paciente?.dni_nie} />
-      <FieldBox label="Sexo" value="" />
-      <FieldBox label="Edad" value={calcAge(paciente?.fecha_nacimiento)} />
-      <div className="payer-box">
-        <span>Pagador factura</span>
-        <div className="payer-grid">
-          <FieldBox label="Nombre" value={fullName(paciente)} />
-          <FieldBox label="Dirección" value={paciente?.direccion} />
-          <FieldBox label="N.I.F." value={paciente?.dni_nie} />
-          <FieldBox label="Teléfono" value={paciente?.telefono} />
+      {temporal && (
+        <button type="button" className="temporary-patient-banner" onClick={onEdit}>
+          Paciente temporal: completar datos en clínica
+        </button>
+      )}
+      <section className="patient-hero-card">
+        <div className="patient-avatar">{initials}</div>
+        <div>
+          <span>Paciente</span>
+          <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
+          <em>Historia {paciente?.num_historial ?? '-'} · {paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`}</em>
         </div>
-      </div>
-      <FieldBox label="Entidad sanitaria" value="" />
-      <FieldBox label="N Poliza" value="" />
-      <FieldBox label="Banco" value="" wide />
-      <TextBox label="Alergias - Contraindicaciones" value={paciente?.datos_salud ? JSON.stringify(paciente.datos_salud) : ''} />
-      <TextBox label="Observaciones" value={paciente?.observaciones} />
-      <div className="balance-box">
-        <span>Debitos</span><strong>{money(total)}</strong>
+        <button type="button" onClick={onEdit} disabled={!paciente}>Editar ficha</button>
+      </section>
+
+      <section className="patient-info-card">
+        <h3>Identificación</h3>
+        <FieldBox label="N.I.F." value={paciente?.dni_nie} />
+        <FieldBox label="Nacimiento" value={formatDate(paciente?.fecha_nacimiento)} />
+        <FieldBox label="Edad" value={calcAge(paciente?.fecha_nacimiento)} />
+      </section>
+
+      <section className="patient-info-card patient-contact-card">
+        <h3>Contacto</h3>
+        <FieldBox label="Teléfono" value={paciente?.telefono} />
+        <FieldBox label="Móvil" value={paciente?.telefono2} />
+        <FieldBox label="E-mail" value={paciente?.email} />
+        <FieldBox label="Dirección" value={address} wide />
+      </section>
+
+      <section className="patient-info-card patient-clinical-card">
+        <h3>Clínica</h3>
+        <TextBox label="Alergias / salud" value={healthText} />
+        <TextBox label="Observaciones generales" value={paciente?.observaciones} />
+      </section>
+
+      <section className="patient-money-card">
+        <h3>Saldo</h3>
+        <span>Débitos</span><strong>{money(total)}</strong>
         <span>Pagos</span><strong>{money(cobrado)}</strong>
-        <span>Saldo</span><strong>{money(saldo)}</strong>
-      </div>
+        <span>Pendiente</span><strong className={saldo > 0 ? 'debt' : ''}>{money(saldo)}</strong>
+      </section>
     </div>
   );
 }
@@ -1464,11 +1497,6 @@ export default function PacientesPage() {
     if (facturas[0]) window.open(facturaPdfUrl(facturas[0].id), '_blank');
   }
 
-  function abrirRecetas() {
-    setTab('documentos');
-    window.alert('Recetas: se archivan y consultan desde Archivos Medicos del paciente.');
-  }
-
   function abrirEnlaces() {
     setTab('documentos');
   }
@@ -1557,7 +1585,7 @@ export default function PacientesPage() {
       <main className="patient-desk">
         {tab === 'pacientes' && (
           <div onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
-            <PatientForm paciente={active} facturas={facturas} />
+            <PatientForm paciente={active} facturas={facturas} onEdit={() => setEditingPatient(true)} />
           </div>
         )}
         {tab === 'realizados' && (
@@ -1648,13 +1676,9 @@ export default function PacientesPage() {
       {tab === 'pacientes' && (
         <footer className="patient-bottom-bar">
           <button onClick={focusPacienteSearch}>Buscar</button>
-          <button onClick={() => setTab('documentos')}>Etiquetas</button>
           <button onClick={imprimirFicha}>Circular</button>
           <button onClick={() => setDesigner(active ? { mode: 'consentimiento' } : null)}>Cons.Inf.</button>
           <button onClick={() => setTab('citas')}>Agenda</button>
-          <button onClick={() => setTab('primera')}>Comentarios</button>
-          <button onClick={() => setTab('laboratorio')}>Protesicos</button>
-          <button onClick={abrirRecetas}>Recetas</button>
           <button onClick={abrirEnlaces}>Enlaces</button>
         </footer>
       )}

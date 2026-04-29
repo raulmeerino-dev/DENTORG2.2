@@ -5,6 +5,8 @@ import { ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
 export default function MainNav() {
   const { user, logout } = useAuth();
   const navItems = WORKFLOW_ITEMS.filter((item) => item.route && canAccess(user?.rol, item));
+  const dailyItems = navItems.filter((item) => ['dashboard', 'pacientes', 'agenda'].includes(item.id));
+  const adminItems = navItems.filter((item) => !['dashboard', 'pacientes', 'agenda'].includes(item.id));
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
 
   return (
@@ -16,7 +18,7 @@ export default function MainNav() {
         <span className="role-chip">{user?.nombre} · {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
       </div>
       <nav className="euro-main-nav" aria-label="Modulos principales">
-        {navItems.map((item) => (
+        {dailyItems.map((item) => (
           <NavLink
             key={item.id}
             to={item.route!}
@@ -27,6 +29,22 @@ export default function MainNav() {
             <span>{item.label}</span>
           </NavLink>
         ))}
+        {adminItems.length > 0 && (
+          <details className="admin-nav-menu">
+            <summary>
+              <span className="nav-icon">AD</span>
+              <span>Admin</span>
+            </summary>
+            <div>
+              {adminItems.map((item) => (
+                <NavLink key={item.id} to={item.route!} title={item.description}>
+                  <span>{item.shortcut}</span>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+          </details>
+        )}
         <button className="euro-nav-button nav-exit" onClick={() => void logout()}>
           <span className="nav-icon">[X]</span>
           <span>Salir</span>
