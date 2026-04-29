@@ -484,7 +484,7 @@ async def seed():
         result = await session.execute(
             select(Presupuesto).where(Presupuesto.paciente_id == pac_demo.id)
         )
-        if not result.scalar_one_or_none():
+        if not result.scalars().first():
             pres = Presupuesto(
                 paciente_id=pac_demo.id,
                 fecha=hoy - timedelta(60),

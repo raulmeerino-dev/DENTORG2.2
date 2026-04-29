@@ -27,6 +27,7 @@ def normalizar(texto: str) -> str:
 async def seed() -> None:
     async with AsyncSessionLocal() as db:
         familia_map = {}
+        familias_base = {familia["nombre"] for familia in FAMILIAS_TRATAMIENTO_BASE}
 
         for fam_data in FAMILIAS_TRATAMIENTO_BASE:
             existing = (
@@ -96,11 +97,20 @@ async def seed() -> None:
                 tratamiento.activo = False
                 desactivados += 1
 
+        familias_desactivadas = 0
+        familias_actuales = (await db.execute(select(FamiliaTratamiento))).scalars().all()
+        for familia in familias_actuales:
+            if familia.nombre not in familias_base and familia.activo:
+                familia.activo = False
+                familias_desactivadas += 1
+
         await db.commit()
         print(
             "\nCatalogo actualizado: "
             f"{len(FAMILIAS_TRATAMIENTO_BASE)} familias, "
-            f"{nuevos} nuevos, {actualizados} actualizados, {desactivados} desactivados."
+            f"{nuevos} nuevos, {actualizados} actualizados, "
+            f"{desactivados} tratamientos desactivados, "
+            f"{familias_desactivadas} familias desactivadas."
         )
 
 
