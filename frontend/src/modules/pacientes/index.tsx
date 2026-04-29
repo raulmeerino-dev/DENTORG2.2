@@ -49,12 +49,12 @@ type PatientContextDraft =
   | { kind: 'documento'; documento: DocumentoPaciente };
 
 const WORK_TABS: Array<{ id: WorkTab; label: string; icon: string }> = [
-  { id: 'pacientes', label: 'Pacientes', icon: 'PA' },
-  { id: 'primera', label: 'Primera Visita', icon: '1' },
+  { id: 'pacientes', label: 'Ficha', icon: 'PA' },
+  { id: 'primera', label: 'Primera visita', icon: '1A' },
   { id: 'presupuestos', label: 'Presupuestos', icon: 'PR' },
-  { id: 'pendiente', label: 'Tratamientos Pendientes', icon: 'TP' },
-  { id: 'realizados', label: 'Tratamientos Realizados', icon: 'TR' },
-  { id: 'facturacion', label: 'Historial / Facturacion', icon: 'HF' },
+  { id: 'pendiente', label: 'Pendientes', icon: 'TP' },
+  { id: 'realizados', label: 'Realizados', icon: 'OK' },
+  { id: 'facturacion', label: 'Historial / Fact.', icon: 'HF' },
 ];
 
 type DocumentDesignerMode = 'consentimiento' | 'circular';
@@ -227,17 +227,6 @@ function formatDate(value?: string | null) {
   return day && month && year ? `${day}-${month}-${year.slice(2)}` : value;
 }
 
-function calcAge(value?: string | null) {
-  if (!value) return '';
-  const birth = new Date(value);
-  if (Number.isNaN(birth.getTime())) return '';
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  const monthDelta = now.getMonth() - birth.getMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birth.getDate())) age -= 1;
-  return String(age);
-}
-
 function PatientFinder({
   pacientes,
   selectedId,
@@ -285,31 +274,13 @@ function PatientFinder({
               onClick={() => onSelect(paciente)}
             >
               <strong>{paciente.apellidos}, {paciente.nombre}</strong>
-              <span>{paciente.telefono ?? 'sin telefono'} · H{paciente.num_historial}</span>
+              <span>{paciente.telefono ?? 'sin telefono'} - H{paciente.num_historial}</span>
             </button>
           ))}
           {!filtered.length && <span>No hay pacientes con ese criterio.</span>}
         </div>
       )}
     </div>
-  );
-}
-
-function FieldBox({ label, value, wide = false }: { label: string; value?: string | number | null; wide?: boolean }) {
-  return (
-    <label className={wide ? 'form-box wide' : 'form-box'}>
-      <span>{label}</span>
-      <input readOnly value={value ?? ''} />
-    </label>
-  );
-}
-
-function TextBox({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <label className="form-box textarea-box">
-      <span>{label}</span>
-      <textarea readOnly value={value ?? ''} />
-    </label>
   );
 }
 
@@ -456,20 +427,48 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
   );
 }
 
-function PatientForm({ paciente, facturas, onEdit }: { paciente: ApiPaciente | null; facturas: Factura[]; onEdit: () => void }) {
+function PatientForm({
+  paciente,
+  facturas,
+  historial,
+  citas,
+  onEdit,
+  onOpenCitas,
+  onOpenHistorial,
+  onOpenDocumentos,
+}: {
+  paciente: ApiPaciente | null;
+  facturas: Factura[];
+  historial: HistorialClinico[];
+  citas: Cita[];
+  onEdit: () => void;
+  onOpenCitas: () => void;
+  onOpenHistorial: () => void;
+  onOpenDocumentos: () => void;
+}) {
   const total = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
   const cobrado = facturas.reduce((sum, factura) => sum + Number(factura.total_cobrado), 0);
   const saldo = facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
-  const address = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
+  const address = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' - ');
   const initials = paciente ? `${paciente.nombre?.[0] ?? ''}${paciente.apellidos?.[0] ?? ''}`.toUpperCase() : '--';
   const healthText = readableHealthData(paciente?.datos_salud);
+  const recentHistory = historial.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const lastVisit = recentHistory[0] ?? null;
+  const nowIso = new Date().toISOString();
+  const nextCita = citas
+    .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta'].includes(cita.estado))
+    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
+  const lastTreatment = lastVisit?.procedimiento || lastVisit?.tratamiento?.nombre || 'Sin tratamiento registrado';
+  const lastComment = lastVisit?.observaciones || lastVisit?.diagnostico || 'Sin comentario clinico en esta entrada.';
+  const nextTreatment = nextCita?.motivo || 'Sin tratamiento indicado';
+  const nextComment = nextCita?.observaciones || 'Sin observaciones para la cita.';
 
   return (
     <div className="patient-form-grid">
       {temporal && (
         <button type="button" className="temporary-patient-banner" onClick={onEdit}>
-          Paciente temporal: completar datos en clínica
+          Paciente temporal: completar datos en clinica
         </button>
       )}
       <section className="patient-hero-card">
@@ -477,37 +476,71 @@ function PatientForm({ paciente, facturas, onEdit }: { paciente: ApiPaciente | n
         <div>
           <span>Paciente</span>
           <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
-          <em>Historia {paciente?.num_historial ?? '-'} · {paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`}</em>
+          <em>Historia {paciente?.num_historial ?? '-'} - {paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`}</em>
         </div>
         <button type="button" onClick={onEdit} disabled={!paciente}>Editar ficha</button>
       </section>
 
-      <section className="patient-info-card">
-        <h3>Identificación</h3>
-        <FieldBox label="N.I.F." value={paciente?.dni_nie} />
-        <FieldBox label="Nacimiento" value={formatDate(paciente?.fecha_nacimiento)} />
-        <FieldBox label="Edad" value={calcAge(paciente?.fecha_nacimiento)} />
+      <section className="patient-next-card">
+        <div className="patient-card-head">
+          <h3>Proxima cita</h3>
+          <span>{nextCita?.estado ?? 'sin cita'}</span>
+        </div>
+        <strong>{nextCita ? `${formatDate(nextCita.fecha_hora)} - ${nextCita.fecha_hora.slice(11, 16)}` : 'Sin cita programada'}</strong>
+        <p><b>Tratamiento:</b> {nextTreatment}</p>
+        <small>{nextComment}</small>
+        <footer>
+          <button type="button" onClick={onOpenCitas} disabled={!paciente}>Agenda</button>
+        </footer>
       </section>
 
-      <section className="patient-info-card patient-contact-card">
-        <h3>Contacto</h3>
-        <FieldBox label="Teléfono" value={paciente?.telefono} />
-        <FieldBox label="Móvil" value={paciente?.telefono2} />
-        <FieldBox label="E-mail" value={paciente?.email} />
-        <FieldBox label="Dirección" value={address} wide />
+      <section className="patient-last-card">
+        <div className="patient-card-head">
+          <h3>Ultima visita</h3>
+          <span>{lastVisit?.estado ?? 'sin historial'}</span>
+        </div>
+        <strong>{lastVisit ? `${formatDate(lastVisit.fecha)} - ${lastTreatment}` : 'Sin historial clinico'}</strong>
+        <p><b>Comentario:</b> {lastComment}</p>
+        <small>{lastVisit?.doctor?.nombre ? `Doctor: ${lastVisit.doctor.nombre}` : 'Sin profesional asociado'}</small>
+        <footer>
+          <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Historial</button>
+        </footer>
       </section>
 
-      <section className="patient-info-card patient-clinical-card">
-        <h3>Clínica</h3>
-        <TextBox label="Alergias / salud" value={healthText} />
-        <TextBox label="Observaciones generales" value={paciente?.observaciones} />
+      <section className="patient-history-card">
+        <div className="patient-card-head">
+          <h3>Historial reciente</h3>
+          <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Ver todo</button>
+        </div>
+        {recentHistory.slice(0, 4).map((entrada) => (
+          <article key={entrada.id}>
+            <time>{formatDate(entrada.fecha)}</time>
+            <strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong>
+            <span>{entrada.observaciones || entrada.diagnostico || entrada.estado}</span>
+          </article>
+        ))}
+        {!recentHistory.length && <p>Sin entradas clinicas todavia.</p>}
       </section>
 
-      <section className="patient-money-card">
-        <h3>Saldo</h3>
-        <span>Débitos</span><strong>{money(total)}</strong>
-        <span>Pagos</span><strong>{money(cobrado)}</strong>
-        <span>Pendiente</span><strong className={saldo > 0 ? 'debt' : ''}>{money(saldo)}</strong>
+      <section className="patient-side-card">
+        <div>
+          <h3>Contacto</h3>
+          <p><b>Tel.</b> {paciente?.telefono || paciente?.telefono2 || 'Sin telefono'}</p>
+          <p><b>Email</b> {paciente?.email || 'Sin email'}</p>
+          <p><b>Dir.</b> {address || 'Sin direccion'}</p>
+        </div>
+        <div>
+          <h3>Clinica</h3>
+          <p>{healthText || 'Sin alertas de salud registradas.'}</p>
+          <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
+          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Archivos</button>
+        </div>
+        <div className="patient-side-balance">
+          <h3>Saldo</h3>
+          <span>Total {money(total)}</span>
+          <span>Pagado {money(cobrado)}</span>
+          <strong className={saldo > 0 ? 'debt' : ''}>Pendiente {money(saldo)}</strong>
+        </div>
       </section>
     </div>
   );
@@ -1547,7 +1580,24 @@ export default function PacientesPage() {
   }
 
   return (
-    <section className={`page patient-screen${tab === 'pacientes' ? '' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
+    <>
+    <div className="patient-selector-bar">
+      <PatientFinder
+        pacientes={pacientes}
+        selectedId={active?.id ?? null}
+        onSelect={(paciente) => {
+          setSelected(paciente);
+          sessionStorage.setItem('dentorg_selected_patient_id', paciente.id);
+          setTab('pacientes');
+        }}
+      />
+      <div className="patient-selector-current">
+        <span>Paciente activo</span>
+        <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
+        <small>Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}</small>
+      </div>
+    </div>
+    <section className={`page patient-screen${tab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
       <div className="patient-titlebar">
         <strong>{active ? `${fullName(active)} // CLINICA DENTAL` : 'Pacientes // CLINICA DENTAL'}</strong>
       </div>
@@ -1558,34 +1608,29 @@ export default function PacientesPage() {
           </button>
         ))}
       </nav>
-      <div className="patient-command-row">
-        <PatientFinder
-          pacientes={pacientes}
-          selectedId={active?.id ?? null}
-          onSelect={(paciente) => {
-            setSelected(paciente);
-            sessionStorage.setItem('dentorg_selected_patient_id', paciente.id);
-            setTab('pacientes');
-          }}
-        />
-        <button onClick={() => nuevoPresupuesto.mutate()} disabled={!active || nuevoPresupuesto.isPending}>Nuevo ppto</button>
-        <button onClick={() => emitirFactura.mutate()} disabled={!active || emitirFactura.isPending}>Emitir factura</button>
-        <button onClick={() => cobrarFactura.mutate()} disabled={!active || cobrarFactura.isPending}>Cobrar</button>
-        <button onClick={() => setEditingPatient(true)} disabled={!active}>Editar ficha</button>
-      </div>
-
-      <aside className="patient-summary-strip" onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
-        <span><b>Paciente</b>{active ? fullName(active) : 'Sin seleccionar'} · Hª {active?.num_historial ?? '-'}</span>
-        <span><b>Próxima</b>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)} · ${nextCita.motivo ?? ''}` : 'sin cita programada'}</span>
-        <span><b>Realizados</b>{tratamientosRealizados}</span>
-        <span><b>Saldo</b>{money(totalPendiente)} / {money(totalFacturado)}</span>
-        <span><b>Docs</b>{documentosQuery.data?.length ?? 0} · CI {consentimientosQuery.data?.length ?? 0}</span>
-      </aside>
+      {tab !== 'pacientes' && (
+        <aside className="patient-summary-strip" onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
+          <span><b>Paciente</b>{active ? fullName(active) : 'Sin seleccionar'} - H {active?.num_historial ?? '-'}</span>
+          <span><b>Proxima</b>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)} - ${nextCita.motivo ?? ''}` : 'sin cita programada'}</span>
+          <span><b>Realizados</b>{tratamientosRealizados}</span>
+          <span><b>Saldo</b>{money(totalPendiente)} / {money(totalFacturado)}</span>
+          <span><b>Docs</b>{documentosQuery.data?.length ?? 0} · CI {consentimientosQuery.data?.length ?? 0}</span>
+        </aside>
+      )}
 
       <main className="patient-desk">
         {tab === 'pacientes' && (
           <div onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
-            <PatientForm paciente={active} facturas={facturas} onEdit={() => setEditingPatient(true)} />
+            <PatientForm
+              paciente={active}
+              facturas={facturas}
+              historial={historialQuery.data ?? []}
+              citas={citasPacienteQuery.data ?? []}
+              onEdit={() => setEditingPatient(true)}
+              onOpenCitas={() => setTab('citas')}
+              onOpenHistorial={() => setTab('facturacion')}
+              onOpenDocumentos={() => setTab('documentos')}
+            />
           </div>
         )}
         {tab === 'realizados' && (
@@ -1751,5 +1796,6 @@ export default function PacientesPage() {
         />
       )}
     </section>
+    </>
   );
 }
