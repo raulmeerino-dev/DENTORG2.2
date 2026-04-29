@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import AsyncSessionLocal
 from app.core.security import hash_password
 from app.core.crypto import cifrar_campos_paciente
+from app.data.tratamientos_base import FAMILIAS_TRATAMIENTO_BASE, TRATAMIENTOS_BASE
 from app.models.usuario import Usuario
 from app.models.doctor import Doctor
 from app.models.gabinete import Gabinete
@@ -189,6 +190,32 @@ async def seed():
             {"codigo": "PR03", "nombre": "Prótesis removible completa",    "familia": "Prótesis",            "precio": 700.00, "iva": 21,   "req_pieza": False},
         ]
 
+        familias = {}
+        for fd in FAMILIAS_TRATAMIENTO_BASE:
+            fam, creado = await get_or_create(
+                session,
+                FamiliaTratamiento,
+                {"nombre": fd["nombre"]},
+                {"icono": fd["icono"], "orden": fd["orden"], "activo": True},
+            )
+            fam.icono = fd["icono"]
+            fam.orden = fd["orden"]
+            fam.activo = True
+            familias[fd["nombre"]] = fam
+
+        tratamientos_def = [
+            {
+                "codigo": codigo,
+                "nombre": nombre,
+                "familia": familia,
+                "precio": float(precio),
+                "iva": 0,
+                "req_pieza": req_pieza,
+                "req_caras": req_caras,
+            }
+            for codigo, nombre, familia, precio, req_pieza, req_caras in TRATAMIENTOS_BASE
+        ]
+
         tratas = {}
         for td in tratamientos_def:
             fam = familias.get(td["familia"])
@@ -210,6 +237,29 @@ async def seed():
             tratas[td["codigo"]] = trat
             if creado:
                 print(f"  ✓ Tratamiento: {trat.codigo} {trat.nombre}")
+
+        tratas.update(
+            {
+                "RV01": tratas["OC005"],
+                "PANO": tratas["OC005"],
+                "LI01": tratas["OC005"],
+                "XRAY": tratas["OC005"],
+                "EM01": tratas["OC003"],
+                "EM02": tratas["OC003"],
+                "EN02": tratas["EN003"],
+                "EX01": tratas["CX004"],
+                "EX03": tratas["CX003"],
+                "IM01": tratas["IM009"],
+                "IM02": tratas["IM005"],
+                "OR01": tratas["OR004"],
+                "OR02": tratas["OR002"],
+                "OR03": tratas["OR011"],
+                "OR04": tratas["OR006"],
+                "PE01": tratas["PE003"],
+                "PE02": tratas["PE004"],
+                "PR01": tratas["PF013"],
+            }
+        )
 
         if not tratas:
             print("ERROR: No se pudieron crear tratamientos")
