@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
 
 export default function MainNav() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('dentorg-theme') ?? 'light');
   const navItems = WORKFLOW_ITEMS.filter((item) => item.route && canAccess(user?.rol, item));
   const dailyItems = navItems.filter((item) => ['dashboard', 'pacientes', 'agenda'].includes(item.id));
   const adminItems = navItems.filter((item) => !['dashboard', 'pacientes', 'agenda'].includes(item.id));
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
   const isDark = theme === 'dark';
+  const isAdminArea = adminItems.some((item) => item.route && location.pathname.startsWith(item.route));
+  const adminHome = adminItems.find((item) => item.id === 'ficheros') ?? adminItems[0];
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -46,21 +49,27 @@ export default function MainNav() {
             <span>{item.label}</span>
           </NavLink>
         ))}
-        {adminItems.length > 0 && (
-          <details className="admin-nav-menu">
-            <summary>
+        {adminHome && (
+          <div className={`admin-mode-nav${isAdminArea ? ' is-active' : ''}`}>
+            <NavLink
+              to={adminHome.route!}
+              className={() => `euro-nav-button admin-mode-button${isAdminArea ? ' active' : ''}`}
+              title="Entrar en ajustes y gestion de administrador"
+            >
               <span className="nav-icon">AD</span>
               <span>Admin</span>
-            </summary>
-            <div>
+            </NavLink>
+            {isAdminArea && (
+              <div className="admin-mode-links" aria-label="Secciones de administrador">
               {adminItems.map((item) => (
                 <NavLink key={item.id} to={item.route!} title={item.description}>
                   <span>{item.shortcut}</span>
                   {item.label}
                 </NavLink>
               ))}
-            </div>
-          </details>
+              </div>
+            )}
+          </div>
         )}
         <button className="euro-nav-button nav-exit" onClick={() => void logout()}>
           <span className="nav-icon">[X]</span>

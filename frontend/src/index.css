@@ -3498,6 +3498,59 @@ body {
   font-weight: 900;
 }
 
+.admin-mode-nav {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.admin-mode-nav + .nav-exit {
+  margin-left: 0;
+}
+
+.admin-mode-button {
+  min-width: 112px;
+}
+
+.admin-mode-links {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px;
+  border: 1px solid #c6d6df;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.admin-mode-links a {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border-radius: 7px;
+  color: #203847;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-mode-links a span {
+  min-width: 24px;
+  display: inline-grid;
+  place-items: center;
+  color: #0f6fa8;
+  font-weight: 900;
+}
+
+.admin-mode-links a:hover,
+.admin-mode-links a.active {
+  color: #075b86;
+  background: #edf8fd;
+}
+
 .main-content {
   overflow: hidden;
   padding: 6px;
@@ -4888,6 +4941,7 @@ html[data-theme="dark"] :is(
   .patient-finder-results,
   .patient-context-menu,
   .form-box,
+  .admin-mode-links,
   .first-visit-panel,
   .budget-panel,
   .budget-workbench,
@@ -5065,6 +5119,7 @@ html[data-theme="dark"] :is(
   .primary-button,
   .admin-nav-menu > summary,
   .admin-nav-menu a,
+  .admin-mode-links a,
   .patient-hero-card button,
   .patient-card-head button,
   .patient-next-card footer button,
@@ -5086,6 +5141,8 @@ html[data-theme="dark"] :is(
   button:hover,
   .admin-nav-menu a:hover,
   .admin-nav-menu a.active,
+  .admin-mode-links a:hover,
+  .admin-mode-links a.active,
   .patient-card-head button:hover,
   .patient-next-card footer button:hover,
   .patient-last-card footer button:hover,
