@@ -4808,3 +4808,428 @@ html[data-theme="dark"] .agenda-appointment small {
   color: #eaf2f8;
   background: color-mix(in srgb, var(--state-color, var(--doctor-color, #38bdf8)) 24%, #132234);
 }
+
+/* Full application dark theme: every clinical and admin workspace shares one surface system. */
+html[data-theme="dark"] {
+  --surface-0: #0c141d;
+  --surface-1: #111d29;
+  --surface-2: #172636;
+  --surface-3: #203246;
+  --line-soft: #24384d;
+  --line-strong: #37516a;
+  --ink: #eaf2f8;
+  --ink-muted: #a8bbca;
+  --ink-dim: #7f95a6;
+  --accent: #38bdf8;
+  --accent-2: #34d399;
+  --danger-soft: #3a1721;
+  --danger-ink: #ff9aaa;
+}
+
+html[data-theme="dark"] *,
+html[data-theme="dark"] *::before,
+html[data-theme="dark"] *::after {
+  border-color: var(--line-soft);
+}
+
+html[data-theme="dark"] a {
+  color: #7dd3fc;
+}
+
+html[data-theme="dark"] .main-content,
+html[data-theme="dark"] .page,
+html[data-theme="dark"] .loading-page,
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .mobile-portal {
+  color: var(--ink);
+  background: transparent;
+}
+
+html[data-theme="dark"] :is(
+  .dashboard-screen,
+  .patient-screen,
+  .agenda-euro,
+  .fichero-screen,
+  .listados-screen,
+  .admin-extras,
+  .mobile-portal,
+  .login-shell
+) {
+  color: var(--ink);
+  background:
+    linear-gradient(135deg, rgba(56, 189, 248, .08), rgba(52, 211, 153, .05)),
+    var(--surface-0);
+}
+
+html[data-theme="dark"] :is(
+  .toolbar,
+  .detail-header,
+  .section-title-row,
+  .dashboard-hero,
+  .dashboard-panel,
+  .dashboard-actions a,
+  .dashboard-flow a,
+  .dashboard-metrics div,
+  .alert-list div,
+  .settings-kpis button,
+  .settings-form,
+  .security-map,
+  .control-map,
+  .backup-table,
+  .patient-selector-bar,
+  .patient-hero-card,
+  .patient-info-card,
+  .patient-money-card,
+  .patient-next-card,
+  .patient-last-card,
+  .patient-history-card,
+  .patient-side-card,
+  .patient-summary-strip span,
+  .patient-finder-results,
+  .patient-context-menu,
+  .form-box,
+  .first-visit-panel,
+  .budget-panel,
+  .budget-workbench,
+  .billing-panel,
+  .realizados-workspace,
+  .historial-facturacion-workspace,
+  .consent-panel,
+  .document-chip-row span,
+  .file-card-grid > *,
+  .documents-map,
+  .upload-strip,
+  .schedule-panel,
+  .catalog-panel,
+  .treatment-editor-panel,
+  .treatment-side,
+  .treatment-table,
+  .inventory-side,
+  .movement-list,
+  .video-consult-panel,
+  .mobile-cita-card,
+  .mobile-patient-strip,
+  .document-editor-grid,
+  .signature-box,
+  .qr-preview
+) {
+  color: var(--ink);
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] :is(
+  .dashboard-panel,
+  .dashboard-actions a,
+  .dashboard-flow a,
+  .settings-kpis button,
+  .patient-hero-card,
+  .patient-next-card,
+  .patient-last-card,
+  .patient-history-card,
+  .patient-side-card,
+  .patient-money-card,
+  .document-modal,
+  .appointment-modal,
+  .slot-search-modal,
+  .patient-edit-modal,
+  .context-menu,
+  .patient-context-menu,
+  .admin-nav-menu > div
+) {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .28);
+}
+
+html[data-theme="dark"] :is(
+  .dashboard-hero,
+  .patient-titlebar,
+  .agenda-titlebar,
+  .agenda-titlebar-rich,
+  .modal-titlebar,
+  .panel-caption,
+  .lista-header,
+  .patient-card-head span,
+  .mobile-portal-head,
+  .horario-caption,
+  .toolbar
+) {
+  color: var(--ink);
+  background: linear-gradient(90deg, #17283a, #102131);
+  border-color: var(--line-strong);
+}
+
+html[data-theme="dark"] :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  label,
+  .eyebrow,
+  .dashboard-hero h1,
+  .dashboard-flow strong,
+  .dashboard-panel strong,
+  .settings-kpis span,
+  .patient-selector-current strong,
+  .patient-hero-card strong,
+  .patient-card-head h3,
+  .patient-side-card h3,
+  .patient-next-card strong,
+  .patient-last-card strong,
+  .patient-history-card article strong,
+  .patient-money-card strong,
+  .treatment-editor label,
+  .budget-line-editor label,
+  .document-editor-grid label,
+  .admin-extras .settings-form label,
+  .horario-turno-toggle,
+  .mobile-portal-head h1,
+  .mobile-cita-card strong
+) {
+  color: var(--ink);
+}
+
+html[data-theme="dark"] :is(
+  p,
+  small,
+  em,
+  .dashboard-hero span,
+  .dashboard-flow span,
+  .dashboard-metrics span,
+  .dashboard-metrics small,
+  .alert-list span,
+  .patient-selector-current span,
+  .patient-selector-current small,
+  .patient-hero-card span,
+  .patient-hero-card em,
+  .patient-next-card p,
+  .patient-last-card p,
+  .patient-side-card p,
+  .patient-next-card p b,
+  .patient-last-card p b,
+  .patient-side-card p b,
+  .patient-history-card article span,
+  .patient-next-card small,
+  .patient-last-card small,
+  .patient-form-grid .form-box span,
+  .movement-list,
+  .mobile-cita-card p,
+  .mobile-cita-card div:first-child,
+  .mobile-patient-strip
+) {
+  color: var(--ink-muted);
+}
+
+html[data-theme="dark"] :is(
+  input,
+  select,
+  textarea,
+  .patient-selector-bar .patient-finder input,
+  .patient-selector-bar .patient-finder select,
+  .patient-form-grid .form-box input,
+  .patient-form-grid .form-box textarea,
+  .budget-workbench input,
+  .budget-workbench select,
+  .budget-line-editor input,
+  .upload-strip input,
+  .upload-strip select,
+  .document-editor-grid input,
+  .document-editor-grid select,
+  .document-editor-grid textarea,
+  .horario-editor-table input,
+  .horario-editor-table select,
+  .horario-caption select,
+  .treatment-editor input,
+  .treatment-editor select,
+  .movement-form select,
+  .admin-extras input,
+  .admin-extras textarea,
+  .stock-input,
+  .mobile-portal-head select
+) {
+  color: var(--ink);
+  background: var(--surface-0);
+  border-color: var(--line-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
+}
+
+html[data-theme="dark"] ::placeholder {
+  color: var(--ink-dim);
+}
+
+html[data-theme="dark"] :is(
+  button,
+  .secondary-button,
+  .primary-button,
+  .admin-nav-menu > summary,
+  .admin-nav-menu a,
+  .patient-hero-card button,
+  .patient-card-head button,
+  .patient-next-card footer button,
+  .patient-last-card footer button,
+  .patient-side-card button,
+  .editor-actions button,
+  .mini-family-list button,
+  .horario-editor-table button,
+  .budget-actions button,
+  .mobile-cita-actions button
+) {
+  color: var(--ink);
+  background: linear-gradient(#25384b, #192a3c);
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] :is(
+  button:hover,
+  .admin-nav-menu a:hover,
+  .admin-nav-menu a.active,
+  .patient-card-head button:hover,
+  .patient-next-card footer button:hover,
+  .patient-last-card footer button:hover,
+  .patient-side-card button:hover,
+  .mini-family-list button.active
+) {
+  color: #ecfbff;
+  background: #1e4058;
+  border-color: var(--accent);
+}
+
+html[data-theme="dark"] :is(
+  .editor-actions button:nth-child(2),
+  .budget-actions button:first-child,
+  .budget-actions button:nth-child(3),
+  .dashboard-actions a:first-child,
+  .primary-button
+) {
+  color: #06131d;
+  border-color: #5eead4;
+  background: linear-gradient(135deg, #67e8f9, #34d399);
+}
+
+html[data-theme="dark"] :is(
+  .euro-table,
+  .tabla-pacientes,
+  .tabla-wrapper,
+  .billing-table,
+  .backup-table,
+  .horario-editor-table,
+  .treatment-table,
+  .data-table
+) {
+  color: var(--ink);
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+}
+
+html[data-theme="dark"] :is(
+  .euro-table th,
+  .tabla-pacientes th,
+  .billing-table th,
+  .backup-table th,
+  .horario-editor-table th,
+  .treatment-table th,
+  .data-table th
+) {
+  color: #bfeeff;
+  background: var(--surface-3);
+  border-color: var(--line-soft);
+}
+
+html[data-theme="dark"] :is(
+  .euro-table td,
+  .tabla-pacientes td,
+  .billing-table td,
+  .backup-table td,
+  .horario-editor-table td,
+  .treatment-table td,
+  .data-table td,
+  .tabla-row
+) {
+  color: var(--ink);
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+}
+
+html[data-theme="dark"] :is(
+  .euro-table tbody tr:hover td,
+  .tabla-row:hover,
+  .patient-live-results button:hover,
+  .patient-live-results button.active
+) {
+  color: #ecfbff;
+  background: #1d3448;
+}
+
+html[data-theme="dark"] :is(
+  .patient-money-card strong,
+  .patient-side-balance,
+  .patient-side-balance span,
+  .patient-side-balance strong,
+  .patient-bottom-bar,
+  .mobile-cita-state,
+  .horario-summary-pill,
+  .metric-inline,
+  .access-pill,
+  .role-status,
+  .treatment-badge
+) {
+  color: var(--ink);
+  background: #102234;
+  border-color: var(--line-soft);
+}
+
+html[data-theme="dark"] :is(
+  .patient-money-card .debt,
+  .patient-side-balance strong.debt,
+  .stock-alert-row td,
+  .offline-pill,
+  .form-error
+) {
+  color: var(--danger-ink);
+  background: var(--danger-soft);
+  border-color: #7f2a3b;
+}
+
+html[data-theme="dark"] :is(.online-pill, .form-success) {
+  color: #bfffe4;
+  background: #0f3327;
+  border-color: #176d51;
+}
+
+html[data-theme="dark"] :is(
+  .patient-dashboard-mode .patient-next-card:hover,
+  .patient-dashboard-mode .patient-last-card:hover,
+  .patient-dashboard-mode .patient-history-card:hover,
+  .patient-dashboard-mode .patient-side-card:hover,
+  .dashboard-flow a:hover,
+  .settings-kpis button:hover
+) {
+  background: #1d3043;
+  border-color: var(--accent);
+}
+
+html[data-theme="dark"] :is(
+  .document-modal,
+  .appointment-modal,
+  .slot-search-modal,
+  .patient-edit-modal
+) {
+  color: var(--ink);
+  background: var(--surface-1);
+}
+
+html[data-theme="dark"] .modal-backdrop {
+  background: rgba(3, 8, 13, .72);
+}
+
+html[data-theme="dark"] .signature-box canvas {
+  background: #f7fafc;
+  border-color: #5d7285;
+}
+
+html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .08) inset;
+}
