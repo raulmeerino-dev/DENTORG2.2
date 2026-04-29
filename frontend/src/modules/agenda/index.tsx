@@ -190,6 +190,35 @@ function findPaciente(pacientes: ApiPaciente[], id?: string) {
   return pacientes.find((paciente) => paciente.id === id) ?? null;
 }
 
+function normalizePatientSearch(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function patientSearchText(paciente: ApiPaciente) {
+  return normalizePatientSearch([
+    paciente.nombre,
+    paciente.apellidos,
+    `${paciente.apellidos} ${paciente.nombre}`,
+    paciente.telefono,
+    paciente.telefono2,
+    paciente.dni_nie,
+    paciente.num_historial,
+    paciente.codigo,
+  ].filter(Boolean).join(' '));
+}
+
+function patientMatchesQuery(paciente: ApiPaciente, query: string) {
+  const tokens = normalizePatientSearch(query).split(' ').filter(Boolean);
+  if (!tokens.length) return true;
+  const haystack = patientSearchText(paciente);
+  return tokens.every((token) => haystack.includes(token));
+}
+
 function CitaModal({
   cita,
   draft,
@@ -237,13 +266,8 @@ function CitaModal({
   const [videoUrl, setVideoUrl] = useState('');
 
   const filteredPatients = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return pacientes;
-    return pacientes.filter((paciente) =>
-      `${paciente.nombre} ${paciente.apellidos} ${paciente.telefono ?? ''} ${paciente.num_historial} ${paciente.codigo ?? ''}`
-        .toLowerCase()
-        .includes(q),
-    );
+    if (!query.trim()) return pacientes;
+    return pacientes.filter((paciente) => patientMatchesQuery(paciente, query));
   }, [pacientes, query]);
 
   const selectedPaciente = findPaciente(pacientes, pacienteId);
@@ -310,7 +334,7 @@ function CitaModal({
               aria-expanded={showTempPatient}
               onClick={() => setShowTempPatient((value) => !value)}
             >
-              <span aria-hidden="true">P+</span>
+              <span className="temp-patient-icon" aria-hidden="true" />
             </button>
           </div>
           {query.trim() && (
@@ -329,7 +353,9 @@ function CitaModal({
                   <span>{paciente.telefono ?? 'sin telefono'} · H{paciente.num_historial}</span>
                 </button>
               ))}
-              {!filteredPatients.length && <span>No hay coincidencias. Use + Paciente para apuntarlo temporalmente.</span>}
+              {!filteredPatients.length && !selectedPaciente && (
+                <span>No hay coincidencias. Use el icono de nuevo paciente para apuntarlo temporalmente.</span>
+              )}
             </div>
           )}
           <label className="wide">Paciente
@@ -422,13 +448,8 @@ function BuscarHuecoModal({
   const [buscando, setBuscando] = useState(false);
 
   const filteredPatients = useMemo(() => {
-    const q = pacienteQuery.trim().toLowerCase();
-    if (!q) return pacientes.slice(0, 30);
-    return pacientes.filter((paciente) =>
-      `${paciente.nombre} ${paciente.apellidos} ${paciente.telefono ?? ''} ${paciente.num_historial} ${paciente.codigo ?? ''}`
-        .toLowerCase()
-        .includes(q),
-    ).slice(0, 30);
+    if (!pacienteQuery.trim()) return pacientes.slice(0, 30);
+    return pacientes.filter((paciente) => patientMatchesQuery(paciente, pacienteQuery)).slice(0, 30);
   }, [pacientes, pacienteQuery]);
 
   async function search(event?: FormEvent) {
