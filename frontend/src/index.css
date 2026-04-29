@@ -4527,3 +4527,284 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Compact utility fixes: dark mode, agenda doctor labels and temporary patient flow. */
+.euro-titlebar {
+  grid-template-columns: minmax(180px, 1fr) auto auto minmax(170px, auto) 38px;
+}
+
+.theme-toggle {
+  width: 34px;
+  height: 24px;
+  display: inline-grid;
+  align-items: center;
+  justify-items: start;
+  justify-self: end;
+  padding: 2px;
+  border: 1px solid #b9ccd7;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff4bf, #e8f6ff);
+  box-shadow: inset 0 1px 2px rgba(23, 56, 78, .16);
+}
+
+.theme-toggle span {
+  width: 18px;
+  height: 18px;
+  position: relative;
+  display: block;
+  border-radius: 999px;
+  background: #f8c23a;
+  box-shadow: 0 1px 4px rgba(39, 70, 90, .22);
+  transition: transform .16s ease, background .16s ease;
+}
+
+.theme-toggle span::before {
+  content: "";
+  position: absolute;
+  inset: 4px auto auto 10px;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.theme-toggle.is-dark {
+  justify-items: end;
+  border-color: #36516a;
+  background: linear-gradient(135deg, #172434, #314761);
+}
+
+.theme-toggle.is-dark span {
+  transform: none;
+  background: #f2f7ff;
+}
+
+.theme-toggle.is-dark span::before {
+  background: #314761;
+}
+
+.patient-picker-row.wide,
+.temporary-patient-box.wide {
+  grid-column: 1 / -1;
+}
+
+.patient-picker-row {
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+
+.temp-patient-toggle {
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+}
+
+.temp-patient-toggle span {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.temporary-patient-box {
+  grid-template-columns: minmax(220px, 1fr) minmax(140px, .45fr) 112px;
+}
+
+.temporary-patient-box input {
+  min-width: 0;
+}
+
+.doctor-legend {
+  flex-wrap: wrap;
+  align-content: start;
+  max-height: 54px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.doctor-legend span {
+  flex: 1 1 150px;
+  max-width: none;
+  min-width: 0;
+}
+
+.doctor-legend span::before {
+  flex: 0 0 10px;
+}
+
+.agenda-left-panel {
+  grid-template-rows: 48px minmax(44px, auto) 58px 31px 220px minmax(0, 1fr) 70px;
+}
+
+html[data-theme="dark"] {
+  --bg: #101820;
+  --panel: #182432;
+  --panel-dark: #111a25;
+  --paper: #1f2d3b;
+  --field: #122030;
+  --border-dark: #53657a;
+  --border-mid: #33475b;
+  --border-light: #40576e;
+  --blue: #38bdf8;
+  --blue-dark: #7dd3fc;
+  --green: #34d399;
+  --red: #fb7185;
+  --text: #eaf2f8;
+  --muted: #a9bac8;
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .app-shell {
+  background:
+    linear-gradient(135deg, rgba(56,189,248,.10), rgba(52,211,153,.07)),
+    var(--bg);
+}
+
+html[data-theme="dark"] .euro-shell-header,
+html[data-theme="dark"] .patient-screen,
+html[data-theme="dark"] .agenda-euro,
+html[data-theme="dark"] .agenda-layout,
+html[data-theme="dark"] .agenda-left-panel,
+html[data-theme="dark"] .patient-desk,
+html[data-theme="dark"] .fichero-screen,
+html[data-theme="dark"] .listados-screen,
+html[data-theme="dark"] .desk-panel,
+html[data-theme="dark"] .workspace-section,
+html[data-theme="dark"] .side-panel,
+html[data-theme="dark"] .billing-panel,
+html[data-theme="dark"] .pending-call-panel,
+html[data-theme="dark"] .agenda-slots,
+html[data-theme="dark"] .appointment-modal,
+html[data-theme="dark"] .slot-search-modal,
+html[data-theme="dark"] .document-modal,
+html[data-theme="dark"] .toolbar {
+  border-color: #2c4358;
+  background: #162231;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .28);
+}
+
+html[data-theme="dark"] .euro-titlebar,
+html[data-theme="dark"] .euro-main-nav,
+html[data-theme="dark"] .agenda-titlebar,
+html[data-theme="dark"] .patient-titlebar,
+html[data-theme="dark"] .agenda-status-legend,
+html[data-theme="dark"] .panel-caption,
+html[data-theme="dark"] .modal-titlebar {
+  border-color: #2d465a;
+  background: linear-gradient(90deg, #172638, #102030);
+}
+
+html[data-theme="dark"] .euro-nav-button,
+html[data-theme="dark"] .patient-module-tabs button,
+html[data-theme="dark"] .agenda-button-grid button,
+html[data-theme="dark"] .appointment-modal footer button,
+html[data-theme="dark"] .slot-search-modal header button,
+html[data-theme="dark"] .slot-search-grid button,
+html[data-theme="dark"] .slot-results button,
+html[data-theme="dark"] .budget-actions button {
+  border-color: #36516a;
+  color: #eaf2f8;
+  background: linear-gradient(#243648, #172638);
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .euro-nav-button.active,
+html[data-theme="dark"] .patient-module-tabs button.active {
+  border-color: #38bdf8;
+  color: #e8f8ff;
+  background: linear-gradient(#1d3548, #132637);
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] .field {
+  border-color: #36516a;
+  color: #eaf2f8;
+  background: #101b28;
+}
+
+html[data-theme="dark"] .euro-table,
+html[data-theme="dark"] .data-table,
+html[data-theme="dark"] .patient-live-results,
+html[data-theme="dark"] .slot-results,
+html[data-theme="dark"] .appointment-info span,
+html[data-theme="dark"] .agenda-day-flow span,
+html[data-theme="dark"] .month-grid,
+html[data-theme="dark"] .temporary-patient-box {
+  border-color: #2f4a60;
+  color: #dcebf5;
+  background: #101b28;
+}
+
+html[data-theme="dark"] .euro-table th,
+html[data-theme="dark"] .data-table th,
+html[data-theme="dark"] .agenda-slot-row time {
+  color: #bfeeff;
+  border-color: #2e465a;
+  background: #1b3042;
+}
+
+html[data-theme="dark"] .euro-table td,
+html[data-theme="dark"] .data-table td,
+html[data-theme="dark"] .agenda-slot-row {
+  border-color: #24394b;
+}
+
+html[data-theme="dark"] .agenda-appointment,
+html[data-theme="dark"] .patient-live-results button {
+  border-color: #2f4a60;
+  color: #eaf2f8;
+  background: #17283a;
+}
+
+html[data-theme="dark"] .agenda-appointment strong,
+html[data-theme="dark"] .agenda-appointment span,
+html[data-theme="dark"] .agenda-appointment em,
+html[data-theme="dark"] .euro-titlebar strong,
+html[data-theme="dark"] .patient-titlebar strong,
+html[data-theme="dark"] .agenda-titlebar strong,
+html[data-theme="dark"] .agenda-titlebar-rich span,
+html[data-theme="dark"] .appointment-modal header strong,
+html[data-theme="dark"] .slot-search-modal header strong,
+html[data-theme="dark"] .panel-caption strong,
+html[data-theme="dark"] .month-caption,
+html[data-theme="dark"] .doctor-picker,
+html[data-theme="dark"] .slot-search-grid label,
+html[data-theme="dark"] .appointment-form-grid label,
+html[data-theme="dark"] .budget-line-editor label {
+  color: #eaf2f8;
+}
+
+html[data-theme="dark"] .euro-titlebar span,
+html[data-theme="dark"] .panel-caption span,
+html[data-theme="dark"] .appointment-modal header span,
+html[data-theme="dark"] .slot-search-modal header span,
+html[data-theme="dark"] .patient-live-results span,
+html[data-theme="dark"] .temporary-patient-box span {
+  color: #a9c4d6;
+}
+
+html[data-theme="dark"] .euro-table tbody td,
+html[data-theme="dark"] .data-table tbody td,
+html[data-theme="dark"] .month-grid button {
+  color: #dcebf5;
+  background: #101b28;
+}
+
+html[data-theme="dark"] .month-grid button.muted {
+  color: #7f93a3;
+  background: #0d1722;
+}
+
+html[data-theme="dark"] .month-grid button.active {
+  color: #06131d;
+  background: #34d399;
+}
+
+html[data-theme="dark"] .doctor-legend span,
+html[data-theme="dark"] .agenda-status-legend span,
+html[data-theme="dark"] .agenda-appointment small {
+  color: #eaf2f8;
+  background: color-mix(in srgb, var(--state-color, var(--doctor-color, #38bdf8)) 24%, #132234);
+}

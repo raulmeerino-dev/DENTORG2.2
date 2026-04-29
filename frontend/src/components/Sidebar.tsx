@@ -1,13 +1,21 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
 
 export default function MainNav() {
   const { user, logout } = useAuth();
+  const [theme, setTheme] = useState(() => localStorage.getItem('dentorg-theme') ?? 'light');
   const navItems = WORKFLOW_ITEMS.filter((item) => item.route && canAccess(user?.rol, item));
   const dailyItems = navItems.filter((item) => ['dashboard', 'pacientes', 'agenda'].includes(item.id));
   const adminItems = navItems.filter((item) => !['dashboard', 'pacientes', 'agenda'].includes(item.id));
   const today = new Date().toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
+  const isDark = theme === 'dark';
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('dentorg-theme', theme);
+  }, [theme]);
 
   return (
     <header className="euro-shell-header">
@@ -15,7 +23,16 @@ export default function MainNav() {
         <strong>DentOrg2 Clinic</strong>
         <span>Clinica actual: CLINICA DENTAL</span>
         <span>{today}</span>
-        <span className="role-chip">{user?.nombre} · {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
+        <span className="role-chip">{user?.nombre} - {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
+        <button
+          type="button"
+          className={`theme-toggle ${isDark ? 'is-dark' : ''}`}
+          aria-label={isDark ? 'Activar modo claro' : 'Activar modo oscuro'}
+          title={isDark ? 'Modo claro' : 'Modo oscuro'}
+          onClick={() => setTheme(isDark ? 'light' : 'dark')}
+        >
+          <span aria-hidden="true" />
+        </button>
       </div>
       <nav className="euro-main-nav" aria-label="Modulos principales">
         {dailyItems.map((item) => (
