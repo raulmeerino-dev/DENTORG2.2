@@ -48,7 +48,7 @@ export default function DashboardPage() {
           <Link to="/agenda">Abrir agenda</Link>
           <Link to="/pacientes">Buscar paciente</Link>
           {isAdmin && <Link to="/listados">Caja y listados</Link>}
-          {isAdmin && <Link to="/ajustes">Ajustes generales</Link>}
+          {isAdmin && <Link to="/configuracion">Ajustes generales</Link>}
         </nav>
       </header>
 
@@ -56,7 +56,7 @@ export default function DashboardPage() {
         <Link to="/pacientes"><strong>Pacientes</strong><span>Ficha, primera visita, presupuestos y tratamientos</span></Link>
         <Link to="/agenda"><strong>Agenda</strong><span>Huecos, llamadas, estados y recordatorios</span></Link>
         {isAdmin && <Link to="/listados"><strong>Gestion</strong><span>Caja, reportes, deuda y laboratorio</span></Link>}
-        {isAdmin && <Link to="/ajustes"><strong>Ajustes</strong><span>Doctores, precios, roles, colores y horarios</span></Link>}
+        {isAdmin && <Link to="/configuracion"><strong>Ajustes</strong><span>Doctores, precios, roles, colores y horarios</span></Link>}
       </nav>
 
       <div className="dashboard-metrics">

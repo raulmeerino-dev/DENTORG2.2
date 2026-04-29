@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buscarHuecosLibres, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getPacientes, getTelefonear, iniciarVideoConsulta, updateCita } from '../../lib/api';
-import type { ApiPaciente, Cita, Doctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
+import { buscarHuecosLibres, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, updateCita } from '../../lib/api';
+import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
 
 type SlotDraft = {
   day: string;
@@ -16,6 +16,7 @@ type HuecoResultado = HuecoLibre & {
   doctorNombre: string;
   doctorColor: string | null;
 };
+type HorariosPorDoctor = Record<string, HorarioDoctor[]>;
 
 const ESTADOS = [
   'programada',
@@ -27,14 +28,14 @@ const ESTADOS = [
 ];
 
 const STATUS_META: Record<string, { label: string; mark: string; className: string }> = {
-  programada: { label: 'Pendiente de confirmar', mark: 'P', className: 'state-pending' },
-  mensaje_enviado: { label: 'Mensaje enviado', mark: 'M', className: 'state-message' },
-  confirmada: { label: 'Confirmada', mark: 'C', className: 'state-confirmed' },
-  en_clinica: { label: 'Paciente en clinica', mark: 'CL', className: 'state-clinic' },
-  en_tratamiento: { label: 'En tratamiento', mark: 'T', className: 'state-treatment' },
-  atendida: { label: 'Finalizada', mark: 'F', className: 'state-done' },
+  programada: { label: 'Sin confirmar', mark: '?', className: 'state-pending' },
+  mensaje_enviado: { label: 'Mensaje enviado', mark: 'MSG', className: 'state-message' },
+  confirmada: { label: 'Confirmada', mark: 'OK', className: 'state-confirmed' },
+  en_clinica: { label: 'En clinica', mark: 'IN', className: 'state-clinic' },
+  en_tratamiento: { label: 'En tratamiento', mark: 'TR', className: 'state-treatment' },
+  atendida: { label: 'Finalizada', mark: 'FIN', className: 'state-done' },
   anulada: { label: 'Cancelada', mark: 'X', className: 'state-cancelled' },
-  falta: { label: 'No asistio', mark: 'N', className: 'state-missed' },
+  falta: { label: 'No asistio', mark: 'NO', className: 'state-missed' },
 };
 
 function todayIso() {
@@ -108,6 +109,71 @@ function overlaps(start: string, duration: number, cita: Cita) {
   return slotStart < citaEnd && slotEnd > citaStart;
 }
 
+function weekdayIndex(day: string) {
+  return (new Date(`${day}T12:00:00`).getDay() + 6) % 7;
+}
+
+function slotRange(inicio: string, fin: string, intervalo: number) {
+  const slots: string[] = [];
+  let current = minutesFromTime(inicio);
+  const end = minutesFromTime(fin);
+  const step = Math.max(5, intervalo || 10);
+  while (current < end) {
+    const hour = Math.floor(current / 60);
+    const minute = current % 60;
+    slots.push(`${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+    current += step;
+  }
+  return slots;
+}
+
+function slotInHorario(slot: string, horario?: HorarioDoctor) {
+  if (!horario || horario.tipo_dia === 'festivo') return false;
+  return horario.bloques.some((bloque) => bloque.inicio <= slot && slot < bloque.fin);
+}
+
+function buildAgendaSlots({
+  day,
+  doctorId,
+  doctores,
+  horariosByDoctor,
+  citas,
+  horariosLoaded,
+}: {
+  day: string;
+  doctorId: string;
+  doctores: Doctor[];
+  horariosByDoctor: HorariosPorDoctor;
+  citas: Cita[];
+  horariosLoaded: boolean;
+}) {
+  const weekday = weekdayIndex(day);
+  const targetDoctorIds = doctorId ? [doctorId] : doctores.map((doctor) => doctor.id);
+  const times = new Set<string>();
+  let hasConfiguredDay = false;
+
+  targetDoctorIds.forEach((targetDoctorId) => {
+    const horario = horariosByDoctor[targetDoctorId]?.find((item) => item.dia_semana === weekday);
+    if (!horario) return;
+    hasConfiguredDay = true;
+    if (horario.tipo_dia === 'festivo') return;
+    horario.bloques.forEach((bloque) => {
+      slotRange(bloque.inicio, bloque.fin, horario.intervalo_min).forEach((slot) => times.add(slot));
+    });
+  });
+
+  if (!hasConfiguredDay && !horariosLoaded) {
+    slotRange('09:00', '13:30', 10).forEach((slot) => times.add(slot));
+    slotRange('15:00', '20:30', 10).forEach((slot) => times.add(slot));
+  }
+
+  citas.forEach((cita) => {
+    if (!doctorId || cita.doctor_id === doctorId) times.add(cita.fecha_hora.slice(11, 16));
+  });
+
+  return Array.from(times).sort((a, b) => minutesFromTime(a) - minutesFromTime(b));
+}
+
 function getVisualStatus(cita: Cita) {
   const obs = cita.observaciones?.toLowerCase() ?? '';
   if (cita.estado === 'programada' && cita.recordatorio_enviado) return 'mensaje_enviado';
@@ -167,6 +233,7 @@ function CitaModal({
   const [tempName, setTempName] = useState('');
   const [tempPhone, setTempPhone] = useState('');
   const [creatingTemp, setCreatingTemp] = useState(false);
+  const [showTempPatient, setShowTempPatient] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
 
   const filteredPatients = useMemo(() => {
@@ -180,6 +247,9 @@ function CitaModal({
   }, [pacientes, query]);
 
   const selectedPaciente = findPaciente(pacientes, pacienteId);
+  const patientsForSelect = selectedPaciente && !filteredPatients.some((paciente) => paciente.id === selectedPaciente.id)
+    ? [selectedPaciente, ...filteredPatients]
+    : filteredPatients;
   const visual = cita ? STATUS_META[getVisualStatus(cita)] : STATUS_META.programada;
 
   function submit(event: FormEvent) {
@@ -209,6 +279,9 @@ function CitaModal({
       setPacienteId(paciente.id);
       setQuery(`${paciente.nombre} ${paciente.apellidos}`);
       setObservaciones((prev) => `${prev}\nPaciente temporal: completar datos en clínica.`.trim());
+      setTempName('');
+      setTempPhone('');
+      setShowTempPatient(false);
     } finally {
       setCreatingTemp(false);
     }
@@ -226,22 +299,58 @@ function CitaModal({
         </header>
 
         <div className="appointment-form-grid">
-          <label className="wide">Buscar paciente<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, telefono, historia, codigo" /></label>
+          <div className="patient-picker-row wide">
+            <label>Buscar paciente
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, telefono, DNI, historia o codigo" />
+            </label>
+            <button
+              type="button"
+              className={`temp-patient-toggle ${showTempPatient ? 'active' : ''}`}
+              title="Crear paciente temporal"
+              aria-expanded={showTempPatient}
+              onClick={() => setShowTempPatient((value) => !value)}
+            >
+              <span>+</span>
+              Paciente
+            </button>
+          </div>
+          {query.trim() && (
+            <div className="patient-live-results wide">
+              {filteredPatients.slice(0, 6).map((paciente) => (
+                <button
+                  type="button"
+                  className={paciente.id === pacienteId ? 'active' : ''}
+                  key={paciente.id}
+                  onClick={() => {
+                    setPacienteId(paciente.id);
+                    setQuery(`${paciente.apellidos}, ${paciente.nombre}`);
+                  }}
+                >
+                  <strong>{paciente.apellidos}, {paciente.nombre}</strong>
+                  <span>{paciente.telefono ?? 'sin telefono'} · H{paciente.num_historial}</span>
+                </button>
+              ))}
+              {!filteredPatients.length && <span>No hay coincidencias. Use + Paciente para apuntarlo temporalmente.</span>}
+            </div>
+          )}
           <label className="wide">Paciente
             <select value={pacienteId} onChange={(event) => setPacienteId(event.target.value)}>
-              {filteredPatients.map((paciente) => (
+              {patientsForSelect.map((paciente) => (
                 <option key={paciente.id} value={paciente.id}>
                   {paciente.num_historial} - {paciente.apellidos}, {paciente.nombre} {paciente.telefono ? `(${paciente.telefono})` : ''}
                 </option>
               ))}
             </select>
           </label>
-          <div className="temporary-patient-box wide">
-            <strong>Nuevo paciente temporal</strong>
-            <input value={tempName} onChange={(event) => setTempName(event.target.value)} placeholder="Nombre y apellidos" />
-            <input value={tempPhone} onChange={(event) => setTempPhone(event.target.value)} placeholder="Teléfono" />
-            <button type="button" onClick={() => void createTempPatient()} disabled={creatingTemp}>Crear temporal</button>
-          </div>
+          {showTempPatient && (
+            <div className="temporary-patient-box wide">
+              <strong>Paciente temporal para cita</strong>
+              <span>Solo nombre y telefono. Luego se completa la ficha desde Pacientes.</span>
+              <input value={tempName} onChange={(event) => setTempName(event.target.value)} placeholder="Nombre y apellidos" />
+              <input value={tempPhone} onChange={(event) => setTempPhone(event.target.value)} placeholder="Telefono" />
+              <button type="button" onClick={() => void createTempPatient()} disabled={creatingTemp}>Apuntar</button>
+            </div>
+          )}
           <label>Fecha<input type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} /></label>
           <label>Hora inicio<input type="time" value={hora} onChange={(event) => setHora(event.target.value)} /></label>
           <label>Hora fin<input readOnly value={addMinutes(hora, duracion)} /></label>
@@ -479,6 +588,18 @@ export default function AgendaPage() {
     queryFn: () => getCitas(range),
   });
 
+  const doctores = doctoresQuery.data ?? [];
+  const pacientes = pacientesQuery.data ?? [];
+  const citas = citasQuery.data ?? [];
+  const horariosAgendaQuery = useQuery({
+    queryKey: ['agenda-horarios', doctores.map((doctor) => doctor.id).join(',')],
+    queryFn: async () => {
+      const entries = await Promise.all(doctores.map(async (doctor) => [doctor.id, await getHorarios(doctor.id)] as const));
+      return Object.fromEntries(entries) as HorariosPorDoctor;
+    },
+    enabled: doctores.length > 0,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async (data: {
       citaId?: string;
@@ -559,30 +680,46 @@ export default function AgendaPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const slots = Array.from({ length: 70 }, (_, i) => {
-    const totalMinutes = 9 * 60 + i * 10;
-    const hour = Math.floor(totalMinutes / 60);
-    const minute = totalMinutes % 60;
-    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-  });
+  useEffect(() => {
+    const refreshHorarios = () => {
+      void horariosAgendaQuery.refetch();
+    };
+    window.addEventListener('dentorg:horarios-updated', refreshHorarios);
+    return () => window.removeEventListener('dentorg:horarios-updated', refreshHorarios);
+  }, [horariosAgendaQuery]);
 
   const selected = new Date(`${day}T12:00:00`);
   const days = monthGrid(day);
   const monthName = selected.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-  const doctores = doctoresQuery.data ?? [];
-  const pacientes = pacientesQuery.data ?? [];
   const doctorById = useMemo(() => new Map(doctores.map((doctor) => [doctor.id, doctor])), [doctores]);
+  const horariosByDoctor = horariosAgendaQuery.data ?? {};
+  const slots = useMemo(() => buildAgendaSlots({
+    day,
+    doctorId,
+    doctores,
+    horariosByDoctor,
+    citas,
+    horariosLoaded: horariosAgendaQuery.isSuccess,
+  }), [day, doctorId, doctores, horariosByDoctor, citas, horariosAgendaQuery.isSuccess]);
   const nowDay = isoDate(now);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const visibleStart = minutesFromTime(slots[0]);
-  const visibleEnd = minutesFromTime(addMinutes(slots[slots.length - 1], 10));
-  const showNowLine = day === nowDay && nowMinutes >= visibleStart && nowMinutes <= visibleEnd;
+  const visibleStart = slots.length ? minutesFromTime(slots[0]) : 0;
+  const visibleEnd = slots.length ? minutesFromTime(addMinutes(slots[slots.length - 1], 10)) : 0;
+  const showNowLine = slots.length > 0 && day === nowDay && nowMinutes >= visibleStart && nowMinutes <= visibleEnd;
   const nowSlot = slots.find((slot) => {
     const start = minutesFromTime(slot);
     return nowMinutes >= start && nowMinutes < start + 10;
   });
 
-  function openNew(slot: string, pacienteId?: string, targetDay = day, targetDoctorId = doctorId || doctores[0]?.id || '') {
+  function doctorForSlot(slot: string, targetDay = day) {
+    if (doctorId) return doctorId;
+    const weekday = weekdayIndex(targetDay);
+    return doctores.find((doctor) => slotInHorario(slot, horariosByDoctor[doctor.id]?.find((horario) => horario.dia_semana === weekday)))?.id
+      ?? doctores[0]?.id
+      ?? '';
+  }
+
+  function openNew(slot: string, pacienteId?: string, targetDay = day, targetDoctorId = doctorForSlot(slot, targetDay)) {
     setContextMenu(null);
     setModalCita(null);
     setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId });
@@ -655,13 +792,38 @@ export default function AgendaPage() {
 
   function verOcupacion() {
     const total = slots.length;
-    const ocupadas = (citasQuery.data ?? []).length;
-    window.alert(`Ocupacion visible: ${ocupadas}/${total} huecos (${Math.round((ocupadas / total) * 100)}%).`);
+    const ocupadas = citas.length;
+    window.alert(total ? `Ocupacion visible: ${ocupadas}/${total} huecos (${Math.round((ocupadas / total) * 100)}%).` : 'No hay horario visible para calcular ocupacion.');
   }
+
+  const selectedDoctor = doctorId ? doctorById.get(doctorId) : null;
+  const todayHorario = doctorId
+    ? horariosByDoctor[doctorId]?.find((horario) => horario.dia_semana === weekdayIndex(day))
+    : null;
+  const horarioLabel = todayHorario?.bloques.length
+    ? todayHorario.bloques.map((bloque) => `${bloque.inicio}-${bloque.fin}`).join(' / ')
+    : todayHorario?.tipo_dia === 'festivo'
+      ? 'No trabaja'
+      : doctorId
+        ? 'Sin horario'
+        : 'Todas las agendas';
+  const citasActivas = citas.filter((cita) => !['anulada', 'falta'].includes(cita.estado));
+  const pendientesConfirmar = citasActivas.filter((cita) => cita.estado === 'programada');
+  const pacientesEnClinica = citasActivas.filter((cita) => cita.estado === 'en_clinica');
+  const currentTime = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const siguienteCita = citasActivas
+    .filter((cita) => day !== nowDay || cita.fecha_hora.slice(11, 16) >= currentTime)
+    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? citasActivas[0];
 
   return (
     <section className="page agenda-euro" onClick={() => setContextMenu(null)}>
-      <div className="agenda-titlebar">Agenda</div>
+      <div className="agenda-titlebar agenda-titlebar-rich">
+        <strong>Agenda</strong>
+        <span>{selected.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
+        <span>{selectedDoctor?.nombre ?? 'Todas las agendas'}</span>
+        <span>{horarioLabel}</span>
+        <button onClick={() => void horariosAgendaQuery.refetch()}>Actualizar horario</button>
+      </div>
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
           <label className="doctor-picker">
@@ -680,6 +842,13 @@ export default function AgendaPage() {
                 {doctor.nombre}
               </span>
             ))}
+          </div>
+
+          <div className="agenda-day-flow">
+            <span><b>{citasActivas.length}</b> citas</span>
+            <span><b>{pendientesConfirmar.length}</b> confirmar</span>
+            <span><b>{pacientesEnClinica.length}</b> en clinica</span>
+            <span title={siguienteCita ? patientName(siguienteCita) : ''}><b>Siguiente</b> {siguienteCita ? `${siguienteCita.fecha_hora.slice(11, 16)} ${patientName(siguienteCita)}` : '-'}</span>
           </div>
 
           <div className="month-caption">{monthName}</div>
@@ -726,7 +895,7 @@ export default function AgendaPage() {
           </div>
 
           <div className="agenda-button-grid">
-            <button onClick={() => navigate('/configuracion')}>Cambiar horario</button>
+            <button onClick={() => navigate(`/configuracion?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`)}>Cambiar horario</button>
             <button onClick={buscarCita}>Buscar citas</button>
             <button onClick={buscarHuecoLibre}>Buscar hueco</button>
             <button onClick={() => void citasQuery.refetch()}>Refrescar</button>
@@ -738,8 +907,24 @@ export default function AgendaPage() {
         </aside>
 
         <main className="agenda-slots">
+          <div className="agenda-status-legend" aria-label="Leyenda de estados de cita">
+            {ESTADOS.map((estado) => {
+              const visual = STATUS_META[estado] ?? STATUS_META.programada;
+              return (
+                <span className={visual.className} key={estado}>
+                  <b>{visual.mark}</b>
+                  {visual.label}
+                </span>
+              );
+            })}
+          </div>
+          {!slots.length && (
+            <div className="agenda-empty-day">
+              No hay horario configurado para este dia. Revise Ajustes generales &gt; Agenda.
+            </div>
+          )}
           {slots.map((slot) => {
-            const citasSlot = (citasQuery.data ?? []).filter((cita) => cita.fecha_hora.slice(11, 16) === slot);
+            const citasSlot = citas.filter((cita) => cita.fecha_hora.slice(11, 16) === slot);
             return (
               <div className="agenda-slot-row" key={slot}>
                 <time>{slot}</time>
@@ -784,6 +969,7 @@ export default function AgendaPage() {
                         <b>{visual.mark}</b>
                         <strong>{patientName(cita)}</strong>
                         <span>{cita.motivo ?? visual.label}</span>
+                        <small>{visual.label}</small>
                         <em>{cita.duracion_min} min</em>
                       </article>
                     );

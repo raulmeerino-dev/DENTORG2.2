@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLE_LABELS, WORKFLOW_ITEMS, canRoleAccess } from '../../config/workflow';
 import {
@@ -84,8 +85,10 @@ type DoctorForm = {
 
 type HorarioForm = {
   tipo_dia: string;
+  manana_activa: boolean;
   manana_inicio: string;
   manana_fin: string;
+  tarde_activa: boolean;
   tarde_inicio: string;
   tarde_fin: string;
   intervalo_min: string;
@@ -115,8 +118,10 @@ const EMPTY_DOCTOR_FORM: DoctorForm = {
 
 const DEFAULT_HORARIO_FORM: HorarioForm = {
   tipo_dia: 'laborable',
+  manana_activa: true,
   manana_inicio: '09:00',
   manana_fin: '13:30',
+  tarde_activa: true,
   tarde_inicio: '15:00',
   tarde_fin: '20:30',
   intervalo_min: '10',
@@ -150,12 +155,15 @@ function formFromDoctor(doctor: Doctor): DoctorForm {
 
 function horarioToForm(horario?: HorarioDoctor): HorarioForm {
   const bloques = horario?.bloques ?? [];
-  const manana = bloques[0];
-  const tarde = bloques[1];
+  const manana = bloques.find((bloque) => bloque.inicio < '14:00');
+  const tarde = bloques.find((bloque) => bloque.inicio >= '14:00');
+  const isConfigured = Boolean(horario);
   return {
     tipo_dia: horario?.tipo_dia ?? DEFAULT_HORARIO_FORM.tipo_dia,
+    manana_activa: isConfigured ? Boolean(manana) : DEFAULT_HORARIO_FORM.manana_activa,
     manana_inicio: manana?.inicio ?? DEFAULT_HORARIO_FORM.manana_inicio,
     manana_fin: manana?.fin ?? DEFAULT_HORARIO_FORM.manana_fin,
+    tarde_activa: isConfigured ? Boolean(tarde) : DEFAULT_HORARIO_FORM.tarde_activa,
     tarde_inicio: tarde?.inicio ?? DEFAULT_HORARIO_FORM.tarde_inicio,
     tarde_fin: tarde?.fin ?? DEFAULT_HORARIO_FORM.tarde_fin,
     intervalo_min: String(horario?.intervalo_min ?? DEFAULT_HORARIO_FORM.intervalo_min),
@@ -164,8 +172,8 @@ function horarioToForm(horario?: HorarioDoctor): HorarioForm {
 
 function horarioPayload(form: HorarioForm) {
   const bloques = form.tipo_dia === 'festivo' ? [] : [
-    { inicio: form.manana_inicio, fin: form.manana_fin },
-    { inicio: form.tarde_inicio, fin: form.tarde_fin },
+    ...(form.manana_activa ? [{ inicio: form.manana_inicio, fin: form.manana_fin }] : []),
+    ...(form.tarde_activa ? [{ inicio: form.tarde_inicio, fin: form.tarde_fin }] : []),
   ].filter((bloque) => bloque.inicio && bloque.fin && bloque.inicio < bloque.fin);
   return {
     tipo_dia: form.tipo_dia,
@@ -174,13 +182,26 @@ function horarioPayload(form: HorarioForm) {
   };
 }
 
+function horarioResumen(form: HorarioForm) {
+  if (form.tipo_dia === 'festivo') return 'No trabaja';
+  const parts = [
+    form.manana_activa ? `${form.manana_inicio}-${form.manana_fin}` : null,
+    form.tarde_activa ? `${form.tarde_inicio}-${form.tarde_fin}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' / ') : 'Sin bloques';
+}
+
 export default function ConfiguracionPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<FicheroTab>('general');
-  const [doctorId, setDoctorId] = useState('');
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialTab = FICHEROS.includes(searchParams.get('tab') as FicheroTab) ? searchParams.get('tab') as FicheroTab : 'general';
+  const [tab, setTab] = useState<FicheroTab>(initialTab);
+  const [doctorId, setDoctorId] = useState(searchParams.get('doctor_id') ?? '');
   const [doctorForm, setDoctorForm] = useState<DoctorForm>(EMPTY_DOCTOR_FORM);
   const [horarioForms, setHorarioForms] = useState<Record<number, HorarioForm>>({});
+  const [horarioSavedMessage, setHorarioSavedMessage] = useState('');
   const [tratamientoForm, setTratamientoForm] = useState<TreatmentForm>(EMPTY_TREATMENT_FORM);
   const [tratamientoSearch, setTratamientoSearch] = useState('');
 
@@ -216,6 +237,13 @@ export default function ConfiguracionPage() {
       setDoctorForm(formFromDoctor(activeDoctorRecord));
     }
   }, [activeDoctorRecord?.id, activeDoctorRecord?.nombre, activeDoctorRecord?.color_agenda, activeDoctorRecord?.porcentaje]);
+
+  useEffect(() => {
+    const nextTab = searchParams.get('tab') as FicheroTab | null;
+    const nextDoctorId = searchParams.get('doctor_id');
+    if (nextTab && FICHEROS.includes(nextTab)) setTab(nextTab);
+    if (nextDoctorId) setDoctorId(nextDoctorId);
+  }, [searchParams]);
 
   useEffect(() => {
     const next: Record<number, HorarioForm> = {};
@@ -256,6 +284,27 @@ export default function ConfiguracionPage() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['horarios', activeDoctor] });
+      void queryClient.invalidateQueries({ queryKey: ['agenda-horarios'] });
+      window.dispatchEvent(new CustomEvent('dentorg:horarios-updated'));
+      window.localStorage.setItem('dentorg_horarios_updated_at', String(Date.now()));
+      setHorarioSavedMessage('Horario guardado y enviado a la agenda.');
+    },
+  });
+
+  const saveAllHorariosMutation = useMutation({
+    mutationFn: async () => {
+      if (!activeDoctor) throw new Error('Seleccione un doctor');
+      return Promise.all(DAYS.map((_, index) => {
+        const form = horarioForms[index] ?? DEFAULT_HORARIO_FORM;
+        return updateHorarioDoctor(activeDoctor, index, horarioPayload(form));
+      }));
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['horarios', activeDoctor] });
+      void queryClient.invalidateQueries({ queryKey: ['agenda-horarios'] });
+      window.dispatchEvent(new CustomEvent('dentorg:horarios-updated'));
+      window.localStorage.setItem('dentorg_horarios_updated_at', String(Date.now()));
+      setHorarioSavedMessage('Semana guardada. La agenda queda actualizada con estos tramos.');
     },
   });
 
@@ -296,6 +345,37 @@ export default function ConfiguracionPage() {
       void queryClient.invalidateQueries({ queryKey: ['tratamientos-catalogo'] });
     },
   });
+
+  function updateHorarioDia(index: number, patch: Partial<HorarioForm>) {
+    setHorarioForms((prev) => ({
+      ...prev,
+      [index]: { ...(prev[index] ?? DEFAULT_HORARIO_FORM), ...patch },
+    }));
+  }
+
+  function aplicarPlantillaLaborables(template: 'completo' | 'manana' | 'tarde') {
+    setHorarioForms((prev) => {
+      const next = { ...prev };
+      for (let index = 0; index < 5; index += 1) {
+        const base = next[index] ?? DEFAULT_HORARIO_FORM;
+        next[index] = {
+          ...base,
+          tipo_dia: 'laborable',
+          manana_activa: template !== 'tarde',
+          tarde_activa: template !== 'manana',
+        };
+      }
+      return next;
+    });
+  }
+
+  function marcarFinDeSemanaFestivo() {
+    setHorarioForms((prev) => ({
+      ...prev,
+      5: { ...(prev[5] ?? DEFAULT_HORARIO_FORM), tipo_dia: 'festivo', manana_activa: false, tarde_activa: false },
+      6: { ...(prev[6] ?? DEFAULT_HORARIO_FORM), tipo_dia: 'festivo', manana_activa: false, tarde_activa: false },
+    }));
+  }
 
   const createFamilyMutation = useMutation({
     mutationFn: async () => {
@@ -514,7 +594,7 @@ export default function ConfiguracionPage() {
 
       {tab === 'agenda' && (
         <section className="desk-panel">
-          <div className="panel-caption">
+          <div className="panel-caption horario-caption">
             <strong>Horarios semanales por doctor</strong>
             <AccessPill allowed={isAdmin} />
             <select value={activeDoctor} onChange={(e) => setDoctorId(e.target.value)}>
@@ -522,9 +602,38 @@ export default function ConfiguracionPage() {
                 <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
               ))}
             </select>
+            <button disabled={!isAdmin || saveAllHorariosMutation.isPending} onClick={() => saveAllHorariosMutation.mutate()}>
+              Guardar toda la semana
+            </button>
+            <button onClick={() => navigate('/agenda')}>Ver agenda</button>
+          </div>
+          <div className="horario-tools">
+            <button disabled={!isAdmin} onClick={() => aplicarPlantillaLaborables('completo')}>L-V completo</button>
+            <button disabled={!isAdmin} onClick={() => aplicarPlantillaLaborables('manana')}>L-V solo mañana</button>
+            <button disabled={!isAdmin} onClick={() => aplicarPlantillaLaborables('tarde')}>L-V solo tarde</button>
+            <button disabled={!isAdmin} onClick={marcarFinDeSemanaFestivo}>S-D festivo</button>
           </div>
           <table className="euro-table horario-editor-table">
-            <thead><tr><th>Día</th><th>Tipo</th><th>Mañana</th><th>Tarde</th><th>Intervalo</th><th></th></tr></thead>
+            <colgroup>
+              <col className="horario-col-dia" />
+              <col className="horario-col-tipo" />
+              <col className="horario-col-turno" />
+              <col className="horario-col-turno" />
+              <col className="horario-col-intervalo" />
+              <col className="horario-col-resumen" />
+              <col className="horario-col-accion" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th scope="col">Día</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Mañana <small>inicio / fin</small></th>
+                <th scope="col">Tarde <small>inicio / fin</small></th>
+                <th scope="col">Intervalo <small>huecos</small></th>
+                <th scope="col">Resumen</th>
+                <th scope="col">Guardar</th>
+              </tr>
+            </thead>
             <tbody>
               {DAYS.map((day, index) => {
                 const form = horarioForms[index] ?? DEFAULT_HORARIO_FORM;
@@ -532,22 +641,30 @@ export default function ConfiguracionPage() {
                   <tr key={day}>
                     <td>{day}</td>
                     <td>
-                      <select disabled={!isAdmin} value={form.tipo_dia} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, tipo_dia: event.target.value } }))}>
+                      <select disabled={!isAdmin} value={form.tipo_dia} onChange={(event) => updateHorarioDia(index, { tipo_dia: event.target.value })}>
                         <option value="laborable">Laborable</option>
                         <option value="semilaborable">Semi</option>
                         <option value="festivo">Festivo</option>
                       </select>
                     </td>
                     <td>
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.manana_inicio} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, manana_inicio: event.target.value } }))} />
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.manana_fin} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, manana_fin: event.target.value } }))} />
+                      <label className="checkline horario-turno-toggle">
+                        <input type="checkbox" checked={form.manana_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { manana_activa: event.target.checked })} />
+                        Mañana
+                      </label>
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_inicio} onChange={(event) => updateHorarioDia(index, { manana_inicio: event.target.value })} />
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_fin} onChange={(event) => updateHorarioDia(index, { manana_fin: event.target.value })} />
                     </td>
                     <td>
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.tarde_inicio} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, tarde_inicio: event.target.value } }))} />
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo'} value={form.tarde_fin} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, tarde_fin: event.target.value } }))} />
+                      <label className="checkline horario-turno-toggle">
+                        <input type="checkbox" checked={form.tarde_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { tarde_activa: event.target.checked })} />
+                        Tarde
+                      </label>
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_inicio} onChange={(event) => updateHorarioDia(index, { tarde_inicio: event.target.value })} />
+                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_fin} onChange={(event) => updateHorarioDia(index, { tarde_fin: event.target.value })} />
                     </td>
                     <td>
-                      <select disabled={!isAdmin} value={form.intervalo_min} onChange={(event) => setHorarioForms((prev) => ({ ...prev, [index]: { ...form, intervalo_min: event.target.value } }))}>
+                      <select disabled={!isAdmin} value={form.intervalo_min} onChange={(event) => updateHorarioDia(index, { intervalo_min: event.target.value })}>
                         <option value="10">10 min</option>
                         <option value="15">15 min</option>
                         <option value="20">20 min</option>
@@ -556,6 +673,7 @@ export default function ConfiguracionPage() {
                         <option value="60">60 min</option>
                       </select>
                     </td>
+                    <td><span className="horario-summary-pill">{horarioResumen(form)}</span></td>
                     <td><button disabled={!isAdmin || saveHorarioMutation.isPending} onClick={() => saveHorarioMutation.mutate(index)}>Guardar</button></td>
                   </tr>
                 );
@@ -563,6 +681,8 @@ export default function ConfiguracionPage() {
             </tbody>
           </table>
           {saveHorarioMutation.error && <p className="form-error">{String((saveHorarioMutation.error as Error).message)}</p>}
+          {saveAllHorariosMutation.error && <p className="form-error">{String((saveAllHorariosMutation.error as Error).message)}</p>}
+          {horarioSavedMessage && <p className="form-success">{horarioSavedMessage}</p>}
         </section>
       )}
 
