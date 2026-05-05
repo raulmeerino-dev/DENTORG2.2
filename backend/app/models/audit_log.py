@@ -23,12 +23,16 @@ class AuditLog(Base):
     usuario_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True
     )
-    accion: Mapped[str] = mapped_column(String(10), nullable=False)  # CREATE/READ/UPDATE/DELETE
-    tabla: Mapped[str] = mapped_column(String(50), nullable=False)
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
+    accion: Mapped[str] = mapped_column(String(80), nullable=False)  # CREATE/READ/UPDATE/DELETE/action name
+    tabla: Mapped[str] = mapped_column(String(80), nullable=False)
     registro_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     datos_antes: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     datos_despues: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     ip: Mapped[str | None] = mapped_column(String(45), nullable=True)  # IPv4 o IPv6
+    user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     previous_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     event_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     timestamp: Mapped[datetime] = mapped_column(

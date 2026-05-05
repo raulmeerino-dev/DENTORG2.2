@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class DoctorCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
+    clinica_id: UUID | None = None
     especialidad: str | None = Field(None, max_length=100)
     color_agenda: str | None = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
     es_auxiliar: bool = False
@@ -14,6 +15,7 @@ class DoctorCreate(BaseModel):
 
 class DoctorUpdate(BaseModel):
     nombre: str | None = Field(None, max_length=100)
+    clinica_id: UUID | None = None
     especialidad: str | None = None
     color_agenda: str | None = Field(None, pattern=r"^#[0-9A-Fa-f]{6}$")
     es_auxiliar: bool | None = None
@@ -23,6 +25,7 @@ class DoctorUpdate(BaseModel):
 
 class DoctorResponse(BaseModel):
     id: UUID
+    clinica_id: UUID | None = None
     nombre: str
     especialidad: str | None
     color_agenda: str | None

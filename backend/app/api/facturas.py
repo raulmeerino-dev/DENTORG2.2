@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, RequireAdmin
+from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access, resolve_clinic_id, scope_select_by_clinic
 from app.database import get_db
 from app.models.clinica import Receta
 from app.models.factura import Cobro, Factura, FacturaLinea, FormaPago
@@ -73,6 +73,14 @@ async def _siguiente_numero(db: AsyncSession, serie: str) -> int:
     result = await db.execute(select(func.max(Factura.numero)).where(Factura.serie == serie))
     max_num = result.scalar_one_or_none()
     return (max_num or 0) + 1
+
+
+def _estado_por_cobro(total: Decimal, total_cobrado: Decimal) -> str:
+    if total_cobrado <= 0:
+        return "emitida"
+    if total_cobrado >= total:
+        return "pagada"
+    return "parcial"
 
 
 def _calcular_linea(linea: FacturaLineaCreate) -> tuple[Decimal, Decimal, Decimal]:
@@ -150,9 +158,9 @@ async def crear_forma_pago(
 @router.get("", response_model=list[FacturaResponse])
 async def listar_facturas(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     paciente_id: UUID | None = Query(None),
-    estado: str | None = Query(None, pattern=r"^(emitida|cobrada|parcial|anulada)$"),
+    estado: str | None = Query(None, pattern=r"^(borrador|emitida|cobrada|pagada|parcial|anulada)$"),
     fecha_desde: str | None = Query(None),
     fecha_hasta: str | None = Query(None),
     serie: str | None = Query(None),
@@ -166,6 +174,7 @@ async def listar_facturas(
         .limit(limit)
         .offset(offset)
     )
+    stmt = scope_select_by_clinic(stmt, Factura, current_user)
     if paciente_id:
         stmt = stmt.where(Factura.paciente_id == paciente_id)
     if estado:
@@ -190,6 +199,7 @@ async def crear_factura(
     paciente = await db.get(Paciente, data.paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
 
     subtotal = Decimal("0.00")
     iva_total = Decimal("0.00")
@@ -204,7 +214,7 @@ async def crear_factura(
     factura = Factura(
         paciente_id=data.paciente_id,
         entidad_id=data.entidad_id,
-        clinica_id=current_user.clinica_id or paciente.clinica_id,
+        clinica_id=resolve_clinic_id(current_user, paciente.clinica_id),
         serie=data.serie,
         numero=numero,
         fecha=data.fecha,
@@ -261,12 +271,93 @@ async def crear_factura(
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura.id))
 
 
+@router.get("/historial-sin-facturar", response_model=list[HistorialSinFacturarResponse])
+async def historial_sin_facturar(
+    paciente_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: CurrentUser,
+) -> list[HistorialSinFacturarResponse]:
+    facturados_sq = select(FacturaLinea.historial_id).where(
+        FacturaLinea.historial_id.is_not(None)
+    ).scalar_subquery()
+
+    stmt = (
+        select(HistorialClinico)
+        .options(
+            selectinload(HistorialClinico.tratamiento),
+            selectinload(HistorialClinico.doctor),
+        )
+        .where(
+            HistorialClinico.paciente_id == paciente_id,
+            HistorialClinico.id.not_in(facturados_sq),
+        )
+        .order_by(HistorialClinico.fecha.desc())
+    )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+
+    return [
+        HistorialSinFacturarResponse(
+            id=h.id,
+            fecha=h.fecha,
+            pieza_dental=h.pieza_dental,
+            caras=h.caras,
+            observaciones=h.observaciones,
+            tratamiento_id=h.tratamiento_id,
+            tratamiento_nombre=h.tratamiento.nombre,
+            tratamiento_precio=h.tratamiento.precio,
+            tratamiento_iva=h.tratamiento.iva_porcentaje,
+            doctor_id=h.doctor_id,
+            doctor_nombre=h.doctor.nombre,
+        )
+        for h in rows
+    ]
+
+
 @router.get("/{factura_id}", response_model=FacturaResponse)
 async def obtener_factura(
     factura_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> FacturaResponse:
+    factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
+    return FacturaResponse.model_validate(factura)
+
+
+@router.post("/{factura_id}/emitir", response_model=FacturaResponse)
+async def emitir_factura(
+    factura_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> FacturaResponse:
+    factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
+    if factura.estado == "anulada":
+        raise HTTPException(status_code=409, detail="No se puede emitir una factura anulada")
+    if factura.huella:
+        return FacturaResponse.model_validate(factura)
+
+    factura.estado = "emitida"
+    await sellar_factura(db, factura)
+    await registrar_registro_facturacion(
+        db,
+        factura=factura,
+        tipo_registro="alta",
+        usuario_id=current_user.user_id,
+        detalles=_detalle_factura_evento(factura),
+    )
+    await registrar_evento_sif(
+        db,
+        tipo_evento="FACTURA_ALTA",
+        factura_id=factura.id,
+        usuario_id=current_user.user_id,
+        detalles=_detalle_factura_evento(factura),
+    )
+    await db.flush()
+    factura_pdf = await _get_factura_or_404(db, factura.id)
+    await archivar_pdf_factura(db, factura=factura_pdf, created_by_id=current_user.user_id)
+    await db.commit()
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_id))
 
 
@@ -277,6 +368,7 @@ async def generar_receta(
     current_user: CurrentUser,
 ) -> Response:
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     result = await db.execute(select(Receta).where(Receta.factura_id == factura_id))
     receta = result.scalar_one_or_none()
     if not receta:
@@ -319,6 +411,7 @@ async def actualizar_factura(
     current_user: CurrentUser,
 ) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
         raise HTTPException(status_code=400, detail="No se puede modificar una factura anulada")
     if factura.huella:
@@ -344,6 +437,7 @@ async def _anular_factura_emitida(
     current_user: CurrentUser,
 ) -> None:
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
         return
     if not factura.huella:
@@ -509,49 +603,6 @@ async def rectificar_factura(
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_rectificativa.id))
 
 
-@router.get("/historial-sin-facturar", response_model=list[HistorialSinFacturarResponse])
-async def historial_sin_facturar(
-    paciente_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
-) -> list[HistorialSinFacturarResponse]:
-    facturados_sq = select(FacturaLinea.historial_id).where(
-        FacturaLinea.historial_id.is_not(None)
-    ).scalar_subquery()
-
-    stmt = (
-        select(HistorialClinico)
-        .options(
-            selectinload(HistorialClinico.tratamiento),
-            selectinload(HistorialClinico.doctor),
-        )
-        .where(
-            HistorialClinico.paciente_id == paciente_id,
-            HistorialClinico.id.not_in(facturados_sq),
-        )
-        .order_by(HistorialClinico.fecha.desc())
-    )
-    result = await db.execute(stmt)
-    rows = result.scalars().all()
-
-    return [
-        HistorialSinFacturarResponse(
-            id=h.id,
-            fecha=h.fecha,
-            pieza_dental=h.pieza_dental,
-            caras=h.caras,
-            observaciones=h.observaciones,
-            tratamiento_id=h.tratamiento_id,
-            tratamiento_nombre=h.tratamiento.nombre,
-            tratamiento_precio=h.tratamiento.precio,
-            tratamiento_iva=h.tratamiento.iva_porcentaje,
-            doctor_id=h.doctor_id,
-            doctor_nombre=h.doctor.nombre,
-        )
-        for h in rows
-    ]
-
-
 @router.post("/{factura_id}/lineas", response_model=FacturaResponse, status_code=201)
 async def anadir_linea(
     factura_id: UUID,
@@ -560,6 +611,7 @@ async def anadir_linea(
     current_user: CurrentUser,
 ) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
         raise HTTPException(status_code=400, detail="No se pueden anadir lineas a una factura anulada")
     if factura.huella:
@@ -602,6 +654,7 @@ async def eliminar_linea(
     current_user: CurrentUser,
 ) -> None:
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
         raise HTTPException(status_code=400, detail="No se pueden eliminar lineas de una factura anulada")
     if factura.huella:
@@ -644,6 +697,7 @@ async def registrar_cobro(
     current_user: CurrentUser,
 ) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
         raise HTTPException(status_code=400, detail="No se puede cobrar una factura anulada")
 
@@ -668,7 +722,7 @@ async def registrar_cobro(
 
     await db.flush()
     total_cobrado = sum(c.importe for c in factura.cobros if c.anulado_at is None) + data.importe
-    factura.estado = "cobrada" if total_cobrado >= factura.total else "parcial"
+    factura.estado = _estado_por_cobro(factura.total, total_cobrado)
     await registrar_evento_sif(
         db,
         tipo_evento="COBRO_ALTA",
@@ -683,6 +737,16 @@ async def registrar_cobro(
     await db.commit()
 
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_id))
+
+
+@router.post("/{factura_id}/pagos", response_model=FacturaResponse, status_code=201)
+async def registrar_pago(
+    factura_id: UUID,
+    data: CobroCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> FacturaResponse:
+    return await registrar_cobro(factura_id, data, db, current_user)
 
 
 async def _anular_cobro_emitido(
@@ -704,13 +768,12 @@ async def _anular_cobro_emitido(
     cobro.motivo_anulacion = data.motivo
 
     factura = await _get_factura_or_404(db, factura_id)
+    ensure_clinic_access(current_user, factura.clinica_id)
     total_cobrado = sum(c.importe for c in factura.cobros if c.anulado_at is None)
     if total_cobrado <= 0:
         factura.estado = "emitida"
-    elif total_cobrado >= factura.total:
-        factura.estado = "cobrada"
     else:
-        factura.estado = "parcial"
+        factura.estado = _estado_por_cobro(factura.total, total_cobrado)
     await registrar_evento_sif(
         db,
         tipo_evento="COBRO_ANULACION",

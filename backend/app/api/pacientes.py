@@ -7,18 +7,29 @@ y se descifran al leer. La clave nunca sale del servidor.
 """
 from typing import Annotated
 from uuid import UUID
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 
 from app.core.crypto import cifrar_campos_paciente, cifrar_json, descifrar_json, descifrar_paciente
-from app.core.permissions import CurrentUser, RequireAdmin, RequireDoctor
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    RequireDoctor,
+    can_view_health_data,
+    ensure_clinic_access,
+    resolve_clinic_id,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.paciente import Paciente
 from app.models.cita import Cita
+from app.models.factura import Factura
+from app.schemas.factura import SaldoPacienteResponse
 from app.schemas.cita import CitaResponse
 from app.api.citas import _to_response as cita_to_response
 from app.models.referencia import Referencia
@@ -79,7 +90,7 @@ async def _build_response(db: AsyncSession, p: Paciente, include_health: bool) -
 
 
 def _puede_ver_datos_salud(current_user: CurrentUser) -> bool:
-    return current_user.rol in {"admin", "doctor"}
+    return can_view_health_data(current_user)
 
 
 async def _leer_datos_salud(db: AsyncSession, paciente: Paciente) -> dict:
@@ -108,8 +119,7 @@ async def listar_pacientes(
     """
     stmt = select(Paciente).order_by(Paciente.apellidos, Paciente.nombre)
 
-    if current_user.clinica_id and current_user.rol != "admin":
-        stmt = stmt.where(or_(Paciente.clinica_id == current_user.clinica_id, Paciente.clinica_id.is_(None)))
+    stmt = scope_select_by_clinic(stmt, Paciente, current_user)
 
     if solo_activos:
         stmt = stmt.where(Paciente.activo == True)  # noqa: E712
@@ -166,8 +176,7 @@ async def crear_paciente(
     )
 
     campos_planos = data.model_dump(exclude={"dni_nie", "telefono", "telefono2", "email", "datos_salud"})
-    if campos_planos.get("clinica_id") is None and current_user.clinica_id:
-        campos_planos["clinica_id"] = current_user.clinica_id
+    campos_planos["clinica_id"] = resolve_clinic_id(current_user, campos_planos.get("clinica_id"))
     paciente = Paciente(**campos_planos, **cifrados)
     paciente.datos_salud_cifrado = await cifrar_json(db, data.datos_salud)
     paciente.datos_salud = None
@@ -187,6 +196,7 @@ async def obtener_paciente(
     current_user: CurrentUser,
 ) -> PacienteResponse:
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, p.clinica_id)
     return await _build_response(db, p, include_health=_puede_ver_datos_salud(current_user))
 
 
@@ -198,6 +208,7 @@ async def actualizar_paciente(
     current_user: CurrentUser,
 ) -> PacienteResponse:
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, p.clinica_id)
 
     # Separar campos sensibles de planos
     campos = data.model_dump(exclude_none=True)
@@ -217,6 +228,8 @@ async def actualizar_paciente(
         p.datos_salud = None
 
     for campo, valor in campos.items():
+        if campo == "clinica_id":
+            valor = resolve_clinic_id(current_user, valor)
         setattr(p, campo, valor)
 
     await db.commit()
@@ -228,9 +241,11 @@ async def actualizar_paciente(
 async def desactivar_paciente(
     paciente_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> None:
     """Soft delete: activo = False. Nunca elimina datos clínicos."""
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, p.clinica_id)
     p.activo = False
     await db.commit()
 
@@ -250,6 +265,7 @@ async def get_salud(
 ) -> dict:
     """Devuelve los datos de salud del paciente."""
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(_, p.clinica_id)
     return await _leer_datos_salud(db, p)
 
 
@@ -263,20 +279,23 @@ async def actualizar_salud(
 ) -> dict:
     """Actualiza los datos de salud del paciente (merge con los existentes)."""
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(_, p.clinica_id)
     existing = await _leer_datos_salud(db, p)
     existing.update(data)
     p.datos_salud_cifrado = await cifrar_json(db, existing)
     p.datos_salud = None
     await db.commit()
+    return existing
 
 
 @router.get("/{paciente_id}/citas", response_model=list[CitaResponse])
 async def proximas_citas_paciente(
     paciente_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[CitaResponse]:
-    await _get_paciente_or_404(db, paciente_id)
+    paciente = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
     result = await db.execute(
         select(Cita)
         .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
@@ -284,7 +303,39 @@ async def proximas_citas_paciente(
         .order_by(Cita.fecha_hora)
     )
     return [await cita_to_response(db, cita) for cita in result.scalars().all()]
-    return existing
+
+
+@router.get("/{paciente_id}/saldo", response_model=SaldoPacienteResponse)
+async def saldo_paciente(
+    paciente_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> SaldoPacienteResponse:
+    paciente = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    result = await db.execute(
+        select(Factura)
+        .options(selectinload(Factura.cobros))
+        .where(Factura.paciente_id == paciente_id, Factura.estado != "anulada")
+    )
+    facturas = result.scalars().all()
+    total_facturado = sum((factura.total for factura in facturas), Decimal("0.00"))
+    total_cobrado = sum(
+        (cobro.importe for factura in facturas for cobro in factura.cobros if cobro.anulado_at is None),
+        Decimal("0.00"),
+    )
+    pendiente = total_facturado - total_cobrado
+    facturas_pendientes = sum(1 for factura in facturas if factura.total > sum(
+        (cobro.importe for cobro in factura.cobros if cobro.anulado_at is None),
+        Decimal("0.00"),
+    ))
+    return SaldoPacienteResponse(
+        paciente_id=paciente_id,
+        total_facturado=total_facturado,
+        total_cobrado=total_cobrado,
+        pendiente=pendiente,
+        facturas_pendientes=facturas_pendientes,
+    )
 
 
 # ─── HISTORIAL DE FALTAS (para alerta en nueva cita) ─────────────────────────
@@ -293,10 +344,12 @@ async def proximas_citas_paciente(
 async def historial_faltas_paciente(
     paciente_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[dict]:
     """Devuelve faltas y anulaciones del paciente para mostrar alerta al dar cita."""
     from app.models.cita import HistorialFaltas
+    paciente = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
     result = await db.execute(
         select(HistorialFaltas)
         .where(HistorialFaltas.paciente_id == paciente_id)
@@ -315,9 +368,10 @@ async def historial_faltas_paciente(
 async def listar_referencias_paciente(
     paciente_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[ReferenciaResponse]:
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, p.clinica_id)
     return [ReferenciaResponse.model_validate(r) for r in p.referencias]
 
 
@@ -326,10 +380,11 @@ async def asignar_referencias(
     paciente_id: UUID,
     data: AsignarReferenciasRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[ReferenciaResponse]:
     """Reemplaza el conjunto completo de referencias del paciente."""
     p = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, p.clinica_id)
     refs_result = await db.execute(
         select(Referencia).where(Referencia.id.in_(data.referencia_ids))
     )

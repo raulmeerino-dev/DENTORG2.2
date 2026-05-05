@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 from app.models.base import UUIDMixin, TimestampMixin, SoftDeleteMixin
 
-RolEnum = Enum("recepcion", "doctor", "admin", name="rol_usuario")
+RolEnum = Enum("recepcion", "doctor", "admin", "auxiliar", "paciente", name="rol_usuario")
 
 
 class Usuario(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):

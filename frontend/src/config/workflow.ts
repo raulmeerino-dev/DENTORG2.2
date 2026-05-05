@@ -26,6 +26,8 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   doctor: 'Doctor',
   recepcion: 'Recepcion',
+  auxiliar: 'Auxiliar',
+  paciente: 'Paciente',
 };
 
 export const WORKFLOW_ITEMS: WorkflowItem[] = [
@@ -33,7 +35,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     id: 'dashboard',
     label: 'Inicio',
     description: 'Panel diario con citas, llamadas, caja, laboratorio y alertas.',
-    roles: ['admin', 'doctor', 'recepcion'],
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/dashboard',
     shortcut: 'IN',
   },
@@ -41,7 +43,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     id: 'pacientes',
     label: 'Pacientes',
     description: 'Ficha, historia, presupuestos, realizados, cobros y documentos.',
-    roles: ['admin', 'doctor', 'recepcion'],
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/pacientes',
     shortcut: 'PA',
   },
@@ -49,7 +51,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     id: 'agenda',
     label: 'Agenda',
     description: 'Citas, huecos, llamadas, cambios de horario y ocupacion.',
-    roles: ['admin', 'doctor', 'recepcion'],
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/agenda',
     shortcut: 'AG',
   },
@@ -81,7 +83,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     id: 'clinica',
     label: 'Clinica',
     description: 'Historial, odontograma, tratamientos realizados y planificacion.',
-    roles: ['admin', 'doctor'],
+    roles: ['admin', 'doctor', 'auxiliar'],
   },
   {
     id: 'caja',
@@ -93,13 +95,13 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     id: 'documentos',
     label: 'Documentos',
     description: 'Consentimientos, imagenes, adjuntos clinicos y PDFs emitidos.',
-    roles: ['admin', 'doctor', 'recepcion'],
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
   },
   {
     id: 'laboratorio',
     label: 'Protesicos',
     description: 'Laboratorios, trabajos enviados, recepcion, incidencias y entregas.',
-    roles: ['admin', 'doctor', 'recepcion'],
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
   },
   {
     id: 'seguridad',

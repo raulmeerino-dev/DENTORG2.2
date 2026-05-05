@@ -3,8 +3,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.enums import EstadoCita
 
-ESTADOS_CITA = ("programada", "confirmada", "en_clinica", "atendida", "falta", "anulada")
+ESTADOS_CITA = tuple(item.value for item in EstadoCita)
 
 
 class CitaCreate(BaseModel):
@@ -29,7 +30,7 @@ class CitaUpdate(BaseModel):
     gabinete_id: UUID | None = None
     fecha_hora: datetime | None = None
     duracion_min: int | None = Field(None, ge=10, le=480)
-    estado: str | None = Field(None, pattern=r"^(programada|confirmada|en_clinica|atendida|falta|anulada)$")
+    estado: EstadoCita | None = None
     es_urgencia: bool | None = None
     forzar_fuera_horario: bool | None = None
     motivo: str | None = None
@@ -40,6 +41,27 @@ class CitaUpdate(BaseModel):
     recordatorio_at: datetime | None = None
     confirmado_at: datetime | None = None
     motivo_cancelacion: str | None = Field(None, max_length=80)
+
+
+class CitaReprogramar(BaseModel):
+    doctor_id: UUID | None = None
+    gabinete_id: UUID | None = None
+    fecha_hora: datetime
+    duracion_min: int | None = Field(None, ge=10, le=480)
+    forzar_fuera_horario: bool = False
+    motivo: str | None = Field(None, max_length=500)
+
+
+class CitaEstadoUpdate(BaseModel):
+    estado: EstadoCita
+    motivo: str | None = Field(None, max_length=500)
+
+
+class CitaCancelar(BaseModel):
+    motivo_cancelacion: str = Field(..., min_length=1, max_length=120)
+    tipo: str = Field("anulacion_paciente", pattern=r"^(anulacion_paciente|anulacion_clinica|no_vino|reprogramada|otro)$")
+    crear_telefonear: bool = False
+    proximo_intento_at: datetime | None = None
 
 
 class PacienteResumen(BaseModel):
@@ -63,6 +85,7 @@ class DoctorResumen(BaseModel):
 class CitaResponse(BaseModel):
     id: UUID
     paciente_id: UUID
+    clinica_id: UUID | None = None
     doctor_id: UUID
     gabinete_id: UUID | None
     fecha_hora: datetime
@@ -98,6 +121,32 @@ class HuecoLibre(BaseModel):
     fecha_hora_inicio: datetime
     fecha_hora_fin: datetime
     duracion_min: int
+
+
+class DisponibilidadDia(BaseModel):
+    doctor_id: UUID
+    fecha: datetime
+    bloques: list[dict]
+    intervalo_min: int
+    trabaja: bool
+
+
+class CitaCambioResponse(BaseModel):
+    id: UUID
+    cita_id: UUID
+    usuario_id: UUID | None
+    accion: str
+    estado_anterior: str | None
+    estado_nuevo: str | None
+    fecha_anterior: datetime | None
+    fecha_nueva: datetime | None
+    doctor_anterior_id: UUID | None
+    doctor_nuevo_id: UUID | None
+    motivo: str | None
+    datos: dict | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class CitaTelefonearCreate(BaseModel):

@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'doctor' | 'recepcion';
+export type UserRole = 'admin' | 'doctor' | 'recepcion' | 'auxiliar' | 'paciente';
 
 export interface UsuarioMe {
   id: string;
@@ -28,6 +28,15 @@ export interface ApiPaciente {
   observaciones?: string | null;
   datos_salud?: Record<string, unknown> | null;
   activo: boolean;
+}
+
+export interface PortalMe {
+  paciente: ApiPaciente;
+  resumen: {
+    proximas_citas: number;
+    documentos: number;
+    consentimientos_pendientes: number;
+  };
 }
 
 export interface TratamientoResumen {
@@ -72,6 +81,7 @@ export interface PresupuestoLinea {
 
 export interface Presupuesto {
   id: string;
+  clinica_id?: string | null;
   paciente_id: string;
   numero: number;
   fecha: string;
@@ -112,6 +122,7 @@ export interface FormaPago {
 
 export interface Factura {
   id: string;
+  clinica_id?: string | null;
   paciente_id: string;
   serie: string;
   numero: number;
@@ -130,6 +141,14 @@ export interface Factura {
   tiene_receta_electronica?: boolean;
 }
 
+export interface SaldoPaciente {
+  paciente_id: string;
+  total_facturado: string;
+  total_cobrado: string;
+  pendiente: string;
+  facturas_pendientes: number;
+}
+
 export interface Clinica {
   id: string;
   nombre: string;
@@ -142,9 +161,14 @@ export interface Clinica {
 
 export interface ProductoInventario {
   id: string;
+  clinica_id: string | null;
   nombre: string;
+  categoria: string | null;
+  sku: string | null;
   stock_min: number;
   stock_act: number;
+  unidad: string;
+  coste_unitario: number | string;
   proveedor_id: string | null;
   activo: boolean;
 }
@@ -157,7 +181,39 @@ export interface MovimientoInventario {
   stock_resultante: number;
   motivo: string | null;
   factura_id: string | null;
+  referencia_tipo: string | null;
+  referencia_id: string | null;
   usuario_id: string | null;
+  created_at: string;
+}
+
+export interface ProveedorInventario {
+  id: string;
+  clinica_id: string | null;
+  nombre: string;
+  contacto: string | null;
+  telefono: string | null;
+  email: string | null;
+  notas: string | null;
+  activo: boolean;
+}
+
+export interface PedidoLineaInventario {
+  id: string;
+  pedido_id: string;
+  producto_id: string;
+  cantidad: number;
+  coste_unitario: number | string;
+}
+
+export interface PedidoProveedorInventario {
+  id: string;
+  proveedor_id: string;
+  clinica_id: string | null;
+  estado: 'borrador' | 'enviado' | 'recibido' | 'cancelado';
+  fecha: string;
+  notas: string | null;
+  lineas: PedidoLineaInventario[];
   created_at: string;
 }
 
@@ -179,6 +235,21 @@ export interface BackupRegistro {
   created_by_id: string | null;
   started_at: string;
   finished_at: string | null;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  timestamp: string;
+  user_id: string | null;
+  clinica_id: string | null;
+  action: string;
+  entity_type: string;
+  entity_id: string | null;
+  old_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  event_hash: string | null;
 }
 
 export interface VideoConsultaResponse {
@@ -221,6 +292,30 @@ export interface HuecoLibre {
   fecha_hora_inicio: string;
   fecha_hora_fin: string;
   duracion_min: number;
+}
+
+export interface DisponibilidadDia {
+  doctor_id: string;
+  fecha: string;
+  bloques: Array<{ inicio: string; fin: string }>;
+  intervalo_min: number;
+  trabaja: boolean;
+}
+
+export interface CitaCambio {
+  id: string;
+  cita_id: string;
+  usuario_id: string | null;
+  accion: string;
+  estado_anterior: string | null;
+  estado_nuevo: string | null;
+  fecha_anterior: string | null;
+  fecha_nueva: string | null;
+  doctor_anterior_id: string | null;
+  doctor_nuevo_id: string | null;
+  motivo: string | null;
+  datos: Record<string, unknown> | null;
+  created_at: string;
 }
 
 export interface TelefonearPendiente {
@@ -272,15 +367,21 @@ export interface DocumentoPaciente {
 }
 
 export interface PlantillaConsentimiento {
+  id?: string | null;
   codigo: string;
   nombre: string;
   version: string;
+  version_num?: number;
   tratamientos: string[];
+  tipo_tratamiento?: string | null;
+  contenido?: string | null;
 }
 
 export interface Consentimiento {
   id: string;
   paciente_id: string;
+  clinica_id: string | null;
+  plantilla_id: string | null;
   tratamiento_id: string | null;
   doctor_id: string | null;
   historial_id: string | null;
@@ -291,9 +392,12 @@ export interface Consentimiento {
   firmado_at: string | null;
   documento_path: string | null;
   plantilla_version: string | null;
+  version_plantilla: number | null;
   contenido?: string | null;
+  hash_documento: string | null;
   revocado: boolean;
   fecha_revocacion: string | null;
+  motivo_revocacion: string | null;
   created_at: string;
 }
 
@@ -365,6 +469,8 @@ export interface ReportKpis {
     por_estado: Record<string, number>;
     asistencia: number;
     faltas: number;
+    anuladas?: number;
+    no_show_rate?: number;
   };
   pacientes_nuevos: number;
   facturacion: {
@@ -372,11 +478,14 @@ export interface ReportKpis {
     total_facturado: number;
     total_cobrado: number;
     pendiente: number;
+    ticket_medio?: number;
   };
   tratamientos_realizados: number;
   presupuestos: {
     total: number;
     por_estado: Record<string, number>;
+    aceptacion_rate?: number;
+    rechazo_rate?: number;
   };
 }
 
@@ -394,6 +503,7 @@ export interface ReportPaciente {
 export interface ReportTopTratamiento {
   tratamiento: string;
   cantidad: number;
+  importe?: number;
 }
 
 export interface ReportCitasDoctor {
@@ -403,6 +513,38 @@ export interface ReportCitasDoctor {
   total: number;
   atendidas: number;
   faltas: number;
+  ocupacion_pct?: number;
+}
+
+export interface ReportIngresoMensual {
+  mes: number;
+  facturado: number;
+  cobrado: number;
+  num_facturas: number;
+}
+
+export interface ReportPacienteDeuda {
+  id: string;
+  num_historial: number;
+  nombre: string;
+  apellidos: string;
+  saldo_pendiente: number;
+}
+
+export interface ReportDashboard {
+  periodo: { desde: string; hasta: string };
+  kpis: ReportKpis;
+  series: { ingresos_mensuales: ReportIngresoMensual[] };
+  doctores: ReportCitasDoctor[];
+  tratamientos: ReportTopTratamiento[];
+  pacientes_deuda: ReportPacienteDeuda[];
+  alertas: {
+    citas_sin_confirmar: number;
+    pacientes_en_clinica: number;
+    faltas_periodo: number;
+    deuda_pendiente: number;
+    presupuestos_pendientes: number;
+  };
 }
 
 export interface CumplimientoSif {
@@ -435,4 +577,63 @@ export interface CumplimientoSif {
 export interface OdontogramaPlan {
   version?: number;
   teeth?: Record<string, { estado: string; superficies: string[]; lineaId?: string }>;
+}
+
+export type OdontogramaSurfaceName = 'mesial' | 'distal' | 'vestibular' | 'lingual_palatal' | 'oclusal_incisal' | 'raiz';
+
+export type OdontogramaStatus =
+  | 'sano'
+  | 'caries'
+  | 'obturacion'
+  | 'endodoncia'
+  | 'corona'
+  | 'implante'
+  | 'ausente'
+  | 'extraccion_indicada'
+  | 'fractura'
+  | 'movilidad'
+  | 'tratamiento_pendiente'
+  | 'tratamiento_realizado';
+
+export interface OdontogramaSuperficie {
+  id: string;
+  pieza_id: string;
+  superficie: OdontogramaSurfaceName;
+  condicion: OdontogramaStatus | string;
+  tratamiento_planificado_id: string | null;
+  tratamiento_realizado_id: string | null;
+  color_estado: string | null;
+  notas: string | null;
+}
+
+export interface OdontogramaPieza {
+  id: string;
+  odontograma_id: string;
+  pieza_fdi: number;
+  estado_general: OdontogramaStatus | string;
+  notas: string | null;
+  superficies: OdontogramaSuperficie[];
+}
+
+export interface OdontogramaPaciente {
+  id: string;
+  paciente_id: string;
+  clinica_id: string | null;
+  version: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string | null;
+  piezas: OdontogramaPieza[];
+}
+
+export interface OdontogramaEvento {
+  id: string;
+  odontograma_id: string;
+  pieza_fdi: number | null;
+  superficie: string | null;
+  accion: string;
+  old_values: Record<string, unknown> | null;
+  new_values: Record<string, unknown> | null;
+  usuario_id: string | null;
+  created_at: string;
 }

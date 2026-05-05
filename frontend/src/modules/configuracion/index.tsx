@@ -648,20 +648,24 @@ export default function ConfiguracionPage() {
                       </select>
                     </td>
                     <td>
-                      <label className="checkline horario-turno-toggle">
-                        <input type="checkbox" checked={form.manana_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { manana_activa: event.target.checked })} />
-                        Mañana
-                      </label>
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_inicio} onChange={(event) => updateHorarioDia(index, { manana_inicio: event.target.value })} />
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_fin} onChange={(event) => updateHorarioDia(index, { manana_fin: event.target.value })} />
+                      <div className="horario-turno-cell">
+                        <label className="checkline horario-turno-toggle">
+                          <input type="checkbox" checked={form.manana_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { manana_activa: event.target.checked })} />
+                          Mañana
+                        </label>
+                        <input aria-label={`${day} mañana inicio`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_inicio} onChange={(event) => updateHorarioDia(index, { manana_inicio: event.target.value })} />
+                        <input aria-label={`${day} mañana fin`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_fin} onChange={(event) => updateHorarioDia(index, { manana_fin: event.target.value })} />
+                      </div>
                     </td>
                     <td>
-                      <label className="checkline horario-turno-toggle">
-                        <input type="checkbox" checked={form.tarde_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { tarde_activa: event.target.checked })} />
-                        Tarde
-                      </label>
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_inicio} onChange={(event) => updateHorarioDia(index, { tarde_inicio: event.target.value })} />
-                      <input type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_fin} onChange={(event) => updateHorarioDia(index, { tarde_fin: event.target.value })} />
+                      <div className="horario-turno-cell">
+                        <label className="checkline horario-turno-toggle">
+                          <input type="checkbox" checked={form.tarde_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { tarde_activa: event.target.checked })} />
+                          Tarde
+                        </label>
+                        <input aria-label={`${day} tarde inicio`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_inicio} onChange={(event) => updateHorarioDia(index, { tarde_inicio: event.target.value })} />
+                        <input aria-label={`${day} tarde fin`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_fin} onChange={(event) => updateHorarioDia(index, { tarde_fin: event.target.value })} />
+                      </div>
                     </td>
                     <td>
                       <select disabled={!isAdmin} value={form.intervalo_min} onChange={(event) => updateHorarioDia(index, { intervalo_min: event.target.value })}>

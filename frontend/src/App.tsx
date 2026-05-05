@@ -44,6 +44,7 @@ export default function App() {
               <Route path="configuracion" element={<RoleProtected roles={['admin']}><ConfiguracionPage /></RoleProtected>} />
               <Route path="admin-extras" element={<RoleProtected roles={['admin']}><AdminExtrasPage /></RoleProtected>} />
               <Route path="mis-citas" element={<MisCitasPage />} />
+              <Route path="portal" element={<MisCitasPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

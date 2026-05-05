@@ -5,12 +5,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import OdontogramaPlanView from '../../components/OdontogramaPlan';
 import {
   addPresupuestoLinea,
+  aceptarPresupuesto,
   createConsentimientoPaciente,
   createFacturaManual,
   createPresupuesto,
+  convertirPresupuestoFactura,
   deletePresupuestoLinea,
   emitirRecetaPdf,
   facturaPdfUrl,
+  firmarConsentimiento,
   generarDocumentoPdfPaciente,
   getCitas,
   getConsentimientosPaciente,
@@ -23,19 +26,25 @@ import {
   getPacientes,
   getPlantillasConsentimiento,
   getPresupuestos,
+  getSaldoPaciente,
   getTratamientosCatalogo,
   getTrabajosLaboratorio,
+  openConsentimientoPdf,
   openDocumentoPaciente,
   pasarPresupuestoTrabajoPendiente,
+  presentarPresupuesto,
   registrarCobro,
+  rechazarPresupuesto,
+  revocarConsentimiento,
   saveOdontograma,
   updatePresupuestoLinea,
   updatePaciente,
   uploadDocumentoPaciente,
 } from '../../lib/api';
 import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, OdontogramaPlan, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import { OdontogramaPacientePanel } from '../odontograma';
 
-type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
+type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'odontograma' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type TreatmentVisual = { codigo?: string | null; nombre?: string | null; familia?: { icono?: string | null; nombre?: string | null } | null } | null;
 type PatientContextMenu =
   | { x: number; y: number; kind: 'paciente' }
@@ -51,6 +60,7 @@ type PatientContextDraft =
 const WORK_TABS: Array<{ id: WorkTab; label: string; icon: string }> = [
   { id: 'pacientes', label: 'Ficha', icon: 'PA' },
   { id: 'primera', label: 'Primera visita', icon: '1A' },
+  { id: 'odontograma', label: 'Odontograma', icon: 'OD' },
   { id: 'presupuestos', label: 'Presupuestos', icon: 'PR' },
   { id: 'pendiente', label: 'Pendientes', icon: 'TP' },
   { id: 'realizados', label: 'Realizados', icon: 'OK' },
@@ -237,6 +247,7 @@ function PatientFinder({
   onSelect: (paciente: ApiPaciente) => void;
 }) {
   const [query, setQuery] = useState('');
+  const [resultsOpen, setResultsOpen] = useState(false);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return pacientes;
@@ -244,18 +255,32 @@ function PatientFinder({
       `${p.num_historial} ${p.codigo ?? ''} ${p.nombre} ${p.apellidos} ${p.telefono ?? ''}`.toLowerCase().includes(q),
     );
   }, [pacientes, query]);
+  function selectPaciente(paciente: ApiPaciente) {
+    onSelect(paciente);
+    setResultsOpen(false);
+    setQuery('');
+  }
 
   return (
     <div className="patient-finder">
       <label>
         Buscar
-        <input id="patient-search-input" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <input
+          id="patient-search-input"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setResultsOpen(true);
+          }}
+          onFocus={() => setResultsOpen(Boolean(query.trim()))}
+          placeholder="Nombre, telefono o historia"
+        />
       </label>
       <select
         value={selectedId ?? ''}
         onChange={(event) => {
           const paciente = pacientes.find((item) => item.id === event.target.value);
-          if (paciente) onSelect(paciente);
+          if (paciente) selectPaciente(paciente);
         }}
       >
         {filtered.map((paciente) => (
@@ -264,14 +289,14 @@ function PatientFinder({
           </option>
         ))}
       </select>
-      {query.trim() && (
+      {query.trim() && resultsOpen && (
         <div className="patient-live-results patient-finder-results">
           {filtered.slice(0, 5).map((paciente) => (
             <button
               type="button"
               className={paciente.id === selectedId ? 'active' : ''}
               key={paciente.id}
-              onClick={() => onSelect(paciente)}
+              onClick={() => selectPaciente(paciente)}
             >
               <strong>{paciente.apellidos}, {paciente.nombre}</strong>
               <span>{paciente.telefono ?? 'sin telefono'} - H{paciente.num_historial}</span>
@@ -350,6 +375,33 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
     mutationFn: () => pasarPresupuestoTrabajoPendiente(presupuesto.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] }),
   });
+  const presentBudget = useMutation({
+    mutationFn: () => presentarPresupuesto(presupuesto.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] }),
+  });
+  const acceptBudget = useMutation({
+    mutationFn: () => aceptarPresupuesto(presupuesto.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['trabajo-pendiente', presupuesto.paciente_id] });
+    },
+  });
+  const rejectBudget = useMutation({
+    mutationFn: () => {
+      const motivo = window.prompt('Motivo del rechazo', '');
+      return rechazarPresupuesto(presupuesto.id, motivo || null);
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] }),
+  });
+  const invoiceBudget = useMutation({
+    mutationFn: () => convertirPresupuestoFactura(presupuesto.id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['facturas', presupuesto.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['saldo-paciente', presupuesto.paciente_id] });
+    },
+  });
+  const acceptedLines = presupuesto.lineas.filter((linea) => linea.aceptado);
 
   function loadLine(linea: PresupuestoLinea) {
     setLineaSeleccionada(linea);
@@ -365,6 +417,7 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
     setSelectedTreatmentId(id);
     setLineaSeleccionada(null);
     setPrecioLinea(tratamiento?.precio ?? '');
+    setCatalogSearch('');
   }
 
   return (
@@ -374,6 +427,10 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
         <span>{formatDate(presupuesto.fecha)} - {presupuesto.estado}</span>
         <button onClick={() => mutation.mutate()} disabled={mutation.isPending}>Guardar odontograma</button>
         <button onClick={() => passPending.mutate()} disabled={passPending.isPending}>Pasar aceptados a T.P.</button>
+        <button onClick={() => presentBudget.mutate()} disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}>Presentar</button>
+        <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuesto.estado === 'rechazado'}>Aceptar</button>
+        <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !acceptedLines.length}>Facturar</button>
+        <button onClick={() => rejectBudget.mutate()} disabled={rejectBudget.isPending || presupuesto.estado === 'rechazado'}>Rechazar</button>
       </div>
       <OdontogramaPlanView value={odontograma} onChange={setOdontograma} />
       <div className="budget-workbench">
@@ -490,7 +547,7 @@ function PatientForm({
         <p><b>Tratamiento:</b> {nextTreatment}</p>
         <small>{nextComment}</small>
         <footer>
-          <button type="button" onClick={onOpenCitas} disabled={!paciente}>Agenda</button>
+          <button type="button" onClick={onOpenCitas} disabled={!paciente}>Ver citas</button>
         </footer>
       </section>
 
@@ -1026,10 +1083,14 @@ function ConsentimientosPanel({
   consentimientos,
   plantillas,
   onDisenar,
+  onAbrirPdf,
+  onRevocar,
 }: {
   consentimientos: Consentimiento[];
   plantillas: PlantillaConsentimiento[];
   onDisenar: (tipo?: string) => void;
+  onAbrirPdf: (consentimiento: Consentimiento) => void;
+  onRevocar: (consentimiento: Consentimiento) => void;
 }) {
   return (
     <section className="desk-panel consent-panel">
@@ -1037,7 +1098,7 @@ function ConsentimientosPanel({
         <strong>Consentimiento informado</strong>
         <span>Editor propio, plantillas por tratamiento, firma y PDF archivado</span>
         <select onChange={(event) => event.target.value && onDisenar(event.target.value)} defaultValue="">
-          <option value="">Disenar desde plantilla...</option>
+          <option value="">Diseñar desde plantilla...</option>
           {plantillas.map((plantilla) => <option key={plantilla.codigo} value={plantilla.nombre}>{plantilla.nombre}</option>)}
         </select>
         <button onClick={() => onDisenar()}>Personalizado</button>
@@ -1052,7 +1113,10 @@ function ConsentimientosPanel({
               <td>{item.plantilla_version ?? ''}</td>
               <td>{item.estado}</td>
               <td>{item.documento_path ? 'Archivado' : 'Pendiente'}</td>
-              <td>{item.documento_id ? 'Ver en Enlaces' : 'Firmar/archivar'}</td>
+              <td className="table-actions">
+                <button onClick={() => onAbrirPdf(item)}>PDF</button>
+                {item.estado !== 'revocado' && <button onClick={() => onRevocar(item)}>Revocar</button>}
+              </td>
             </tr>
           ))}
           {!consentimientos.length && <tr><td colSpan={6}>Sin consentimientos para este paciente.</td></tr>}
@@ -1214,13 +1278,15 @@ function DocumentDesignerModal({
 }) {
   const defaultTipo = initialTipo || (mode === 'consentimiento' ? plantillas[0]?.nombre || 'Consentimiento personalizado' : 'Justificante de asistencia');
   const textos = mode === 'consentimiento' ? CONSENTIMIENTO_TEXTOS : CIRCULAR_TEXTOS;
+  const initialPlantilla = mode === 'consentimiento' ? plantillas.find((item) => item.nombre === defaultTipo) : null;
   const [tipo, setTipo] = useState(defaultTipo);
   const [titulo, setTitulo] = useState(mode === 'consentimiento' ? `Consentimiento informado - ${defaultTipo}` : defaultTipo);
-  const [contenido, setContenido] = useState(renderTemplate(textos[defaultTipo] ?? '', paciente));
+  const [contenido, setContenido] = useState(renderTemplate(initialPlantilla?.contenido ?? textos[defaultTipo] ?? '', paciente));
   const [firmaDataUrl, setFirmaDataUrl] = useState<string | null>(null);
 
   function loadTemplate(nextTipo: string) {
-    const base = textos[nextTipo] ?? '';
+    const plantilla = mode === 'consentimiento' ? plantillas.find((item) => item.nombre === nextTipo) : null;
+    const base = plantilla?.contenido ?? textos[nextTipo] ?? '';
     setTipo(nextTipo);
     setTitulo(mode === 'consentimiento' ? `Consentimiento informado - ${nextTipo}` : nextTipo);
     setContenido(renderTemplate(base, paciente));
@@ -1329,6 +1395,11 @@ export default function PacientesPage() {
     queryFn: () => getFacturas(active!.id),
     enabled: Boolean(active),
   });
+  const saldoQuery = useQuery({
+    queryKey: ['saldo-paciente', active?.id],
+    queryFn: () => getSaldoPaciente(active!.id),
+    enabled: Boolean(active),
+  });
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
   const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
   const tratamientosQuery = useQuery({ queryKey: ['tratamientos-catalogo'], queryFn: () => getTratamientosCatalogo({ solo_activos: true }) });
@@ -1361,10 +1432,12 @@ export default function PacientesPage() {
 
   const presupuestos = presupuestosQuery.data ?? [];
   const facturas = facturasQuery.data ?? [];
-  const totalFacturado = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
-  const totalPendiente = facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0);
+  const totalFacturado = Number(saldoQuery.data?.total_facturado ?? facturas.reduce((sum, factura) => sum + Number(factura.total), 0));
+  const totalPendiente = Number(saldoQuery.data?.pendiente ?? facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0));
   const tratamientosRealizados = historialQuery.data?.filter((item) => ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(item.estado)).length ?? 0;
   const nextCita = citasPacienteQuery.data?.slice().sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0];
+  const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
+  const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
 
   const nuevoPresupuesto = useMutation({
     mutationFn: async () => {
@@ -1391,6 +1464,7 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       void facturasQuery.refetch();
+      void saldoQuery.refetch();
       setTab('facturacion');
     },
   });
@@ -1405,6 +1479,7 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       void facturasQuery.refetch();
+      void saldoQuery.refetch();
       setTab('facturacion');
     },
   });
@@ -1428,6 +1503,7 @@ export default function PacientesPage() {
     onSuccess: () => {
       setContextMenu(null);
       void facturasQuery.refetch();
+      void saldoQuery.refetch();
       setTab('facturacion');
     },
   });
@@ -1447,33 +1523,42 @@ export default function PacientesPage() {
     mutationFn: async (data: { tipo: string; titulo: string; contenido: string; firmaDataUrl: string | null }) => {
       if (!active) throw new Error('Sin paciente');
       if (!designer) throw new Error('Sin editor');
-      const categoria = designer.mode === 'consentimiento' ? 'consentimiento' : 'circular';
+      if (designer.mode === 'consentimiento') {
+        const plantilla = (plantillasQuery.data ?? []).find((item) => item.nombre === data.tipo);
+        const consentimiento = await createConsentimientoPaciente(active.id, data.tipo, doctoresQuery.data?.[0]?.id, {
+          plantilla_id: plantilla?.id ?? null,
+          estado: data.firmaDataUrl ? 'pendiente_firma' : 'pendiente_firma',
+          plantilla_version: plantilla?.version ?? 'personalizada',
+          contenido: data.contenido,
+        });
+        const firmado = data.firmaDataUrl
+          ? await firmarConsentimiento(consentimiento.id, data.firmaDataUrl)
+          : consentimiento;
+        return { kind: 'consentimiento' as const, consentimiento: firmado };
+      }
+      const categoria = 'circular';
       const doc = await generarDocumentoPdfPaciente(active.id, {
         titulo: data.titulo,
         categoria,
         contenido: data.contenido,
         descripcion: data.titulo,
-        etiquetas: designer.mode === 'consentimiento' ? `consentimiento, ${data.tipo}` : `circular, ${data.tipo}`,
+        etiquetas: `circular, ${data.tipo}`,
         doctor_id: doctoresQuery.data?.[0]?.id ?? null,
         firma_data_url: data.firmaDataUrl,
       });
-      if (designer.mode === 'consentimiento') {
-        await createConsentimientoPaciente(active.id, data.tipo, doctoresQuery.data?.[0]?.id, {
-          documento_id: doc.id,
-          documento_path: doc.ruta ?? doc.nombre_original,
-          estado: data.firmaDataUrl ? 'firmado' : 'pendiente_firma',
-          plantilla_version: 'personalizada',
-          contenido: data.contenido,
-        });
-      }
-      return doc;
+      return { kind: 'documento' as const, doc };
     },
-    onSuccess: (doc) => {
+    onSuccess: (result) => {
       void documentosQuery.refetch();
       void consentimientosQuery.refetch();
       setDesigner(null);
+      if (result.kind === 'consentimiento') {
+        setTab('consentimientos');
+        void openConsentimientoPdf(result.consentimiento.id);
+        return;
+      }
       setTab('documentos');
-      if (active && doc.id) void openDocumentoPaciente(active.id, doc.id, doc.nombre_original);
+      if (active && result.doc.id) void openDocumentoPaciente(active.id, result.doc.id, result.doc.nombre_original);
     },
   });
 
@@ -1523,6 +1608,14 @@ export default function PacientesPage() {
   function asociarFactura() {
     setTab('facturacion');
     void emitirFactura.mutate();
+  }
+
+  function revocarConsentimientoPaciente(consentimiento: Consentimiento) {
+    const motivo = window.prompt('Motivo de revocación del consentimiento');
+    if (!motivo) return;
+    void revocarConsentimiento(consentimiento.id, motivo).then(() => {
+      void consentimientosQuery.refetch();
+    });
   }
 
   function abrirRecibos() {
@@ -1581,7 +1674,7 @@ export default function PacientesPage() {
 
   return (
     <>
-    <div className="patient-selector-bar">
+      <div className="patient-selector-bar">
       <PatientFinder
         pacientes={pacientes}
         selectedId={active?.id ?? null}
@@ -1596,6 +1689,18 @@ export default function PacientesPage() {
         <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
         <small>Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}</small>
       </div>
+      {hasPatientError && (
+        <div className="inline-alert">
+          Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
+        </div>
+      )}
+      {hasPatientLoading && (
+        <div className="patient-loading-strip" aria-label="Cargando paciente">
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
     </div>
     <section className={`page patient-screen${tab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
       <div className="patient-titlebar">
@@ -1672,6 +1777,17 @@ export default function PacientesPage() {
             saving={guardarPrimeraVisita.isPending}
           />
         )}
+        {tab === 'odontograma' && active && (
+          <OdontogramaPacientePanel
+            paciente={active}
+            tratamientos={tratamientosQuery.data ?? []}
+            doctorId={doctoresQuery.data?.[0]?.id ?? null}
+            onPresupuestoCreado={() => {
+              void queryClient.invalidateQueries({ queryKey: ['presupuestos', active.id] });
+              setTab('presupuestos');
+            }}
+          />
+        )}
         {tab === 'historial' && (
           <ClinicalHistoryPanel
             historial={historialQuery.data ?? []}
@@ -1705,6 +1821,8 @@ export default function PacientesPage() {
             consentimientos={consentimientosQuery.data ?? []}
             plantillas={plantillasQuery.data ?? []}
             onDisenar={(tipo) => setDesigner(active ? { mode: 'consentimiento', tipo } : null)}
+            onAbrirPdf={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
+            onRevocar={revocarConsentimientoPaciente}
           />
         )}
         {tab === 'documentos' && (
@@ -1723,7 +1841,6 @@ export default function PacientesPage() {
           <button onClick={focusPacienteSearch}>Buscar</button>
           <button onClick={imprimirFicha}>Circular</button>
           <button onClick={() => setDesigner(active ? { mode: 'consentimiento' } : null)}>Cons.Inf.</button>
-          <button onClick={() => setTab('citas')}>Agenda</button>
           <button onClick={abrirEnlaces}>Enlaces</button>
         </footer>
       )}

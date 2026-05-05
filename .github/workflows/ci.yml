@@ -36,7 +36,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -e ".[dev]"
-      - run: pytest
+      - run: alembic upgrade head
+      - run: alembic current
+      - run: pytest -q
 
   frontend:
     runs-on: ubuntu-latest

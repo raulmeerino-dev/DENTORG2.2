@@ -10,7 +10,7 @@ from app.database import Base
 from app.models.base import UUIDMixin, TimestampMixin
 
 EstadoPresupuestoEnum = Enum(
-    "borrador", "presentado", "aceptado", "rechazado", "parcial",
+    "borrador", "presentado", "aceptado", "rechazado", "parcial", "caducado",
     name="estado_presupuesto"
 )
 
@@ -20,6 +20,9 @@ class Presupuesto(UUIDMixin, TimestampMixin, Base):
 
     paciente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
+    )
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
     )
     numero: Mapped[int] = mapped_column(
         Numeric,
@@ -36,6 +39,7 @@ class Presupuesto(UUIDMixin, TimestampMixin, Base):
     )
 
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="presupuestos")  # noqa: F821
+    clinica: Mapped["Clinica | None"] = relationship("Clinica")  # noqa: F821
     doctor: Mapped["Doctor"] = relationship("Doctor")  # noqa: F821
     lineas: Mapped[list["PresupuestoLinea"]] = relationship("PresupuestoLinea", back_populates="presupuesto")
 

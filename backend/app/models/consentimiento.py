@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -15,6 +15,12 @@ class Consentimiento(UUIDMixin, TimestampMixin, Base):
 
     paciente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
+    )
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
+    plantilla_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("consentimiento_plantillas.id"), nullable=True, index=True
     )
     tratamiento_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tratamientos_catalogo.id"), nullable=True
@@ -34,12 +40,38 @@ class Consentimiento(UUIDMixin, TimestampMixin, Base):
     firmado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     documento_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     plantilla_version: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    version_plantilla: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contenido: Mapped[str | None] = mapped_column(Text, nullable=True)
+    firma_paciente_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    firma_doctor_base64: Mapped[str | None] = mapped_column(Text, nullable=True)
+    hash_documento: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ip_firma: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    user_agent_firma: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    motivo_revocacion: Mapped[str | None] = mapped_column(Text, nullable=True)
     revocado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     fecha_revocacion: Mapped[date | None] = mapped_column(Date, nullable=True)
 
+    clinica: Mapped["Clinica | None"] = relationship("Clinica")  # noqa: F821
+    plantilla: Mapped["ConsentimientoPlantilla | None"] = relationship("ConsentimientoPlantilla")  # noqa: F821
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="consentimientos")  # noqa: F821
     tratamiento: Mapped["TratamientoCatalogo | None"] = relationship("TratamientoCatalogo")  # noqa: F821
     doctor: Mapped["Doctor | None"] = relationship("Doctor")  # noqa: F821
     historial: Mapped["HistorialClinico | None"] = relationship("HistorialClinico")  # noqa: F821
     documento: Mapped["DocumentoPaciente | None"] = relationship("DocumentoPaciente")  # noqa: F821
+
+
+class ConsentimientoPlantilla(UUIDMixin, TimestampMixin, Base):
+    """Plantillas versionadas para consentimientos informados."""
+    __tablename__ = "consentimiento_plantillas"
+
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
+    codigo: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    nombre: Mapped[str] = mapped_column(String(150), nullable=False)
+    tipo_tratamiento: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    contenido: Mapped[str] = mapped_column(Text, nullable=False)
+    activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    clinica: Mapped["Clinica | None"] = relationship("Clinica")  # noqa: F821

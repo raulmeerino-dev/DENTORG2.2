@@ -9,7 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import CurrentUser, RequireAdmin, RequireRecepcion, get_current_user
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    ensure_clinic_access,
+    resolve_clinic_id,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.doctor import Doctor
 from app.models.gabinete import Gabinete
@@ -30,10 +36,11 @@ router = APIRouter()
 @router.get("", response_model=list[DoctorResponse])
 async def listar_doctores(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     solo_activos: bool = True,
 ) -> list[DoctorResponse]:
     q = select(Doctor).order_by(Doctor.nombre)
+    q = scope_select_by_clinic(q, Doctor, current_user)
     if solo_activos:
         q = q.where(Doctor.activo == True)  # noqa: E712
     result = await db.execute(q)
@@ -44,8 +51,11 @@ async def listar_doctores(
 async def crear_doctor(
     data: DoctorCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> DoctorResponse:
-    doctor = Doctor(**data.model_dump())
+    values = data.model_dump()
+    values["clinica_id"] = resolve_clinic_id(current_user, values.get("clinica_id"))
+    doctor = Doctor(**values)
     db.add(doctor)
     await db.commit()
     await db.refresh(doctor)
@@ -56,12 +66,13 @@ async def crear_doctor(
 async def obtener_doctor(
     doctor_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> DoctorResponse:
     result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
     doctor = result.scalar_one_or_none()
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     return DoctorResponse.model_validate(doctor)
 
 
@@ -70,12 +81,16 @@ async def actualizar_doctor(
     doctor_id: UUID,
     data: DoctorUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> DoctorResponse:
     result = await db.execute(select(Doctor).where(Doctor.id == doctor_id))
     doctor = result.scalar_one_or_none()
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     for field, value in data.model_dump(exclude_none=True).items():
+        if field == "clinica_id":
+            value = resolve_clinic_id(current_user, value)
         setattr(doctor, field, value)
     await db.commit()
     await db.refresh(doctor)
@@ -128,8 +143,12 @@ async def actualizar_gabinete(
 async def listar_horarios(
     doctor_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[HorarioDoctorResponse]:
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     result = await db.execute(
         select(HorarioDoctor)
         .where(HorarioDoctor.doctor_id == doctor_id)
@@ -144,9 +163,14 @@ async def upsert_horario(
     dia_semana: int,
     data: HorarioDoctorUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> HorarioDoctorResponse:
     """Crea o actualiza el horario de un día concreto."""
     from sqlalchemy import and_
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     result = await db.execute(
         select(HorarioDoctor).where(
             and_(HorarioDoctor.doctor_id == doctor_id, HorarioDoctor.dia_semana == dia_semana)
@@ -180,8 +204,12 @@ async def upsert_horario(
 async def listar_excepciones(
     doctor_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[HorarioExcepcionResponse]:
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     result = await db.execute(
         select(HorarioExcepcion)
         .where(HorarioExcepcion.doctor_id == doctor_id)
@@ -195,8 +223,12 @@ async def crear_excepcion(
     doctor_id: UUID,
     data: HorarioExcepcionCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> HorarioExcepcionResponse:
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     excepcion = HorarioExcepcion(
         doctor_id=doctor_id,
         fecha=data.fecha,

@@ -33,6 +33,10 @@ async def test_login_exitoso(client: AsyncClient, db_session: AsyncSession):
     assert "refresh_token" in data
     assert data["token_type"] == "bearer"
 
+    refreshed = await client.post("/api/auth/refresh", json={"refresh_token": data["refresh_token"]})
+    assert refreshed.status_code == 200
+    assert refreshed.json()["access_token"] != data["access_token"]
+
 
 @pytest.mark.asyncio
 async def test_login_contraseña_incorrecta(client: AsyncClient, db_session: AsyncSession):
