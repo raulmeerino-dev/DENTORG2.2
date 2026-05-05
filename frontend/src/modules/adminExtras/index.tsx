@@ -4,30 +4,52 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Chart from 'chart.js/auto';
 import {
   createClinica,
+  createPedidoInventario,
   createProductoInventario,
+  createProveedorInventario,
   enableTwoFactor,
+  getAuditLog,
   getClinicas,
   getIngresosReporte,
   getInventario,
   getMovimientosInventario,
+  getPedidosInventario,
+  getProveedoresInventario,
   getReportKpis,
   importPacientes,
+  recibirPedidoInventario,
   registrarMovimientoInventario,
   syncOffline,
+  updatePedidoInventario,
   updateProductoInventario,
 } from '../../lib/api';
 import { addOfflinePending, clearOfflinePending, getOfflinePending } from '../../lib/offline';
 
-type Tab = 'clinicas' | 'inventario' | 'reportes' | 'offline' | 'importacion' | 'seguridad';
+type Tab = 'clinicas' | 'inventario' | 'reportes' | 'auditoria' | 'offline' | 'importacion' | 'seguridad';
 type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
 
 export default function AdminExtrasPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>('clinicas');
   const [clinicaForm, setClinicaForm] = useState({ nombre: '', direccion: '' });
-  const [productoForm, setProductoForm] = useState({ nombre: '', stock_min: '0', stock_act: '0' });
+  const [productoForm, setProductoForm] = useState({
+    nombre: '',
+    categoria: '',
+    sku: '',
+    stock_min: '0',
+    stock_act: '0',
+    unidad: 'ud',
+    coste_unitario: '0',
+    proveedor_id: '',
+  });
   const [productoActivoId, setProductoActivoId] = useState('');
-  const [movimientoForm, setMovimientoForm] = useState<{ tipo: MovimientoTipo; cantidad: string; motivo: string }>({ tipo: 'entrada', cantidad: '1', motivo: '' });
+  const [movimientoForm, setMovimientoForm] = useState<{ tipo: MovimientoTipo; cantidad: string; motivo: string }>({
+    tipo: 'entrada',
+    cantidad: '1',
+    motivo: '',
+  });
+  const [proveedorForm, setProveedorForm] = useState({ nombre: '', contacto: '', telefono: '', email: '', notas: '' });
+  const [pedidoForm, setPedidoForm] = useState({ proveedor_id: '', producto_id: '', cantidad: '1', coste_unitario: '0', notas: '' });
   const [desde, setDesde] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
   const [hasta, setHasta] = useState(new Date().toISOString().slice(0, 10));
   const [importText, setImportText] = useState('nombre,apellidos,dni_nie,telefono\nAna,Garcia,12345678A,600000000');
@@ -39,6 +61,8 @@ export default function AdminExtrasPage() {
 
   const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
   const inventarioQuery = useQuery({ queryKey: ['inventario'], queryFn: getInventario });
+  const proveedoresQuery = useQuery({ queryKey: ['inventario-proveedores'], queryFn: getProveedoresInventario, enabled: tab === 'inventario' });
+  const pedidosQuery = useQuery({ queryKey: ['inventario-pedidos'], queryFn: getPedidosInventario, enabled: tab === 'inventario' });
   const movimientosQuery = useQuery({
     queryKey: ['inventario-movimientos', productoActivoId],
     queryFn: () => getMovimientosInventario(productoActivoId),
@@ -46,6 +70,7 @@ export default function AdminExtrasPage() {
   });
   const ingresosQuery = useQuery({ queryKey: ['ingresos', desde, hasta], queryFn: () => getIngresosReporte(desde, hasta) });
   const kpisQuery = useQuery({ queryKey: ['admin-report-kpis'], queryFn: getReportKpis, enabled: tab === 'reportes' });
+  const auditoriaQuery = useQuery({ queryKey: ['auditoria'], queryFn: () => getAuditLog(), enabled: tab === 'auditoria' });
 
   const crearClinica = useMutation({
     mutationFn: () => createClinica(clinicaForm),
@@ -58,11 +83,16 @@ export default function AdminExtrasPage() {
   const crearProducto = useMutation({
     mutationFn: () => createProductoInventario({
       nombre: productoForm.nombre,
+      categoria: productoForm.categoria || null,
+      sku: productoForm.sku || null,
       stock_min: Number(productoForm.stock_min),
       stock_act: Number(productoForm.stock_act),
+      unidad: productoForm.unidad || 'ud',
+      coste_unitario: Number(productoForm.coste_unitario),
+      proveedor_id: productoForm.proveedor_id || null,
     }),
     onSuccess: () => {
-      setProductoForm({ nombre: '', stock_min: '0', stock_act: '0' });
+      setProductoForm({ nombre: '', categoria: '', sku: '', stock_min: '0', stock_act: '0', unidad: 'ud', coste_unitario: '0', proveedor_id: '' });
       void queryClient.invalidateQueries({ queryKey: ['inventario'] });
     },
   });
@@ -85,6 +115,50 @@ export default function AdminExtrasPage() {
     },
   });
 
+  const crearProveedor = useMutation({
+    mutationFn: () => createProveedorInventario({
+      nombre: proveedorForm.nombre,
+      contacto: proveedorForm.contacto || null,
+      telefono: proveedorForm.telefono || null,
+      email: proveedorForm.email || null,
+      notas: proveedorForm.notas || null,
+    }),
+    onSuccess: () => {
+      setProveedorForm({ nombre: '', contacto: '', telefono: '', email: '', notas: '' });
+      void queryClient.invalidateQueries({ queryKey: ['inventario-proveedores'] });
+    },
+  });
+
+  const crearPedido = useMutation({
+    mutationFn: () => createPedidoInventario({
+      proveedor_id: pedidoForm.proveedor_id,
+      notas: pedidoForm.notas || null,
+      lineas: [{
+        producto_id: pedidoForm.producto_id,
+        cantidad: Number(pedidoForm.cantidad),
+        coste_unitario: Number(pedidoForm.coste_unitario),
+      }],
+    }),
+    onSuccess: () => {
+      setPedidoForm((prev) => ({ ...prev, cantidad: '1', coste_unitario: '0', notas: '' }));
+      void queryClient.invalidateQueries({ queryKey: ['inventario-pedidos'] });
+    },
+  });
+
+  const marcarPedidoEnviado = useMutation({
+    mutationFn: (id: string) => updatePedidoInventario(id, { estado: 'enviado' }),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['inventario-pedidos'] }),
+  });
+
+  const recibirPedido = useMutation({
+    mutationFn: (id: string) => recibirPedidoInventario(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['inventario'] });
+      void queryClient.invalidateQueries({ queryKey: ['inventario-pedidos'] });
+      if (productoActivoId) void queryClient.invalidateQueries({ queryKey: ['inventario-movimientos', productoActivoId] });
+    },
+  });
+
   const importar = useMutation({
     mutationFn: () => {
       const [header, ...rows] = importText.trim().split(/\r?\n/);
@@ -100,24 +174,13 @@ export default function AdminExtrasPage() {
       type: 'bar',
       data: {
         labels: ['Total', 'Pacientes', 'Seguros'],
-        datasets: [{
-          label: 'Ingresos',
-          data: [data.total, data.pac, data.seg],
-          backgroundColor: ['#2563eb', '#16a34a', '#f59e0b'],
-          borderRadius: 6,
-          maxBarThickness: 54,
-        }],
+        datasets: [{ label: 'Ingresos', data: [data.total, data.pac, data.seg], backgroundColor: ['#2563eb', '#16a34a', '#f59e0b'], borderRadius: 6, maxBarThickness: 54 }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: (context) => `${Number(context.raw).toFixed(2)} €` } },
-        },
-        scales: {
-          y: { beginAtZero: true, ticks: { callback: (value) => `${value} €` } },
-        },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => `${Number(context.raw).toFixed(2)} EUR` } } },
+        scales: { y: { beginAtZero: true, ticks: { callback: (value) => `${value} EUR` } } },
       },
     });
     return () => chart.destroy();
@@ -130,11 +193,7 @@ export default function AdminExtrasPage() {
       type: 'doughnut',
       data: {
         labels: ['Cumplidas', 'No asistió', 'Pendientes/otras'],
-        datasets: [{
-          data: [citas.asistencia, citas.faltas, Math.max(0, citas.total - citas.asistencia - citas.faltas)],
-          backgroundColor: ['#16a34a', '#dc2626', '#94a3b8'],
-          borderWidth: 0,
-        }],
+        datasets: [{ data: [citas.asistencia, citas.faltas, Math.max(0, citas.total - citas.asistencia - citas.faltas)], backgroundColor: ['#16a34a', '#dc2626', '#94a3b8'], borderWidth: 0 }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
     });
@@ -170,6 +229,17 @@ export default function AdminExtrasPage() {
     crearProducto.mutate();
   }
 
+  function submitProveedor(event: FormEvent) {
+    event.preventDefault();
+    crearProveedor.mutate();
+  }
+
+  function submitPedido(event: FormEvent) {
+    event.preventDefault();
+    if (!pedidoForm.proveedor_id || !pedidoForm.producto_id) return;
+    crearPedido.mutate();
+  }
+
   return (
     <section className="page fichero-screen admin-extras">
       <div className="toolbar">
@@ -181,11 +251,12 @@ export default function AdminExtrasPage() {
       </div>
 
       <nav className="file-tabs">
-        {(['clinicas', 'inventario', 'reportes', 'offline', 'importacion', 'seguridad'] as Tab[]).map((item) => (
+        {(['clinicas', 'inventario', 'reportes', 'auditoria', 'offline', 'importacion', 'seguridad'] as Tab[]).map((item) => (
           <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
             {item === 'clinicas' && 'Clínicas'}
             {item === 'inventario' && 'Inventario'}
             {item === 'reportes' && 'Reportes'}
+            {item === 'auditoria' && 'Auditoría'}
             {item === 'offline' && 'Offline'}
             {item === 'importacion' && 'Importación'}
             {item === 'seguridad' && '2FA'}
@@ -211,26 +282,51 @@ export default function AdminExtrasPage() {
       )}
 
       {tab === 'inventario' && (
-        <div className="fichero-grid">
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Stock y alertas</strong></div>
-            <table className="euro-table"><thead><tr><th>Producto</th><th>Mín.</th><th>Actual</th><th>Alerta</th><th></th></tr></thead><tbody>
-              {(inventarioQuery.data ?? []).map((producto) => (
-                <tr key={producto.id} className={producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
-                  <td>{producto.nombre}</td><td>{producto.stock_min}</td>
-                  <td><input className="stock-input" defaultValue={producto.stock_act} onBlur={(e) => actualizarProducto.mutate({ id: producto.id, stock_act: Number(e.target.value) })} /></td>
-                  <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td>
-                  <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Mov.</button></td>
-                </tr>
-              ))}
-            </tbody></table>
+        <div className="fichero-grid inventory-layout">
+          <section className="desk-panel inventory-stock-panel">
+            <div className="panel-caption">
+              <strong>Stock y alertas</strong>
+              <span>{(inventarioQuery.data ?? []).filter((producto) => producto.stock_act < producto.stock_min).length} bajo mínimo</span>
+            </div>
+            <table className="euro-table">
+              <thead><tr><th>Producto</th><th>Cat.</th><th>Proveedor</th><th>Mín.</th><th>Actual</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                {(inventarioQuery.data ?? []).map((producto) => {
+                  const proveedor = (proveedoresQuery.data ?? []).find((item) => item.id === producto.proveedor_id);
+                  return (
+                    <tr key={producto.id} className={producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
+                      <td><strong>{producto.nombre}</strong><span className="muted-cell">{producto.sku || producto.unidad}</span></td>
+                      <td>{producto.categoria || '-'}</td>
+                      <td>{proveedor?.nombre || '-'}</td>
+                      <td>{producto.stock_min}</td>
+                      <td><input className="stock-input" defaultValue={producto.stock_act} onBlur={(e) => actualizarProducto.mutate({ id: producto.id, stock_act: Number(e.target.value) })} /></td>
+                      <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td>
+                      <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Mov.</button></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </section>
+
           <div className="desk-panel settings-form inventory-side">
             <form onSubmit={submitProducto}>
               <div className="panel-caption"><strong>Nuevo producto</strong></div>
               <label>Nombre<input value={productoForm.nombre} onChange={(e) => setProductoForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
-              <label>Stock mínimo<input value={productoForm.stock_min} onChange={(e) => setProductoForm((p) => ({ ...p, stock_min: e.target.value }))} /></label>
-              <label>Stock actual<input value={productoForm.stock_act} onChange={(e) => setProductoForm((p) => ({ ...p, stock_act: e.target.value }))} /></label>
+              <div className="form-grid-2">
+                <label>Categoría<input value={productoForm.categoria} onChange={(e) => setProductoForm((p) => ({ ...p, categoria: e.target.value }))} /></label>
+                <label>SKU<input value={productoForm.sku} onChange={(e) => setProductoForm((p) => ({ ...p, sku: e.target.value }))} /></label>
+                <label>Stock mínimo<input type="number" min="0" value={productoForm.stock_min} onChange={(e) => setProductoForm((p) => ({ ...p, stock_min: e.target.value }))} /></label>
+                <label>Stock actual<input type="number" min="0" value={productoForm.stock_act} onChange={(e) => setProductoForm((p) => ({ ...p, stock_act: e.target.value }))} /></label>
+                <label>Unidad<input value={productoForm.unidad} onChange={(e) => setProductoForm((p) => ({ ...p, unidad: e.target.value }))} /></label>
+                <label>Coste<input type="number" min="0" step="0.01" value={productoForm.coste_unitario} onChange={(e) => setProductoForm((p) => ({ ...p, coste_unitario: e.target.value }))} /></label>
+              </div>
+              <label>Proveedor
+                <select value={productoForm.proveedor_id} onChange={(e) => setProductoForm((p) => ({ ...p, proveedor_id: e.target.value }))}>
+                  <option value="">Sin proveedor</option>
+                  {(proveedoresQuery.data ?? []).map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}
+                </select>
+              </label>
               <button type="submit">Crear producto</button>
             </form>
             {productoActivoId && (
@@ -242,17 +338,76 @@ export default function AdminExtrasPage() {
                   <option value="ajuste">Ajuste a cantidad</option>
                   <option value="consumo_factura">Consumo por factura</option>
                 </select></label>
-                <label>Cantidad<input value={movimientoForm.cantidad} onChange={(e) => setMovimientoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
-                <label>Motivo<input value={movimientoForm.motivo} onChange={(e) => setMovimientoForm((p) => ({ ...p, motivo: e.target.value }))} /></label>
+                <div className="form-grid-2">
+                  <label>Cantidad<input type="number" min="1" value={movimientoForm.cantidad} onChange={(e) => setMovimientoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
+                  <label>Motivo<input value={movimientoForm.motivo} onChange={(e) => setMovimientoForm((p) => ({ ...p, motivo: e.target.value }))} /></label>
+                </div>
                 <button type="submit">Registrar movimiento</button>
                 <div className="movement-list">
-                  {(movimientosQuery.data ?? []).slice(0, 5).map((mov) => (
-                    <p key={mov.id}><strong>{mov.tipo}</strong> {mov.cantidad} → {mov.stock_resultante}</p>
-                  ))}
+                  {(movimientosQuery.data ?? []).slice(0, 5).map((mov) => <p key={mov.id}><strong>{mov.tipo}</strong> {mov.cantidad} -&gt; {mov.stock_resultante}</p>)}
                 </div>
               </form>
             )}
           </div>
+
+          <section className="desk-panel settings-form">
+            <form onSubmit={submitProveedor}>
+              <div className="panel-caption"><strong>Proveedores</strong></div>
+              <label>Nombre<input value={proveedorForm.nombre} onChange={(e) => setProveedorForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
+              <div className="form-grid-2">
+                <label>Contacto<input value={proveedorForm.contacto} onChange={(e) => setProveedorForm((p) => ({ ...p, contacto: e.target.value }))} /></label>
+                <label>Teléfono<input value={proveedorForm.telefono} onChange={(e) => setProveedorForm((p) => ({ ...p, telefono: e.target.value }))} /></label>
+                <label>Email<input value={proveedorForm.email} onChange={(e) => setProveedorForm((p) => ({ ...p, email: e.target.value }))} /></label>
+                <label>Notas<input value={proveedorForm.notas} onChange={(e) => setProveedorForm((p) => ({ ...p, notas: e.target.value }))} /></label>
+              </div>
+              <button type="submit">Crear proveedor</button>
+            </form>
+            <div className="compact-list">
+              {(proveedoresQuery.data ?? []).slice(0, 6).map((proveedor) => (
+                <p key={proveedor.id}><strong>{proveedor.nombre}</strong><span>{proveedor.telefono || proveedor.email || proveedor.contacto || '-'}</span></p>
+              ))}
+            </div>
+          </section>
+
+          <section className="desk-panel settings-form">
+            <form onSubmit={submitPedido}>
+              <div className="panel-caption"><strong>Pedidos</strong></div>
+              <label>Proveedor
+                <select value={pedidoForm.proveedor_id} onChange={(e) => setPedidoForm((p) => ({ ...p, proveedor_id: e.target.value }))} required>
+                  <option value="">Seleccionar</option>
+                  {(proveedoresQuery.data ?? []).map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}
+                </select>
+              </label>
+              <label>Producto
+                <select value={pedidoForm.producto_id} onChange={(e) => {
+                  const producto = (inventarioQuery.data ?? []).find((item) => item.id === e.target.value);
+                  setPedidoForm((p) => ({ ...p, producto_id: e.target.value, coste_unitario: String(producto?.coste_unitario ?? p.coste_unitario) }));
+                }} required>
+                  <option value="">Seleccionar</option>
+                  {(inventarioQuery.data ?? []).map((producto) => <option key={producto.id} value={producto.id}>{producto.nombre}</option>)}
+                </select>
+              </label>
+              <div className="form-grid-2">
+                <label>Cantidad<input type="number" min="1" value={pedidoForm.cantidad} onChange={(e) => setPedidoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
+                <label>Coste<input type="number" min="0" step="0.01" value={pedidoForm.coste_unitario} onChange={(e) => setPedidoForm((p) => ({ ...p, coste_unitario: e.target.value }))} /></label>
+              </div>
+              <label>Notas<input value={pedidoForm.notas} onChange={(e) => setPedidoForm((p) => ({ ...p, notas: e.target.value }))} /></label>
+              <button type="submit">Crear pedido</button>
+            </form>
+            <div className="compact-list">
+              {(pedidosQuery.data ?? []).slice(0, 6).map((pedido) => {
+                const proveedor = (proveedoresQuery.data ?? []).find((item) => item.id === pedido.proveedor_id);
+                return (
+                  <p key={pedido.id}>
+                    <strong>{proveedor?.nombre || 'Pedido'}</strong>
+                    <span>{pedido.estado} · {pedido.lineas.reduce((total, linea) => total + linea.cantidad, 0)} ud.</span>
+                    {pedido.estado === 'borrador' && <button type="button" onClick={() => marcarPedidoEnviado.mutate(pedido.id)}>Enviar</button>}
+                    {pedido.estado !== 'recibido' && pedido.estado !== 'cancelado' && <button type="button" onClick={() => recibirPedido.mutate(pedido.id)}>Recibir</button>}
+                  </p>
+                );
+              })}
+            </div>
+          </section>
         </div>
       )}
 
@@ -269,10 +424,30 @@ export default function AdminExtrasPage() {
         </div>
       )}
 
+      {tab === 'auditoria' && (
+        <section className="desk-panel">
+          <div className="panel-caption"><strong>Auditoría clínica y administrativa</strong></div>
+          <table className="euro-table">
+            <thead><tr><th>Fecha</th><th>Acción</th><th>Entidad</th><th>Usuario</th><th>IP</th></tr></thead>
+            <tbody>
+              {(auditoriaQuery.data ?? []).map((entry) => (
+                <tr key={entry.id}>
+                  <td>{new Date(entry.timestamp).toLocaleString('es-ES')}</td>
+                  <td>{entry.action}</td>
+                  <td>{entry.entity_type}{entry.entity_id ? ` · ${entry.entity_id.slice(0, 8)}` : ''}</td>
+                  <td>{entry.user_id?.slice(0, 8) ?? '-'}</td>
+                  <td>{entry.ip_address ?? '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {tab === 'offline' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Modo offline</strong></div>
-          <p>La app marca “Sin conexión” cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
+          <p>La app marca "Sin conexión" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
           <div className="editor-actions">
             <button onClick={async () => {
               await addOfflinePending({ type: 'paciente', payload: { idTemp: `tmp-${Date.now()}`, nombre: 'Paciente offline' } });

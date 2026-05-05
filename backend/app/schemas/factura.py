@@ -132,7 +132,7 @@ class FacturaCreate(BaseModel):
 
 
 class FacturaUpdate(BaseModel):
-    estado: str | None = Field(None, pattern=r"^(emitida|cobrada|parcial|anulada)$")
+    estado: str | None = Field(None, pattern=r"^(borrador|emitida|cobrada|pagada|parcial|anulada)$")
     forma_pago_id: UUID | None = None
     observaciones: str | None = None
 
@@ -148,6 +148,7 @@ class FacturaRectificativaCreate(BaseModel):
 
 class FacturaResponse(BaseModel):
     id: UUID
+    clinica_id: UUID | None = None
     paciente_id: UUID
     entidad_id: UUID | None
     serie: str
@@ -184,3 +185,11 @@ class FacturaResponse(BaseModel):
         return self.total - self.total_cobrado
 
     model_config = {"from_attributes": True}
+
+
+class SaldoPacienteResponse(BaseModel):
+    paciente_id: UUID
+    total_facturado: Decimal
+    total_cobrado: Decimal
+    pendiente: Decimal
+    facturas_pendientes: int

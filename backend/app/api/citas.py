@@ -2,36 +2,42 @@
 Router de citas — agenda.
 Fase 2: CRUD completo + búsqueda de huecos + panel Telefonear.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from typing import Annotated
 from uuid import UUID
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.crypto import descifrar_bytes
-from app.core.permissions import CurrentUser, RequireAdmin, get_current_user
+from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access, resolve_clinic_id, scope_select_by_clinic
 from app.database import get_db
-from app.models.cita import Cita, CitaTelefonear, HistorialFaltas
+from app.models.cita import Cita, CitaCambio, CitaTelefonear, HistorialFaltas
 from app.models.clinica import Teleconsulta
 from app.models.doctor import Doctor
 from app.models.paciente import Paciente
 from app.schemas.cita import (
     BuscarHuecoRequest,
+    CitaCambioResponse,
+    CitaCancelar,
     CitaCreate,
+    CitaEstadoUpdate,
+    CitaReprogramar,
     CitaResponse,
     CitaTelefonearCreate,
     CitaTelefonearResponse,
     CitaTelefonearUpdate,
     CitaUpdate,
     HuecoLibre,
+    DisponibilidadDia,
 )
 from app.schemas.extras import RecordatorioCreate, RecordatorioResponse, VideoResponse
-from app.services.agenda_service import buscar_huecos_libres, esta_dentro_disponibilidad, hay_solapamiento
+from app.services.agenda_service import buscar_huecos_libres, esta_dentro_disponibilidad, get_horario_dia, hay_solapamiento, hay_solapamiento_gabinete
+from app.services.audit import write_audit_log
 
 router = APIRouter()
 
@@ -85,6 +91,7 @@ async def _to_response(db: AsyncSession, cita: Cita) -> CitaResponse:
         {
             "id": cita.id,
             "paciente_id": cita.paciente_id,
+            "clinica_id": cita.clinica_id,
             "doctor_id": cita.doctor_id,
             "gabinete_id": cita.gabinete_id,
             "fecha_hora": cita.fecha_hora,
@@ -135,6 +142,85 @@ TIPO_FALTA_MAP = {
 }
 
 
+def _snapshot_cita(cita: Cita) -> dict:
+    return {
+        "doctor_id": str(cita.doctor_id),
+        "gabinete_id": str(cita.gabinete_id) if cita.gabinete_id else None,
+        "fecha_hora": cita.fecha_hora.isoformat(),
+        "duracion_min": cita.duracion_min,
+        "estado": cita.estado,
+        "motivo": cita.motivo,
+        "observaciones": cita.observaciones,
+        "motivo_cancelacion": cita.motivo_cancelacion,
+    }
+
+
+async def _registrar_cambio_cita(
+    db: AsyncSession,
+    *,
+    cita: Cita,
+    current_user: CurrentUser,
+    accion: str,
+    old_values: dict | None = None,
+    new_values: dict | None = None,
+    motivo: str | None = None,
+    request: Request | None = None,
+) -> None:
+    old_values = old_values or {}
+    new_values = new_values or {}
+    db.add(CitaCambio(
+        cita_id=cita.id,
+        usuario_id=current_user.user_id,
+        accion=accion,
+        estado_anterior=old_values.get("estado"),
+        estado_nuevo=new_values.get("estado"),
+        fecha_anterior=datetime.fromisoformat(old_values["fecha_hora"]) if old_values.get("fecha_hora") else None,
+        fecha_nueva=datetime.fromisoformat(new_values["fecha_hora"]) if new_values.get("fecha_hora") else None,
+        doctor_anterior_id=UUID(old_values["doctor_id"]) if old_values.get("doctor_id") else None,
+        doctor_nuevo_id=UUID(new_values["doctor_id"]) if new_values.get("doctor_id") else None,
+        motivo=motivo,
+        datos={"antes": old_values, "despues": new_values},
+    ))
+    await write_audit_log(
+        db,
+        user=current_user,
+        action=f"CITA_{accion.upper()}",
+        entity_type="citas",
+        entity_id=cita.id,
+        old_values=old_values,
+        new_values=new_values,
+        clinica_id=cita.clinica_id,
+        request=request,
+    )
+
+
+async def _validar_cita_operativa(
+    db: AsyncSession,
+    *,
+    current_user: CurrentUser,
+    cita_id: UUID | None,
+    doctor_id: UUID,
+    gabinete_id: UUID | None,
+    fecha_hora: datetime,
+    duracion_min: int,
+    es_urgencia: bool,
+    forzar_fuera_horario: bool,
+) -> None:
+    if forzar_fuera_horario and current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin puede forzar una cita fuera de horario")
+    if not es_urgencia:
+        solapamiento = await hay_solapamiento(db, doctor_id, fecha_hora, duracion_min, excluir_cita_id=cita_id)
+        if solapamiento:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El doctor ya tiene una cita en ese horario")
+        gabinete_ocupado = await hay_solapamiento_gabinete(db, gabinete_id, fecha_hora, duracion_min, excluir_cita_id=cita_id)
+        if gabinete_ocupado:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El gabinete ya tiene una cita en ese horario")
+    if not es_urgencia and not forzar_fuera_horario:
+        dentro_disponibilidad = await esta_dentro_disponibilidad(db, doctor_id, fecha_hora, duracion_min)
+        if not dentro_disponibilidad:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La cita queda fuera del horario configurado del doctor")
+
+
 async def _registrar_falta_si_procede(
     db: AsyncSession,
     cita: Cita,
@@ -158,7 +244,7 @@ async def _registrar_falta_si_procede(
 @router.get("", response_model=list[CitaResponse])
 async def listar_citas(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     doctor_id: UUID | None = Query(None),
     paciente_id: UUID | None = Query(None),
     fecha_desde: datetime | None = Query(None),
@@ -170,6 +256,7 @@ async def listar_citas(
         .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
         .order_by(Cita.fecha_hora)
     )
+    q = scope_select_by_clinic(q, Cita, current_user)
     if doctor_id:
         q = q.where(Cita.doctor_id == doctor_id)
     if paciente_id:
@@ -194,20 +281,10 @@ async def listar_citas(
 @router.post("", response_model=CitaResponse, status_code=status.HTTP_201_CREATED)
 async def crear_cita(
     data: CitaCreate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
 ) -> CitaResponse:
-    # Verificar solapamiento (excepto urgencias)
-    if not data.es_urgencia:
-        solapamiento = await hay_solapamiento(
-            db, data.doctor_id, data.fecha_hora, data.duracion_min
-        )
-        if solapamiento:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="El doctor ya tiene una cita en ese horario",
-            )
-
     # Verificar que paciente y doctor existen
     pac = await db.get(Paciente, data.paciente_id)
     if not pac:
@@ -215,24 +292,36 @@ async def crear_cita(
     doc = await db.get(Doctor, data.doctor_id)
     if not doc:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, pac.clinica_id)
+    ensure_clinic_access(current_user, doc.clinica_id)
+    if pac.clinica_id and doc.clinica_id and pac.clinica_id != doc.clinica_id:
+        raise HTTPException(status_code=409, detail="Paciente y doctor pertenecen a clínicas distintas")
 
-    if data.forzar_fuera_horario and current_user.rol != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin puede forzar una cita fuera de horario")
-    if not data.es_urgencia and not data.forzar_fuera_horario:
-        dentro_disponibilidad = await esta_dentro_disponibilidad(
-            db, data.doctor_id, data.fecha_hora, data.duracion_min
-        )
-        if not dentro_disponibilidad:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="La cita queda fuera del horario configurado del doctor",
-            )
+    await _validar_cita_operativa(
+        db,
+        current_user=current_user,
+        cita_id=None,
+        doctor_id=data.doctor_id,
+        gabinete_id=data.gabinete_id,
+        fecha_hora=data.fecha_hora,
+        duracion_min=data.duracion_min,
+        es_urgencia=data.es_urgencia,
+        forzar_fuera_horario=data.forzar_fuera_horario,
+    )
 
     campos = data.model_dump(exclude={"forzar_fuera_horario"})
-    if campos.get("clinica_id") is None:
-        campos["clinica_id"] = current_user.clinica_id or pac.clinica_id or doc.clinica_id
+    campos["clinica_id"] = resolve_clinic_id(current_user, pac.clinica_id or doc.clinica_id)
     cita = Cita(**campos)
     db.add(cita)
+    await db.flush()
+    await _registrar_cambio_cita(
+        db,
+        cita=cita,
+        current_user=current_user,
+        accion="crear",
+        new_values=_snapshot_cita(cita),
+        request=request,
+    )
     await db.commit()
     await db.refresh(cita)
     return await _to_response(db, await _get_cita_or_404(db, cita.id))
@@ -241,7 +330,7 @@ async def crear_cita(
 @router.get("/buscar-hueco", response_model=list[HuecoLibre])
 async def buscar_hueco(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     doctor_id: UUID = Query(...),
     duracion_min: int = Query(30, ge=10, le=480, multiple_of=10),
     desde: datetime = Query(...),
@@ -250,6 +339,10 @@ async def buscar_hueco(
     solo_tarde: bool = Query(False),
     max_resultados: int = Query(20, ge=1, le=100),
 ) -> list[HuecoLibre]:
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     return await buscar_huecos_libres(
         db,
         doctor_id=doctor_id,
@@ -266,8 +359,12 @@ async def buscar_hueco(
 async def buscar_hueco_post(
     data: BuscarHuecoRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[HuecoLibre]:
+    doctor = await db.get(Doctor, data.doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     return await buscar_huecos_libres(
         db,
         doctor_id=data.doctor_id,
@@ -279,10 +376,230 @@ async def buscar_hueco_post(
     )
 
 
+@router.get("/disponibilidad", response_model=list[DisponibilidadDia])
+async def disponibilidad_doctor(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    doctor_id: UUID = Query(...),
+    desde: datetime = Query(...),
+    dias: int = Query(7, ge=1, le=60),
+) -> list[DisponibilidadDia]:
+    doctor = await db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
+    disponibilidad = []
+    fecha_base = desde.replace(hour=0, minute=0, second=0, microsecond=0)
+    for index in range(dias):
+        fecha = fecha_base + timedelta(days=index)
+        bloques, intervalo = await get_horario_dia(db, doctor_id, fecha)
+        disponibilidad.append(DisponibilidadDia(
+            doctor_id=doctor_id,
+            fecha=fecha,
+            bloques=bloques,
+            intervalo_min=intervalo,
+            trabaja=bool(bloques),
+        ))
+    return disponibilidad
+
+
+@router.patch("/{cita_id}/reprogramar", response_model=CitaResponse)
+async def reprogramar_cita(
+    cita_id: UUID,
+    data: CitaReprogramar,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> CitaResponse:
+    cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    old = _snapshot_cita(cita)
+    doctor_destino = data.doctor_id or cita.doctor_id
+    doctor = await db.get(Doctor, doctor_destino)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
+    nueva_duracion = data.duracion_min or cita.duracion_min
+    nuevo_gabinete = data.gabinete_id if data.gabinete_id is not None else cita.gabinete_id
+    await _validar_cita_operativa(
+        db,
+        current_user=current_user,
+        cita_id=cita.id,
+        doctor_id=doctor_destino,
+        gabinete_id=nuevo_gabinete,
+        fecha_hora=data.fecha_hora,
+        duracion_min=nueva_duracion,
+        es_urgencia=cita.es_urgencia,
+        forzar_fuera_horario=data.forzar_fuera_horario,
+    )
+    cita.doctor_id = doctor_destino
+    cita.gabinete_id = nuevo_gabinete
+    cita.fecha_hora = data.fecha_hora
+    cita.duracion_min = nueva_duracion
+    if data.motivo:
+        cita.observaciones = f"{cita.observaciones or ''}\nReprogramada: {data.motivo}".strip()
+    await _registrar_cambio_cita(
+        db,
+        cita=cita,
+        current_user=current_user,
+        accion="reprogramar",
+        old_values=old,
+        new_values=_snapshot_cita(cita),
+        motivo=data.motivo,
+        request=request,
+    )
+    await db.commit()
+    return await _to_response(db, await _get_cita_or_404(db, cita_id))
+
+
+@router.patch("/{cita_id}/estado", response_model=CitaResponse)
+async def cambiar_estado_cita(
+    cita_id: UUID,
+    data: CitaEstadoUpdate,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> CitaResponse:
+    cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    old = _snapshot_cita(cita)
+    nuevo_estado = data.estado.value
+    if nuevo_estado != cita.estado:
+        await _registrar_falta_si_procede(db, cita, nuevo_estado)
+    cita.estado = nuevo_estado
+    if nuevo_estado == "confirmada" and cita.confirmado_at is None:
+        cita.confirmado_at = datetime.now(timezone.utc)
+    if data.motivo:
+        cita.observaciones = f"{cita.observaciones or ''}\nCambio estado: {data.motivo}".strip()
+    await _registrar_cambio_cita(
+        db,
+        cita=cita,
+        current_user=current_user,
+        accion="estado",
+        old_values=old,
+        new_values=_snapshot_cita(cita),
+        motivo=data.motivo,
+        request=request,
+    )
+    await db.commit()
+    return await _to_response(db, await _get_cita_or_404(db, cita_id))
+
+
+@router.post("/{cita_id}/confirmar", response_model=CitaResponse)
+async def confirmar_cita(
+    cita_id: UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> CitaResponse:
+    return await cambiar_estado_cita(
+        cita_id,
+        CitaEstadoUpdate(estado="confirmada", motivo="Confirmada desde agenda"),
+        request,
+        db,
+        current_user,
+    )
+
+
+@router.post("/{cita_id}/cancelar", response_model=CitaResponse)
+async def cancelar_cita(
+    cita_id: UUID,
+    data: CitaCancelar,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> CitaResponse:
+    cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    old = _snapshot_cita(cita)
+    cita.estado = "anulada"
+    cita.motivo_cancelacion = data.motivo_cancelacion
+    cita.observaciones = f"{cita.observaciones or ''}\nCancelada: {data.motivo_cancelacion}".strip()
+    tipo_falta = "anulacion_clinica" if data.tipo == "anulacion_clinica" else "anulacion_paciente"
+    db.add(HistorialFaltas(
+        paciente_id=cita.paciente_id,
+        cita_id=cita.id,
+        tipo=tipo_falta,
+        fecha=datetime.now(timezone.utc),
+        notas=data.motivo_cancelacion,
+    ))
+    if data.crear_telefonear or data.tipo == "reprogramada":
+        db.add(CitaTelefonear(
+            cita_original_id=cita.id,
+            paciente_id=cita.paciente_id,
+            doctor_id=cita.doctor_id,
+            motivo="Reprogramar cita cancelada",
+            notas=data.motivo_cancelacion,
+            proximo_intento_at=data.proximo_intento_at,
+        ))
+    await _registrar_cambio_cita(
+        db,
+        cita=cita,
+        current_user=current_user,
+        accion="cancelar",
+        old_values=old,
+        new_values=_snapshot_cita(cita),
+        motivo=data.motivo_cancelacion,
+        request=request,
+    )
+    await db.commit()
+    return await _to_response(db, await _get_cita_or_404(db, cita_id))
+
+
+@router.post("/{cita_id}/marcar-falta", response_model=CitaResponse)
+async def marcar_falta_cita(
+    cita_id: UUID,
+    data: CitaCancelar,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> CitaResponse:
+    cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    old = _snapshot_cita(cita)
+    cita.estado = "falta"
+    cita.motivo_cancelacion = data.motivo_cancelacion
+    db.add(HistorialFaltas(
+        paciente_id=cita.paciente_id,
+        cita_id=cita.id,
+        tipo="falta",
+        fecha=datetime.now(timezone.utc),
+        notas=data.motivo_cancelacion,
+    ))
+    await _registrar_cambio_cita(
+        db,
+        cita=cita,
+        current_user=current_user,
+        accion="falta",
+        old_values=old,
+        new_values=_snapshot_cita(cita),
+        motivo=data.motivo_cancelacion,
+        request=request,
+    )
+    await db.commit()
+    return await _to_response(db, await _get_cita_or_404(db, cita_id))
+
+
+@router.get("/{cita_id}/cambios", response_model=list[CitaCambioResponse])
+async def historial_cambios_cita(
+    cita_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> list[CitaCambioResponse]:
+    cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    result = await db.execute(
+        select(CitaCambio)
+        .where(CitaCambio.cita_id == cita_id)
+        .order_by(CitaCambio.created_at.desc())
+    )
+    return [CitaCambioResponse.model_validate(item) for item in result.scalars().all()]
+
+
 @router.get("/panel/telefonear/pendientes", response_model=list[CitaTelefonearResponse])
 async def listar_telefonear_panel(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     doctor_id: UUID | None = Query(None),
 ) -> list[CitaTelefonearResponse]:
     q = (
@@ -291,6 +608,10 @@ async def listar_telefonear_panel(
         .where(CitaTelefonear.reubicada == False)  # noqa: E712
         .order_by(CitaTelefonear.created_at)
     )
+    if current_user.rol != "admin" and current_user.clinica_id:
+        q = q.join(Paciente, CitaTelefonear.paciente_id == Paciente.id).where(
+            or_(Paciente.clinica_id == current_user.clinica_id, Paciente.clinica_id.is_(None))
+        )
     if doctor_id:
         q = q.where(CitaTelefonear.doctor_id == doctor_id)
     result = await db.execute(q)
@@ -301,18 +622,21 @@ async def listar_telefonear_panel(
 async def obtener_cita(
     cita_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> CitaResponse:
-    return await _to_response(db, await _get_cita_or_404(db, cita_id))
+    cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    return await _to_response(db, cita)
 
 
 @router.post("/{cita_id}/video", response_model=VideoResponse)
 async def iniciar_video(
     cita_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> VideoResponse:
     cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
     result = await db.execute(select(Teleconsulta).where(Teleconsulta.cita_id == cita_id))
     teleconsulta = result.scalar_one_or_none()
     if not teleconsulta:
@@ -337,9 +661,10 @@ async def enviar_recordatorio(
     cita_id: UUID,
     data: RecordatorioCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> RecordatorioResponse:
     cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
     paciente = cita.paciente or await db.get(Paciente, cita.paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -379,42 +704,41 @@ async def enviar_recordatorio(
 async def actualizar_cita(
     cita_id: UUID,
     data: CitaUpdate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
 ) -> CitaResponse:
     cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
+    old = _snapshot_cita(cita)
 
     # Si cambia fecha/hora o duración, re-verificar solapamiento
     nueva_fecha = data.fecha_hora or cita.fecha_hora
     nueva_duracion = data.duracion_min or cita.duracion_min
     nueva_urgencia = data.es_urgencia if data.es_urgencia is not None else cita.es_urgencia
+    nuevo_gabinete = data.gabinete_id if data.gabinete_id is not None else cita.gabinete_id
 
     doctor_destino = data.doctor_id or cita.doctor_id
+    doctor = await db.get(Doctor, doctor_destino)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
 
-    if (data.fecha_hora or data.duracion_min or data.doctor_id) and not nueva_urgencia:
-        solapamiento = await hay_solapamiento(
-            db, doctor_destino, nueva_fecha, nueva_duracion, excluir_cita_id=cita_id
+    if data.fecha_hora or data.duracion_min or data.doctor_id or data.gabinete_id is not None:
+        await _validar_cita_operativa(
+            db,
+            current_user=current_user,
+            cita_id=cita_id,
+            doctor_id=doctor_destino,
+            gabinete_id=nuevo_gabinete,
+            fecha_hora=nueva_fecha,
+            duracion_min=nueva_duracion,
+            es_urgencia=nueva_urgencia,
+            forzar_fuera_horario=bool(data.forzar_fuera_horario),
         )
-        if solapamiento:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="El doctor ya tiene una cita en ese horario",
-            )
-
-    if data.forzar_fuera_horario and current_user.rol != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin puede forzar una cita fuera de horario")
-    if (data.fecha_hora or data.duracion_min or data.doctor_id) and not nueva_urgencia and not data.forzar_fuera_horario:
-        dentro_disponibilidad = await esta_dentro_disponibilidad(
-            db, doctor_destino, nueva_fecha, nueva_duracion
-        )
-        if not dentro_disponibilidad:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="La cita queda fuera del horario configurado del doctor",
-            )
 
     # Registrar falta/anulación antes de cambiar el estado
-    nuevo_estado = data.estado
+    nuevo_estado = data.estado.value if data.estado else None
     if nuevo_estado and nuevo_estado != cita.estado:
         await _registrar_falta_si_procede(db, cita, nuevo_estado)
         if nuevo_estado == "confirmada" and cita.confirmado_at is None:
@@ -425,9 +749,21 @@ async def actualizar_cita(
     if data.recordatorio_enviado and cita.recordatorio_at is None and data.recordatorio_at is None:
         cita.recordatorio_at = datetime.now(timezone.utc)
 
-    for field, value in data.model_dump(exclude_none=True, exclude={"forzar_fuera_horario"}).items():
+    for field, value in data.model_dump(exclude_unset=True, exclude={"forzar_fuera_horario"}).items():
         setattr(cita, field, value)
 
+    new = _snapshot_cita(cita)
+    if old != new:
+        await _registrar_cambio_cita(
+            db,
+            cita=cita,
+            current_user=current_user,
+            accion="actualizar",
+            old_values=old,
+            new_values=new,
+            motivo=data.motivo_cancelacion,
+            request=request,
+        )
     await db.commit()
     return await _to_response(db, await _get_cita_or_404(db, cita_id))
 
@@ -436,9 +772,11 @@ async def actualizar_cita(
 async def anular_cita(
     cita_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> None:
     """Soft-delete: pone estado = anulada."""
     cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
     if cita.estado != "anulada":
         await _registrar_falta_si_procede(db, cita, "anulada")
         cita.estado = "anulada"
@@ -451,10 +789,11 @@ async def anular_cita(
 async def contar_faltas_paciente(
     cita_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[dict]:
     """Devuelve historial de faltas del paciente dueño de esta cita (para mostrar alerta)."""
     cita = await _get_cita_or_404(db, cita_id)
+    ensure_clinic_access(current_user, cita.clinica_id)
     result = await db.execute(
         select(HistorialFaltas)
         .where(HistorialFaltas.paciente_id == cita.paciente_id)
@@ -472,18 +811,24 @@ async def contar_faltas_paciente(
 @router.get("/telefonear/pendientes", response_model=list[CitaTelefonearResponse])
 async def listar_telefonear(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     doctor_id: UUID | None = Query(None),
 ) -> list[CitaTelefonearResponse]:
-    return await listar_telefonear_panel(db, _, doctor_id)
+    return await listar_telefonear_panel(db, current_user, doctor_id)
 
 
 @router.post("/telefonear", response_model=CitaTelefonearResponse, status_code=status.HTTP_201_CREATED)
 async def crear_telefonear(
     data: CitaTelefonearCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> CitaTelefonearResponse:
+    paciente = await db.get(Paciente, data.paciente_id)
+    doctor = await db.get(Doctor, data.doctor_id)
+    if not paciente or not doctor:
+        raise HTTPException(status_code=404, detail="Paciente o doctor no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    ensure_clinic_access(current_user, doctor.clinica_id)
     entrada = CitaTelefonear(
         cita_original_id=data.cita_original_id,
         paciente_id=data.paciente_id,
@@ -510,7 +855,7 @@ async def actualizar_telefonear(
     entrada_id: UUID,
     data: CitaTelefonearUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> CitaTelefonearResponse:
     result = await db.execute(
         select(CitaTelefonear)
@@ -520,6 +865,7 @@ async def actualizar_telefonear(
     entrada = result.scalar_one_or_none()
     if not entrada:
         raise HTTPException(status_code=404, detail="Entrada telefonear no encontrada")
+    ensure_clinic_access(current_user, entrada.paciente.clinica_id if entrada.paciente else None)
     cambios = data.model_dump(exclude_none=True)
     if cambios.get("estado_contacto") in {"contactado", "no_responde", "cita_dada", "rechazado"} and not cambios.get("ultimo_intento_at"):
         entrada.ultimo_intento_at = datetime.now(timezone.utc)
@@ -535,7 +881,7 @@ async def marcar_reubicada(
     entrada_id: UUID,
     nueva_cita_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> CitaTelefonearResponse:
     result = await db.execute(
         select(CitaTelefonear)
@@ -545,6 +891,9 @@ async def marcar_reubicada(
     entrada = result.scalar_one_or_none()
     if not entrada:
         raise HTTPException(status_code=404, detail="Entrada telefonear no encontrada")
+    ensure_clinic_access(current_user, entrada.paciente.clinica_id if entrada.paciente else None)
+    nueva_cita = await _get_cita_or_404(db, nueva_cita_id)
+    ensure_clinic_access(current_user, nueva_cita.clinica_id)
     entrada.reubicada = True
     entrada.nueva_cita_id = nueva_cita_id
     await db.commit()

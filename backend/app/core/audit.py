@@ -24,6 +24,10 @@ AUDITED_PREFIXES = (
     "/api/presupuestos",
     "/api/facturas",
     "/api/consentimientos",
+    "/api/documentos",
+    "/api/laboratorio",
+    "/api/admin/backups",
+    "/api/admin/usuarios",
 )
 
 METHOD_ACTION_MAP = {
@@ -63,6 +67,7 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         from app.models.audit_log import AuditLog
 
         user_id: UUID | None = None
+        clinica_id: UUID | None = None
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
@@ -72,6 +77,11 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
                     user_id = UUID(payload["sub"])
                 except ValueError:
                     pass
+                if payload.get("clinica_id"):
+                    try:
+                        clinica_id = UUID(payload["clinica_id"])
+                    except ValueError:
+                        pass
 
         accion = (
             "DENY"
@@ -81,6 +91,9 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         tabla = _extract_tabla_from_path(request.url.path)
         registro_id = _extract_registro_id_from_path(request.url.path)
         ip = _get_client_ip(request)
+        user_agent = request.headers.get("User-Agent")
+        if user_agent:
+            user_agent = user_agent[:500]
         detalles = {
             "path": request.url.path,
             "method": request.method,
@@ -89,6 +102,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             "tabla": tabla,
             "registro_id": str(registro_id) if registro_id else None,
             "ip": ip,
+            "user_agent": user_agent,
+            "clinica_id": str(clinica_id) if clinica_id else None,
             "usuario_id": str(user_id) if user_id else None,
         }
 
@@ -98,11 +113,13 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             )
             entry = AuditLog(
                 usuario_id=user_id,
+                clinica_id=clinica_id,
                 accion=accion,
                 tabla=tabla,
                 registro_id=registro_id,
                 datos_despues=detalles,
                 ip=ip,
+                user_agent=user_agent,
                 previous_hash=previous_hash,
                 event_hash=build_chain_hash(previous_hash=previous_hash, payload=detalles),
             )

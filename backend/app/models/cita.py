@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, SmallInteger, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, SmallInteger, String, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -53,6 +54,39 @@ class Cita(UUIDMixin, TimestampMixin, Base):
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="citas")  # noqa: F821
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="citas")  # noqa: F821
     gabinete: Mapped["Gabinete"] = relationship("Gabinete", back_populates="citas")  # noqa: F821
+    cambios: Mapped[list["CitaCambio"]] = relationship(
+        "CitaCambio",
+        back_populates="cita",
+        order_by="CitaCambio.created_at",
+    )
+
+
+class CitaCambio(UUIDMixin, Base):
+    """Historial append-only de cambios operativos de agenda."""
+    __tablename__ = "cita_cambios"
+
+    cita_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("citas.id"), nullable=False, index=True
+    )
+    usuario_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True, index=True
+    )
+    accion: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    estado_anterior: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    estado_nuevo: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    fecha_anterior: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    fecha_nueva: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    doctor_anterior_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True
+    )
+    doctor_nuevo_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True
+    )
+    motivo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    datos: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    cita: Mapped["Cita"] = relationship("Cita", back_populates="cambios")
 
 
 class CitaTelefonear(UUIDMixin, TimestampMixin, Base):

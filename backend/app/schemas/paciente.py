@@ -6,13 +6,58 @@ pgcrypto. El backend los descifra antes de devolver la respuesta, y los cifra an
 de escribir en la BD. Los schemas trabajan siempre con strings en claro.
 """
 from datetime import date
+import re
 from uuid import UUID
 
 from typing import Any
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, field_validator
 
 
-class PacienteCreate(BaseModel):
+DNI_NIE_RE = re.compile(r"^[0-9XYZ][0-9]{7}[A-Z]$", re.IGNORECASE)
+PHONE_RE = re.compile(r"^[+0-9 ()-]{6,20}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+class PacienteBase(BaseModel):
+    @field_validator("email", mode="before", check_fields=False)
+    @classmethod
+    def empty_email_to_none(cls, value: str | None) -> str | None:
+        if value in (None, ""):
+            return None
+        stripped = value.strip()
+        if not EMAIL_RE.match(stripped):
+            raise ValueError("Email no válido")
+        return stripped
+
+    @field_validator("telefono", "telefono2", mode="before", check_fields=False)
+    @classmethod
+    def validate_phone(cls, value: str | None) -> str | None:
+        if value in (None, ""):
+            return None
+        stripped = value.strip()
+        if not PHONE_RE.match(stripped):
+            raise ValueError("Teléfono no válido")
+        return stripped
+
+    @field_validator("dni_nie", mode="before", check_fields=False)
+    @classmethod
+    def validate_dni_nie(cls, value: str | None) -> str | None:
+        if value in (None, ""):
+            return None
+        normalized = value.strip().upper().replace(" ", "").replace("-", "")
+        if not DNI_NIE_RE.match(normalized):
+            raise ValueError("DNI/NIE no válido")
+        return normalized
+
+    @field_validator("fecha_nacimiento", check_fields=False)
+    @classmethod
+    def validate_birth_date(cls, value: date | None) -> date | None:
+        if value and value > date.today():
+            raise ValueError("La fecha de nacimiento no puede ser futura")
+        return value
+
+
+class PacienteCreate(PacienteBase):
     nombre: str = Field(..., min_length=1, max_length=100)
     apellidos: str = Field(..., min_length=1, max_length=150)
     fecha_nacimiento: date | None = None
@@ -34,7 +79,7 @@ class PacienteCreate(BaseModel):
     clinica_id: UUID | None = None
 
 
-class PacienteUpdate(BaseModel):
+class PacienteUpdate(PacienteBase):
     nombre: str | None = Field(None, max_length=100)
     apellidos: str | None = Field(None, max_length=150)
     fecha_nacimiento: date | None = None

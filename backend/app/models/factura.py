@@ -10,7 +10,7 @@ from app.database import Base
 from app.models.base import UUIDMixin, TimestampMixin
 
 TipoFacturaEnum = Enum("paciente", "iguala", "entidad", name="tipo_factura")
-EstadoFacturaEnum = Enum("emitida", "cobrada", "parcial", "anulada", name="estado_factura")
+EstadoFacturaEnum = Enum("borrador", "emitida", "cobrada", "pagada", "parcial", "anulada", name="estado_factura")
 
 
 class FormaPago(UUIDMixin, TimestampMixin, Base):

@@ -2,12 +2,15 @@ import axios from 'axios';
 import type { AxiosError } from 'axios';
 import type {
   ApiPaciente,
+  AuditLogEntry,
   BackupRegistro,
   Cita,
+  CitaCambio,
   Clinica,
   Consentimiento,
   CumplimientoSif,
   DocumentoPaciente,
+  DisponibilidadDia,
   Doctor,
   FamiliaTratamiento,
   Factura,
@@ -16,18 +19,27 @@ import type {
   HorarioDoctor,
   HuecoLibre,
   Laboratorio,
+  OdontogramaEvento,
+  OdontogramaPaciente,
   OdontogramaPlan,
+  OdontogramaStatus,
+  OdontogramaSurfaceName,
   PlantillaConsentimiento,
   Presupuesto,
   PresupuestoLinea,
   ReportCitasDoctor,
+  ReportDashboard,
   ReportKpis,
   ReportPaciente,
   ReportTopTratamiento,
   RecordatorioCitaResponse,
+  SaldoPaciente,
   IngresosReporte,
   MovimientoInventario,
+  PedidoProveedorInventario,
+  PortalMe,
   ProductoInventario,
+  ProveedorInventario,
   TelefonearPendiente,
   TrabajoLaboratorio,
   TratamientoCatalogo,
@@ -358,6 +370,8 @@ const DEMO_CONSENTIMIENTOS: Consentimiento[] = [
   {
     id: 'demo-cons-1',
     paciente_id: 'demo-pac-1',
+    clinica_id: null,
+    plantilla_id: null,
     tratamiento_id: 't-endo',
     doctor_id: 'demo-doc-1',
     historial_id: 'demo-hist-1',
@@ -368,8 +382,12 @@ const DEMO_CONSENTIMIENTOS: Consentimiento[] = [
     firmado_at: '2026-04-14T10:45:00',
     documento_path: 'pacientes/demo-pac-1/consentimiento_endodoncia.pdf',
     plantilla_version: '2026.04',
+    version_plantilla: 1,
+    contenido: null,
+    hash_documento: null,
     revocado: false,
     fecha_revocacion: null,
+    motivo_revocacion: null,
     created_at: '2026-04-14T10:40:00',
   },
 ];
@@ -485,6 +503,19 @@ export async function getFacturas(pacienteId?: string) {
   );
 }
 
+export async function getSaldoPaciente(pacienteId: string) {
+  const facturas = DEMO_FACTURAS.filter((item) => item.paciente_id === pacienteId || pacienteId.startsWith('demo-'));
+  const totalFacturado = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
+  const totalCobrado = facturas.reduce((sum, factura) => sum + Number(factura.total_cobrado ?? 0), 0);
+  return withDemoFallback(api.get<SaldoPaciente>(`/pacientes/${pacienteId}/saldo`), {
+    paciente_id: pacienteId,
+    total_facturado: totalFacturado.toFixed(2),
+    total_cobrado: totalCobrado.toFixed(2),
+    pendiente: (totalFacturado - totalCobrado).toFixed(2),
+    facturas_pendientes: facturas.filter((factura) => Number(factura.pendiente) > 0).length,
+  });
+}
+
 export async function getHistorialPaciente(pacienteId: string) {
   return withDemoFallback(
     api.get<HistorialClinico[]>(`/tratamientos/historial/${pacienteId}`),
@@ -598,6 +629,7 @@ export async function getConsentimientosPaciente(pacienteId: string) {
 }
 
 export async function createConsentimientoPaciente(pacienteId: string, tipo: string, doctorId?: string | null, extra?: Partial<{
+  plantilla_id: string | null;
   tratamiento_id: string | null;
   historial_id: string | null;
   documento_id: string | null;
@@ -617,6 +649,8 @@ export async function createConsentimientoPaciente(pacienteId: string, tipo: str
   }), {
     id: `demo-cons-${Date.now()}`,
     paciente_id: pacienteId,
+    clinica_id: null,
+    plantilla_id: extra?.plantilla_id ?? null,
     tratamiento_id: null,
     doctor_id: doctorId ?? null,
     historial_id: null,
@@ -627,11 +661,51 @@ export async function createConsentimientoPaciente(pacienteId: string, tipo: str
     firmado_at: extra?.estado === 'firmado' ? now : null,
     documento_path: extra?.documento_path ?? null,
     plantilla_version: extra?.plantilla_version ?? '2026.04',
+    version_plantilla: null,
     contenido: extra?.contenido ?? null,
+    hash_documento: null,
     revocado: false,
     fecha_revocacion: null,
+    motivo_revocacion: null,
     created_at: now,
   });
+}
+
+export async function firmarConsentimiento(consentimientoId: string, firmaPacienteBase64: string, firmaDoctorBase64?: string | null) {
+  return withDemoFallback(api.post<Consentimiento>(`/consentimientos/${consentimientoId}/firmar`, {
+    firma_paciente_base64: firmaPacienteBase64,
+    firma_doctor_base64: firmaDoctorBase64 ?? null,
+  }), {
+    ...DEMO_CONSENTIMIENTOS[0],
+    id: consentimientoId,
+    estado: 'firmado',
+    firmado_at: new Date().toISOString(),
+    hash_documento: 'demo',
+  });
+}
+
+export async function revocarConsentimiento(consentimientoId: string, motivo: string) {
+  return withDemoFallback(api.post<Consentimiento>(`/consentimientos/${consentimientoId}/revocar`, { motivo }), {
+    ...DEMO_CONSENTIMIENTOS[0],
+    id: consentimientoId,
+    estado: 'revocado',
+    revocado: true,
+    fecha_revocacion: new Date().toISOString().slice(0, 10),
+    motivo_revocacion: motivo,
+  });
+}
+
+export async function openConsentimientoPdf(consentimientoId: string) {
+  const { data } = await api.get<Blob>(`/consentimientos/${consentimientoId}/pdf`, { responseType: 'blob' });
+  const url = URL.createObjectURL(data);
+  const opened = window.open(url, '_blank');
+  if (!opened) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `consentimiento_${consentimientoId}.pdf`;
+    link.click();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export async function getFormasPago() {
@@ -645,6 +719,46 @@ export async function createPresupuesto(pacienteId: string, doctorId: string) {
     fecha: new Date().toISOString().slice(0, 10),
     lineas: [],
   }), { ...DEMO_PRESUPUESTOS[0], id: `demo-pres-${Date.now()}`, paciente_id: pacienteId, doctor_id: doctorId });
+}
+
+export async function presentarPresupuesto(presupuestoId: string) {
+  return withDemoFallback(api.post<Presupuesto>(`/presupuestos/${presupuestoId}/presentar`), {
+    ...DEMO_PRESUPUESTOS[0],
+    id: presupuestoId,
+    estado: 'presentado',
+  });
+}
+
+export async function aceptarPresupuesto(presupuestoId: string, lineaIds?: string[]) {
+  return withDemoFallback(api.post<Presupuesto>(`/presupuestos/${presupuestoId}/aceptar`, {
+    linea_ids: lineaIds ?? null,
+    pasar_a_trabajo_pendiente: true,
+  }), {
+    ...DEMO_PRESUPUESTOS[0],
+    id: presupuestoId,
+    estado: 'aceptado',
+  });
+}
+
+export async function rechazarPresupuesto(presupuestoId: string, motivo?: string | null) {
+  return withDemoFallback(api.post<Presupuesto>(`/presupuestos/${presupuestoId}/rechazar`, { motivo }), {
+    ...DEMO_PRESUPUESTOS[0],
+    id: presupuestoId,
+    estado: 'rechazado',
+  });
+}
+
+export async function convertirPresupuestoFactura(presupuestoId: string, data?: { serie?: string; fecha?: string; forma_pago_id?: string | null }) {
+  return withDemoFallback(api.post<Factura>(`/presupuestos/${presupuestoId}/convertir-a-factura`, {
+    serie: data?.serie ?? 'A',
+    fecha: data?.fecha ?? new Date().toISOString().slice(0, 10),
+    forma_pago_id: data?.forma_pago_id ?? null,
+    solo_aceptadas: true,
+  }), {
+    ...DEMO_FACTURAS[0],
+    id: `demo-fact-${Date.now()}`,
+    estado: 'emitida',
+  });
 }
 
 export async function addPresupuestoLinea(presupuestoId: string, data: {
@@ -728,10 +842,10 @@ export async function createFacturaManual(pacienteId: string, concepto: string, 
 }
 
 export async function registrarCobro(facturaId: string, formaPagoId: string, importe: number) {
-  return withDemoFallback(api.post<Factura>(`/facturas/${facturaId}/cobros`, {
+  return withDemoFallback(api.post<Factura>(`/facturas/${facturaId}/pagos`, {
     forma_pago_id: formaPagoId,
     importe,
-  }), { ...DEMO_FACTURAS[0], id: facturaId, total_cobrado: String(importe), pendiente: '0.00' });
+  }), { ...DEMO_FACTURAS[0], id: facturaId, estado: 'pagada', total_cobrado: String(importe), pendiente: '0.00' });
 }
 
 export async function getCitas(params: Record<string, string>) {
@@ -752,6 +866,92 @@ export async function getPacienteCitas(pacienteId: string) {
   const day = new Date().toISOString().slice(0, 10);
   const fallback = await getCitas({ paciente_id: pacienteId, fecha_desde: day });
   return withDemoFallback(api.get<Cita[]>(`/pacientes/${pacienteId}/citas`), fallback);
+}
+
+export async function getPortalMe(pacienteId: string) {
+  const paciente = DEMO_PACIENTES.find((item) => item.id === pacienteId) ?? DEMO_PACIENTES[0];
+  return withDemoFallback(api.get<PortalMe>('/portal/me', { params: { paciente_id: pacienteId } }), {
+    paciente,
+    resumen: {
+      proximas_citas: 1,
+      documentos: DEMO_DOCUMENTOS.filter((item) => item.paciente_id === pacienteId || pacienteId.startsWith('demo-')).length,
+      consentimientos_pendientes: DEMO_CONSENTIMIENTOS.filter((item) => item.estado === 'pendiente_firma').length,
+    },
+  });
+}
+
+export async function getPortalCitas(pacienteId: string) {
+  const fallback = await getPacienteCitas(pacienteId);
+  return withDemoFallback(api.get<Cita[]>('/portal/citas', { params: { paciente_id: pacienteId } }), fallback);
+}
+
+export async function confirmarPortalCita(citaId: string, pacienteId: string) {
+  return withDemoFallback(api.post<Cita>(`/portal/citas/${citaId}/confirmar`, null, { params: { paciente_id: pacienteId } }), {
+    id: citaId,
+    paciente_id: pacienteId,
+    doctor_id: DEMO_DOCTORES[0].id,
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString(),
+    duracion_min: 30,
+    estado: 'confirmada',
+    es_urgencia: false,
+    motivo: 'Confirmada',
+    observaciones: null,
+    recordatorio_enviado: false,
+    recordatorio_canal: null,
+    recordatorio_estado: null,
+    recordatorio_at: null,
+    confirmado_at: new Date().toISOString(),
+    motivo_cancelacion: null,
+  });
+}
+
+export async function cancelarPortalCita(citaId: string, pacienteId: string, motivo: string, reprogramar = false) {
+  return withDemoFallback(api.post<Cita>(`/portal/citas/${citaId}/cancelar`, {
+    motivo_cancelacion: motivo,
+    tipo: reprogramar ? 'reprogramada' : 'anulacion_paciente',
+    crear_telefonear: reprogramar,
+  }, { params: { paciente_id: pacienteId } }), {
+    id: citaId,
+    paciente_id: pacienteId,
+    doctor_id: DEMO_DOCTORES[0].id,
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString(),
+    duracion_min: 30,
+    estado: 'anulada',
+    es_urgencia: false,
+    motivo: 'Cancelada',
+    observaciones: null,
+    recordatorio_enviado: false,
+    recordatorio_canal: null,
+    recordatorio_estado: null,
+    recordatorio_at: null,
+    confirmado_at: null,
+    motivo_cancelacion: motivo,
+  });
+}
+
+export async function getPortalDocumentos(pacienteId: string) {
+  const fallback = await getDocumentosPaciente(pacienteId);
+  return withDemoFallback(api.get<DocumentoPaciente[]>('/portal/documentos', { params: { paciente_id: pacienteId } }), fallback);
+}
+
+export async function getPortalConsentimientos(pacienteId: string) {
+  const fallback = await getConsentimientosPaciente(pacienteId);
+  return withDemoFallback(api.get<Consentimiento[]>('/portal/consentimientos', { params: { paciente_id: pacienteId } }), fallback);
+}
+
+export async function firmarPortalConsentimiento(consentimientoId: string, pacienteId: string, firmaPacienteBase64: string) {
+  return withDemoFallback(api.post<Consentimiento>(`/portal/consentimientos/${consentimientoId}/firmar`, {
+    firma_paciente_base64: firmaPacienteBase64,
+  }, { params: { paciente_id: pacienteId } }), {
+    ...DEMO_CONSENTIMIENTOS[0],
+    id: consentimientoId,
+    paciente_id: pacienteId,
+    estado: 'firmado',
+    firmado_at: new Date().toISOString(),
+    hash_documento: 'demo',
+  });
 }
 
 export async function iniciarVideoConsulta(citaId: string) {
@@ -793,6 +993,16 @@ export async function buscarHuecosLibres(params: {
     fecha_hora_fin: `${day}T${addMinutesLocal(slot, params.duracion_min)}:00`,
     duracion_min: params.duracion_min,
   })));
+}
+
+export async function getDisponibilidadDoctor(params: { doctor_id: string; desde: string; dias?: number }) {
+  return withDemoFallback(api.get<DisponibilidadDia[]>('/citas/disponibilidad', { params }), [{
+    doctor_id: params.doctor_id,
+    fecha: params.desde,
+    bloques: [{ inicio: '09:00', fin: '13:30' }, { inicio: '15:00', fin: '20:30' }],
+    intervalo_min: 10,
+    trabaja: true,
+  }]);
 }
 
 export async function createCita(data: {
@@ -866,6 +1076,110 @@ export async function updateCita(citaId: string, data: Partial<{
     paciente: { nombre: DEMO_PACIENTES[0].nombre, apellidos: DEMO_PACIENTES[0].apellidos, telefono: DEMO_PACIENTES[0].telefono },
     doctor: { nombre: doctor?.nombre ?? DEMO_DOCTORES[0].nombre, color_agenda: doctor?.color_agenda ?? DEMO_DOCTORES[0].color_agenda },
   });
+}
+
+export async function reprogramarCita(citaId: string, data: {
+  doctor_id?: string | null;
+  gabinete_id?: string | null;
+  fecha_hora: string;
+  duracion_min?: number;
+  forzar_fuera_horario?: boolean;
+  motivo?: string | null;
+}) {
+  return withDemoFallback(api.patch<Cita>(`/citas/${citaId}/reprogramar`, data), {
+    id: citaId,
+    paciente_id: DEMO_PACIENTES[0].id,
+    doctor_id: data.doctor_id ?? DEMO_DOCTORES[0].id,
+    gabinete_id: data.gabinete_id ?? null,
+    fecha_hora: data.fecha_hora,
+    duracion_min: data.duracion_min ?? 30,
+    estado: 'programada',
+    es_urgencia: false,
+    motivo: data.motivo ?? 'Reprogramada',
+    observaciones: null,
+    recordatorio_enviado: false,
+    recordatorio_canal: null,
+    recordatorio_estado: null,
+    recordatorio_at: null,
+    confirmado_at: null,
+    motivo_cancelacion: null,
+    paciente: { nombre: DEMO_PACIENTES[0].nombre, apellidos: DEMO_PACIENTES[0].apellidos, telefono: DEMO_PACIENTES[0].telefono },
+    doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda },
+  });
+}
+
+export async function confirmarCita(citaId: string) {
+  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/confirmar`), {
+    estado: 'confirmada',
+    id: citaId,
+    paciente_id: DEMO_PACIENTES[0].id,
+    doctor_id: DEMO_DOCTORES[0].id,
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString(),
+    duracion_min: 30,
+    es_urgencia: false,
+    motivo: 'Confirmada',
+    observaciones: null,
+    recordatorio_enviado: false,
+    recordatorio_canal: null,
+    recordatorio_estado: null,
+    recordatorio_at: null,
+    confirmado_at: new Date().toISOString(),
+    motivo_cancelacion: null,
+  });
+}
+
+export async function cancelarCitaAvanzada(citaId: string, data: {
+  motivo_cancelacion: string;
+  tipo?: 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro';
+  crear_telefonear?: boolean;
+}) {
+  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/cancelar`, data), {
+    id: citaId,
+    paciente_id: DEMO_PACIENTES[0].id,
+    doctor_id: DEMO_DOCTORES[0].id,
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString(),
+    duracion_min: 30,
+    estado: 'anulada',
+    es_urgencia: false,
+    motivo: 'Cancelada',
+    observaciones: null,
+    recordatorio_enviado: false,
+    recordatorio_canal: null,
+    recordatorio_estado: null,
+    recordatorio_at: null,
+    confirmado_at: null,
+    motivo_cancelacion: data.motivo_cancelacion,
+  });
+}
+
+export async function marcarFaltaCita(citaId: string, motivo: string) {
+  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
+    motivo_cancelacion: motivo,
+    tipo: 'no_vino',
+  }), {
+    id: citaId,
+    paciente_id: DEMO_PACIENTES[0].id,
+    doctor_id: DEMO_DOCTORES[0].id,
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString(),
+    duracion_min: 30,
+    estado: 'falta',
+    es_urgencia: false,
+    motivo: 'No asistio',
+    observaciones: null,
+    recordatorio_enviado: false,
+    recordatorio_canal: null,
+    recordatorio_estado: null,
+    recordatorio_at: null,
+    confirmado_at: null,
+    motivo_cancelacion: motivo,
+  });
+}
+
+export async function getCambiosCita(citaId: string) {
+  return withDemoFallback(api.get<CitaCambio[]>(`/citas/${citaId}/cambios`), []);
 }
 
 export async function getTelefonear() {
@@ -1030,17 +1344,26 @@ export async function deactivateTratamientoCatalogo(id: string) {
 
 export async function getInventario() {
   return withDemoFallback(api.get<ProductoInventario[]>('/inventario'), [
-    { id: 'demo-prod-1', nombre: 'Amoxicilina', stock_min: 10, stock_act: 50, proveedor_id: null, activo: true },
-    { id: 'demo-prod-2', nombre: 'Guantes nitrilo M', stock_min: 20, stock_act: 8, proveedor_id: null, activo: true },
+    { id: 'demo-prod-1', clinica_id: null, nombre: 'Amoxicilina', categoria: 'Farmacia', sku: null, stock_min: 10, stock_act: 50, unidad: 'caja', coste_unitario: 12, proveedor_id: null, activo: true },
+    { id: 'demo-prod-2', clinica_id: null, nombre: 'Guantes nitrilo M', categoria: 'Desechable', sku: null, stock_min: 20, stock_act: 8, unidad: 'caja', coste_unitario: 6, proveedor_id: null, activo: true },
   ]);
 }
 
-export async function createProductoInventario(data: { nombre: string; stock_min: number; stock_act: number }) {
+export async function getAlertasStock() {
+  return withDemoFallback(api.get<ProductoInventario[]>('/inventario/alertas-stock'), []);
+}
+
+export async function createProductoInventario(data: Partial<ProductoInventario> & { nombre: string; stock_min: number; stock_act: number }) {
   return withDemoFallback(api.post<ProductoInventario>('/inventario', data), {
     id: `demo-prod-${Date.now()}`,
+    clinica_id: data.clinica_id ?? null,
     nombre: data.nombre,
+    categoria: data.categoria ?? null,
+    sku: data.sku ?? null,
     stock_min: data.stock_min,
     stock_act: data.stock_act,
+    unidad: data.unidad ?? 'ud',
+    coste_unitario: data.coste_unitario ?? 0,
     proveedor_id: null,
     activo: true,
   });
@@ -1049,9 +1372,14 @@ export async function createProductoInventario(data: { nombre: string; stock_min
 export async function updateProductoInventario(id: string, data: Partial<ProductoInventario>) {
   return withDemoFallback(api.patch<ProductoInventario>(`/inventario/${id}`, data), {
     id,
+    clinica_id: data.clinica_id ?? null,
     nombre: data.nombre ?? 'Producto',
+    categoria: data.categoria ?? null,
+    sku: data.sku ?? null,
     stock_min: data.stock_min ?? 0,
     stock_act: data.stock_act ?? 0,
+    unidad: data.unidad ?? 'ud',
+    coste_unitario: data.coste_unitario ?? 0,
     proveedor_id: data.proveedor_id ?? null,
     activo: data.activo ?? true,
   });
@@ -1063,17 +1391,101 @@ export async function getMovimientosInventario(productoId: string) {
 
 export async function registrarMovimientoInventario(productoId: string, data: {
   tipo: MovimientoInventario['tipo'];
-  cantidad: number;
-  motivo?: string | null;
-  factura_id?: string | null;
+    cantidad: number;
+    motivo?: string | null;
+    factura_id?: string | null;
+    referencia_tipo?: string | null;
+    referencia_id?: string | null;
 }) {
   return withDemoFallback(api.post<ProductoInventario>(`/inventario/${productoId}/movimientos`, data), {
     id: productoId,
+    clinica_id: null,
     nombre: 'Producto',
+    categoria: null,
+    sku: null,
     stock_min: 0,
     stock_act: data.tipo === 'entrada' || data.tipo === 'ajuste' ? data.cantidad : 0,
+    unidad: 'ud',
+    coste_unitario: 0,
     proveedor_id: null,
     activo: true,
+  });
+}
+
+export async function getProveedoresInventario() {
+  return withDemoFallback(api.get<ProveedorInventario[]>('/inventario/proveedores'), []);
+}
+
+export async function createProveedorInventario(data: {
+  nombre: string;
+  contacto?: string | null;
+  telefono?: string | null;
+  email?: string | null;
+  notas?: string | null;
+}) {
+  return withDemoFallback(api.post<ProveedorInventario>('/inventario/proveedores', data), {
+    id: `demo-prov-${Date.now()}`,
+    clinica_id: null,
+    nombre: data.nombre,
+    contacto: data.contacto ?? null,
+    telefono: data.telefono ?? null,
+    email: data.email ?? null,
+    notas: data.notas ?? null,
+    activo: true,
+  });
+}
+
+export async function getPedidosInventario() {
+  return withDemoFallback(api.get<PedidoProveedorInventario[]>('/inventario/pedidos'), []);
+}
+
+export async function createPedidoInventario(data: {
+  proveedor_id: string;
+  fecha?: string | null;
+  notas?: string | null;
+  lineas: { producto_id: string; cantidad: number; coste_unitario: number }[];
+}) {
+  return withDemoFallback(api.post<PedidoProveedorInventario>('/inventario/pedidos', data), {
+    id: `demo-pedido-${Date.now()}`,
+    proveedor_id: data.proveedor_id,
+    clinica_id: null,
+    estado: 'borrador',
+    fecha: data.fecha ?? new Date().toISOString().slice(0, 10),
+    notas: data.notas ?? null,
+    lineas: data.lineas.map((linea, index) => ({
+      id: `demo-linea-${index}`,
+      pedido_id: 'demo',
+      producto_id: linea.producto_id,
+      cantidad: linea.cantidad,
+      coste_unitario: linea.coste_unitario,
+    })),
+    created_at: new Date().toISOString(),
+  });
+}
+
+export async function updatePedidoInventario(id: string, data: Partial<PedidoProveedorInventario>) {
+  return withDemoFallback(api.patch<PedidoProveedorInventario>(`/inventario/pedidos/${id}`, data), {
+    id,
+    proveedor_id: data.proveedor_id ?? '',
+    clinica_id: data.clinica_id ?? null,
+    estado: data.estado ?? 'borrador',
+    fecha: data.fecha ?? new Date().toISOString().slice(0, 10),
+    notas: data.notas ?? null,
+    lineas: data.lineas ?? [],
+    created_at: data.created_at ?? new Date().toISOString(),
+  });
+}
+
+export async function recibirPedidoInventario(id: string) {
+  return withDemoFallback(api.post<PedidoProveedorInventario>(`/inventario/pedidos/${id}/recibir`), {
+    id,
+    proveedor_id: '',
+    clinica_id: null,
+    estado: 'recibido',
+    fecha: new Date().toISOString().slice(0, 10),
+    notas: null,
+    lineas: [],
+    created_at: new Date().toISOString(),
   });
 }
 
@@ -1087,6 +1499,16 @@ export async function getIngresosReporte(desde: string, hasta: string) {
 
 export async function getBackups() {
   return withDemoFallback(api.get<BackupRegistro[]>('/admin/backups'), []);
+}
+
+export async function getAuditLog(params: {
+  desde?: string;
+  hasta?: string;
+  accion?: string;
+  entidad?: string;
+  clinica_id?: string;
+} = {}) {
+  return withDemoFallback(api.get<AuditLogEntry[]>('/admin/auditoria', { params }), []);
 }
 
 export async function crearBackup() {
@@ -1154,11 +1576,61 @@ export async function getTrabajosLaboratorio(params: { pendientes?: boolean; est
 
 export async function getReportKpis() {
   return withDemoFallback(api.get<ReportKpis>('/reportes/kpis'), {
-    citas: { total: 18, por_estado: { confirmada: 12, atendida: 4, falta: 2 }, asistencia: 4, faltas: 2 },
+    citas: { total: 18, por_estado: { confirmada: 12, atendida: 4, falta: 2 }, asistencia: 4, faltas: 2, anuladas: 0, no_show_rate: 11.1 },
     pacientes_nuevos: 5,
-    facturacion: { num_facturas: 7, total_facturado: 4260, total_cobrado: 3110, pendiente: 1150 },
+    facturacion: { num_facturas: 7, total_facturado: 4260, total_cobrado: 3110, pendiente: 1150, ticket_medio: 608.57 },
     tratamientos_realizados: 22,
-    presupuestos: { total: 9, por_estado: { borrador: 2, aceptado: 5, rechazado: 2 } },
+    presupuestos: { total: 9, por_estado: { borrador: 2, aceptado: 5, rechazado: 2 }, aceptacion_rate: 55.5, rechazo_rate: 22.2 },
+  });
+}
+
+export async function getReportDashboard() {
+  const fallbackKpis: ReportKpis = {
+    citas: { total: 18, por_estado: { programada: 3, confirmada: 8, en_clinica: 2, atendida: 4, falta: 1 }, asistencia: 4, faltas: 1, anuladas: 0, no_show_rate: 5.55 },
+    pacientes_nuevos: 5,
+    facturacion: { num_facturas: 7, total_facturado: 4260, total_cobrado: 3110, pendiente: 1150, ticket_medio: 608.57 },
+    tratamientos_realizados: 22,
+    presupuestos: { total: 9, por_estado: { borrador: 2, presentado: 1, aceptado: 5, rechazado: 1 }, aceptacion_rate: 55.5, rechazo_rate: 11.1 },
+  };
+  return withDemoFallback(api.get<ReportDashboard>('/reportes/dashboard'), {
+    periodo: { desde: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), hasta: new Date().toISOString().slice(0, 10) },
+    kpis: fallbackKpis,
+    series: {
+      ingresos_mensuales: Array.from({ length: 12 }, (_, index) => ({
+        mes: index + 1,
+        facturado: index < new Date().getMonth() + 1 ? 1800 + index * 220 : 0,
+        cobrado: index < new Date().getMonth() + 1 ? 1400 + index * 180 : 0,
+        num_facturas: index < new Date().getMonth() + 1 ? 4 + index : 0,
+      })),
+    },
+    doctores: DEMO_DOCTORES.map((doctor, index) => ({
+      doctor_id: doctor.id,
+      doctor: doctor.nombre,
+      color: doctor.color_agenda,
+      total: 14 - index,
+      atendidas: 9 - index,
+      faltas: index,
+      ocupacion_pct: 62 - index * 8,
+    })),
+    tratamientos: DEMO_TRATAMIENTOS.slice(0, 5).map((item, index) => ({
+      tratamiento: item.nombre,
+      cantidad: 12 - index,
+      importe: (12 - index) * Number(item.precio),
+    })),
+    pacientes_deuda: DEMO_PACIENTES.slice(0, 2).map((paciente, index) => ({
+      id: paciente.id,
+      num_historial: paciente.num_historial,
+      nombre: paciente.nombre,
+      apellidos: paciente.apellidos,
+      saldo_pendiente: index === 0 ? 145 : 80,
+    })),
+    alertas: {
+      citas_sin_confirmar: 3,
+      pacientes_en_clinica: 2,
+      faltas_periodo: 1,
+      deuda_pendiente: 1150,
+      presupuestos_pendientes: 3,
+    },
   });
 }
 
@@ -1196,6 +1668,102 @@ export async function getReportCitasDoctor() {
 export async function getCumplimientoSif() {
   const { data } = await api.get<CumplimientoSif>('/admin/cumplimiento-sif');
   return data;
+}
+
+function demoOdontograma(pacienteId: string): OdontogramaPaciente {
+  return {
+    id: `demo-odon-${pacienteId}`,
+    paciente_id: pacienteId,
+    clinica_id: 'demo-clinica-1',
+    version: 1,
+    activo: true,
+    created_at: new Date().toISOString(),
+    updated_at: null,
+    piezas: [
+      {
+        id: `demo-odon-piece-${pacienteId}-24`,
+        odontograma_id: `demo-odon-${pacienteId}`,
+        pieza_fdi: 24,
+        estado_general: 'caries',
+        notas: 'Control en presupuesto',
+        superficies: [
+          { id: 'demo-sup-24-o', pieza_id: `demo-odon-piece-${pacienteId}-24`, superficie: 'oclusal_incisal', condicion: 'tratamiento_pendiente', tratamiento_planificado_id: 't-endo', tratamiento_realizado_id: null, color_estado: '#f59e0b', notas: 'Endodoncia propuesta' },
+        ],
+      },
+      {
+        id: `demo-odon-piece-${pacienteId}-37`,
+        odontograma_id: `demo-odon-${pacienteId}`,
+        pieza_fdi: 37,
+        estado_general: 'implante',
+        notas: null,
+        superficies: [],
+      },
+    ],
+  };
+}
+
+export async function getOdontogramaPaciente(pacienteId: string) {
+  return withDemoFallback(api.get<OdontogramaPaciente>(`/pacientes/${pacienteId}/odontograma`), demoOdontograma(pacienteId));
+}
+
+export async function createOdontogramaPaciente(pacienteId: string) {
+  return withDemoFallback(api.post<OdontogramaPaciente>(`/pacientes/${pacienteId}/odontograma`), demoOdontograma(pacienteId));
+}
+
+export async function updateOdontogramaPieza(odontogramaId: string, piezaFdi: number, data: {
+  estado_general?: OdontogramaStatus | string;
+  notas?: string | null;
+}) {
+  const fallback = demoOdontograma('demo-pac-1').piezas[0];
+  return withDemoFallback(api.patch<typeof fallback>(`/odontograma/${odontogramaId}/pieza/${piezaFdi}`, data), {
+    ...fallback,
+    odontograma_id: odontogramaId,
+    pieza_fdi: piezaFdi,
+    estado_general: data.estado_general ?? fallback.estado_general,
+    notas: data.notas ?? fallback.notas,
+  });
+}
+
+export async function updateOdontogramaSuperficie(odontogramaId: string, piezaFdi: number, superficie: OdontogramaSurfaceName, data: {
+  condicion?: OdontogramaStatus | string;
+  tratamiento_planificado_id?: string | null;
+  tratamiento_realizado_id?: string | null;
+  color_estado?: string | null;
+  notas?: string | null;
+}) {
+  const fallback = demoOdontograma('demo-pac-1').piezas[0].superficies[0];
+  return withDemoFallback(api.patch<typeof fallback>(`/odontograma/${odontogramaId}/pieza/${piezaFdi}/superficie/${superficie}`, data), {
+    ...fallback,
+    id: `demo-sup-${piezaFdi}-${superficie}`,
+    superficie,
+    condicion: data.condicion ?? fallback.condicion,
+    tratamiento_planificado_id: data.tratamiento_planificado_id ?? fallback.tratamiento_planificado_id,
+    color_estado: data.color_estado ?? fallback.color_estado,
+    notas: data.notas ?? fallback.notas,
+  });
+}
+
+export async function getOdontogramaHistorial(odontogramaId: string) {
+  return withDemoFallback(api.get<OdontogramaEvento[]>(`/odontograma/${odontogramaId}/historial`), []);
+}
+
+export async function duplicateOdontogramaVersion(odontogramaId: string) {
+  return withDemoFallback(api.post<OdontogramaPaciente>(`/odontograma/${odontogramaId}/duplicar-version`), {
+    ...demoOdontograma('demo-pac-1'),
+    id: `demo-odon-dup-${Date.now()}`,
+    version: 2,
+  });
+}
+
+export async function createPresupuestoFromOdontograma(odontogramaId: string, data: {
+  doctor_id: string;
+  items?: Array<{ pieza_fdi: number; superficie?: OdontogramaSurfaceName | null; tratamiento_id: string; precio_unitario: string | number }>;
+  pie_pagina?: string | null;
+}) {
+  return withDemoFallback(api.post<{ presupuesto_id: string; lineas_creadas: number }>(`/odontograma/${odontogramaId}/plan-tratamiento`, data), {
+    presupuesto_id: `demo-pres-${Date.now()}`,
+    lineas_creadas: data.items?.length ?? 1,
+  });
 }
 
 export async function saveOdontograma(presupuestoId: string, odontograma: OdontogramaPlan) {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buscarHuecosLibres, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, updateCita } from '../../lib/api';
+import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, marcarFaltaCita, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
 
 type SlotDraft = {
@@ -249,6 +249,7 @@ function CitaModal({
   onStartVideo: (cita: Cita) => Promise<string>;
 }) {
   const [query, setQuery] = useState('');
+  const [patientResultsOpen, setPatientResultsOpen] = useState(false);
   const initialPacienteId = cita?.paciente_id ?? draft?.pacienteId ?? sessionStorage.getItem('dentcore_selected_patient_id') ?? pacientes[0]?.id ?? '';
   const [pacienteId, setPacienteId] = useState(initialPacienteId);
   const [doctorId, setDoctorId] = useState(cita?.doctor_id ?? draft?.doctorId ?? doctores[0]?.id ?? '');
@@ -302,6 +303,7 @@ function CitaModal({
       const paciente = await onCreateTemporaryPaciente({ nombreCompleto: tempName, telefono: tempPhone });
       setPacienteId(paciente.id);
       setQuery(`${paciente.nombre} ${paciente.apellidos}`);
+      setPatientResultsOpen(false);
       setObservaciones((prev) => `${prev}\nPaciente temporal: completar datos en clínica.`.trim());
       setTempName('');
       setTempPhone('');
@@ -325,7 +327,15 @@ function CitaModal({
         <div className="appointment-form-grid">
           <div className="patient-picker-row wide">
             <label>Buscar paciente
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre, telefono, DNI, historia o codigo" />
+              <input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPatientResultsOpen(true);
+                }}
+                onFocus={() => setPatientResultsOpen(Boolean(query.trim()))}
+                placeholder="Nombre, telefono, DNI, historia o codigo"
+              />
             </label>
             <button
               type="button"
@@ -337,7 +347,7 @@ function CitaModal({
               <span className="temp-patient-icon" aria-hidden="true" />
             </button>
           </div>
-          {query.trim() && (
+          {query.trim() && patientResultsOpen && (
             <div className="patient-live-results wide">
               {filteredPatients.slice(0, 6).map((paciente) => (
                 <button
@@ -347,6 +357,7 @@ function CitaModal({
                   onClick={() => {
                     setPacienteId(paciente.id);
                     setQuery(`${paciente.apellidos}, ${paciente.nombre}`);
+                    setPatientResultsOpen(false);
                   }}
                 >
                   <strong>{paciente.apellidos}, {paciente.nombre}</strong>
@@ -359,7 +370,13 @@ function CitaModal({
             </div>
           )}
           <label className="wide">Paciente
-            <select value={pacienteId} onChange={(event) => setPacienteId(event.target.value)}>
+            <select
+              value={pacienteId}
+              onChange={(event) => {
+                setPacienteId(event.target.value);
+                setPatientResultsOpen(false);
+              }}
+            >
               {patientsForSelect.map((paciente) => (
                 <option key={paciente.id} value={paciente.id}>
                   {paciente.num_historial} - {paciente.apellidos}, {paciente.nombre} {paciente.telefono ? `(${paciente.telefono})` : ''}
@@ -656,6 +673,32 @@ export default function AgendaPage() {
     },
   });
 
+  const confirmMutation = useMutation({
+    mutationFn: (cita: Cita) => confirmarCita(cita.id),
+    onSuccess: () => {
+      setContextMenu(null);
+      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: ({ cita, motivo, tipo }: { cita: Cita; motivo: string; tipo: 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro' }) =>
+      cancelarCitaAvanzada(cita.id, { motivo_cancelacion: motivo, tipo, crear_telefonear: tipo === 'reprogramada' }),
+    onSuccess: () => {
+      setContextMenu(null);
+      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      void telefonearQuery.refetch();
+    },
+  });
+
+  const faltaMutation = useMutation({
+    mutationFn: ({ cita, motivo }: { cita: Cita; motivo: string }) => marcarFaltaCita(cita.id, motivo),
+    onSuccess: () => {
+      setContextMenu(null);
+      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+    },
+  });
+
   const videoMutation = useMutation({
     mutationFn: async (cita: Cita) => {
       const response = await iniciarVideoConsulta(cita.id);
@@ -763,7 +806,16 @@ export default function AgendaPage() {
   function cancelCita(cita: Cita, estado: 'anulada' | 'falta') {
     const motivo = window.prompt('Motivo: cancelada por paciente, cancelada por clinica, no vino, reprogramada u otro', estado === 'falta' ? 'No vino' : 'Cancelada por paciente');
     if (motivo === null) return;
-    setStatus(cita, estado, `Cancelacion: ${motivo}`);
+    if (estado === 'falta') {
+      faltaMutation.mutate({ cita, motivo });
+      return;
+    }
+    const tipo = motivo.toLowerCase().includes('clinica')
+      ? 'anulacion_clinica'
+      : motivo.toLowerCase().includes('reprogram')
+        ? 'reprogramada'
+        : 'anulacion_paciente';
+    cancelMutation.mutate({ cita, motivo, tipo });
   }
 
   function enviarRecordatorio(cita: Cita, canal: 'whatsapp' | 'email' | 'ambos') {
@@ -831,6 +883,8 @@ export default function AgendaPage() {
   const pendientesConfirmar = citasActivas.filter((cita) => cita.estado === 'programada');
   const pacientesEnClinica = citasActivas.filter((cita) => cita.estado === 'en_clinica');
   const currentTime = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const hasAgendaError = doctoresQuery.isError || pacientesQuery.isError || citasQuery.isError || telefonearQuery.isError || horariosAgendaQuery.isError;
+  const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
   const siguienteCita = citasActivas
     .filter((cita) => day !== nowDay || cita.fecha_hora.slice(11, 16) >= currentTime)
     .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? citasActivas[0];
@@ -844,6 +898,18 @@ export default function AgendaPage() {
         <span>{horarioLabel}</span>
         <button onClick={() => void horariosAgendaQuery.refetch()}>Actualizar horario</button>
       </div>
+      {hasAgendaError && (
+        <div className="inline-alert">
+          No se ha podido cargar una parte de la agenda. Refresca la pantalla o revisa la conexion antes de mover citas.
+        </div>
+      )}
+      {agendaLoading && (
+        <div className="patient-loading-strip agenda-loading-strip" aria-label="Cargando agenda">
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
           <label className="doctor-picker">
@@ -1041,7 +1107,7 @@ export default function AgendaPage() {
           <button onClick={() => copiarTelefono(contextMenu.cita)}>Copiar telefono</button>
           <button onClick={() => void iniciarVideoDesdeMenu(contextMenu.cita)}>Iniciar videollamada</button>
           <span />
-          <button onClick={() => setStatus(contextMenu.cita, 'confirmada')}>Confirmar cita</button>
+          <button onClick={() => confirmMutation.mutate(contextMenu.cita)}>Confirmar cita</button>
           <button onClick={() => setStatus(contextMenu.cita, 'programada')}>Pendiente de confirmar</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Mensaje enviado</button>
           <button onClick={() => setStatus(contextMenu.cita, 'en_clinica')}>Paciente en clinica</button>

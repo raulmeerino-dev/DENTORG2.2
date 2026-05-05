@@ -3,10 +3,11 @@ Router de administración — gestión de usuarios, entidades y configuración.
 Solo accesible para rol 'admin'.
 """
 import json
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -16,9 +17,10 @@ from app.config import get_settings
 from app.core.permissions import CurrentUser, RequireAdmin, get_current_user, require_roles
 from app.core.security import hash_password
 from app.database import get_db
+from app.models.audit_log import AuditLog
+from app.models.backup import BackupRegistro
 from app.models.entidad import Entidad
 from app.models.factura import Factura
-from app.models.backup import BackupRegistro
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.usuario import Usuario
@@ -62,6 +64,7 @@ async def crear_usuario(
         nombre=data.nombre,
         rol=data.rol,
         doctor_id=data.doctor_id,
+        clinica_id=data.clinica_id,
         activo=True,
     )
     db.add(usuario)
@@ -88,6 +91,8 @@ async def actualizar_usuario(
         usuario.rol = data.rol
     if data.doctor_id is not None:
         usuario.doctor_id = data.doctor_id
+    if data.clinica_id is not None:
+        usuario.clinica_id = data.clinica_id
     if data.activo is not None:
         usuario.activo = data.activo
 
@@ -130,6 +135,66 @@ class EntidadResponse(BaseModel):
 class EstadoRemisionUpdate(BaseModel):
     estado_remision: str = Field(..., pattern=r"^(pendiente|enviada|rechazada|anulacion_pendiente|no_verifactu)$")
     detalle: str | None = Field(None, max_length=500)
+
+
+class AuditLogResponse(BaseModel):
+    id: int
+    timestamp: datetime
+    user_id: UUID | None
+    clinica_id: UUID | None
+    action: str
+    entity_type: str
+    entity_id: UUID | None
+    old_values: dict | None
+    new_values: dict | None
+    ip_address: str | None
+    user_agent: str | None
+    event_hash: str | None
+
+
+@router.get("/auditoria", response_model=list[AuditLogResponse], dependencies=[RequireAdmin])
+async def listar_auditoria(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    desde: datetime | None = Query(None),
+    hasta: datetime | None = Query(None),
+    usuario: UUID | None = Query(None),
+    accion: str | None = Query(None),
+    entidad: str | None = Query(None),
+    clinica_id: UUID | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+) -> list[AuditLogResponse]:
+    stmt = select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit)
+    if desde:
+        stmt = stmt.where(AuditLog.timestamp >= desde)
+    if hasta:
+        stmt = stmt.where(AuditLog.timestamp <= hasta)
+    if usuario:
+        stmt = stmt.where(AuditLog.usuario_id == usuario)
+    if accion:
+        stmt = stmt.where(AuditLog.accion.ilike(f"%{accion}%"))
+    if entidad:
+        stmt = stmt.where(AuditLog.tabla.ilike(f"%{entidad}%"))
+    if clinica_id:
+        stmt = stmt.where(AuditLog.clinica_id == clinica_id)
+
+    result = await db.execute(stmt)
+    return [
+        AuditLogResponse(
+            id=item.id,
+            timestamp=item.timestamp,
+            user_id=item.usuario_id,
+            clinica_id=item.clinica_id,
+            action=item.accion,
+            entity_type=item.tabla,
+            entity_id=item.registro_id,
+            old_values=item.datos_antes,
+            new_values=item.datos_despues,
+            ip_address=item.ip,
+            user_agent=item.user_agent,
+            event_hash=item.event_hash,
+        )
+        for item in result.scalars().all()
+    ]
 
 
 @router.get("/entidades", response_model=list[EntidadResponse])

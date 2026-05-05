@@ -63,9 +63,25 @@ class PresupuestoCreate(BaseModel):
 
 class PresupuestoUpdate(BaseModel):
     fecha: date | None = None
-    estado: str | None = Field(None, pattern=r"^(borrador|presentado|aceptado|rechazado|parcial)$")
+    estado: str | None = Field(None, pattern=r"^(borrador|presentado|aceptado|rechazado|parcial|caducado)$")
     pie_pagina: str | None = None
     doctor_id: UUID | None = None
+
+
+class PresupuestoAceptarCreate(BaseModel):
+    linea_ids: list[UUID] | None = None
+    pasar_a_trabajo_pendiente: bool = True
+
+
+class PresupuestoRechazarCreate(BaseModel):
+    motivo: str | None = Field(None, max_length=500)
+
+
+class PresupuestoConvertirFacturaCreate(BaseModel):
+    serie: str = Field("A", min_length=1, max_length=5)
+    fecha: date
+    forma_pago_id: UUID | None = None
+    solo_aceptadas: bool = True
 
 
 class OdontogramaPlanUpdate(BaseModel):
@@ -95,6 +111,7 @@ class DoctorResumen(BaseModel):
 
 class PresupuestoResponse(BaseModel):
     id: UUID
+    clinica_id: UUID | None = None
     paciente_id: UUID
     numero: int
     fecha: date

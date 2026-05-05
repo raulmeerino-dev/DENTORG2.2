@@ -1,0 +1,109 @@
+from uuid import uuid4
+
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import hash_password
+from app.models.doctor import Doctor
+from app.models.presupuesto import Presupuesto, PresupuestoLinea
+from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.models.usuario import Usuario
+
+
+async def auth_headers(client: AsyncClient, db_session: AsyncSession, *, rol: str = "admin") -> dict[str, str]:
+    username = f"odontograma-{rol}-{uuid4().hex[:8]}"
+    usuario = Usuario(
+        username=username,
+        password_hash=hash_password("usuario1234"),
+        nombre="Usuario Odontograma",
+        rol=rol,
+        activo=True,
+    )
+    db_session.add(usuario)
+    await db_session.commit()
+    response = await client.post("/api/auth/login", json={"username": username, "password": "usuario1234"})
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.mark.asyncio
+async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    headers = await auth_headers(client, db_session)
+    doctor = Doctor(nombre="Dra. Odontograma", color_agenda="#0f766e", activo=True)
+    familia = FamiliaTratamiento(nombre="Endodoncia", icono="EN", orden=1)
+    db_session.add_all([doctor, familia])
+    await db_session.flush()
+    tratamiento = TratamientoCatalogo(
+        familia_id=familia.id,
+        codigo="EN999",
+        nombre="Endodoncia prueba",
+        precio=150,
+        requiere_pieza=True,
+        requiere_caras=False,
+    )
+    db_session.add(tratamiento)
+    await db_session.commit()
+
+    paciente_response = await client.post(
+        "/api/pacientes",
+        headers=headers,
+        json={"nombre": "Odonto", "apellidos": "Paciente", "telefono": "600123123"},
+    )
+    assert paciente_response.status_code == 201
+    paciente_id = paciente_response.json()["id"]
+
+    created = await client.post(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
+    assert created.status_code == 201
+    odontograma_id = created.json()["id"]
+
+    piece = await client.patch(
+        f"/api/odontograma/{odontograma_id}/pieza/24",
+        headers=headers,
+        json={"estado_general": "caries", "notas": "Dolor a frio"},
+    )
+    assert piece.status_code == 200
+    assert piece.json()["estado_general"] == "caries"
+
+    surface = await client.patch(
+        f"/api/odontograma/{odontograma_id}/pieza/24/superficie/oclusal_incisal",
+        headers=headers,
+        json={
+            "condicion": "tratamiento_pendiente",
+            "tratamiento_planificado_id": str(tratamiento.id),
+            "color_estado": "#facc15",
+            "notas": "Planificar endodoncia",
+        },
+    )
+    assert surface.status_code == 200
+    assert surface.json()["tratamiento_planificado_id"] == str(tratamiento.id)
+
+    stored = await client.get(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
+    assert stored.status_code == 200
+    pieza_24 = next(item for item in stored.json()["piezas"] if item["pieza_fdi"] == 24)
+    assert pieza_24["superficies"][0]["condicion"] == "tratamiento_pendiente"
+
+    presupuesto_response = await client.post(
+        f"/api/odontograma/{odontograma_id}/plan-tratamiento",
+        headers=headers,
+        json={"doctor_id": str(doctor.id)},
+    )
+    assert presupuesto_response.status_code == 201
+    assert presupuesto_response.json()["lineas_creadas"] == 1
+
+    presupuesto_id = presupuesto_response.json()["presupuesto_id"]
+    result = await db_session.execute(
+        select(Presupuesto)
+        .join(PresupuestoLinea)
+        .where(Presupuesto.id == presupuesto_id, PresupuestoLinea.pieza_dental == 24)
+    )
+    assert result.scalar_one_or_none() is not None
+
+    historial = await client.get(f"/api/odontograma/{odontograma_id}/historial", headers=headers)
+    assert historial.status_code == 200
+    actions = {item["accion"] for item in historial.json()}
+    assert {"actualizar_pieza", "actualizar_superficie", "crear_presupuesto_desde_plan"} <= actions

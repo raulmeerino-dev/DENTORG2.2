@@ -48,6 +48,31 @@ async def hay_solapamiento(
     return result.scalar_one_or_none() is not None
 
 
+async def hay_solapamiento_gabinete(
+    db: AsyncSession,
+    gabinete_id: UUID | None,
+    fecha_hora: datetime,
+    duracion_min: int,
+    excluir_cita_id: UUID | None = None,
+) -> bool:
+    """Comprueba solapamiento de un gabinete/sillon cuando la cita lo usa."""
+    if not gabinete_id:
+        return False
+    fecha_fin = fecha_hora + timedelta(minutes=duracion_min)
+    q = select(Cita).where(
+        and_(
+            Cita.gabinete_id == gabinete_id,
+            Cita.estado.in_(["programada", "confirmada", "en_clinica"]),
+            Cita.fecha_hora < fecha_fin,
+            (Cita.fecha_hora + timedelta(minutes=1) * Cita.duracion_min) > fecha_hora,
+        )
+    )
+    if excluir_cita_id:
+        q = q.where(Cita.id != excluir_cita_id)
+    result = await db.execute(q)
+    return result.scalar_one_or_none() is not None
+
+
 async def get_horario_dia(
     db: AsyncSession,
     doctor_id: UUID,

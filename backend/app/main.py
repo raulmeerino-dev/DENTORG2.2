@@ -7,7 +7,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.config import get_settings
 from app.core.audit import AuditLogMiddleware
 from app.core.http_security import SecurityHeadersMiddleware
-from app.api import auth, pacientes, citas, doctores, tratamientos, presupuestos, facturas, reportes, admin, pdf, documentos, laboratorio, consentimientos, clinicas, inventario, sync_import
+from app.api import auth, pacientes, citas, doctores, tratamientos, presupuestos, facturas, reportes, admin, pdf, documentos, laboratorio, consentimientos, clinicas, inventario, sync_import, odontograma, portal
 from app.services.backup_scheduler import start_backup_scheduler
 
 settings = get_settings()
@@ -61,10 +61,12 @@ app.include_router(pdf.router, prefix="/api/pdf", tags=["pdf"])
 app.include_router(documentos.router, prefix="/api/pacientes", tags=["documentos"])
 app.include_router(laboratorio.router, prefix="/api", tags=["laboratorio"])
 app.include_router(consentimientos.router, prefix="/api", tags=["consentimientos"])
+app.include_router(odontograma.router, prefix="/api", tags=["odontograma"])
 app.include_router(clinicas.router, prefix="/api/clinicas", tags=["clinicas"])
 app.include_router(inventario.router, prefix="/api/inventario", tags=["inventario"])
 app.include_router(sync_import.router, prefix="/api/sync", tags=["sync"])
 app.include_router(sync_import.import_router, prefix="/api/import", tags=["import"])
+app.include_router(portal.router, prefix="/api/portal", tags=["portal"])
 
 
 @app.get("/api/health")
