@@ -42,9 +42,8 @@ import {
   uploadDocumentoPaciente,
 } from '../../lib/api';
 import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, OdontogramaPlan, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
-import { OdontogramaPacientePanel } from '../odontograma';
 
-type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'odontograma' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
+type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type TreatmentVisual = { codigo?: string | null; nombre?: string | null; familia?: { icono?: string | null; nombre?: string | null } | null } | null;
 type PatientContextMenu =
   | { x: number; y: number; kind: 'paciente' }
@@ -60,7 +59,6 @@ type PatientContextDraft =
 const WORK_TABS: Array<{ id: WorkTab; label: string; icon: string }> = [
   { id: 'pacientes', label: 'Ficha', icon: 'PA' },
   { id: 'primera', label: 'Primera visita', icon: '1A' },
-  { id: 'odontograma', label: 'Odontograma', icon: 'OD' },
   { id: 'presupuestos', label: 'Presupuestos', icon: 'PR' },
   { id: 'pendiente', label: 'Pendientes', icon: 'TP' },
   { id: 'realizados', label: 'Realizados', icon: 'OK' },
@@ -1960,17 +1958,6 @@ export default function PacientesPage() {
             paciente={active}
             onSave={(data) => guardarPrimeraVisita.mutate(data)}
             saving={guardarPrimeraVisita.isPending}
-          />
-        )}
-        {tab === 'odontograma' && active && (
-          <OdontogramaPacientePanel
-            paciente={active}
-            tratamientos={tratamientosQuery.data ?? []}
-            doctorId={doctoresQuery.data?.[0]?.id ?? null}
-            onPresupuestoCreado={() => {
-              void queryClient.invalidateQueries({ queryKey: ['presupuestos', active.id] });
-              setTab('presupuestos');
-            }}
           />
         )}
         {tab === 'historial' && (
