@@ -702,6 +702,7 @@ async def test_dashboard_bi_agrega_datos_clinicos_y_economicos(client: AsyncClie
         Presupuesto(
             paciente_id=paciente.id,
             doctor_id=doctor.id,
+            numero=int(uuid4().int % 1000000) + 100000,
             fecha=today,
             estado="aceptado",
         ),

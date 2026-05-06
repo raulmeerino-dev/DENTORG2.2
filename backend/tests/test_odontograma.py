@@ -62,15 +62,22 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     odontograma_id = created.json()["id"]
 
     piece = await client.patch(
-        f"/api/odontograma/{odontograma_id}/pieza/24",
+        f"/api/odontogramas/{odontograma_id}/piezas/24",
         headers=headers,
         json={"estado_general": "caries", "notas": "Dolor a frio"},
     )
     assert piece.status_code == 200
     assert piece.json()["estado_general"] == "caries"
 
+    invalid_piece = await client.patch(
+        f"/api/odontogramas/{odontograma_id}/piezas/55",
+        headers=headers,
+        json={"estado_general": "caries"},
+    )
+    assert invalid_piece.status_code == 422
+
     surface = await client.patch(
-        f"/api/odontograma/{odontograma_id}/pieza/24/superficie/oclusal_incisal",
+        f"/api/odontogramas/{odontograma_id}/piezas/24/superficies/lingual_palatina",
         headers=headers,
         json={
             "condicion": "tratamiento_pendiente",
@@ -80,6 +87,7 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
         },
     )
     assert surface.status_code == 200
+    assert surface.json()["superficie"] == "lingual_palatina"
     assert surface.json()["tratamiento_planificado_id"] == str(tratamiento.id)
 
     stored = await client.get(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
@@ -88,7 +96,7 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert pieza_24["superficies"][0]["condicion"] == "tratamiento_pendiente"
 
     presupuesto_response = await client.post(
-        f"/api/odontograma/{odontograma_id}/plan-tratamiento",
+        f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
         headers=headers,
         json={"doctor_id": str(doctor.id)},
     )
@@ -103,7 +111,15 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     )
     assert result.scalar_one_or_none() is not None
 
-    historial = await client.get(f"/api/odontograma/{odontograma_id}/historial", headers=headers)
+    legacy_surface = await client.patch(
+        f"/api/odontograma/{odontograma_id}/pieza/25/superficie/lingual_palatal",
+        headers=headers,
+        json={"condicion": "protesis"},
+    )
+    assert legacy_surface.status_code == 200
+    assert legacy_surface.json()["superficie"] == "lingual_palatina"
+
+    historial = await client.get(f"/api/odontogramas/{odontograma_id}/historial", headers=headers)
     assert historial.status_code == 200
     actions = {item["accion"] for item in historial.json()}
     assert {"actualizar_pieza", "actualizar_superficie", "crear_presupuesto_desde_plan"} <= actions

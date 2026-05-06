@@ -25,6 +25,7 @@ import type {
   OdontogramaStatus,
   OdontogramaSurfaceName,
   PlantillaConsentimiento,
+  ProductionReadinessReport,
   Presupuesto,
   PresupuestoLinea,
   ReportCitasDoctor,
@@ -1501,6 +1502,28 @@ export async function getBackups() {
   return withDemoFallback(api.get<BackupRegistro[]>('/admin/backups'), []);
 }
 
+export async function getProductionReadiness() {
+  return withDemoFallback(api.get<ProductionReadinessReport>('/admin/produccion/preflight'), {
+    overall: 'warn',
+    generated_at: new Date().toISOString(),
+    totals: { ok: 6, warn: 4, fail: 1 },
+    checks: [
+      {
+        status: 'warn',
+        area: 'entorno',
+        titulo: 'Modo demo/desarrollo',
+        detalle: 'Informe de ejemplo sin conexion al backend.',
+        accion_recomendada: 'Conectar backend y revisar el preflight real antes de produccion.',
+      },
+    ],
+    next_steps: [
+      'Validacion juridica RGPD/LOPDGDD.',
+      'Validacion fiscal VERI*FACTU/SIF.',
+      'Prueba de restauracion de backup.',
+    ],
+  });
+}
+
 export async function getAuditLog(params: {
   desde?: string;
   hasta?: string;
@@ -1715,7 +1738,7 @@ export async function updateOdontogramaPieza(odontogramaId: string, piezaFdi: nu
   notas?: string | null;
 }) {
   const fallback = demoOdontograma('demo-pac-1').piezas[0];
-  return withDemoFallback(api.patch<typeof fallback>(`/odontograma/${odontogramaId}/pieza/${piezaFdi}`, data), {
+  return withDemoFallback(api.patch<typeof fallback>(`/odontogramas/${odontogramaId}/piezas/${piezaFdi}`, data), {
     ...fallback,
     odontograma_id: odontogramaId,
     pieza_fdi: piezaFdi,
@@ -1732,7 +1755,7 @@ export async function updateOdontogramaSuperficie(odontogramaId: string, piezaFd
   notas?: string | null;
 }) {
   const fallback = demoOdontograma('demo-pac-1').piezas[0].superficies[0];
-  return withDemoFallback(api.patch<typeof fallback>(`/odontograma/${odontogramaId}/pieza/${piezaFdi}/superficie/${superficie}`, data), {
+  return withDemoFallback(api.patch<typeof fallback>(`/odontogramas/${odontogramaId}/piezas/${piezaFdi}/superficies/${superficie}`, data), {
     ...fallback,
     id: `demo-sup-${piezaFdi}-${superficie}`,
     superficie,
@@ -1744,7 +1767,7 @@ export async function updateOdontogramaSuperficie(odontogramaId: string, piezaFd
 }
 
 export async function getOdontogramaHistorial(odontogramaId: string) {
-  return withDemoFallback(api.get<OdontogramaEvento[]>(`/odontograma/${odontogramaId}/historial`), []);
+  return withDemoFallback(api.get<OdontogramaEvento[]>(`/odontogramas/${odontogramaId}/historial`), []);
 }
 
 export async function duplicateOdontogramaVersion(odontogramaId: string) {
@@ -1760,7 +1783,7 @@ export async function createPresupuestoFromOdontograma(odontogramaId: string, da
   items?: Array<{ pieza_fdi: number; superficie?: OdontogramaSurfaceName | null; tratamiento_id: string; precio_unitario: string | number }>;
   pie_pagina?: string | null;
 }) {
-  return withDemoFallback(api.post<{ presupuesto_id: string; lineas_creadas: number }>(`/odontograma/${odontogramaId}/plan-tratamiento`, data), {
+  return withDemoFallback(api.post<{ presupuesto_id: string; lineas_creadas: number }>(`/odontogramas/${odontogramaId}/generar-presupuesto`, data), {
     presupuesto_id: `demo-pres-${Date.now()}`,
     lineas_creadas: data.items?.length ?? 1,
   });
