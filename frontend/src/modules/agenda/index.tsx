@@ -599,6 +599,60 @@ function BuscarHuecoModal({
   );
 }
 
+function CitasPacienteModal({
+  pacienteId,
+  pacientes,
+  onClose,
+  onSelect,
+}: {
+  pacienteId: string;
+  pacientes: ApiPaciente[];
+  onClose: () => void;
+  onSelect: (cita: Cita) => void;
+}) {
+  const paciente = pacientes.find((item) => item.id === pacienteId);
+  const today = todayIso();
+  const citasPacienteQuery = useQuery({
+    queryKey: ['agenda-citas-paciente', pacienteId],
+    queryFn: () => getCitas({
+      paciente_id: pacienteId,
+      fecha_desde: `${today}T00:00:00`,
+      fecha_hasta: `${addDaysIso(today, 365)}T23:59:59`,
+    }),
+    enabled: Boolean(pacienteId),
+  });
+  const citasPendientes = (citasPacienteQuery.data ?? [])
+    .filter((cita) => !['anulada', 'falta', 'atendida'].includes(cita.estado))
+    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora));
+
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="patient-appointments-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header>
+          <div>
+            <strong>Citas pendientes</strong>
+            <span>{paciente ? `${paciente.apellidos}, ${paciente.nombre}` : 'Paciente seleccionado'}</span>
+          </div>
+          <button type="button" onClick={onClose}>Cerrar</button>
+        </header>
+        <div className="patient-appointments-list">
+          {citasPacienteQuery.isLoading && <p>Buscando proximas citas...</p>}
+          {!citasPacienteQuery.isLoading && citasPendientes.map((cita) => (
+            <button type="button" key={cita.id} onClick={() => onSelect(cita)}>
+              <b>{dateTimeLabel(cita.fecha_hora)}</b>
+              <span>{cita.doctor?.nombre ?? 'Doctor'} - {cita.motivo || 'Cita dental'}</span>
+              <em className={`status-pill status-${cita.estado}`}>{cita.estado}</em>
+            </button>
+          ))}
+          {!citasPacienteQuery.isLoading && !citasPendientes.length && (
+            <p>No hay citas pendientes para este paciente.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function AgendaPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -608,6 +662,7 @@ export default function AgendaPage() {
   const [slotDraft, setSlotDraft] = useState<SlotDraft | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cita: Cita } | null>(null);
   const [showBuscarHueco, setShowBuscarHueco] = useState(false);
+  const [showCitasPaciente, setShowCitasPaciente] = useState(false);
   const [now, setNow] = useState(new Date());
 
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
@@ -845,6 +900,11 @@ export default function AgendaPage() {
   }
 
   function buscarCita() {
+    const selectedPacienteId = sessionStorage.getItem('dentcore_selected_patient_id');
+    if (selectedPacienteId) {
+      setShowCitasPaciente(true);
+      return;
+    }
     const query = window.prompt('Buscar cita por paciente o tratamiento');
     if (!query) return;
     const q = query.toLowerCase();
@@ -1094,6 +1154,20 @@ export default function AgendaPage() {
             setDoctorId(hueco.doctor_id);
             setShowBuscarHueco(false);
             openNew(targetSlot, pacienteId, targetDay, hueco.doctor_id);
+          }}
+        />
+      )}
+
+      {showCitasPaciente && sessionStorage.getItem('dentcore_selected_patient_id') && (
+        <CitasPacienteModal
+          pacienteId={sessionStorage.getItem('dentcore_selected_patient_id')!}
+          pacientes={pacientes}
+          onClose={() => setShowCitasPaciente(false)}
+          onSelect={(cita) => {
+            setDay(cita.fecha_hora.slice(0, 10));
+            setDoctorId(cita.doctor_id);
+            setShowCitasPaciente(false);
+            setModalCita(cita);
           }}
         />
       )}

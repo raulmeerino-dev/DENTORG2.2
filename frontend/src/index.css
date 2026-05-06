@@ -2384,6 +2384,90 @@ body {
   box-shadow: 0 24px 70px rgba(14, 34, 48, .24);
 }
 
+.patient-appointments-modal {
+  width: min(760px, 94vw);
+  max-height: 86vh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #91afc1;
+  border-radius: 14px;
+  background: #f8fbfd;
+  box-shadow: 0 18px 50px rgba(12, 24, 35, .28);
+}
+
+.patient-appointments-modal header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #c7d9e4;
+  background: linear-gradient(180deg, #ffffff, #eaf4f9);
+}
+
+.patient-appointments-modal header strong {
+  display: block;
+  color: #102f43;
+  font-size: 16px;
+}
+
+.patient-appointments-modal header span {
+  color: #60717f;
+  font-weight: 800;
+}
+
+.patient-appointments-modal header button {
+  min-height: 32px;
+  border: 1px solid #b9ccd7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0b547a;
+  font-weight: 900;
+}
+
+.patient-appointments-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding: 12px;
+}
+
+.patient-appointments-list button {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  border: 1px solid #d3e2ea;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: #17364b;
+  text-align: left;
+}
+
+.patient-appointments-list button:hover {
+  border-color: #0f7cad;
+  background: #edf8fd;
+}
+
+.patient-appointments-list b,
+.patient-appointments-list span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-appointments-list p {
+  margin: 0;
+  color: #60717f;
+  font-weight: 800;
+}
+
 .slot-search-modal header {
   display: flex;
   align-items: center;
@@ -4472,7 +4556,7 @@ body {
 
 .patient-dashboard-mode .patient-form-grid {
   height: 100%;
-  grid-template-columns: minmax(260px, .95fr) minmax(330px, 1.15fr) minmax(260px, .9fr);
+  grid-template-columns: minmax(300px, .95fr) minmax(360px, 1.18fr) minmax(300px, .9fr);
   grid-template-rows: 86px minmax(150px, .9fr) minmax(115px, .7fr);
   gap: 8px;
 }
@@ -4506,7 +4590,7 @@ body {
 .patient-dashboard-mode .patient-hero-card {
   grid-column: 1;
   grid-row: 1;
-  grid-template-columns: 48px minmax(0, 1fr) 88px;
+  grid-template-columns: 48px minmax(0, 1fr) 126px;
   gap: 9px;
   padding: 9px;
 }
@@ -4524,6 +4608,8 @@ body {
 
 .patient-dashboard-mode .patient-hero-card button {
   min-height: 30px;
+  padding-inline: 7px;
+  font-size: 11px;
 }
 
 .patient-next-card,
@@ -4669,7 +4755,7 @@ body {
 .patient-last-card footer {
   align-self: end;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .patient-dashboard-mode .patient-history-card {
@@ -4846,9 +4932,17 @@ body {
 .patient-selector-current {
   min-width: 0;
   display: grid;
-  gap: 1px;
+  grid-template-columns: minmax(0, 1fr) 38px;
+  gap: 8px;
+  align-items: center;
   padding-left: 10px;
   border-left: 1px solid #d8e3ea;
+}
+
+.patient-selector-current > div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
 }
 
 .patient-selector-current span {
@@ -4873,6 +4967,55 @@ body {
 
 .patient-selector-current small {
   color: #60717f;
+}
+
+.patient-agenda-shortcut {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #91c5dc;
+  border-radius: 9px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f7cad, #23a373);
+  cursor: pointer;
+}
+
+.patient-agenda-shortcut span {
+  position: relative;
+  width: 18px;
+  height: 17px;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+}
+
+.patient-agenda-shortcut span::before {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 4px;
+  border-top: 2px solid currentColor;
+}
+
+.patient-agenda-shortcut span::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: -5px;
+  width: 8px;
+  height: 5px;
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.patient-agenda-shortcut:hover {
+  filter: brightness(1.04);
+}
+
+.patient-agenda-shortcut:disabled {
+  opacity: .45;
+  cursor: not-allowed;
 }
 
 .patient-module-tabs button {
