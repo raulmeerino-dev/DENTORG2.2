@@ -114,6 +114,22 @@ export interface Cobro {
   motivo_anulacion: string | null;
 }
 
+export interface PagoAnticipadoPaciente {
+  id: string;
+  paciente_id: string;
+  clinica_id?: string | null;
+  fecha: string;
+  importe: string;
+  forma_pago_id: string;
+  forma_pago?: FormaPago | null;
+  usuario_id: string;
+  concepto: string;
+  notas: string | null;
+  anulado_at: string | null;
+  anulado_por_id: string | null;
+  motivo_anulacion: string | null;
+}
+
 export interface FormaPago {
   id: string;
   nombre: string;

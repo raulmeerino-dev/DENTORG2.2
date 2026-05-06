@@ -120,6 +120,38 @@ class Cobro(UUIDMixin, TimestampMixin, Base):
     anulado_por: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[anulado_por_id])  # noqa: F821
 
 
+class PagoAnticipadoPaciente(UUIDMixin, TimestampMixin, Base):
+    """Pagos a cuenta del paciente no vinculados todavia a una factura concreta."""
+    __tablename__ = "pagos_anticipados_paciente"
+
+    paciente_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
+    )
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
+    )
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    importe: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    forma_pago_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("formas_pago.id"), nullable=False
+    )
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=False
+    )
+    concepto: Mapped[str] = mapped_column(String(120), nullable=False, default="Pago anticipado")
+    notas: Mapped[str | None] = mapped_column(Text, nullable=True)
+    anulado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    anulado_por_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True
+    )
+    motivo_anulacion: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    paciente: Mapped["Paciente"] = relationship("Paciente")  # noqa: F821
+    forma_pago: Mapped["FormaPago"] = relationship("FormaPago")
+    usuario: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[usuario_id])  # noqa: F821
+    anulado_por: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[anulado_por_id])  # noqa: F821
+
+
 class DocumentoFiscal(UUIDMixin, TimestampMixin, Base):
     """Documento fiscal emitido y archivado sin regeneracion posterior."""
     __tablename__ = "documentos_fiscales"

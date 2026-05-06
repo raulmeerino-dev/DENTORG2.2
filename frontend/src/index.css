@@ -3792,11 +3792,28 @@ body {
   font-weight: 800;
 }
 
+.advance-payment-row td {
+  color: #08735f;
+  background: rgba(12, 148, 123, 0.08);
+  font-weight: 850;
+}
+
 .payment-label {
   flex: 0 0 auto;
   width: 44px;
   color: #b42318;
   font-weight: 900;
+}
+
+.advance-label {
+  flex: 0 0 auto;
+  width: 58px;
+  color: #08735f;
+  font-weight: 900;
+}
+
+.history-row-context-menu {
+  min-width: 210px;
 }
 
 .history-eurodent-footer {
@@ -5894,6 +5911,15 @@ html[data-theme="dark"] .history-treatment-cell strong {
 
 html[data-theme="dark"] .history-treatment-cell small {
   color: #a8bac8;
+}
+
+html[data-theme="dark"] .advance-payment-row td {
+  color: #7ce2ca;
+  background: rgba(37, 185, 155, 0.12);
+}
+
+html[data-theme="dark"] .advance-label {
+  color: #7ce2ca;
 }
 
 html[data-theme="dark"] .euro-table th,
