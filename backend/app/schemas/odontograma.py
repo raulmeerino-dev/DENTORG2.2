@@ -5,7 +5,15 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-SuperficieDental = Literal["mesial", "distal", "vestibular", "lingual_palatal", "oclusal_incisal", "raiz"]
+SuperficieDental = Literal[
+    "oclusal_incisal",
+    "mesial",
+    "distal",
+    "vestibular",
+    "lingual_palatina",
+    "raiz",
+    "lingual_palatal",
+]
 EstadoOdontograma = Literal[
     "sano",
     "caries",
@@ -17,6 +25,7 @@ EstadoOdontograma = Literal[
     "extraccion_indicada",
     "fractura",
     "movilidad",
+    "protesis",
     "tratamiento_pendiente",
     "tratamiento_realizado",
 ]

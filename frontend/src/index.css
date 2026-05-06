@@ -943,6 +943,24 @@ a {
   font-weight: 700;
 }
 
+.status-pill.ok {
+  color: #0f5132;
+  border-color: #badbcc;
+  background: #d1e7dd;
+}
+
+.status-pill.warn {
+  color: #664d03;
+  border-color: #ffecb5;
+  background: #fff3cd;
+}
+
+.status-pill.fail {
+  color: #842029;
+  border-color: #f5c2c7;
+  background: #f8d7da;
+}
+
 .legal-text {
   line-height: 1.45;
 }
@@ -2809,6 +2827,40 @@ body {
 
 .backup-table {
   margin-top: 14px;
+}
+
+.compact-panel {
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.kpi-row div {
+  display: grid;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1px solid #d6e1e7;
+  background: #f7fbfd;
+}
+
+.kpi-row strong {
+  color: #12364d;
+  font-size: 18px;
+}
+
+.kpi-row span {
+  color: #587084;
+  font-size: 12px;
+}
+
+.compact-table td {
+  vertical-align: top;
 }
 
 .backup-table td:nth-child(5) {

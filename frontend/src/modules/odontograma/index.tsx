@@ -23,7 +23,7 @@ const SURFACES: Array<{ id: OdontogramaSurfaceName; label: string }> = [
   { id: 'mesial', label: 'M' },
   { id: 'distal', label: 'D' },
   { id: 'vestibular', label: 'V' },
-  { id: 'lingual_palatal', label: 'L/P' },
+  { id: 'lingual_palatina', label: 'L/P' },
   { id: 'oclusal_incisal', label: 'O/I' },
   { id: 'raiz', label: 'R' },
 ];
@@ -39,6 +39,7 @@ const STATUSES: Array<{ id: OdontogramaStatus; label: string; color: string }> =
   { id: 'extraccion_indicada', label: 'Extraccion indicada', color: '#dc2626' },
   { id: 'fractura', label: 'Fractura', color: '#be123c' },
   { id: 'movilidad', label: 'Movilidad', color: '#0891b2' },
+  { id: 'protesis', label: 'Protesis', color: '#9b6a32' },
   { id: 'tratamiento_pendiente', label: 'Pendiente', color: '#facc15' },
   { id: 'tratamiento_realizado', label: 'Realizado', color: '#22c55e' },
 ];
@@ -59,6 +60,9 @@ function statusColor(status?: string | null) {
 }
 
 function surfaceFor(piece: OdontogramaPieza | undefined, surface: OdontogramaSurfaceName) {
+  if (surface === 'lingual_palatina') {
+    return piece?.superficies.find((item) => item.superficie === surface || item.superficie === 'lingual_palatal');
+  }
   return piece?.superficies.find((item) => item.superficie === surface);
 }
 
@@ -152,7 +156,7 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
           <path className="tooth-root" style={{ fill: rootColor }} d="M23 47c-5 14-7 28-2 35 5-5 8-15 14-15s9 10 14 15c5-7 3-21-2-35Z" />
           <path className="tooth-crown" style={{ fill: mainColor }} d="M35 6C20 6 12 17 12 33c0 15 8 25 23 25s23-10 23-25C58 17 50 6 35 6Z" />
           <path style={{ fill: statusColor(surfaceFor(piece, 'vestibular')?.condicion) }} d="M18 18c7-7 27-7 34 0-3 7-9 10-17 10s-14-3-17-10Z" />
-          <path style={{ fill: statusColor(surfaceFor(piece, 'lingual_palatal')?.condicion) }} d="M18 46c7 7 27 7 34 0-3-7-9-10-17-10s-14 3-17 10Z" />
+          <path style={{ fill: statusColor(surfaceFor(piece, 'lingual_palatina')?.condicion) }} d="M18 46c7 7 27 7 34 0-3-7-9-10-17-10s-14 3-17 10Z" />
           <path style={{ fill: statusColor(surfaceFor(piece, 'mesial')?.condicion) }} d="M13 31c0-6 2-10 5-13l12 14-12 14c-3-3-5-8-5-15Z" />
           <path style={{ fill: statusColor(surfaceFor(piece, 'distal')?.condicion) }} d="M57 31c0-6-2-10-5-13L40 32l12 14c3-3 5-8 5-15Z" />
           <ellipse style={{ fill: statusColor(surfaceFor(piece, 'oclusal_incisal')?.condicion) }} cx="35" cy="32" rx="10" ry="9" />

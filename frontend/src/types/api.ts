@@ -237,6 +237,22 @@ export interface BackupRegistro {
   finished_at: string | null;
 }
 
+export interface ProductionReadinessCheck {
+  status: 'ok' | 'warn' | 'fail';
+  area: string;
+  titulo: string;
+  detalle: string;
+  accion_recomendada: string;
+}
+
+export interface ProductionReadinessReport {
+  overall: 'ok' | 'warn' | 'fail';
+  generated_at: string;
+  totals: { ok: number; warn: number; fail: number };
+  checks: ProductionReadinessCheck[];
+  next_steps: string[];
+}
+
 export interface AuditLogEntry {
   id: number;
   timestamp: string;
@@ -579,7 +595,7 @@ export interface OdontogramaPlan {
   teeth?: Record<string, { estado: string; superficies: string[]; lineaId?: string }>;
 }
 
-export type OdontogramaSurfaceName = 'mesial' | 'distal' | 'vestibular' | 'lingual_palatal' | 'oclusal_incisal' | 'raiz';
+export type OdontogramaSurfaceName = 'oclusal_incisal' | 'mesial' | 'distal' | 'vestibular' | 'lingual_palatina' | 'raiz' | 'lingual_palatal';
 
 export type OdontogramaStatus =
   | 'sano'
@@ -592,6 +608,7 @@ export type OdontogramaStatus =
   | 'extraccion_indicada'
   | 'fractura'
   | 'movilidad'
+  | 'protesis'
   | 'tratamiento_pendiente'
   | 'tratamiento_realizado';
 

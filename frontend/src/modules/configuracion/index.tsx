@@ -16,6 +16,7 @@ import {
   getFormasPago,
   getHorarios,
   getLaboratorios,
+  getProductionReadiness,
   getTratamientosCatalogo,
   updateDoctor,
   updateHorarioDoctor,
@@ -217,6 +218,7 @@ export default function ConfiguracionPage() {
   const laboratoriosQuery = useQuery({ queryKey: ['laboratorios'], queryFn: () => getLaboratorios({ solo_activos: true }) });
   const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
   const backupsQuery = useQuery({ queryKey: ['backups'], queryFn: getBackups, enabled: tab === 'seguridad' });
+  const readinessQuery = useQuery({ queryKey: ['production-readiness'], queryFn: getProductionReadiness, enabled: tab === 'seguridad' });
 
   const isAdmin = user?.rol === 'admin';
   const canEditClinical = canRoleAccess(user?.rol, ['admin', 'doctor']);
@@ -749,6 +751,36 @@ export default function ConfiguracionPage() {
             <div><strong>Backups</strong><span>Backup automatico diario, archivo cifrado, hash SHA-256, registro de estado y verificacion.</span><em>Activo</em></div>
             <div><strong>Facturacion</strong><span>Facturas selladas sin borrado destructivo, RF encadenado y PDF fiscal persistido.</span><em>SIF</em></div>
             <div><strong>Auditoria</strong><span>Registro de acciones criticas, accesos a datos sensibles y cambios de agenda/documentos.</span><em>Activo</em></div>
+          </div>
+          <div className="desk-panel compact-panel">
+            <div className="panel-caption">
+              <strong>Preflight comercial</strong>
+              <span className={`status-pill ${readinessQuery.data?.overall ?? 'warn'}`}>
+                {readinessQuery.data?.overall === 'ok' && 'Listo'}
+                {readinessQuery.data?.overall === 'warn' && 'Revisar'}
+                {readinessQuery.data?.overall === 'fail' && 'Bloqueante'}
+                {!readinessQuery.data && 'Cargando'}
+              </span>
+            </div>
+            <div className="kpi-row">
+              <div><strong>{readinessQuery.data?.totals.ok ?? '-'}</strong><span>Correctos</span></div>
+              <div><strong>{readinessQuery.data?.totals.warn ?? '-'}</strong><span>Avisos</span></div>
+              <div><strong>{readinessQuery.data?.totals.fail ?? '-'}</strong><span>Bloqueos</span></div>
+            </div>
+            <table className="euro-table compact-table">
+              <thead><tr><th>Area</th><th>Estado</th><th>Revision</th><th>Accion</th></tr></thead>
+              <tbody>
+                {(readinessQuery.data?.checks ?? []).map((check) => (
+                  <tr key={`${check.area}-${check.titulo}`}>
+                    <td>{check.area}</td>
+                    <td><span className={`status-pill ${check.status}`}>{check.status}</span></td>
+                    <td><strong>{check.titulo}</strong><br /><span>{check.detalle}</span></td>
+                    <td>{check.accion_recomendada}</td>
+                  </tr>
+                ))}
+                {!readinessQuery.isLoading && !(readinessQuery.data?.checks ?? []).length && <tr><td colSpan={4}>Sin informe de preflight.</td></tr>}
+              </tbody>
+            </table>
           </div>
           <table className="euro-table backup-table">
             <thead><tr><th>Inicio</th><th>Estado</th><th>Tamaño</th><th>Cifrado</th><th>Hash</th><th></th></tr></thead>

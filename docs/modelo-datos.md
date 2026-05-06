@@ -67,3 +67,4 @@
 - `0020_inventario_pedidos.py`: inventario, proveedores y pedidos.
 - `0021_consentimientos_versionados.py`: consentimientos/firma.
 - `0022_facturacion_flujo_clinico.py`: flujo de presupuestos, pagos y facturacion.
+- `0023_normaliza_superficie_odontograma.py`: compatibilidad y normalizacion de `lingual_palatal` a `lingual_palatina`.

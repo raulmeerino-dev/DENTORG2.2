@@ -10,6 +10,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, Response
+from PIL import Image as PILImage, ImageFile
 from pydantic import BaseModel, Field
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
@@ -185,6 +186,21 @@ def _firma_png_bytes(data_url: str | None) -> bytes | None:
         raise HTTPException(status_code=422, detail="Firma digital no válida") from exc
 
 
+def _firma_png_normalizada(data_url: str | None) -> bytes | None:
+    raw = _firma_png_bytes(data_url)
+    if not raw:
+        return None
+    try:
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
+        image = PILImage.open(BytesIO(raw))
+        image.load()
+        output = BytesIO()
+        image.convert("RGBA").save(output, format="PNG")
+        return output.getvalue()
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail="Firma digital no valida") from exc
+
+
 def _ruta_paciente(paciente_id: uuid.UUID) -> Path:
     path = UPLOAD_ROOT / str(paciente_id)
     path.mkdir(parents=True, exist_ok=True)
@@ -231,7 +247,7 @@ def _generar_pdf_consentimiento(consentimiento: Consentimiento, paciente: Pacien
             story.append(Paragraph(texto, styles["BodyText"]))
             story.append(Spacer(1, 4 * mm))
 
-    firma = _firma_png_bytes(consentimiento.firma_paciente_base64)
+    firma = _firma_png_normalizada(consentimiento.firma_paciente_base64)
     if firma:
         story.append(Spacer(1, 8 * mm))
         story.append(Paragraph("Firma del paciente", styles["Heading3"]))

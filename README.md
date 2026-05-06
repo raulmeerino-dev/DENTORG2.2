@@ -66,6 +66,7 @@ Nota: los tests backend necesitan PostgreSQL accesible segun `TEST_DATABASE_URL`
 - [Modulos](docs/modulos.md)
 - [Despliegue](docs/despliegue.md)
 - [Testing](docs/testing.md)
+- [Comercializacion y preparacion legal](docs/comercializacion.md)
 
 ## Estado actual
 
@@ -82,4 +83,4 @@ Se han completado las fases principales hasta UX general:
 9. Portal paciente basico.
 10. Limpieza UX general.
 
-Queda la fase final de entrega: build final, revision, commit/subida y lista de riesgos pendientes.
+Para preparar una salida comercial, revisar `Ajustes generales > Seguridad/Backups > Preflight comercial` y cerrar los puntos legales/fiscales indicados en la documentacion.

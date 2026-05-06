@@ -10,7 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -27,6 +27,7 @@ from app.models.usuario import Usuario
 from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
 from app.schemas.extras import BackupRegistroResponse
 from app.services.backup_service import crear_backup_cifrado, verificar_backup_archivo
+from app.services.production_readiness import build_production_readiness_report
 from app.services.verifactu_service import registrar_evento_sif
 from app.services.verifactu_service import obtener_resumen_cumplimiento_sif
 
@@ -385,3 +386,32 @@ async def verificar_backup(
     if not registro:
         raise HTTPException(status_code=404, detail="Backup no encontrado")
     return verificar_backup_archivo(registro)
+
+
+@router.get("/produccion/preflight", dependencies=[RequireAdmin])
+async def obtener_preflight_produccion(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    audit_events = await db.scalar(select(func.count()).select_from(AuditLog)) or 0
+    rf_count = await db.scalar(select(func.count()).select_from(RegistroFacturacion)) or 0
+    sif_event_count = await db.scalar(select(func.count()).select_from(RegistroEventoSIF)) or 0
+    ultimo_backup = (
+        await db.execute(
+            select(BackupRegistro).order_by(BackupRegistro.started_at.desc()).limit(1)
+        )
+    ).scalar_one_or_none()
+
+    return build_production_readiness_report(
+        settings,
+        audit_events=audit_events,
+        rf_count=rf_count,
+        sif_event_count=sif_event_count,
+        last_backup={
+            "estado": ultimo_backup.estado,
+            "started_at": ultimo_backup.started_at,
+            "cifrado": ultimo_backup.cifrado,
+            "hash_sha256": ultimo_backup.hash_sha256,
+        }
+        if ultimo_backup
+        else None,
+    )

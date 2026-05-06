@@ -44,8 +44,13 @@ async def _get_portal_paciente(
             detail = "Seleccione un paciente para previsualizar el portal."
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
-    paciente = await db.get(Paciente, paciente_id)
-    if not paciente or paciente.deleted_at is not None:
+    result = await db.execute(
+        select(Paciente)
+        .options(selectinload(Paciente.referencias))
+        .where(Paciente.id == paciente_id)
+    )
+    paciente = result.scalar_one_or_none()
+    if not paciente or getattr(paciente, "deleted_at", None) is not None or paciente.activo is False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)
     return paciente

@@ -36,7 +36,8 @@ ADULT_TEETH = (
     48, 47, 46, 45, 44, 43, 42, 41,
     31, 32, 33, 34, 35, 36, 37, 38,
 )
-SURFACES = ("mesial", "distal", "vestibular", "lingual_palatal", "oclusal_incisal", "raiz")
+SURFACES = ("oclusal_incisal", "mesial", "distal", "vestibular", "lingual_palatina", "raiz")
+SURFACE_ALIASES = {"lingual_palatal": "lingual_palatina"}
 MODIFY_ROLES = {"admin", "doctor", "auxiliar"}
 
 
@@ -176,9 +177,22 @@ def _surface_code(superficie: str | None) -> str | None:
         "distal": "D",
         "vestibular": "V",
         "lingual_palatal": "L",
+        "lingual_palatina": "L",
         "oclusal_incisal": "O",
         "raiz": "R",
     }.get(superficie or "")
+
+
+def _normalize_superficie(superficie: str) -> str:
+    normalized = SURFACE_ALIASES.get(superficie, superficie)
+    if normalized not in SURFACES:
+        raise HTTPException(status_code=422, detail="Superficie dental no valida")
+    return normalized
+
+
+def _validate_adult_tooth(pieza_fdi: int) -> None:
+    if pieza_fdi not in ADULT_TEETH:
+        raise HTTPException(status_code=422, detail="Pieza FDI adulta no valida")
 
 
 @router.get("/pacientes/{paciente_id}/odontograma", response_model=OdontogramaResponse)
@@ -228,6 +242,7 @@ async def crear_odontograma_paciente(
 
 
 @router.patch("/odontograma/{odontograma_id}/pieza/{pieza_fdi}", response_model=OdontogramaPiezaResponse)
+@router.patch("/odontogramas/{odontograma_id}/piezas/{pieza_fdi}", response_model=OdontogramaPiezaResponse)
 async def actualizar_pieza(
     odontograma_id: UUID,
     pieza_fdi: int,
@@ -238,8 +253,7 @@ async def actualizar_pieza(
 ) -> OdontogramaPiezaResponse:
     _ensure_clinical_access(current_user)
     _ensure_modify_access(current_user)
-    if pieza_fdi not in ADULT_TEETH and not 51 <= pieza_fdi <= 85:
-        raise HTTPException(status_code=422, detail="Pieza FDI no valida")
+    _validate_adult_tooth(pieza_fdi)
     odontograma = await _load_odontograma(db, odontograma_id, current_user)
     piece = await _get_or_create_piece(db, odontograma, pieza_fdi)
     old = {"estado_general": piece.estado_general, "notas": piece.notas}
@@ -279,6 +293,10 @@ async def actualizar_pieza(
     "/odontograma/{odontograma_id}/pieza/{pieza_fdi}/superficie/{superficie}",
     response_model=OdontogramaSuperficieResponse,
 )
+@router.patch(
+    "/odontogramas/{odontograma_id}/piezas/{pieza_fdi}/superficies/{superficie}",
+    response_model=OdontogramaSuperficieResponse,
+)
 async def actualizar_superficie(
     odontograma_id: UUID,
     pieza_fdi: int,
@@ -290,20 +308,20 @@ async def actualizar_superficie(
 ) -> OdontogramaSuperficieResponse:
     _ensure_clinical_access(current_user)
     _ensure_modify_access(current_user)
-    if pieza_fdi not in ADULT_TEETH and not 51 <= pieza_fdi <= 85:
-        raise HTTPException(status_code=422, detail="Pieza FDI no valida")
+    _validate_adult_tooth(pieza_fdi)
+    superficie_normalizada = _normalize_superficie(superficie)
     odontograma = await _load_odontograma(db, odontograma_id, current_user)
     piece = await _get_or_create_piece(db, odontograma, pieza_fdi)
 
     result = await db.execute(
         select(OdontogramaSuperficie).where(
             OdontogramaSuperficie.pieza_id == piece.id,
-            OdontogramaSuperficie.superficie == superficie,
+            OdontogramaSuperficie.superficie == superficie_normalizada,
         )
     )
     surface = result.scalar_one_or_none()
     if not surface:
-        surface = OdontogramaSuperficie(pieza_id=piece.id, superficie=superficie)
+        surface = OdontogramaSuperficie(pieza_id=piece.id, superficie=superficie_normalizada)
         db.add(surface)
         await db.flush()
     old = {
@@ -327,7 +345,7 @@ async def actualizar_superficie(
         user=current_user,
         action="actualizar_superficie",
         pieza_fdi=pieza_fdi,
-        superficie=superficie,
+        superficie=superficie_normalizada,
         old_values=old,
         new_values={k: str(v) if isinstance(v, UUID) else v for k, v in changes.items()},
     )
@@ -348,6 +366,7 @@ async def actualizar_superficie(
 
 
 @router.post("/odontograma/{odontograma_id}/plan-tratamiento", response_model=PlanTratamientoResponse, status_code=201)
+@router.post("/odontogramas/{odontograma_id}/generar-presupuesto", response_model=PlanTratamientoResponse, status_code=201)
 async def crear_presupuesto_desde_plan(
     odontograma_id: UUID,
     data: PlanTratamientoCreate,
@@ -419,6 +438,7 @@ async def crear_presupuesto_desde_plan(
 
 
 @router.get("/odontograma/{odontograma_id}/historial", response_model=list[OdontogramaEventoResponse])
+@router.get("/odontogramas/{odontograma_id}/historial", response_model=list[OdontogramaEventoResponse])
 async def historial_odontograma(
     odontograma_id: UUID,
     current_user: CurrentUser,
