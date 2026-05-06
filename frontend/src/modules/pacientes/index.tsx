@@ -1155,6 +1155,7 @@ function EurodentHistoryBillingPanel({
   onHistorialFacturas,
   onAddAnticipo,
   onEditAnticipo,
+  onCobrarImporte,
   onOrtodoncia,
   onRecibos,
   onContextFactura,
@@ -1168,13 +1169,14 @@ function EurodentHistoryBillingPanel({
   onHistorialFacturas: () => void;
   onAddAnticipo: () => void;
   onEditAnticipo: (anticipo: PagoAnticipadoPaciente) => void;
+  onCobrarImporte: (factura: Factura) => void;
   onOrtodoncia: () => void;
   onRecibos: () => void;
   onContextFactura: (event: MouseEvent, factura: Factura) => void;
 }) {
   const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, anticipos), [historial, facturas, anticipos]);
   const [hideZeros, setHideZeros] = useState(false);
-  const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow } | null>(null);
+  const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow | null } | null>(null);
   const [invoiceMenuOpen, setInvoiceMenuOpen] = useState(false);
   const displayRows = useMemo(
     () => (hideZeros ? rows.filter((row) => row.importe !== 0 || row.cobrado !== 0 || row.saldo !== 0) : rows),
@@ -1188,6 +1190,27 @@ function EurodentHistoryBillingPanel({
   const currentDoctor = selectedRow?.kind === 'tratamiento'
     ? historial.find((entrada) => `hist-${entrada.id}` === selectedRow.id)?.doctor?.nombre
     : doctores[0];
+
+  function openBlankHistoryMenu(event: MouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest('tr')) return;
+    event.preventDefault();
+    setHistoryMenu({ x: event.clientX, y: event.clientY, row: null });
+  }
+
+  function handleCobradoDoubleClick(event: MouseEvent<HTMLTableCellElement>, row: HistoryBillingRow) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (row.anticipoItem) {
+      onEditAnticipo(row.anticipoItem);
+      return;
+    }
+    if (row.facturaItem) {
+      onCobrarImporte(row.facturaItem);
+      return;
+    }
+    onAddAnticipo();
+  }
 
   useEffect(() => {
     if (!selectedId && defaultSelectedRow) setSelectedId(defaultSelectedRow.id);
@@ -1214,7 +1237,7 @@ function EurodentHistoryBillingPanel({
         </label>
       </div>
 
-      <div className="history-ledger-scroll" aria-label="Historial y facturacion con desplazamiento">
+      <div className="history-ledger-scroll" aria-label="Historial y facturacion con desplazamiento" onContextMenu={openBlankHistoryMenu}>
         <table className="euro-table history-ledger-table">
           <thead>
             <tr>
@@ -1259,7 +1282,7 @@ function EurodentHistoryBillingPanel({
                 <td>{row.doc}</td>
                 <td>{row.gabinete}</td>
                 <td className="num">{row.importe ? money(row.importe) : '0,00'}</td>
-                <td className="num">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
+                <td className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para añadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
                 <td className="num">{money(row.saldo)}</td>
               </tr>
             ))}
@@ -1301,11 +1324,14 @@ function EurodentHistoryBillingPanel({
         <div className="context-menu patient-context-menu history-row-context-menu" style={{ left: historyMenu.x, top: historyMenu.y }}>
           <strong>Historial / facturación</strong>
           <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Añadir pago / anticipo</button>
-          {historyMenu.row.anticipoItem && (
-            <button onClick={() => { onEditAnticipo(historyMenu.row.anticipoItem!); setHistoryMenu(null); }}>Editar anticipo seleccionado</button>
+          {historyMenu.row?.anticipoItem && (
+            <button onClick={() => { onEditAnticipo(historyMenu.row!.anticipoItem!); setHistoryMenu(null); }}>Editar anticipo seleccionado</button>
           )}
-          {historyMenu.row.facturaItem && (
-            <button onClick={(event) => { onContextFactura(event as unknown as MouseEvent, historyMenu.row.facturaItem!); setHistoryMenu(null); }}>Opciones de factura</button>
+          {historyMenu.row?.facturaItem && (
+            <>
+              <button onClick={() => { onCobrarImporte(historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Añadir cobro a esta factura</button>
+              <button onClick={(event) => { onContextFactura(event as unknown as MouseEvent, historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Opciones de factura</button>
+            </>
           )}
           <button onClick={() => setHistoryMenu(null)}>Cerrar</button>
         </div>
@@ -2210,6 +2236,25 @@ export default function PacientesPage() {
     },
   });
 
+  const cobrarImporteFactura = useMutation({
+    mutationFn: async (factura: Factura) => {
+      const forma = formasPagoQuery.data?.[0];
+      if (!forma) throw new Error('No hay formas de pago configuradas');
+      const pendiente = Math.max(0, Number(factura.pendiente) || 0);
+      const suggested = pendiente > 0 ? pendiente : Number(factura.total) || 0;
+      const importeRaw = window.prompt('Importe cobrado para esta factura/tratamiento', String(suggested).replace('.', ','));
+      if (importeRaw === null) throw new Error('Cancelado');
+      const importe = Number(importeRaw.replace(',', '.'));
+      if (!Number.isFinite(importe) || importe <= 0) throw new Error('Importe no valido');
+      return registrarCobro(factura.id, forma.id, importe);
+    },
+    onSuccess: () => {
+      void facturasQuery.refetch();
+      void saldoQuery.refetch();
+      setTab('facturacion');
+    },
+  });
+
   const crearPagoAnticipado = useMutation({
     mutationFn: async () => {
       if (!active) throw new Error('Sin paciente');
@@ -2586,6 +2631,7 @@ export default function PacientesPage() {
             onCobrar={() => cobrarFactura.mutate()}
             onAddAnticipo={() => crearPagoAnticipado.mutate()}
             onEditAnticipo={(pago) => editarPagoAnticipado.mutate(pago)}
+            onCobrarImporte={(factura) => cobrarImporteFactura.mutate(factura)}
             onOrtodoncia={() => setTab('realizados')}
             onRecibos={abrirRecibos}
             onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
