@@ -7,10 +7,12 @@ export default function MainNav() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [theme, setTheme] = useState(() => localStorage.getItem('dentcore-theme') ?? 'light');
+  const [now, setNow] = useState(() => new Date());
   const navItems = WORKFLOW_ITEMS.filter((item) => item.route && canAccess(user?.rol, item));
   const dailyItems = navItems.filter((item) => ['dashboard', 'pacientes', 'agenda'].includes(item.id));
   const adminItems = navItems.filter((item) => !['dashboard', 'pacientes', 'agenda'].includes(item.id));
-  const today = new Date().toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' });
+  const nowLabel = now.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
+    + ` ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
   const isDark = theme === 'dark';
   const isAdminArea = adminItems.some((item) => item.route && location.pathname.startsWith(item.route));
   const adminHome = adminItems.find((item) => item.id === 'ficheros') ?? adminItems[0];
@@ -20,12 +22,16 @@ export default function MainNav() {
     localStorage.setItem('dentcore-theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
     <header className="euro-shell-header">
       <div className="euro-titlebar">
-        <strong>DentCore Clinic</strong>
+        <strong>DentCore Clinic <span className="title-clock">{nowLabel}</span></strong>
         <span>Clinica actual: CLINICA DENTAL</span>
-        <span>{today}</span>
         <span className="role-chip">{user?.nombre} - {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
         <button
           type="button"
