@@ -26,3 +26,4 @@ Thumbs.db
 
 # Local assistant/runtime folders
 .claude/
+.playwright-cli/

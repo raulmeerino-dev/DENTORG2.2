@@ -3812,6 +3812,17 @@ body {
   font-weight: 900;
 }
 
+.editable-cobrado-cell {
+  cursor: pointer;
+  text-decoration: underline dotted rgba(11, 113, 137, 0.45);
+  text-underline-offset: 3px;
+}
+
+.editable-cobrado-cell:hover {
+  color: #0b7189;
+  background: rgba(11, 113, 137, 0.08);
+}
+
 .history-row-context-menu {
   min-width: 210px;
 }
