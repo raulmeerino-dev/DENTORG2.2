@@ -786,63 +786,248 @@ function TreatmentBoard({
   );
 }
 
-function BillingHistory({
+type HistoryBillingRow = {
+  id: string;
+  kind: 'tratamiento' | 'cobro' | 'factura';
+  date: string;
+  tratamiento: string;
+  pieza: string;
+  fp: string;
+  entidad: string;
+  factura: string;
+  recibo: string;
+  doc: string;
+  gabinete: string;
+  importe: number;
+  cobrado: number;
+  saldo: number;
+  comentario: string;
+  estado: string;
+  treatment?: TreatmentVisual;
+  facturaItem?: Factura;
+};
+
+function asNumber(value?: string | number | null) {
+  return Number(value ?? 0) || 0;
+}
+
+function sortByDate(a: { date: string }, b: { date: string }) {
+  return a.date.localeCompare(b.date);
+}
+
+function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[]) {
+  const rows: Omit<HistoryBillingRow, 'saldo'>[] = [];
+
+  historial.forEach((entrada) => {
+    const factura = entrada.factura_id ? facturas.find((item) => item.id === entrada.factura_id) : undefined;
+    rows.push({
+      id: `hist-${entrada.id}`,
+      kind: 'tratamiento',
+      date: entrada.fecha,
+      tratamiento: entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental',
+      pieza: entrada.pieza_dental ? String(entrada.pieza_dental) : '',
+      fp: 'TC',
+      entidad: '',
+      factura: factura ? `${factura.serie}/${factura.numero}` : entrada.factura_id ? 'Si' : 'No',
+      recibo: 'No',
+      doc: entrada.doctor?.nombre?.replace(/\D/g, '').slice(-3).padStart(3, '0') || '',
+      gabinete: entrada.gabinete_id ? String(entrada.gabinete_id).slice(0, 3) : '',
+      importe: asNumber(entrada.importe),
+      cobrado: 0,
+      comentario: entrada.observaciones || entrada.diagnostico || '',
+      estado: entrada.estado,
+      treatment: entrada.tratamiento,
+      facturaItem: factura,
+    });
+  });
+
+  facturas.forEach((factura) => {
+    const linkedHistory = historial.find((entrada) => entrada.factura_id === factura.id);
+    if (!linkedHistory && factura.lineas.length) {
+      rows.push({
+        id: `fac-${factura.id}`,
+        kind: 'factura',
+        date: factura.fecha,
+        tratamiento: factura.lineas[0]?.concepto ?? 'Factura dental',
+        pieza: '',
+        fp: 'TC',
+        entidad: '',
+        factura: `${factura.serie}/${factura.numero}`,
+        recibo: 'No',
+        doc: '004',
+        gabinete: '',
+        importe: asNumber(factura.total),
+        cobrado: 0,
+        comentario: factura.estado,
+        estado: factura.estado,
+        treatment: null,
+        facturaItem: factura,
+      });
+    }
+
+    factura.cobros.forEach((cobro) => {
+      rows.push({
+        id: `cobro-${cobro.id}`,
+        kind: 'cobro',
+        date: cobro.fecha,
+        tratamiento: cobro.anulado_at ? 'Cobro anulado' : 'Cobro',
+        pieza: '0',
+        fp: 'TC',
+        entidad: '',
+        factura: `${factura.serie}/${factura.numero}`,
+        recibo: 'No',
+        doc: '004',
+        gabinete: '',
+        importe: 0,
+        cobrado: cobro.anulado_at ? 0 : asNumber(cobro.importe),
+        comentario: cobro.motivo_anulacion || cobro.notas || '',
+        estado: cobro.anulado_at ? 'anulado' : 'cobrado',
+        treatment: null,
+        facturaItem: factura,
+      });
+    });
+  });
+
+  let saldo = 0;
+  return rows
+    .sort(sortByDate)
+    .map((row) => {
+      saldo += row.importe - row.cobrado;
+      return { ...row, saldo };
+    });
+}
+
+function EurodentHistoryBillingPanel({
+  paciente,
+  historial,
   facturas,
+  onFacturar,
   onCobrar,
   onOrtodoncia,
   onRecibos,
   onContextFactura,
 }: {
+  paciente: ApiPaciente | null;
+  historial: HistorialClinico[];
   facturas: Factura[];
+  onFacturar: () => void;
   onCobrar: () => void;
   onOrtodoncia: () => void;
   onRecibos: () => void;
   onContextFactura: (event: MouseEvent, factura: Factura) => void;
 }) {
+  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas), [historial, facturas]);
+  const [hideZeros, setHideZeros] = useState(false);
+  const displayRows = useMemo(
+    () => (hideZeros ? rows.filter((row) => row.importe !== 0 || row.cobrado !== 0 || row.saldo !== 0) : rows),
+    [hideZeros, rows],
+  );
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const defaultSelectedRow = [...displayRows].reverse().find((row) => row.kind === 'tratamiento') ?? displayRows[displayRows.length - 1] ?? null;
+  const selectedRow = displayRows.find((row) => row.id === selectedId) ?? defaultSelectedRow;
+  const selectedFactura = selectedRow?.facturaItem ?? facturas[0] ?? null;
+  const doctores = Array.from(new Set(historial.map((entrada) => entrada.doctor?.nombre).filter(Boolean))) as string[];
+  const currentDoctor = selectedRow?.kind === 'tratamiento'
+    ? historial.find((entrada) => `hist-${entrada.id}` === selectedRow.id)?.doctor?.nombre
+    : doctores[0];
+
+  useEffect(() => {
+    if (!selectedId && defaultSelectedRow) setSelectedId(defaultSelectedRow.id);
+    if (selectedId && defaultSelectedRow && !displayRows.some((row) => row.id === selectedId)) setSelectedId(defaultSelectedRow.id);
+  }, [defaultSelectedRow, displayRows, selectedId]);
+
   return (
-    <div className="billing-panel">
-      <table className="euro-table billing-table">
-        <thead>
-          <tr>
-            <th>Fecha</th><th>Tratamiento</th><th>Pieza</th><th>FP</th><th>Factura</th><th>Recibo</th>
-            <th>Doc.</th><th>Gab.</th><th>Importe</th><th>Cobrado</th><th>Saldo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {facturas.map((factura, index) => (
-            <tr
-              key={factura.id}
-              className={index === facturas.length - 1 ? 'selected-row' : ''}
-              onContextMenu={(event) => onContextFactura(event, factura)}
-            >
-              <td>{formatDate(factura.fecha)}</td>
-              <td>{factura.lineas[0]?.concepto ?? 'Tratamiento dental'}</td>
-              <td>{factura.lineas[0]?.concepto_ficticio ?? ''}</td>
-              <td>TC</td>
-              <td>{factura.serie}/{factura.numero}</td>
-              <td>No</td>
-              <td>004</td>
-              <td>002</td>
-              <td className="num">{money(factura.total)}</td>
-              <td className="num">{money(factura.total_cobrado)}</td>
-              <td className="num">{money(factura.pendiente)}</td>
-            </tr>
-          ))}
-          {!facturas.length && (
-            <tr><td colSpan={11}>Sin movimientos de facturacion.</td></tr>
-          )}
-        </tbody>
-      </table>
-      <div className="history-footer">
-        <label>Observaciones: <textarea readOnly value="" /></label>
-        <button onClick={onOrtodoncia}>C.Ortod.</button>
-        <button onClick={() => facturas[0] && window.open(facturaPdfUrl(facturas[0].id), '_blank')}>Imprimir</button>
-        <button onClick={onCobrar}>Cobrar</button>
-        <button onClick={() => facturas[0] && window.open(facturaPdfUrl(facturas[0].id), '_blank')}>Facturas</button>
-        <button onClick={() => facturas[0] && void emitirRecetaPdf(facturas[0].id)}>Emitir receta</button>
-        <button onClick={onRecibos}>Recibos</button>
+    <section className="history-billing-eurodent">
+      <div className="history-eurodent-head">
+        <label>
+          Nombre
+          <input readOnly value={paciente ? `${paciente.apellidos}, ${paciente.nombre}` : ''} />
+        </label>
+        <label className="short">
+          N Historial
+          <input readOnly value={paciente?.num_historial ?? ''} />
+        </label>
+        <label>
+          Doctor
+          <select value={currentDoctor ?? ''} onChange={() => undefined}>
+            <option value="">Sin doctor</option>
+            {doctores.map((doctor) => <option key={doctor} value={doctor}>{doctor}</option>)}
+          </select>
+        </label>
       </div>
-    </div>
+
+      <div className="history-ledger-scroll" aria-label="Historial y facturacion con desplazamiento">
+        <table className="euro-table history-ledger-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tratamiento</th>
+              <th>Pieza</th>
+              <th>FP</th>
+              <th>Entidad</th>
+              <th>Factura</th>
+              <th>Recibo</th>
+              <th>Doc.</th>
+              <th>Gab.</th>
+              <th>Importe</th>
+              <th>Cobrado</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((row) => (
+              <tr
+                key={row.id}
+                className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}${row.kind === 'cobro' ? 'payment-row ' : 'treatment-coded-row '}`}
+                style={{ '--treatment-color': colorForTreatment(row.treatment) } as CSSProperties}
+                onClick={() => setSelectedId(row.id)}
+                onContextMenu={(event) => row.facturaItem && onContextFactura(event, row.facturaItem)}
+              >
+                <td>{formatDate(row.date)}</td>
+                <td className="history-treatment-cell">
+                  {row.kind === 'cobro' ? <span className="payment-label">Cobro</span> : <TreatmentBadge tratamiento={row.treatment} />}
+                  <strong>{row.tratamiento}</strong>
+                  {row.comentario && <small>{row.comentario}</small>}
+                </td>
+                <td>{row.pieza}</td>
+                <td>{row.fp}</td>
+                <td>{row.entidad}</td>
+                <td>{row.factura}</td>
+                <td>{row.recibo}</td>
+                <td>{row.doc}</td>
+                <td>{row.gabinete}</td>
+                <td className="num">{row.importe ? money(row.importe) : '0,00'}</td>
+                <td className="num">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
+                <td className="num">{money(row.saldo)}</td>
+              </tr>
+            ))}
+            {!displayRows.length && <tr><td colSpan={12}>Sin movimientos visibles de historial o facturacion.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="history-eurodent-footer">
+        <label className="history-comments">
+          <span>Observaciones tratamiento</span>
+          <textarea
+            readOnly
+            value={selectedRow?.comentario || 'Sin observaciones especificas para esta linea.'}
+          />
+        </label>
+        <label className="history-toggle">
+          <input type="checkbox" checked={hideZeros} onChange={(event) => setHideZeros(event.currentTarget.checked)} />
+          Ocultar 0's
+        </label>
+        <div className="history-action-buttons">
+          <button onClick={onOrtodoncia}>C.Ortod.</button>
+          <button onClick={() => selectedFactura && window.open(facturaPdfUrl(selectedFactura.id), '_blank')} disabled={!selectedFactura}>Imprimir</button>
+          <button onClick={onCobrar}>Cobrar</button>
+          <button onClick={onFacturar}>Facturas</button>
+          <button onClick={() => selectedFactura && void emitirRecetaPdf(selectedFactura.id)} disabled={!selectedFactura}>Receta</button>
+          <button onClick={onRecibos}>Recibos</button>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -1799,22 +1984,16 @@ export default function PacientesPage() {
         )}
         {tab === 'citas' && <CitasPacientePanel citas={citasPacienteQuery.data ?? []} />}
         {tab === 'facturacion' && (
-          <div className="historial-facturacion-workspace">
-            <ClinicalHistoryPanel
-              historial={historialQuery.data ?? []}
-              onFacturar={() => emitirFactura.mutate()}
-              onCobrar={() => cobrarFactura.mutate()}
-              onVerDeuda={verSaldoPaciente}
-              onAsociarFactura={asociarFactura}
-            />
-            <BillingHistory
-              facturas={facturas}
-              onCobrar={() => cobrarFactura.mutate()}
-              onOrtodoncia={() => setTab('realizados')}
-              onRecibos={abrirRecibos}
-              onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
-            />
-          </div>
+          <EurodentHistoryBillingPanel
+            paciente={active}
+            historial={historialQuery.data ?? []}
+            facturas={facturas}
+            onFacturar={() => emitirFactura.mutate()}
+            onCobrar={() => cobrarFactura.mutate()}
+            onOrtodoncia={() => setTab('realizados')}
+            onRecibos={abrirRecibos}
+            onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
+          />
         )}
         {tab === 'consentimientos' && (
           <ConsentimientosPanel
