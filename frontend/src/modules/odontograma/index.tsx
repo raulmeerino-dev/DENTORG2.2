@@ -49,6 +49,7 @@ interface Props {
   tratamientos: TratamientoCatalogo[];
   doctorId?: string | null;
   onPresupuestoCreado?: () => void;
+  context?: 'paciente' | 'presupuesto';
 }
 
 function pieceMap(odontograma?: OdontogramaPaciente) {
@@ -78,7 +79,7 @@ function shortDate(value: string) {
   return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
-export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onPresupuestoCreado }: Props) {
+export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onPresupuestoCreado, context = 'paciente' }: Props) {
   const queryClient = useQueryClient();
   const [selectedTooth, setSelectedTooth] = useState<number>(24);
   const [selectedSurface, setSelectedSurface] = useState<OdontogramaSurfaceName>('oclusal_incisal');
@@ -144,23 +145,44 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
     const mainColor = statusColor(piece?.estado_general);
     const selected = selectedTooth === fdi;
     const rootColor = statusColor(surfaceFor(piece, 'raiz')?.condicion);
+    const upper = UPPER.includes(fdi);
+    const rootPath = upper
+      ? 'M22 67C14 48 12 24 20 8c5 14 8 31 15 31S45 22 50 8c8 16 6 40-2 59Z'
+      : 'M22 51c-8 19-10 43-2 59 5-14 8-31 15-31s10 17 15 31c8-16 6-40-2-59Z';
+    const crownPath = upper
+      ? 'M35 55c-16 0-25 11-25 28 0 16 9 27 25 27s25-11 25-27c0-17-9-28-25-28Z'
+      : 'M35 8C19 8 10 19 10 36c0 16 9 27 25 27s25-11 25-27C60 19 51 8 35 8Z';
+    const vestibularPath = upper
+      ? 'M18 69c7-7 27-7 34 0-3 7-9 10-17 10s-14-3-17-10Z'
+      : 'M18 20c7-7 27-7 34 0-3 7-9 10-17 10s-14-3-17-10Z';
+    const lingualPath = upper
+      ? 'M18 98c7 7 27 7 34 0-3-7-9-10-17-10s-14 3-17 10Z'
+      : 'M18 51c7 7 27 7 34 0-3-7-9-10-17-10s-14 3-17 10Z';
+    const mesialPath = upper
+      ? 'M11 82c0-6 3-11 7-13l12 14-12 15c-4-3-7-8-7-16Z'
+      : 'M11 34c0-6 3-11 7-14l12 15-12 15c-4-3-7-8-7-16Z';
+    const distalPath = upper
+      ? 'M59 82c0-6-3-11-7-13L40 83l12 15c4-3 7-8 7-16Z'
+      : 'M59 34c0-6-3-11-7-14L40 35l12 15c4-3 7-8 7-16Z';
+    const occlusalY = upper ? 83 : 35;
+    const linePath = upper ? 'M18 69c7-7 27-7 34 0M18 98c7 7 27 7 34 0M30 83h10M35 74v19' : 'M18 20c7-7 27-7 34 0M18 51c7 7 27 7 34 0M30 35h10M35 26v19';
     return (
       <button
         key={fdi}
         type="button"
-        className={`clinical-tooth ${toothKind(fdi)}${selected ? ' selected' : ''}`}
+        className={`clinical-tooth ${upper ? 'upper-tooth' : 'lower-tooth'} ${toothKind(fdi)}${selected ? ' selected' : ''}`}
         onClick={() => setSelectedTooth(fdi)}
         title={`Pieza ${fdi}`}
       >
-        <svg viewBox="0 0 70 92" aria-hidden="true">
-          <path className="tooth-root" style={{ fill: rootColor }} d="M23 47c-5 14-7 28-2 35 5-5 8-15 14-15s9 10 14 15c5-7 3-21-2-35Z" />
-          <path className="tooth-crown" style={{ fill: mainColor }} d="M35 6C20 6 12 17 12 33c0 15 8 25 23 25s23-10 23-25C58 17 50 6 35 6Z" />
-          <path style={{ fill: statusColor(surfaceFor(piece, 'vestibular')?.condicion) }} d="M18 18c7-7 27-7 34 0-3 7-9 10-17 10s-14-3-17-10Z" />
-          <path style={{ fill: statusColor(surfaceFor(piece, 'lingual_palatina')?.condicion) }} d="M18 46c7 7 27 7 34 0-3-7-9-10-17-10s-14 3-17 10Z" />
-          <path style={{ fill: statusColor(surfaceFor(piece, 'mesial')?.condicion) }} d="M13 31c0-6 2-10 5-13l12 14-12 14c-3-3-5-8-5-15Z" />
-          <path style={{ fill: statusColor(surfaceFor(piece, 'distal')?.condicion) }} d="M57 31c0-6-2-10-5-13L40 32l12 14c3-3 5-8 5-15Z" />
-          <ellipse style={{ fill: statusColor(surfaceFor(piece, 'oclusal_incisal')?.condicion) }} cx="35" cy="32" rx="10" ry="9" />
-          <path className="tooth-line" d="M18 18c7-7 27-7 34 0M18 46c7 7 27 7 34 0M30 32h10M35 23v19" />
+        <svg viewBox="0 0 70 118" aria-hidden="true">
+          <path className="tooth-root" style={{ fill: rootColor }} d={rootPath} />
+          <path className="tooth-crown" style={{ fill: mainColor }} d={crownPath} />
+          <path style={{ fill: statusColor(surfaceFor(piece, 'vestibular')?.condicion) }} d={vestibularPath} />
+          <path style={{ fill: statusColor(surfaceFor(piece, 'lingual_palatina')?.condicion) }} d={lingualPath} />
+          <path style={{ fill: statusColor(surfaceFor(piece, 'mesial')?.condicion) }} d={mesialPath} />
+          <path style={{ fill: statusColor(surfaceFor(piece, 'distal')?.condicion) }} d={distalPath} />
+          <ellipse style={{ fill: statusColor(surfaceFor(piece, 'oclusal_incisal')?.condicion) }} cx="35" cy={occlusalY} rx="10" ry="9" />
+          <path className="tooth-line" d={linePath} />
         </svg>
         <span>{fdi}</span>
       </button>
@@ -168,11 +190,11 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
   }
 
   return (
-    <div className="odontograma-page">
+    <div className={`odontograma-page ${context === 'presupuesto' ? 'odontograma-page-budget' : ''}`}>
       <section className="odontograma-board" aria-label="Odontograma adulto FDI">
         <div className="odontograma-board-head">
           <div>
-            <strong>Odontograma clinico</strong>
+            <strong>{context === 'presupuesto' ? 'Odontograma del presupuesto' : 'Odontograma clinico'}</strong>
             <span>{paciente.num_historial} - {paciente.apellidos}, {paciente.nombre}</span>
           </div>
           <div className="odontograma-kpis">
@@ -230,14 +252,18 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
           <button type="button" onClick={() => pieceMutation.mutate()} disabled={!odontograma || pieceMutation.isPending}>Guardar pieza</button>
           <button type="button" className="primary" onClick={() => surfaceMutation.mutate()} disabled={!odontograma || surfaceMutation.isPending}>Guardar superficie</button>
         </div>
-        <div className="odontograma-actions split">
-          <button type="button" onClick={() => duplicateMutation.mutate()} disabled={!odontograma || duplicateMutation.isPending}>Nueva version</button>
-          <button type="button" className="primary" onClick={() => planMutation.mutate()} disabled={!odontograma || !doctorId || plannedCount === 0 || planMutation.isPending}>
-            Pasar a presupuesto
-          </button>
-        </div>
-        {planMutation.isError && <p className="form-error">No se pudo crear el presupuesto desde el odontograma.</p>}
-        {!doctorId && <p className="hint">Selecciona un doctor para generar presupuesto.</p>}
+        {context !== 'presupuesto' && (
+          <>
+            <div className="odontograma-actions split">
+              <button type="button" onClick={() => duplicateMutation.mutate()} disabled={!odontograma || duplicateMutation.isPending}>Nueva version</button>
+              <button type="button" className="primary" onClick={() => planMutation.mutate()} disabled={!odontograma || !doctorId || plannedCount === 0 || planMutation.isPending}>
+                Pasar a presupuesto
+              </button>
+            </div>
+            {planMutation.isError && <p className="form-error">No se pudo crear el presupuesto desde el odontograma.</p>}
+            {!doctorId && <p className="hint">Selecciona un doctor para generar presupuesto.</p>}
+          </>
+        )}
         <div className="odontograma-side-section">
           <span className="eyebrow">Historial</span>
           <div className="odontograma-events">

@@ -5996,7 +5996,7 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   grid-template-columns: repeat(16, minmax(44px, 1fr));
   gap: 6px;
   align-items: end;
-  margin: 4px 0 8px;
+  margin: 2px 0 4px;
 }
 
 .tooth-arch.lower {
@@ -6027,7 +6027,7 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 .clinical-tooth svg {
   width: 100%;
   max-width: 54px;
-  height: 70px;
+  height: 88px;
   display: block;
   margin: 0 auto;
 }
@@ -6066,8 +6066,27 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 
 .arch-midline {
   height: 1px;
-  margin: 8px 0;
+  margin: 1px 0;
   background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+.odontograma-page-budget {
+  min-height: 520px;
+  margin-bottom: 8px;
+}
+
+.odontograma-page-budget .odontograma-board {
+  padding: 10px;
+}
+
+.odontograma-page-budget .odontograma-side {
+  padding: 10px;
+  gap: 8px;
+}
+
+.odontograma-page-budget .odontograma-legend {
+  max-height: 84px;
+  overflow: auto;
 }
 
 .odontograma-legend {

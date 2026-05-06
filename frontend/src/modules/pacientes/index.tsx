@@ -36,12 +36,12 @@ import {
   registrarCobro,
   rechazarPresupuesto,
   revocarConsentimiento,
-  saveOdontograma,
   updatePresupuestoLinea,
   updatePaciente,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, OdontogramaPlan, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import { OdontogramaPacientePanel } from '../odontograma';
 
 type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type TreatmentVisual = { codigo?: string | null; nombre?: string | null; familia?: { icono?: string | null; nombre?: string | null } | null } | null;
@@ -315,9 +315,8 @@ function readableHealthData(datos?: Record<string, unknown> | null) {
     .join('\n');
 }
 
-function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupuesto; tratamientos: TratamientoCatalogo[] }) {
+function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId }: { presupuesto: Presupuesto; paciente: ApiPaciente; tratamientos: TratamientoCatalogo[]; doctorId?: string | null }) {
   const queryClient = useQueryClient();
-  const [odontograma, setOdontograma] = useState<OdontogramaPlan>(presupuesto.odontograma ?? {});
   const [selectedTreatmentId, setSelectedTreatmentId] = useState(tratamientos[0]?.id ?? '');
   const [lineaSeleccionada, setLineaSeleccionada] = useState<PresupuestoLinea | null>(presupuesto.lineas[0] ?? null);
   const [pieza, setPieza] = useState('');
@@ -325,10 +324,6 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
   const [descuento, setDescuento] = useState('0');
   const [precioLinea, setPrecioLinea] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
-  const mutation = useMutation({
-    mutationFn: () => saveOdontograma(presupuesto.id, odontograma),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] }),
-  });
   const selectedTreatment = tratamientos.find((item) => item.id === selectedTreatmentId) ?? tratamientos[0];
   const catalog = tratamientos.filter((item) => {
     const q = catalogSearch.trim().toLowerCase();
@@ -423,14 +418,19 @@ function PresupuestoPanel({ presupuesto, tratamientos }: { presupuesto: Presupue
       <div className="panel-caption">
         <strong>Presupuesto #{presupuesto.numero}</strong>
         <span>{formatDate(presupuesto.fecha)} - {presupuesto.estado}</span>
-        <button onClick={() => mutation.mutate()} disabled={mutation.isPending}>Guardar odontograma</button>
         <button onClick={() => passPending.mutate()} disabled={passPending.isPending}>Pasar aceptados a T.P.</button>
         <button onClick={() => presentBudget.mutate()} disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}>Presentar</button>
         <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuesto.estado === 'rechazado'}>Aceptar</button>
         <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !acceptedLines.length}>Facturar</button>
         <button onClick={() => rejectBudget.mutate()} disabled={rejectBudget.isPending || presupuesto.estado === 'rechazado'}>Rechazar</button>
       </div>
-      <OdontogramaPlanView value={odontograma} onChange={setOdontograma} />
+      <OdontogramaPacientePanel
+        paciente={paciente}
+        tratamientos={tratamientos}
+        doctorId={doctorId}
+        context="presupuesto"
+        onPresupuestoCreado={() => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] })}
+      />
       <div className="budget-workbench">
         <aside>
           <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Buscar tratamiento" />
@@ -1945,7 +1945,9 @@ export default function PacientesPage() {
               <PresupuestoPanel
                 key={presupuesto.id}
                 presupuesto={presupuesto}
+                paciente={active!}
                 tratamientos={tratamientosQuery.data ?? []}
+                doctorId={doctoresQuery.data?.[0]?.id ?? null}
               />
             ))}
             {!presupuestosQuery.isLoading && !presupuestos.length && (
