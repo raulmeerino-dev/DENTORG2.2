@@ -1556,6 +1556,14 @@ body {
   letter-spacing: .01em;
 }
 
+.title-clock {
+  margin-left: 12px;
+  color: #60717f;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
 .euro-main-nav {
   height: 64px;
   gap: 6px;
@@ -2682,7 +2690,7 @@ body {
 .dashboard-screen {
   min-height: calc(100vh - 112px);
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 10px;
   overflow: hidden;
   border: 1px solid #c4d2dc;
@@ -2743,7 +2751,7 @@ body {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  padding: 0 10px;
+  padding: 10px 10px 0;
 }
 
 .dashboard-metrics strong {
@@ -2758,6 +2766,17 @@ body {
   gap: 10px;
   overflow: auto;
   padding: 0 10px 10px;
+}
+
+.dashboard-patient-link {
+  color: #0b547a;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.dashboard-patient-link:hover {
+  color: #0f7cad;
+  text-decoration: underline;
 }
 
 .dashboard-panel {
@@ -5508,7 +5527,7 @@ body {
 
 /* Compact utility fixes: dark mode, agenda doctor labels and temporary patient flow. */
 .euro-titlebar {
-  grid-template-columns: minmax(180px, 1fr) auto auto minmax(170px, auto) 38px;
+  grid-template-columns: minmax(260px, 1fr) auto minmax(170px, auto) 38px;
 }
 
 .theme-toggle {
