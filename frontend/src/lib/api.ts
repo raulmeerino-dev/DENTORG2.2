@@ -24,6 +24,7 @@ import type {
   OdontogramaPlan,
   OdontogramaStatus,
   OdontogramaSurfaceName,
+  PagoAnticipadoPaciente,
   PlantillaConsentimiento,
   ProductionReadinessReport,
   Presupuesto,
@@ -514,6 +515,56 @@ export async function getSaldoPaciente(pacienteId: string) {
     total_cobrado: totalCobrado.toFixed(2),
     pendiente: (totalFacturado - totalCobrado).toFixed(2),
     facturas_pendientes: facturas.filter((factura) => Number(factura.pendiente) > 0).length,
+  });
+}
+
+export async function getPagosAnticipadosPaciente(pacienteId: string) {
+  return withDemoFallback(api.get<PagoAnticipadoPaciente[]>(`/pacientes/${pacienteId}/pagos-anticipados`), []);
+}
+
+export async function createPagoAnticipadoPaciente(pacienteId: string, data: {
+  importe: number;
+  forma_pago_id: string;
+  concepto?: string;
+  notas?: string | null;
+}) {
+  return withDemoFallback(api.post<PagoAnticipadoPaciente>(`/pacientes/${pacienteId}/pagos-anticipados`, data), {
+    id: `demo-anticipo-${Date.now()}`,
+    paciente_id: pacienteId,
+    clinica_id: null,
+    fecha: new Date().toISOString(),
+    importe: String(data.importe),
+    forma_pago_id: data.forma_pago_id,
+    forma_pago: DEMO_FORMAS_PAGO.find((item) => item.id === data.forma_pago_id) ?? null,
+    usuario_id: 'demo-user',
+    concepto: data.concepto ?? 'Pago anticipado',
+    notas: data.notas ?? null,
+    anulado_at: null,
+    anulado_por_id: null,
+    motivo_anulacion: null,
+  });
+}
+
+export async function updatePagoAnticipadoPaciente(pacienteId: string, pagoId: string, data: Partial<{
+  importe: number;
+  forma_pago_id: string;
+  concepto: string;
+  notas: string | null;
+}>) {
+  return withDemoFallback(api.patch<PagoAnticipadoPaciente>(`/pacientes/${pacienteId}/pagos-anticipados/${pagoId}`, data), {
+    id: pagoId,
+    paciente_id: pacienteId,
+    clinica_id: null,
+    fecha: new Date().toISOString(),
+    importe: String(data.importe ?? 0),
+    forma_pago_id: data.forma_pago_id ?? DEMO_FORMAS_PAGO[0].id,
+    forma_pago: DEMO_FORMAS_PAGO.find((item) => item.id === data.forma_pago_id) ?? DEMO_FORMAS_PAGO[0],
+    usuario_id: 'demo-user',
+    concepto: data.concepto ?? 'Pago anticipado',
+    notas: data.notas ?? null,
+    anulado_at: null,
+    anulado_por_id: null,
+    motivo_anulacion: null,
   });
 }
 

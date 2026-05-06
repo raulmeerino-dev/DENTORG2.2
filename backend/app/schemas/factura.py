@@ -93,6 +93,38 @@ class CobroResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PagoAnticipadoCreate(BaseModel):
+    importe: Decimal = Field(..., gt=0)
+    forma_pago_id: UUID
+    concepto: str = Field("Pago anticipado", min_length=1, max_length=120)
+    notas: str | None = Field(None, max_length=500)
+
+
+class PagoAnticipadoUpdate(BaseModel):
+    importe: Decimal | None = Field(None, gt=0)
+    forma_pago_id: UUID | None = None
+    concepto: str | None = Field(None, min_length=1, max_length=120)
+    notas: str | None = Field(None, max_length=500)
+
+
+class PagoAnticipadoResponse(BaseModel):
+    id: UUID
+    paciente_id: UUID
+    clinica_id: UUID | None = None
+    fecha: datetime
+    importe: Decimal
+    forma_pago_id: UUID
+    forma_pago: FormaPagoResponse | None = None
+    usuario_id: UUID
+    concepto: str
+    notas: str | None = None
+    anulado_at: datetime | None = None
+    anulado_por_id: UUID | None = None
+    motivo_anulacion: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
 # ─── Resúmenes para relaciones ────────────────────────────────────────────────
 
 class PacienteResumen(BaseModel):

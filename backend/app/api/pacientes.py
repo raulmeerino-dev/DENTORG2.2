@@ -9,7 +9,7 @@ from typing import Annotated
 from uuid import UUID
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,6 +21,7 @@ from app.core.permissions import (
     RequireAdmin,
     RequireDoctor,
     can_view_health_data,
+    ensure_can_modify_billing,
     ensure_clinic_access,
     resolve_clinic_id,
     scope_select_by_clinic,
@@ -28,11 +29,17 @@ from app.core.permissions import (
 from app.database import get_db
 from app.models.paciente import Paciente
 from app.models.cita import Cita
-from app.models.factura import Factura
-from app.schemas.factura import SaldoPacienteResponse
+from app.models.factura import Factura, FormaPago, PagoAnticipadoPaciente
+from app.schemas.factura import (
+    PagoAnticipadoCreate,
+    PagoAnticipadoResponse,
+    PagoAnticipadoUpdate,
+    SaldoPacienteResponse,
+)
 from app.schemas.cita import CitaResponse
 from app.api.citas import _to_response as cita_to_response
 from app.models.referencia import Referencia
+from app.services.audit import write_audit_log
 from app.schemas.paciente import (
     AsignarReferenciasRequest,
     PacienteCreate,
@@ -319,11 +326,18 @@ async def saldo_paciente(
         .where(Factura.paciente_id == paciente_id, Factura.estado != "anulada")
     )
     facturas = result.scalars().all()
+    anticipos_result = await db.execute(
+        select(PagoAnticipadoPaciente).where(
+            PagoAnticipadoPaciente.paciente_id == paciente_id,
+            PagoAnticipadoPaciente.anulado_at.is_(None),
+        )
+    )
+    anticipos = anticipos_result.scalars().all()
     total_facturado = sum((factura.total for factura in facturas), Decimal("0.00"))
     total_cobrado = sum(
         (cobro.importe for factura in facturas for cobro in factura.cobros if cobro.anulado_at is None),
         Decimal("0.00"),
-    )
+    ) + sum((anticipo.importe for anticipo in anticipos), Decimal("0.00"))
     pendiente = total_facturado - total_cobrado
     facturas_pendientes = sum(1 for factura in facturas if factura.total > sum(
         (cobro.importe for cobro in factura.cobros if cobro.anulado_at is None),
@@ -339,6 +353,130 @@ async def saldo_paciente(
 
 
 # ─── HISTORIAL DE FALTAS (para alerta en nueva cita) ─────────────────────────
+
+@router.get("/{paciente_id}/pagos-anticipados", response_model=list[PagoAnticipadoResponse])
+async def listar_pagos_anticipados(
+    paciente_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> list[PagoAnticipadoResponse]:
+    paciente = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    result = await db.execute(
+        select(PagoAnticipadoPaciente)
+        .options(selectinload(PagoAnticipadoPaciente.forma_pago))
+        .where(PagoAnticipadoPaciente.paciente_id == paciente_id)
+        .order_by(PagoAnticipadoPaciente.fecha)
+    )
+    return [PagoAnticipadoResponse.model_validate(item) for item in result.scalars().all()]
+
+
+@router.post("/{paciente_id}/pagos-anticipados", response_model=PagoAnticipadoResponse, status_code=201)
+async def crear_pago_anticipado(
+    paciente_id: UUID,
+    data: PagoAnticipadoCreate,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> PagoAnticipadoResponse:
+    ensure_can_modify_billing(current_user)
+    paciente = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    forma_pago = await db.get(FormaPago, data.forma_pago_id)
+    if not forma_pago:
+        raise HTTPException(status_code=404, detail="Forma de pago no encontrada")
+
+    pago = PagoAnticipadoPaciente(
+        paciente_id=paciente_id,
+        clinica_id=paciente.clinica_id,
+        fecha=datetime.now(timezone.utc),
+        importe=data.importe,
+        forma_pago_id=data.forma_pago_id,
+        usuario_id=current_user.user_id,
+        concepto=data.concepto,
+        notas=data.notas,
+    )
+    db.add(pago)
+    await db.flush()
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="pago_anticipado_creado",
+        entity_type="pagos_anticipados_paciente",
+        entity_id=pago.id,
+        new_values={
+            "paciente_id": str(paciente_id),
+            "importe": str(data.importe),
+            "forma_pago_id": str(data.forma_pago_id),
+            "concepto": data.concepto,
+        },
+        clinica_id=paciente.clinica_id,
+        request=request,
+    )
+    await db.commit()
+    result = await db.execute(
+        select(PagoAnticipadoPaciente)
+        .options(selectinload(PagoAnticipadoPaciente.forma_pago))
+        .where(PagoAnticipadoPaciente.id == pago.id)
+    )
+    return PagoAnticipadoResponse.model_validate(result.scalar_one())
+
+
+@router.patch("/{paciente_id}/pagos-anticipados/{pago_id}", response_model=PagoAnticipadoResponse)
+async def actualizar_pago_anticipado(
+    paciente_id: UUID,
+    pago_id: UUID,
+    data: PagoAnticipadoUpdate,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> PagoAnticipadoResponse:
+    ensure_can_modify_billing(current_user)
+    paciente = await _get_paciente_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    result = await db.execute(
+        select(PagoAnticipadoPaciente)
+        .options(selectinload(PagoAnticipadoPaciente.forma_pago))
+        .where(PagoAnticipadoPaciente.id == pago_id, PagoAnticipadoPaciente.paciente_id == paciente_id)
+    )
+    pago = result.scalar_one_or_none()
+    if not pago:
+        raise HTTPException(status_code=404, detail="Pago anticipado no encontrado")
+    if pago.anulado_at is not None:
+        raise HTTPException(status_code=400, detail="No se puede editar un pago anulado")
+
+    old_values = {
+        "importe": str(pago.importe),
+        "forma_pago_id": str(pago.forma_pago_id),
+        "concepto": pago.concepto,
+        "notas": pago.notas,
+    }
+    cambios = data.model_dump(exclude_unset=True)
+    if "forma_pago_id" in cambios:
+        forma_pago = await db.get(FormaPago, cambios["forma_pago_id"])
+        if not forma_pago:
+            raise HTTPException(status_code=404, detail="Forma de pago no encontrada")
+    for campo, valor in cambios.items():
+        setattr(pago, campo, valor)
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="pago_anticipado_editado",
+        entity_type="pagos_anticipados_paciente",
+        entity_id=pago.id,
+        old_values=old_values,
+        new_values={k: str(v) if k in {"importe", "forma_pago_id"} else v for k, v in cambios.items()},
+        clinica_id=paciente.clinica_id,
+        request=request,
+    )
+    await db.commit()
+    result = await db.execute(
+        select(PagoAnticipadoPaciente)
+        .options(selectinload(PagoAnticipadoPaciente.forma_pago))
+        .where(PagoAnticipadoPaciente.id == pago.id)
+    )
+    return PagoAnticipadoResponse.model_validate(result.scalar_one())
+
 
 @router.get("/{paciente_id}/faltas", response_model=list[dict])
 async def historial_faltas_paciente(

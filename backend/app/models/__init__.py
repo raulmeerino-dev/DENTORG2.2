@@ -23,7 +23,7 @@ from app.models.cita import Cita, CitaCambio, CitaTelefonear, HistorialFaltas
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo, EntidadBaremo
 from app.models.historial import HistorialClinico
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
-from app.models.factura import FormaPago, Factura, FacturaLinea, Cobro, DocumentoFiscal
+from app.models.factura import FormaPago, Factura, FacturaLinea, Cobro, PagoAnticipadoPaciente, DocumentoFiscal
 from app.models.referencia import Referencia, paciente_referencias
 from app.models.consentimiento import Consentimiento, ConsentimientoPlantilla
 from app.models.documento import DocumentoPaciente
@@ -67,6 +67,7 @@ __all__ = [
     "Factura",
     "FacturaLinea",
     "Cobro",
+    "PagoAnticipadoPaciente",
     "DocumentoFiscal",
     "Referencia",
     "paciente_referencias",

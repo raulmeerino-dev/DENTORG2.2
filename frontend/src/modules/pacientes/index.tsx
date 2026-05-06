@@ -8,6 +8,7 @@ import {
   aceptarPresupuesto,
   createConsentimientoPaciente,
   createFacturaManual,
+  createPagoAnticipadoPaciente,
   createPresupuesto,
   convertirPresupuestoFactura,
   deletePresupuestoLinea,
@@ -23,6 +24,7 @@ import {
   getFormasPago,
   getHistorialPaciente,
   getPaciente,
+  getPagosAnticipadosPaciente,
   getPacientes,
   getPlantillasConsentimiento,
   getPresupuestos,
@@ -36,11 +38,12 @@ import {
   registrarCobro,
   rechazarPresupuesto,
   revocarConsentimiento,
+  updatePagoAnticipadoPaciente,
   updatePresupuestoLinea,
   updatePaciente,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, PagoAnticipadoPaciente, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
 import { OdontogramaPacientePanel } from '../odontograma';
 import type { OdontogramaBudgetDraft } from '../odontograma';
 
@@ -1006,7 +1009,7 @@ function TreatmentBoard({
 
 type HistoryBillingRow = {
   id: string;
-  kind: 'tratamiento' | 'cobro' | 'factura';
+  kind: 'tratamiento' | 'cobro' | 'factura' | 'anticipo';
   date: string;
   tratamiento: string;
   pieza: string;
@@ -1023,6 +1026,7 @@ type HistoryBillingRow = {
   estado: string;
   treatment?: TreatmentVisual;
   facturaItem?: Factura;
+  anticipoItem?: PagoAnticipadoPaciente;
 };
 
 function asNumber(value?: string | number | null) {
@@ -1033,7 +1037,7 @@ function sortByDate(a: { date: string }, b: { date: string }) {
   return a.date.localeCompare(b.date);
 }
 
-function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[]) {
+function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[], anticipos: PagoAnticipadoPaciente[]) {
   const rows: Omit<HistoryBillingRow, 'saldo'>[] = [];
 
   historial.forEach((entrada) => {
@@ -1106,6 +1110,28 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
     });
   });
 
+  anticipos.forEach((anticipo) => {
+    rows.push({
+      id: `anticipo-${anticipo.id}`,
+      kind: 'anticipo',
+      date: anticipo.fecha,
+      tratamiento: anticipo.concepto || 'Pago anticipado',
+      pieza: '0',
+      fp: 'PA',
+      entidad: '',
+      factura: 'No',
+      recibo: 'Si',
+      doc: '004',
+      gabinete: '',
+      importe: 0,
+      cobrado: anticipo.anulado_at ? 0 : asNumber(anticipo.importe),
+      comentario: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta del paciente',
+      estado: anticipo.anulado_at ? 'anulado' : 'anticipo',
+      treatment: null,
+      anticipoItem: anticipo,
+    });
+  });
+
   let saldo = 0;
   return rows
     .sort(sortByDate)
@@ -1119,8 +1145,11 @@ function EurodentHistoryBillingPanel({
   paciente,
   historial,
   facturas,
+  anticipos,
   onFacturar,
   onCobrar,
+  onAddAnticipo,
+  onEditAnticipo,
   onOrtodoncia,
   onRecibos,
   onContextFactura,
@@ -1128,14 +1157,18 @@ function EurodentHistoryBillingPanel({
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
   facturas: Factura[];
+  anticipos: PagoAnticipadoPaciente[];
   onFacturar: () => void;
   onCobrar: () => void;
+  onAddAnticipo: () => void;
+  onEditAnticipo: (anticipo: PagoAnticipadoPaciente) => void;
   onOrtodoncia: () => void;
   onRecibos: () => void;
   onContextFactura: (event: MouseEvent, factura: Factura) => void;
 }) {
-  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas), [historial, facturas]);
+  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, anticipos), [historial, facturas, anticipos]);
   const [hideZeros, setHideZeros] = useState(false);
+  const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow } | null>(null);
   const displayRows = useMemo(
     () => (hideZeros ? rows.filter((row) => row.importe !== 0 || row.cobrado !== 0 || row.saldo !== 0) : rows),
     [hideZeros, rows],
@@ -1196,14 +1229,18 @@ function EurodentHistoryBillingPanel({
             {displayRows.map((row) => (
               <tr
                 key={row.id}
-                className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}${row.kind === 'cobro' ? 'payment-row ' : 'treatment-coded-row '}`}
+                className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}${row.kind === 'cobro' ? 'payment-row ' : row.kind === 'anticipo' ? 'advance-payment-row ' : 'treatment-coded-row '}`}
                 style={{ '--treatment-color': colorForTreatment(row.treatment) } as CSSProperties}
                 onClick={() => setSelectedId(row.id)}
-                onContextMenu={(event) => row.facturaItem && onContextFactura(event, row.facturaItem)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  setSelectedId(row.id);
+                  setHistoryMenu({ x: event.clientX, y: event.clientY, row });
+                }}
               >
                 <td>{formatDate(row.date)}</td>
                 <td className="history-treatment-cell">
-                  {row.kind === 'cobro' ? <span className="payment-label">Cobro</span> : <TreatmentBadge tratamiento={row.treatment} />}
+                  {row.kind === 'cobro' ? <span className="payment-label">Cobro</span> : row.kind === 'anticipo' ? <span className="advance-label">Anticipo</span> : <TreatmentBadge tratamiento={row.treatment} />}
                   <strong>{row.tratamiento}</strong>
                   {row.comentario && <small>{row.comentario}</small>}
                 </td>
@@ -1245,6 +1282,19 @@ function EurodentHistoryBillingPanel({
           <button onClick={onRecibos}>Recibos</button>
         </div>
       </div>
+      {historyMenu && (
+        <div className="context-menu patient-context-menu history-row-context-menu" style={{ left: historyMenu.x, top: historyMenu.y }}>
+          <strong>Historial / facturación</strong>
+          <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Añadir pago / anticipo</button>
+          {historyMenu.row.anticipoItem && (
+            <button onClick={() => { onEditAnticipo(historyMenu.row.anticipoItem!); setHistoryMenu(null); }}>Editar anticipo seleccionado</button>
+          )}
+          {historyMenu.row.facturaItem && (
+            <button onClick={(event) => { onContextFactura(event as unknown as MouseEvent, historyMenu.row.facturaItem!); setHistoryMenu(null); }}>Opciones de factura</button>
+          )}
+          <button onClick={() => setHistoryMenu(null)}>Cerrar</button>
+        </div>
+      )}
     </section>
   );
 }
@@ -1799,6 +1849,11 @@ export default function PacientesPage() {
     queryFn: () => getFacturas(active!.id),
     enabled: Boolean(active),
   });
+  const pagosAnticipadosQuery = useQuery({
+    queryKey: ['pagos-anticipados', active?.id],
+    queryFn: () => getPagosAnticipadosPaciente(active!.id),
+    enabled: Boolean(active),
+  });
   const saldoQuery = useQuery({
     queryKey: ['saldo-paciente', active?.id],
     queryFn: () => getSaldoPaciente(active!.id),
@@ -1836,6 +1891,7 @@ export default function PacientesPage() {
 
   const presupuestos = presupuestosQuery.data ?? [];
   const facturas = facturasQuery.data ?? [];
+  const pagosAnticipados = pagosAnticipadosQuery.data ?? [];
   const totalFacturado = Number(saldoQuery.data?.total_facturado ?? facturas.reduce((sum, factura) => sum + Number(factura.total), 0));
   const totalPendiente = Number(saldoQuery.data?.pendiente ?? facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0));
   const tratamientosRealizados = historialQuery.data?.filter((item) => ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(item.estado)).length ?? 0;
@@ -1883,6 +1939,53 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       void facturasQuery.refetch();
+      void saldoQuery.refetch();
+      setTab('facturacion');
+    },
+  });
+
+  const crearPagoAnticipado = useMutation({
+    mutationFn: async () => {
+      if (!active) throw new Error('Sin paciente');
+      const forma = formasPagoQuery.data?.[0];
+      if (!forma) throw new Error('No hay formas de pago configuradas');
+      const importeRaw = window.prompt('Importe del pago a cuenta', '50');
+      const importe = Number((importeRaw ?? '').replace(',', '.'));
+      if (!Number.isFinite(importe) || importe <= 0) throw new Error('Importe no valido');
+      const concepto = window.prompt('Concepto', 'Pago anticipado') || 'Pago anticipado';
+      const notas = window.prompt('Nota opcional', '') || null;
+      return createPagoAnticipadoPaciente(active.id, {
+        importe,
+        forma_pago_id: forma.id,
+        concepto,
+        notas,
+      });
+    },
+    onSuccess: () => {
+      void pagosAnticipadosQuery.refetch();
+      void saldoQuery.refetch();
+      setTab('facturacion');
+    },
+  });
+
+  const editarPagoAnticipado = useMutation({
+    mutationFn: async (pago: PagoAnticipadoPaciente) => {
+      if (!active) throw new Error('Sin paciente');
+      const importeRaw = window.prompt('Editar importe del anticipo', String(pago.importe).replace('.', ','));
+      if (importeRaw === null) throw new Error('Cancelado');
+      const importe = Number(importeRaw.replace(',', '.'));
+      if (!Number.isFinite(importe) || importe <= 0) throw new Error('Importe no valido');
+      const concepto = window.prompt('Concepto', pago.concepto || 'Pago anticipado') || pago.concepto || 'Pago anticipado';
+      const notas = window.prompt('Nota opcional', pago.notas ?? '') ?? pago.notas;
+      return updatePagoAnticipadoPaciente(active.id, pago.id, {
+        importe,
+        concepto,
+        notas,
+        forma_pago_id: pago.forma_pago_id,
+      });
+    },
+    onSuccess: () => {
+      void pagosAnticipadosQuery.refetch();
       void saldoQuery.refetch();
       setTab('facturacion');
     },
@@ -2211,8 +2314,11 @@ export default function PacientesPage() {
             paciente={active}
             historial={historialQuery.data ?? []}
             facturas={facturas}
+            anticipos={pagosAnticipados}
             onFacturar={() => emitirFactura.mutate()}
             onCobrar={() => cobrarFactura.mutate()}
+            onAddAnticipo={() => crearPagoAnticipado.mutate()}
+            onEditAnticipo={(pago) => editarPagoAnticipado.mutate(pago)}
             onOrtodoncia={() => setTab('realizados')}
             onRecibos={abrirRecibos}
             onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
