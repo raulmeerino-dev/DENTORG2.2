@@ -96,6 +96,8 @@ export interface Presupuesto {
 
 export interface FacturaLinea {
   id: string;
+  factura_id?: string;
+  historial_id?: string | null;
   concepto: string;
   concepto_ficticio: string | null;
   cantidad: number;
@@ -379,6 +381,20 @@ export interface HistorialClinico {
   factura_id: string | null;
   tratamiento: TratamientoResumen | null;
   doctor: { id: string; nombre: string } | null;
+}
+
+export interface HistorialSinFacturar {
+  id: string;
+  fecha: string;
+  pieza_dental: number | null;
+  caras: string | null;
+  observaciones: string | null;
+  tratamiento_id: string;
+  tratamiento_nombre: string;
+  tratamiento_precio: string;
+  tratamiento_iva: string;
+  doctor_id: string;
+  doctor_nombre: string;
 }
 
 export interface DocumentoPaciente {

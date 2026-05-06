@@ -3816,6 +3816,32 @@ body {
   min-width: 210px;
 }
 
+.invoice-split-button {
+  position: relative;
+  display: inline-flex;
+}
+
+.invoice-action-popover {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+  min-width: 180px;
+  padding: 6px;
+  display: grid;
+  gap: 5px;
+  border: 1px solid #8ba9bb;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 10px 26px rgba(13, 36, 51, 0.18);
+}
+
+.invoice-action-popover button {
+  justify-content: flex-start;
+  min-height: 30px;
+  width: 100%;
+}
+
 .history-eurodent-footer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -5677,6 +5703,197 @@ body {
   justify-content: flex-end;
 }
 
+.invoice-history-modal {
+  width: min(900px, 96vw);
+}
+
+.invoice-history-list {
+  padding: 10px;
+}
+
+.invoice-creation-modal {
+  width: min(1180px, 98vw);
+  max-height: 94vh;
+}
+
+.invoice-creation-shell {
+  padding: 10px;
+  background: #eef3f7;
+}
+
+.invoice-creation-top {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 120px auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 10px;
+}
+
+.invoice-creation-top label,
+.invoice-fiscal-form label {
+  display: grid;
+  gap: 3px;
+  color: #233b4d;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.invoice-creation-top input,
+.invoice-fiscal-form input,
+.invoice-fiscal-form select {
+  height: 28px;
+  min-width: 0;
+  border: 1px solid #9db5c5;
+  border-radius: 4px;
+  padding: 3px 7px;
+  background: #fff;
+  color: #0f2738;
+  font: inherit;
+}
+
+.invoice-sif-stamp {
+  justify-self: end;
+  padding: 8px 12px;
+  border: 1px solid #8bb8a7;
+  border-radius: 999px;
+  color: #08735f;
+  background: #ecfbf6;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.invoice-creation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px minmax(0, 1fr);
+  grid-template-rows: minmax(270px, 1fr) auto;
+  gap: 10px;
+}
+
+.invoice-creation-grid section {
+  min-width: 0;
+}
+
+.invoice-creation-grid h3 {
+  margin: 0 0 5px;
+  color: #173349;
+  font-size: 14px;
+}
+
+.invoice-picker-table {
+  height: 292px;
+  overflow: auto;
+  border: 1px solid #8299a8;
+  background: #fff;
+}
+
+.invoice-picker-table .euro-table {
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.invoice-picker-table th:nth-child(1) { width: 78px; }
+.invoice-picker-table th:nth-child(3) { width: 90px; }
+
+.invoice-picker-table td {
+  height: 26px;
+}
+
+.invoice-picker-table td strong,
+.invoice-picker-table td small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-picker-table td small {
+  color: #647583;
+  font-size: 11px;
+}
+
+.invoice-transfer-buttons {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+}
+
+.invoice-transfer-buttons button {
+  height: 38px;
+  border: 1px solid #8ba9bb;
+  border-radius: 6px;
+  background: linear-gradient(#ffffff, #dfe9ef);
+  color: #0b7189;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.invoice-patient-data,
+.invoice-fiscal-data {
+  padding: 8px;
+  border: 1px solid #9db5c5;
+  background: #f8fbfd;
+}
+
+.invoice-patient-data {
+  grid-column: 1 / 2;
+}
+
+.invoice-fiscal-data {
+  grid-column: 3 / 4;
+}
+
+.invoice-patient-data dl {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 4px 8px;
+  margin: 0;
+  color: #263d50;
+  font-size: 12px;
+}
+
+.invoice-patient-data dt {
+  font-weight: 900;
+}
+
+.invoice-patient-data dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.invoice-fiscal-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.invoice-paid-toggle {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+  color: #233b4d;
+  font-weight: 850;
+}
+
+.invoice-fiscal-data p {
+  margin: 6px 0;
+  color: #536879;
+  font-size: 12px;
+}
+
+.invoice-fiscal-data .primary-action {
+  min-height: 34px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  color: #fff;
+  background: linear-gradient(135deg, #0b7189, #1f9e83);
+  font-weight: 900;
+}
+
 @media (max-width: 900px) {
   .upload-strip,
   .document-editor-grid,
@@ -5920,6 +6137,36 @@ html[data-theme="dark"] .advance-payment-row td {
 
 html[data-theme="dark"] .advance-label {
   color: #7ce2ca;
+}
+
+html[data-theme="dark"] .invoice-action-popover,
+html[data-theme="dark"] .invoice-creation-shell,
+html[data-theme="dark"] .invoice-patient-data,
+html[data-theme="dark"] .invoice-fiscal-data {
+  border-color: #2f4a60;
+  background: #101d29;
+}
+
+html[data-theme="dark"] .invoice-creation-top input,
+html[data-theme="dark"] .invoice-fiscal-form input,
+html[data-theme="dark"] .invoice-fiscal-form select,
+html[data-theme="dark"] .invoice-picker-table {
+  border-color: #2f4a60;
+  color: #eaf2f8;
+  background: #0f1a26;
+}
+
+html[data-theme="dark"] .invoice-creation-grid h3,
+html[data-theme="dark"] .invoice-creation-top label,
+html[data-theme="dark"] .invoice-fiscal-form label,
+html[data-theme="dark"] .invoice-paid-toggle,
+html[data-theme="dark"] .invoice-patient-data dl {
+  color: #eaf2f8;
+}
+
+html[data-theme="dark"] .invoice-picker-table td small,
+html[data-theme="dark"] .invoice-fiscal-data p {
+  color: #a8bac8;
 }
 
 html[data-theme="dark"] .euro-table th,

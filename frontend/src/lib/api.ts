@@ -16,6 +16,7 @@ import type {
   Factura,
   FormaPago,
   HistorialClinico,
+  HistorialSinFacturar,
   HorarioDoctor,
   HuecoLibre,
   Laboratorio,
@@ -575,6 +576,25 @@ export async function getHistorialPaciente(pacienteId: string) {
   );
 }
 
+export async function getHistorialSinFacturar(pacienteId: string) {
+  const fallback = DEMO_HISTORIAL
+    .filter((item) => (item.paciente_id === pacienteId || pacienteId.startsWith('demo-')) && !item.factura_id)
+    .map<HistorialSinFacturar>((item) => ({
+      id: item.id,
+      fecha: item.fecha,
+      pieza_dental: item.pieza_dental,
+      caras: item.caras,
+      observaciones: item.observaciones,
+      tratamiento_id: item.tratamiento_id,
+      tratamiento_nombre: item.tratamiento?.nombre ?? item.procedimiento ?? 'Tratamiento dental',
+      tratamiento_precio: item.importe ?? '0',
+      tratamiento_iva: '0',
+      doctor_id: item.doctor_id,
+      doctor_nombre: item.doctor?.nombre ?? 'Doctor',
+    }));
+  return withDemoFallback(api.get<HistorialSinFacturar[]>('/facturas/historial-sin-facturar', { params: { paciente_id: pacienteId } }), fallback);
+}
+
 export async function getDocumentosPaciente(pacienteId: string, categoria?: string) {
   const docs = DEMO_DOCUMENTOS.filter((item) => {
     if (!(item.paciente_id === pacienteId || pacienteId.startsWith('demo-'))) return false;
@@ -890,6 +910,51 @@ export async function createFacturaManual(pacienteId: string, concepto: string, 
     total: String(importe),
     pendiente: String(importe),
     total_cobrado: '0.00',
+  });
+}
+
+export async function createFacturaDesdeHistorial(pacienteId: string, data: {
+  fecha: string;
+  serie: string;
+  forma_pago_id?: string | null;
+  descuento_porcentaje?: number;
+  observaciones?: string | null;
+  lineas: HistorialSinFacturar[];
+}) {
+  const descuento = Math.max(0, Math.min(100, Number(data.descuento_porcentaje ?? 0)));
+  return withDemoFallback(api.post<Factura>('/facturas', {
+    paciente_id: pacienteId,
+    serie: data.serie || 'A',
+    fecha: data.fecha,
+    tipo: 'paciente',
+    forma_pago_id: data.forma_pago_id ?? null,
+    observaciones: data.observaciones ?? 'Factura generada desde historial clinico',
+    lineas: data.lineas.map((linea) => ({
+      historial_id: linea.id,
+      concepto: linea.tratamiento_nombre,
+      cantidad: 1,
+      precio_unitario: Number(linea.tratamiento_precio) * (1 - descuento / 100),
+      iva_porcentaje: Number(linea.tratamiento_iva ?? 0),
+    })),
+  }), {
+    ...DEMO_FACTURAS[0],
+    id: `demo-fac-${Date.now()}`,
+    paciente_id: pacienteId,
+    fecha: data.fecha,
+    serie: data.serie || 'A',
+    numero: DEMO_FACTURAS.length + 1,
+    lineas: data.lineas.map((linea, index) => ({
+      id: `demo-fl-${Date.now()}-${index}`,
+      concepto: linea.tratamiento_nombre,
+      concepto_ficticio: null,
+      cantidad: 1,
+      precio_unitario: String(Number(linea.tratamiento_precio) * (1 - descuento / 100)),
+      iva_porcentaje: String(linea.tratamiento_iva ?? '0'),
+      subtotal: String(Number(linea.tratamiento_precio) * (1 - descuento / 100)),
+    })),
+    subtotal: String(data.lineas.reduce((sum, linea) => sum + Number(linea.tratamiento_precio) * (1 - descuento / 100), 0)),
+    iva_total: '0',
+    total: String(data.lineas.reduce((sum, linea) => sum + Number(linea.tratamiento_precio) * (1 - descuento / 100), 0)),
   });
 }
 

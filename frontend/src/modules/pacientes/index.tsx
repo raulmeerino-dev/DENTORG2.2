@@ -7,6 +7,7 @@ import {
   addPresupuestoLinea,
   aceptarPresupuesto,
   createConsentimientoPaciente,
+  createFacturaDesdeHistorial,
   createFacturaManual,
   createPagoAnticipadoPaciente,
   createPresupuesto,
@@ -23,6 +24,7 @@ import {
   getFacturas,
   getFormasPago,
   getHistorialPaciente,
+  getHistorialSinFacturar,
   getPaciente,
   getPagosAnticipadosPaciente,
   getPacientes,
@@ -43,7 +45,7 @@ import {
   updatePaciente,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, PagoAnticipadoPaciente, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, PagoAnticipadoPaciente, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
 import { OdontogramaPacientePanel } from '../odontograma';
 import type { OdontogramaBudgetDraft } from '../odontograma';
 
@@ -1041,7 +1043,9 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
   const rows: Omit<HistoryBillingRow, 'saldo'>[] = [];
 
   historial.forEach((entrada) => {
-    const factura = entrada.factura_id ? facturas.find((item) => item.id === entrada.factura_id) : undefined;
+    const factura = entrada.factura_id
+      ? facturas.find((item) => item.id === entrada.factura_id)
+      : facturas.find((item) => item.lineas.some((linea) => linea.historial_id === entrada.id));
     rows.push({
       id: `hist-${entrada.id}`,
       kind: 'tratamiento',
@@ -1148,6 +1152,7 @@ function EurodentHistoryBillingPanel({
   anticipos,
   onFacturar,
   onCobrar,
+  onHistorialFacturas,
   onAddAnticipo,
   onEditAnticipo,
   onOrtodoncia,
@@ -1160,6 +1165,7 @@ function EurodentHistoryBillingPanel({
   anticipos: PagoAnticipadoPaciente[];
   onFacturar: () => void;
   onCobrar: () => void;
+  onHistorialFacturas: () => void;
   onAddAnticipo: () => void;
   onEditAnticipo: (anticipo: PagoAnticipadoPaciente) => void;
   onOrtodoncia: () => void;
@@ -1169,6 +1175,7 @@ function EurodentHistoryBillingPanel({
   const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, anticipos), [historial, facturas, anticipos]);
   const [hideZeros, setHideZeros] = useState(false);
   const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow } | null>(null);
+  const [invoiceMenuOpen, setInvoiceMenuOpen] = useState(false);
   const displayRows = useMemo(
     () => (hideZeros ? rows.filter((row) => row.importe !== 0 || row.cobrado !== 0 || row.saldo !== 0) : rows),
     [hideZeros, rows],
@@ -1277,7 +1284,15 @@ function EurodentHistoryBillingPanel({
           <button onClick={onOrtodoncia}>C.Ortod.</button>
           <button onClick={() => selectedFactura && window.open(facturaPdfUrl(selectedFactura.id), '_blank')} disabled={!selectedFactura}>Imprimir</button>
           <button onClick={onCobrar}>Cobrar</button>
-          <button onClick={onFacturar}>Facturas</button>
+          <span className="invoice-split-button">
+            <button onClick={() => setInvoiceMenuOpen((open) => !open)}>Facturas</button>
+            {invoiceMenuOpen && (
+              <span className="invoice-action-popover">
+                <button onClick={() => { onHistorialFacturas(); setInvoiceMenuOpen(false); }}>Historial de facturas</button>
+                <button onClick={() => { onFacturar(); setInvoiceMenuOpen(false); }}>Generar factura</button>
+              </span>
+            )}
+          </span>
           <button onClick={() => selectedFactura && void emitirRecetaPdf(selectedFactura.id)} disabled={!selectedFactura}>Receta</button>
           <button onClick={onRecibos}>Recibos</button>
         </div>
@@ -1296,6 +1311,214 @@ function EurodentHistoryBillingPanel({
         </div>
       )}
     </section>
+  );
+}
+
+function InvoiceHistoryModal({
+  facturas,
+  onClose,
+}: {
+  facturas: Factura[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="document-modal invoice-history-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="modal-titlebar">
+          <strong>Historial de facturas</strong>
+          <button onClick={onClose}>Cerrar</button>
+        </header>
+        <div className="invoice-history-list">
+          <table className="euro-table">
+            <thead><tr><th>Fecha</th><th>Factura</th><th>Estado</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>PDF</th></tr></thead>
+            <tbody>
+              {facturas.map((factura) => (
+                <tr key={factura.id}>
+                  <td>{formatDate(factura.fecha)}</td>
+                  <td><strong>{factura.serie}/{factura.numero}</strong></td>
+                  <td>{factura.estado}</td>
+                  <td className="num">{money(factura.total)}</td>
+                  <td className="num">{money(factura.total_cobrado)}</td>
+                  <td className="num">{money(factura.pendiente)}</td>
+                  <td><button onClick={() => window.open(facturaPdfUrl(factura.id), '_blank')}>Abrir</button></td>
+                </tr>
+              ))}
+              {!facturas.length && <tr><td colSpan={7}>Este paciente no tiene facturas emitidas.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function InvoiceCreationModal({
+  paciente,
+  lineas,
+  formasPago,
+  loading,
+  saving,
+  onClose,
+  onGenerate,
+}: {
+  paciente: ApiPaciente;
+  lineas: HistorialSinFacturar[];
+  formasPago: { id: string; nombre: string }[];
+  loading: boolean;
+  saving: boolean;
+  onClose: () => void;
+  onGenerate: (data: {
+    lineas: HistorialSinFacturar[];
+    fecha: string;
+    serie: string;
+    formaPagoId: string | null;
+    descuento: number;
+    generarCobro: boolean;
+  }) => void;
+}) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
+  const [serie, setSerie] = useState('A');
+  const [formaPagoId, setFormaPagoId] = useState<string>(formasPago[0]?.id ?? '');
+  const [descuento, setDescuento] = useState(0);
+  const [generarCobro, setGenerarCobro] = useState(false);
+  const selectedLineas = lineas.filter((linea) => selectedIds.includes(linea.id));
+  const availableLineas = lineas.filter((linea) => !selectedIds.includes(linea.id));
+  const discountFactor = 1 - Math.max(0, Math.min(100, descuento)) / 100;
+  const subtotal = selectedLineas.reduce((sum, linea) => sum + asNumber(linea.tratamiento_precio), 0);
+  const base = selectedLineas.reduce((sum, linea) => sum + asNumber(linea.tratamiento_precio) * discountFactor, 0);
+  const iva = selectedLineas.reduce((sum, linea) => {
+    const neto = asNumber(linea.tratamiento_precio) * discountFactor;
+    return sum + (neto * asNumber(linea.tratamiento_iva)) / 100;
+  }, 0);
+  const total = base + iva;
+
+  useEffect(() => {
+    if (!formaPagoId && formasPago[0]?.id) setFormaPagoId(formasPago[0].id);
+  }, [formaPagoId, formasPago]);
+
+  function move(id: string) {
+    setSelectedIds((current) => current.includes(id) ? current : [...current, id]);
+  }
+
+  function remove(id: string) {
+    setSelectedIds((current) => current.filter((item) => item !== id));
+  }
+
+  function renderRows(rows: HistorialSinFacturar[], action: (id: string) => void) {
+    return rows.map((linea) => (
+      <tr key={linea.id} onDoubleClick={() => action(linea.id)}>
+        <td>{formatDate(linea.fecha)}</td>
+        <td>
+          <strong>{linea.tratamiento_nombre}</strong>
+          <small>{linea.pieza_dental ? `Pieza ${linea.pieza_dental}` : linea.doctor_nombre}</small>
+        </td>
+        <td className="num">{money(linea.tratamiento_precio)}</td>
+      </tr>
+    ));
+  }
+
+  return (
+    <div className="modal-backdrop" onMouseDown={onClose}>
+      <section className="document-modal invoice-creation-modal" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="modal-titlebar">
+          <strong>Creación de facturas</strong>
+          <button onClick={onClose}>Cerrar</button>
+        </header>
+        <div className="invoice-creation-shell">
+          <div className="invoice-creation-top">
+            <label>Nombre
+              <input readOnly value={`${paciente.apellidos}, ${paciente.nombre}`} />
+            </label>
+            <label>Nº Historial
+              <input readOnly value={paciente.num_historial} />
+            </label>
+            <span className="invoice-sif-stamp">SIF / VERI*FACTU listo</span>
+          </div>
+
+          <div className="invoice-creation-grid">
+            <section>
+              <h3>Tratamientos no facturados</h3>
+              <div className="invoice-picker-table">
+                <table className="euro-table">
+                  <thead><tr><th>Fecha</th><th>Tratamiento</th><th>Importe</th></tr></thead>
+                  <tbody>
+                    {loading && <tr><td colSpan={3}>Cargando tratamientos pendientes...</td></tr>}
+                    {!loading && renderRows(availableLineas, move)}
+                    {!loading && !availableLineas.length && <tr><td colSpan={3}>No hay tratamientos pendientes de facturar.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <div className="invoice-transfer-buttons">
+              <button onClick={() => setSelectedIds(lineas.map((linea) => linea.id))} title="Pasar todos">→</button>
+              <button onClick={() => setSelectedIds([])} title="Quitar todos">←</button>
+            </div>
+
+            <section>
+              <h3>Tratamientos a facturar</h3>
+              <div className="invoice-picker-table">
+                <table className="euro-table">
+                  <thead><tr><th>Fecha</th><th>Tratamiento</th><th>Importe</th></tr></thead>
+                  <tbody>
+                    {renderRows(selectedLineas, remove)}
+                    {!selectedLineas.length && <tr><td colSpan={3}>Selecciona tratamientos con doble clic o con la flecha.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="invoice-patient-data">
+              <h3>Datos del paciente</h3>
+              <dl>
+                <dt>DNI/NIE</dt><dd>{paciente.dni_nie || '-'}</dd>
+                <dt>Dirección</dt><dd>{paciente.direccion || '-'}</dd>
+                <dt>Población</dt><dd>{[paciente.codigo_postal, paciente.ciudad, paciente.provincia].filter(Boolean).join(' - ') || '-'}</dd>
+                <dt>Teléfono</dt><dd>{paciente.telefono || '-'}</dd>
+              </dl>
+            </section>
+
+            <section className="invoice-fiscal-data">
+              <h3>Datos de factura</h3>
+              <div className="invoice-fiscal-form">
+                <label>Fecha<input type="date" value={fecha} onChange={(event) => setFecha(event.target.value)} /></label>
+                <label>Serie<input value={serie} onChange={(event) => setSerie(event.target.value.toUpperCase().slice(0, 5))} /></label>
+                <label>Número<input readOnly value="Auto" /></label>
+                <label>Forma de pago
+                  <select value={formaPagoId} onChange={(event) => setFormaPagoId(event.target.value)}>
+                    <option value="">Sin forma</option>
+                    {formasPago.map((forma) => <option key={forma.id} value={forma.id}>{forma.nombre}</option>)}
+                  </select>
+                </label>
+                <label>Descuento %
+                  <input type="number" min={0} max={100} value={descuento} onChange={(event) => setDescuento(Number(event.target.value) || 0)} />
+                </label>
+                <label>Subtotal<input readOnly value={money(subtotal)} /></label>
+                <label>Base imponible<input readOnly value={money(base)} /></label>
+                <label>IVA<input readOnly value={money(iva)} /></label>
+                <label>Total<input readOnly value={money(total)} /></label>
+              </div>
+              <label className="invoice-paid-toggle">
+                <input type="checkbox" checked={generarCobro} onChange={(event) => setGenerarCobro(event.currentTarget.checked)} />
+                Generar cobro y marcar como pagada
+              </label>
+              <p>Al generar se crea RF, huella, QR fiscal, PDF archivado y evento SIF.</p>
+              <button className="primary-action" disabled={!selectedLineas.length || saving} onClick={() => onGenerate({
+                lineas: selectedLineas,
+                fecha,
+                serie,
+                formaPagoId: formaPagoId || null,
+                descuento,
+                generarCobro,
+              })}>
+                {saving ? 'Generando...' : 'Generar factura'}
+              </button>
+            </section>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -1826,6 +2049,8 @@ export default function PacientesPage() {
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
   const [editingPatient, setEditingPatient] = useState(false);
   const [fullPatientOpen, setFullPatientOpen] = useState(false);
+  const [invoiceCreatorOpen, setInvoiceCreatorOpen] = useState(false);
+  const [invoiceHistoryOpen, setInvoiceHistoryOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<PatientContextMenu | null>(null);
   const [searchParams] = useSearchParams();
   const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
@@ -1866,6 +2091,11 @@ export default function PacientesPage() {
     queryKey: ['historial-paciente', active?.id],
     queryFn: () => getHistorialPaciente(active!.id),
     enabled: Boolean(active),
+  });
+  const historialSinFacturarQuery = useQuery({
+    queryKey: ['historial-sin-facturar', active?.id],
+    queryFn: () => getHistorialSinFacturar(active!.id),
+    enabled: Boolean(active) && invoiceCreatorOpen,
   });
   const citasPacienteQuery = useQuery({
     queryKey: ['citas-paciente', active?.id],
@@ -1926,6 +2156,42 @@ export default function PacientesPage() {
       void facturasQuery.refetch();
       void saldoQuery.refetch();
       setTab('facturacion');
+    },
+  });
+
+  const generarFacturaDesdeHistorial = useMutation({
+    mutationFn: async (data: {
+      lineas: HistorialSinFacturar[];
+      fecha: string;
+      serie: string;
+      formaPagoId: string | null;
+      descuento: number;
+      generarCobro: boolean;
+    }) => {
+      if (!active) throw new Error('Sin paciente');
+      if (!data.lineas.length) throw new Error('Selecciona al menos un tratamiento');
+      if (data.generarCobro && !data.formaPagoId) throw new Error('Selecciona forma de pago para generar cobro');
+      const factura = await createFacturaDesdeHistorial(active.id, {
+        fecha: data.fecha,
+        serie: data.serie,
+        forma_pago_id: data.formaPagoId,
+        descuento_porcentaje: data.descuento,
+        lineas: data.lineas,
+        observaciones: 'Factura generada desde tratamientos no facturados',
+      });
+      if (data.generarCobro && data.formaPagoId) {
+        await registrarCobro(factura.id, data.formaPagoId, Number(factura.total));
+      }
+      return factura;
+    },
+    onSuccess: (factura) => {
+      setInvoiceCreatorOpen(false);
+      setTab('facturacion');
+      void facturasQuery.refetch();
+      void historialQuery.refetch();
+      void historialSinFacturarQuery.refetch();
+      void saldoQuery.refetch();
+      window.open(facturaPdfUrl(factura.id), '_blank');
     },
   });
 
@@ -2315,7 +2581,8 @@ export default function PacientesPage() {
             historial={historialQuery.data ?? []}
             facturas={facturas}
             anticipos={pagosAnticipados}
-            onFacturar={() => emitirFactura.mutate()}
+            onFacturar={() => setInvoiceCreatorOpen(true)}
+            onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
             onCobrar={() => cobrarFactura.mutate()}
             onAddAnticipo={() => crearPagoAnticipado.mutate()}
             onEditAnticipo={(pago) => editarPagoAnticipado.mutate(pago)}
@@ -2402,6 +2669,23 @@ export default function PacientesPage() {
             </>
           )}
         </div>
+      )}
+      {invoiceHistoryOpen && (
+        <InvoiceHistoryModal
+          facturas={facturas}
+          onClose={() => setInvoiceHistoryOpen(false)}
+        />
+      )}
+      {invoiceCreatorOpen && active && (
+        <InvoiceCreationModal
+          paciente={active}
+          lineas={historialSinFacturarQuery.data ?? []}
+          formasPago={formasPagoQuery.data ?? []}
+          loading={historialSinFacturarQuery.isLoading}
+          saving={generarFacturaDesdeHistorial.isPending}
+          onClose={() => setInvoiceCreatorOpen(false)}
+          onGenerate={(data) => generarFacturaDesdeHistorial.mutate(data)}
+        />
       )}
       {designer && active && (
         <DocumentDesignerModal

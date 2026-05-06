@@ -275,8 +275,13 @@ async def crear_factura(
 async def historial_sin_facturar(
     paciente_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> list[HistorialSinFacturarResponse]:
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
     facturados_sq = select(FacturaLinea.historial_id).where(
         FacturaLinea.historial_id.is_not(None)
     ).scalar_subquery()
