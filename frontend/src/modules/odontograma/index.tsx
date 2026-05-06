@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createPresupuestoFromOdontograma,
@@ -50,6 +50,17 @@ interface Props {
   doctorId?: string | null;
   onPresupuestoCreado?: () => void;
   context?: 'paciente' | 'presupuesto';
+  onBudgetDraftChange?: (draft: OdontogramaBudgetDraft) => void;
+  onAddBudgetTreatment?: (draft: OdontogramaBudgetDraft) => void;
+}
+
+export interface OdontogramaBudgetDraft {
+  piezaFdi: number;
+  superficie: OdontogramaSurfaceName;
+  caras: string;
+  estado: OdontogramaStatus;
+  tratamientoId: string;
+  precioUnitario: string | number;
 }
 
 function pieceMap(odontograma?: OdontogramaPaciente) {
@@ -79,12 +90,38 @@ function shortDate(value: string) {
   return new Intl.DateTimeFormat('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
-export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onPresupuestoCreado, context = 'paciente' }: Props) {
+function faceForSurface(surface: OdontogramaSurfaceName) {
+  const map: Record<OdontogramaSurfaceName, string> = {
+    mesial: 'M',
+    distal: 'D',
+    vestibular: 'V',
+    lingual_palatina: 'L',
+    lingual_palatal: 'L',
+    oclusal_incisal: 'O',
+    raiz: 'R',
+  };
+  return map[surface] ?? '';
+}
+
+function validStatus(value?: string | null): OdontogramaStatus {
+  return (STATUSES.some((item) => item.id === value) ? value : 'tratamiento_pendiente') as OdontogramaStatus;
+}
+
+export function OdontogramaPacientePanel({
+  paciente,
+  tratamientos,
+  doctorId,
+  onPresupuestoCreado,
+  context = 'paciente',
+  onBudgetDraftChange,
+  onAddBudgetTreatment,
+}: Props) {
   const queryClient = useQueryClient();
   const [selectedTooth, setSelectedTooth] = useState<number>(24);
   const [selectedSurface, setSelectedSurface] = useState<OdontogramaSurfaceName>('oclusal_incisal');
   const [selectedStatus, setSelectedStatus] = useState<OdontogramaStatus>('tratamiento_pendiente');
   const [selectedTreatment, setSelectedTreatment] = useState<string>(tratamientos[0]?.id ?? '');
+  const [treatmentSearch, setTreatmentSearch] = useState('');
   const [notes, setNotes] = useState('');
 
   const odontogramaQuery = useQuery({
@@ -96,6 +133,14 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
   const pieces = useMemo(() => pieceMap(odontograma), [odontograma]);
   const selectedPiece = pieces.get(selectedTooth);
   const selectedSurfaceData = surfaceFor(selectedPiece, selectedSurface);
+  const selectedTreatmentItem = tratamientos.find((tratamiento) => tratamiento.id === selectedTreatment) ?? null;
+  const filteredTreatments = useMemo(() => {
+    const query = treatmentSearch.trim().toLowerCase();
+    const source = query
+      ? tratamientos.filter((tratamiento) => `${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`.toLowerCase().includes(query))
+      : tratamientos;
+    return source.slice(0, context === 'presupuesto' ? 8 : 80);
+  }, [context, tratamientos, treatmentSearch]);
   const historialQuery = useQuery({
     queryKey: ['odontograma-historial', odontograma?.id],
     queryFn: () => getOdontogramaHistorial(odontograma!.id),
@@ -139,6 +184,43 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
     (acc, pieza) => acc + pieza.superficies.filter((surface) => surface.tratamiento_planificado_id || surface.condicion === 'tratamiento_pendiente').length,
     0,
   );
+  const selectionKey = `${selectedTooth}-${selectedSurface}-${selectedSurfaceData?.id ?? 'none'}-${selectedSurfaceData?.condicion ?? ''}-${selectedSurfaceData?.tratamiento_planificado_id ?? ''}-${selectedPiece?.estado_general ?? ''}`;
+
+  useEffect(() => {
+    if (!selectedTreatment && tratamientos[0]) setSelectedTreatment(tratamientos[0].id);
+  }, [selectedTreatment, tratamientos]);
+
+  useEffect(() => {
+    const nextStatus = validStatus(selectedSurfaceData?.condicion ?? selectedPiece?.estado_general);
+    setSelectedStatus(nextStatus);
+    if (selectedSurfaceData?.tratamiento_planificado_id) setSelectedTreatment(selectedSurfaceData.tratamiento_planificado_id);
+    setNotes(selectedSurfaceData?.notas ?? selectedPiece?.notas ?? '');
+  }, [selectionKey]);
+
+  useEffect(() => {
+    const tratamiento = tratamientos.find((item) => item.id === selectedTreatment);
+    if (!onBudgetDraftChange || context !== 'presupuesto') return;
+    onBudgetDraftChange({
+      piezaFdi: selectedTooth,
+      superficie: selectedSurface,
+      caras: faceForSurface(selectedSurface),
+      estado: selectedStatus,
+      tratamientoId: selectedTreatment,
+      precioUnitario: tratamiento?.precio ?? 0,
+    });
+  }, [context, onBudgetDraftChange, selectedStatus, selectedSurface, selectedTooth, selectedTreatment, tratamientos]);
+
+  function addSelectedTreatmentToBudget() {
+    if (!selectedTreatmentItem || !onAddBudgetTreatment) return;
+    onAddBudgetTreatment({
+      piezaFdi: selectedTooth,
+      superficie: selectedSurface,
+      caras: faceForSurface(selectedSurface),
+      estado: selectedStatus,
+      tratamientoId: selectedTreatmentItem.id,
+      precioUnitario: selectedTreatmentItem.precio,
+    });
+  }
 
   function renderTooth(fdi: number) {
     const piece = pieces.get(fdi);
@@ -235,23 +317,48 @@ export function OdontogramaPacientePanel({ paciente, tratamientos, doctorId, onP
         </div>
         <label className="field compact-field">
           Tratamiento planificado
-          <select value={selectedTreatment} onChange={(event) => setSelectedTreatment(event.target.value)}>
-            <option value="">Sin tratamiento</option>
-            {tratamientos.map((tratamiento) => (
-              <option key={tratamiento.id} value={tratamiento.id}>
-                {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}{tratamiento.nombre} ({Number(tratamiento.precio).toLocaleString('es-ES')} EUR)
-              </option>
-            ))}
-          </select>
+          <input value={treatmentSearch} onChange={(event) => setTreatmentSearch(event.target.value)} placeholder="Buscar tratamiento" />
         </label>
+        <div className="odontograma-treatment-picker">
+          {filteredTreatments.map((tratamiento) => (
+            <button
+              key={tratamiento.id}
+              type="button"
+              className={selectedTreatment === tratamiento.id ? 'active' : ''}
+              onClick={() => {
+                setSelectedTreatment(tratamiento.id);
+                setSelectedStatus('tratamiento_pendiente');
+                setTreatmentSearch('');
+              }}
+            >
+              <span>{tratamiento.codigo ?? 'TR'}</span>
+              <strong>{tratamiento.nombre}</strong>
+              <em>{Number(tratamiento.precio).toLocaleString('es-ES')} EUR</em>
+            </button>
+          ))}
+          {!filteredTreatments.length && <p className="empty-state compact">No hay tratamientos con ese criterio.</p>}
+        </div>
         <label className="field compact-field">
           Notas de pieza/superficie
           <textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={4} placeholder={selectedSurfaceData?.notas ?? selectedPiece?.notas ?? 'Notas clinicas concretas'} />
         </label>
         <div className="odontograma-actions">
           <button type="button" onClick={() => pieceMutation.mutate()} disabled={!odontograma || pieceMutation.isPending}>Guardar pieza</button>
-          <button type="button" className="primary" onClick={() => surfaceMutation.mutate()} disabled={!odontograma || surfaceMutation.isPending}>Guardar superficie</button>
+          <button type="button" className="primary" onClick={() => surfaceMutation.mutate()} disabled={!odontograma || surfaceMutation.isPending}>{context === 'presupuesto' ? 'Marcar cara' : 'Guardar superficie'}</button>
         </div>
+        {context === 'presupuesto' && (
+          <button
+            type="button"
+            className="odontograma-add-budget"
+            onClick={() => {
+              if (odontograma) surfaceMutation.mutate();
+              addSelectedTreatmentToBudget();
+            }}
+            disabled={!selectedTreatmentItem || !onAddBudgetTreatment}
+          >
+            Anadir al presupuesto
+          </button>
+        )}
         {context !== 'presupuesto' && (
           <>
             <div className="odontograma-actions split">

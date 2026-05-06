@@ -42,6 +42,7 @@ import {
 } from '../../lib/api';
 import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, PlantillaConsentimiento, Presupuesto, PresupuestoLinea, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
 import { OdontogramaPacientePanel } from '../odontograma';
+import type { OdontogramaBudgetDraft } from '../odontograma';
 
 type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type TreatmentVisual = { codigo?: string | null; nombre?: string | null; familia?: { icono?: string | null; nombre?: string | null } | null } | null;
@@ -345,6 +346,21 @@ function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId }: { p
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] }),
   });
 
+  const addLineFromOdontograma = useMutation({
+    mutationFn: (draft: OdontogramaBudgetDraft) => {
+      const treatment = tratamientos.find((item) => item.id === draft.tratamientoId);
+      if (!treatment) throw new Error('Seleccione tratamiento');
+      return addPresupuestoLinea(presupuesto.id, {
+        tratamiento_id: draft.tratamientoId,
+        pieza_dental: draft.piezaFdi,
+        caras: draft.caras || null,
+        precio_unitario: draft.precioUnitario || treatment.precio,
+        descuento_porcentaje: descuento || 0,
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] }),
+  });
+
   const updateLine = useMutation({
     mutationFn: (patch: Partial<{ pieza_dental: number | null; caras: string | null; precio_unitario: string | number; descuento_porcentaje: string | number; aceptado: boolean }>) => {
       if (!lineaSeleccionada) throw new Error('Seleccione linea');
@@ -413,6 +429,22 @@ function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId }: { p
     setCatalogSearch('');
   }
 
+  function applyOdontogramaDraft(draft: OdontogramaBudgetDraft) {
+    if (pieza !== String(draft.piezaFdi)) setPieza(String(draft.piezaFdi));
+    if (caras !== draft.caras) setCaras(draft.caras);
+    if (selectedTreatmentId !== draft.tratamientoId) {
+      const tratamiento = tratamientos.find((item) => item.id === draft.tratamientoId);
+      setSelectedTreatmentId(draft.tratamientoId);
+      setPrecioLinea(String(tratamiento?.precio ?? draft.precioUnitario ?? ''));
+      setLineaSeleccionada(null);
+    }
+  }
+
+  function addOdontogramaDraft(draft: OdontogramaBudgetDraft) {
+    applyOdontogramaDraft(draft);
+    addLineFromOdontograma.mutate(draft);
+  }
+
   return (
     <section className="desk-panel budget-panel">
       <div className="panel-caption">
@@ -429,18 +461,28 @@ function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId }: { p
         tratamientos={tratamientos}
         doctorId={doctorId}
         context="presupuesto"
+        onBudgetDraftChange={applyOdontogramaDraft}
+        onAddBudgetTreatment={addOdontogramaDraft}
         onPresupuestoCreado={() => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] })}
       />
       <div className="budget-workbench">
-        <aside>
+        <aside className="budget-treatment-picker">
           <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Buscar tratamiento" />
-          <select size={9} value={selectedTreatment?.id ?? ''} onChange={(event) => selectTreatment(event.target.value)}>
+          <div className="budget-treatment-list" role="listbox" aria-label="Tratamientos del presupuesto">
             {catalog.map((tratamiento) => (
-              <option key={tratamiento.id} value={tratamiento.id}>
-                {tratamiento.codigo ?? 'TR'} · {tratamiento.nombre} · {money(tratamiento.precio)}
-              </option>
+              <button
+                key={tratamiento.id}
+                type="button"
+                className={selectedTreatment?.id === tratamiento.id ? 'active' : ''}
+                onClick={() => selectTreatment(tratamiento.id)}
+              >
+                <TreatmentBadge tratamiento={tratamiento} />
+                <strong>{tratamiento.nombre}</strong>
+                <span>{money(tratamiento.precio)}</span>
+              </button>
             ))}
-          </select>
+            {!catalog.length && <p>No hay tratamientos con ese criterio.</p>}
+          </div>
         </aside>
         <div className="budget-line-editor">
           <label>Tratamiento<input readOnly value={selectedTreatment?.nombre ?? ''} /></label>
