@@ -2089,9 +2089,21 @@ export default function PacientesPage() {
         }}
       />
       <div className="patient-selector-current">
-        <span>Paciente activo</span>
-        <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
-        <small>Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}</small>
+        <div>
+          <span>Paciente activo</span>
+          <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
+          <small>Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}</small>
+        </div>
+        <button
+          type="button"
+          className="patient-agenda-shortcut"
+          onClick={abrirAgendaPaciente}
+          disabled={!active}
+          title="Abrir agenda con este paciente"
+          aria-label="Abrir agenda con este paciente"
+        >
+          <span aria-hidden="true" />
+        </button>
       </div>
       {hasPatientError && (
         <div className="inline-alert">
