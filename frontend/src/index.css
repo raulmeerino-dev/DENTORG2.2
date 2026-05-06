@@ -5292,7 +5292,6 @@ body {
 }
 
 .budget-workbench input,
-.budget-workbench select,
 .budget-line-editor input {
   min-height: 30px;
   border: 1px solid #bfd0da;
@@ -5301,9 +5300,62 @@ body {
   background: #ffffff;
 }
 
-.budget-workbench select {
-  min-height: 172px;
+.budget-treatment-picker {
+  min-height: 0;
+}
+
+.budget-treatment-list {
+  min-height: 178px;
+  max-height: 240px;
+  display: grid;
+  gap: 6px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid #bfd0da;
+  border-radius: 10px;
+  background: #f8fbfd;
+}
+
+.budget-treatment-list button {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #d7e4ec;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #18344a;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.budget-treatment-list button:hover,
+.budget-treatment-list button.active {
+  border-color: #0f7cad;
+  background: #edf8fd;
+  box-shadow: inset 3px 0 0 #0f7cad;
+}
+
+.budget-treatment-list button strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
+}
+
+.budget-treatment-list button > span:last-child {
+  color: #0f4f72;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.budget-treatment-list p {
+  margin: 0;
+  color: #627586;
+  font-weight: 700;
 }
 
 .budget-line-editor {
@@ -6370,6 +6422,19 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   overflow: auto;
 }
 
+.odontograma-page-budget .odontograma-side {
+  border-color: #b8cfdd;
+  background: linear-gradient(180deg, #ffffff, #f6fbfd);
+}
+
+.odontograma-page-budget .compact-field input {
+  min-height: 32px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #ffffff;
+}
+
 .odontograma-legend {
   display: flex;
   flex-wrap: wrap;
@@ -6452,6 +6517,81 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 
 .odontograma-actions button:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.odontograma-treatment-picker {
+  min-height: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 210px;
+  overflow: auto;
+  padding: 5px;
+  border: 1px solid #d3e2ea;
+  border-radius: 10px;
+  background: #f8fbfd;
+}
+
+.odontograma-treatment-picker button {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 1px solid #d8e5ec;
+  border-radius: 8px;
+  padding: 6px 7px;
+  color: #17364b;
+  background: #ffffff;
+  text-align: left;
+}
+
+.odontograma-treatment-picker button:hover,
+.odontograma-treatment-picker button.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, #ffffff);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.odontograma-treatment-picker span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  min-height: 24px;
+  border-radius: 7px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.odontograma-treatment-picker strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.odontograma-treatment-picker em {
+  color: #0f4f72;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.odontograma-add-budget {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-radius: 9px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #0f7cad, #23a373);
+  font-weight: 900;
+}
+
+.odontograma-add-budget:disabled {
+  opacity: .55;
   cursor: not-allowed;
 }
 
