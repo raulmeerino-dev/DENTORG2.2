@@ -380,7 +380,7 @@ a {
   font-weight: 700;
 }
 
-.patient-module-tabs button span {
+.patient-module-tabs button span:not(.tab-icon) {
   color: var(--blue-dark);
   font-family: Consolas, monospace;
 }
@@ -1149,7 +1149,7 @@ a {
 }
 
 .nav-icon,
-.patient-module-tabs button span {
+.patient-module-tabs button span:not(.tab-icon) {
   color: #0f6fa8;
   font-weight: 800;
 }
@@ -1596,6 +1596,12 @@ body {
   background: linear-gradient(135deg, #0f7cad, #28a985);
   font-family: "Segoe UI", Tahoma, sans-serif;
   font-size: 11px;
+}
+
+.nav-icon svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
 }
 
 .main-content {
@@ -3041,7 +3047,25 @@ body {
   box-shadow: inset 0 2px 0 #0f7cad;
 }
 
-.patient-module-tabs button span {
+.patient-module-tabs button .tab-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  color: #0f7cad;
+  flex-shrink: 0;
+}
+
+.patient-module-tabs button .tab-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.patient-module-tabs button.active .tab-icon {
+  color: #0a5e84;
+}
+
+.patient-module-tabs button span:not(.tab-icon) {
   min-width: 22px;
   height: 22px;
   display: inline-grid;
@@ -3571,7 +3595,7 @@ body {
   box-shadow: inset 0 4px 0 #0f7cad;
 }
 
-.patient-module-tabs button span {
+.patient-module-tabs button span:not(.tab-icon) {
   min-width: 28px;
   height: 28px;
   display: inline-grid;
@@ -4668,8 +4692,8 @@ body {
 
 .patient-next-card,
 .patient-last-card {
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 5px;
   padding: 10px;
 }
@@ -4691,24 +4715,28 @@ body {
 
 .patient-card-head h3::before,
 .patient-side-card h3::before {
-  width: 26px;
-  height: 22px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 7px;
-  color: #ffffff;
+  content: "";
+  width: 4px;
+  height: 18px;
+  display: inline-block;
+  border-radius: 3px;
   background: #0f7cad;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0;
+  flex-shrink: 0;
 }
 
-.patient-next-card .patient-card-head h3::before { content: "AG"; background: #16a34a; }
-.patient-last-card .patient-card-head h3::before { content: "HC"; background: #0f7cad; }
-.patient-history-card .patient-card-head h3::before { content: "HS"; background: #687480; }
-.patient-side-card > div:nth-child(1) h3::before { content: "CT"; background: #0284c7; }
-.patient-side-card > div:nth-child(2) h3::before { content: "CL"; background: #7c3aed; }
-.patient-side-balance h3::before { content: "EU"; background: #b7791f; }
+.patient-next-card .patient-card-head h3::before { background: #16a34a; }
+.patient-last-card .patient-card-head h3::before { background: #0f7cad; }
+.patient-history-card .patient-card-head h3::before { background: #687480; }
+.patient-side-card > div:nth-child(1) h3::before { background: #0284c7; }
+.patient-side-card > div:nth-child(2) h3::before { background: #7c3aed; }
+.patient-side-balance h3::before { background: #b7791f; }
+
+.patient-card-head-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
 
 .patient-card-head span {
   max-width: 130px;
@@ -4807,7 +4835,6 @@ body {
 
 .patient-next-card footer,
 .patient-last-card footer {
-  align-self: end;
   display: flex;
   justify-content: flex-start;
 }
@@ -4924,46 +4951,44 @@ body {
 }
 
 .patient-selector-bar .patient-finder {
-  position: relative;
   display: grid;
-  grid-template-columns: minmax(180px, .34fr) minmax(260px, 1fr);
-  gap: 8px;
-  align-items: end;
+  grid-template-columns: 38px 1fr;
+  gap: 6px;
+  align-items: center;
 }
 
-.patient-selector-bar .patient-finder label {
-  position: relative;
-  display: grid;
-  gap: 2px;
-  color: #315267;
-  font-size: 11px;
-  font-weight: 900;
-  text-transform: uppercase;
+.patient-selector-bar .patient-finder .patient-new-shortcut {
+  flex-shrink: 0;
+  align-self: center;
 }
 
-.patient-selector-bar .patient-finder input,
-.patient-selector-bar .patient-finder select {
-  min-height: 32px;
-  border: 1px solid #bfd0da;
-  border-radius: 8px;
-  padding: 5px 8px;
-  background: #ffffff;
-  font-weight: 700;
+.patient-selector-bar .patient-finder .patient-search-label {
+  position: relative;
+  display: block;
+  min-width: 0;
 }
 
 .patient-selector-bar .patient-finder input {
   width: 100%;
+  min-height: 34px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  padding: 5px 10px;
+  background: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
 }
 
-.patient-selector-bar .patient-finder-results {
+.patient-selector-bar .patient-search-label .patient-finder-results {
   position: absolute;
   left: 0;
-  top: calc(100% + 6px);
+  top: calc(100% + 4px);
   z-index: 60;
-  width: min(720px, 100%);
-  max-height: 220px;
+  width: min(560px, 100vw);
+  max-height: 260px;
   overflow: auto;
   box-shadow: 0 14px 34px rgba(20, 42, 58, .18);
+  border-radius: 10px;
 }
 
 .patient-loading-strip {
@@ -5023,51 +5048,52 @@ body {
   color: #60717f;
 }
 
-.patient-agenda-shortcut {
-  width: 34px;
-  height: 34px;
+.patient-agenda-shortcut,
+.patient-new-shortcut {
+  width: 36px;
+  height: 36px;
   display: inline-grid;
   place-items: center;
-  border: 1px solid #91c5dc;
   border-radius: 9px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.patient-agenda-shortcut {
+  border: 1px solid #91c5dc;
   color: #ffffff;
   background: linear-gradient(135deg, #0f7cad, #23a373);
-  cursor: pointer;
 }
 
-.patient-agenda-shortcut span {
-  position: relative;
+.patient-new-shortcut {
+  border: 1px solid #91c5dc;
+  color: #0f7cad;
+  background: #eaf7fc;
+  margin-right: 4px;
+}
+
+.patient-agenda-shortcut svg,
+.patient-new-shortcut svg {
   width: 18px;
-  height: 17px;
-  border: 2px solid currentColor;
-  border-radius: 4px;
-}
-
-.patient-agenda-shortcut span::before {
-  content: "";
-  position: absolute;
-  left: -2px;
-  right: -2px;
-  top: 4px;
-  border-top: 2px solid currentColor;
-}
-
-.patient-agenda-shortcut span::after {
-  content: "";
-  position: absolute;
-  left: 4px;
-  top: -5px;
-  width: 8px;
-  height: 5px;
-  border-left: 2px solid currentColor;
-  border-right: 2px solid currentColor;
+  height: 18px;
 }
 
 .patient-agenda-shortcut:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.08);
+}
+
+.patient-new-shortcut:hover {
+  background: #d0eefa;
+  border-color: #0f7cad;
 }
 
 .patient-agenda-shortcut:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+
+}
+
+.patient-new-shortcut:disabled {
   opacity: .45;
   cursor: not-allowed;
 }
@@ -5077,14 +5103,14 @@ body {
   letter-spacing: 0;
 }
 
-.patient-module-tabs button span {
+.patient-module-tabs button span:not(.tab-icon) {
   border-radius: 7px;
   font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
   font-size: 10px;
   letter-spacing: 0;
 }
 
-.patient-module-tabs button.active span {
+.patient-module-tabs button.active span:not(.tab-icon) {
   background: #0f7cad;
 }
 
@@ -5092,6 +5118,11 @@ body {
   border-radius: 7px;
   font-family: "Inter", "Segoe UI", Tahoma, sans-serif;
   letter-spacing: 0;
+}
+
+.nav-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .patient-screen,
@@ -6772,10 +6803,11 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 
 .tooth-arch {
   display: grid;
-  grid-template-columns: repeat(16, minmax(44px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(16, minmax(50px, 1fr));
+  gap: 5px;
   align-items: end;
   margin: 2px 0 4px;
+  min-width: 840px;
 }
 
 .tooth-arch.lower {
@@ -6788,8 +6820,9 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  padding: 3px;
+  padding: 2px 2px 4px;
   cursor: pointer;
+  overflow: visible;
   transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
 }
 
@@ -6803,12 +6836,35 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   transform: translateY(-2px);
 }
 
+.clinical-tooth.budget-queued {
+  position: relative;
+  border-color: #23a373;
+  background: color-mix(in srgb, #23a373 10%, transparent);
+}
+
+.clinical-tooth b {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #23a373;
+  color: #ffffff;
+  font-size: 10px;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
 .clinical-tooth svg {
   width: 100%;
-  max-width: 54px;
-  height: 88px;
+  max-width: 58px;
+  height: 96px;
   display: block;
   margin: 0 auto;
+  overflow: visible;
 }
 
 .clinical-tooth span {
@@ -6829,18 +6885,6 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   stroke: #64748b;
   stroke-width: 1.1;
   stroke-linecap: round;
-}
-
-.clinical-tooth.incisor svg {
-  transform: scaleX(0.86);
-}
-
-.clinical-tooth.canine svg {
-  transform: scaleX(0.92);
-}
-
-.clinical-tooth.molar svg {
-  transform: scaleX(1.08);
 }
 
 .arch-midline {
@@ -7041,6 +7085,131 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   cursor: not-allowed;
 }
 
+.odontograma-budget-queue {
+  display: grid;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid #c6dce8;
+  border-radius: 10px;
+  background: #eef8f2;
+}
+
+.odontograma-queue-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.odontograma-queue-head strong {
+  color: #17364b;
+  font-size: 0.82rem;
+}
+
+.odontograma-queue-head span {
+  color: #0f6b44;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.odontograma-queue-list {
+  display: grid;
+  gap: 5px;
+  max-height: 172px;
+  overflow: auto;
+}
+
+.odontograma-queue-list p {
+  margin: 0;
+  padding: 8px;
+  border: 1px dashed #9ec6b0;
+  border-radius: 8px;
+  color: #526b5c;
+  background: rgba(255,255,255,0.65);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.odontograma-queue-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 24px;
+  gap: 4px 7px;
+  align-items: center;
+  padding: 7px 6px;
+  border: 1px solid #bfe2cc;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.odontograma-queue-item span {
+  grid-column: 1 / -1;
+  color: #0f6b44;
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.odontograma-queue-item strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #17364b;
+  font-size: 0.78rem;
+}
+
+.odontograma-queue-item em {
+  color: #0f4f72;
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.odontograma-queue-item button {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d9a1a1;
+  border-radius: 6px;
+  background: #fff5f5;
+  color: #b91c1c;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.odontograma-queue-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.odontograma-queue-actions button {
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #a8c8d8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17364b;
+  font-size: 0.8rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.odontograma-queue-actions button.primary {
+  min-height: 38px;
+  border-color: #128c7e;
+  background: linear-gradient(135deg, #0f7cad, #23a373);
+  color: #ffffff;
+}
+
+.odontograma-queue-actions button:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
 .odontograma-events {
   display: grid;
   gap: 7px;
@@ -7078,5 +7247,1138 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 
   .tooth-arch {
     grid-template-columns: repeat(8, minmax(42px, 1fr));
+  }
+
+  .odontograma-page-budget .tooth-arch {
+    grid-template-columns: repeat(16, minmax(50px, 1fr));
+    min-width: 840px;
+  }
+}
+
+/* ── Módulo Hoy ─────────────────────────────────────── */
+.hoy-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+}
+
+.hoy-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 12px;
+  padding: 12px;
+  align-items: start;
+  overflow: auto;
+  flex: 1;
+}
+
+.hoy-agenda {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.hoy-agenda .panel-caption {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hoy-citas-table td {
+  padding: 6px 8px;
+}
+
+.hoy-cita-row.estado-en_clinica > td:first-child {
+  border-left: 3px solid #23a373;
+}
+
+.hoy-cita-row.estado-programada > td:first-child {
+  border-left: 3px solid #e4b800;
+}
+
+.hoy-cita-row.estado-confirmada > td:first-child {
+  border-left: 3px solid #2a7de1;
+}
+
+.hoy-cita-row.estado-atendida > td:first-child {
+  border-left: 3px solid #9ca3af;
+}
+
+.hoy-patient-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary);
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+}
+
+.hoy-patient-link:hover {
+  color: var(--accent);
+}
+
+.hoy-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hoy-sidebar .desk-panel {
+  overflow: hidden;
+}
+
+.telefonear-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.telefonear-item:last-child {
+  border-bottom: none;
+}
+
+.telefonear-item > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.telefonear-item strong {
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.telefonear-item span,
+.telefonear-item small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.telefonear-item > button {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.euro-action-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+}
+
+.euro-action-button:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.whatsapp-reminder-button {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 7px;
+  border: 1px solid #128c7e;
+  background: linear-gradient(180deg, #24d366 0%, #128c7e 100%);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(18, 140, 126, 0.18);
+}
+
+.whatsapp-reminder-button svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: currentColor;
+}
+
+.whatsapp-action {
+  min-height: 34px;
+  background: linear-gradient(180deg, #eafff1 0%, #d7f9e1 100%);
+  border-color: #36b96c;
+  color: #0b7040;
+}
+
+.whatsapp-action svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: currentColor;
+}
+
+.whatsapp-action:hover {
+  background: #128c7e;
+  border-color: #128c7e;
+  color: #fff;
+}
+
+.whatsapp-reminder-modal {
+  width: min(1080px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.whatsapp-reminder-modal .modal-titlebar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.whatsapp-reminder-modal .modal-titlebar strong,
+.whatsapp-reminder-modal .modal-titlebar span {
+  display: block;
+  line-height: 1.2;
+}
+
+.whatsapp-reminder-modal .modal-titlebar span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: normal;
+}
+
+.whatsapp-reminder-grid {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px;
+  min-height: 0;
+}
+
+.whatsapp-template-panel,
+.whatsapp-patient-panel {
+  min-width: 0;
+}
+
+.whatsapp-template-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-muted);
+}
+
+.whatsapp-template-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.whatsapp-template-panel input,
+.whatsapp-template-panel select,
+.whatsapp-template-panel textarea {
+  width: 100%;
+  min-height: 34px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-dark);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-transform: none;
+}
+
+.whatsapp-template-text textarea {
+  min-height: 190px;
+  resize: vertical;
+  line-height: 1.35;
+}
+
+.whatsapp-template-help {
+  padding: 8px 9px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--primary) 9%, transparent);
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.whatsapp-patient-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.whatsapp-patient-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.whatsapp-patient-toolbar > div {
+  display: flex;
+  flex-direction: column;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.whatsapp-patient-toolbar strong {
+  color: var(--primary);
+  font-size: 1.2rem;
+}
+
+.whatsapp-patient-toolbar span {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.whatsapp-patient-toolbar button,
+.whatsapp-reminder-actions button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-dark);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.whatsapp-patient-list {
+  overflow: auto;
+  max-height: 360px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.whatsapp-patient-list .euro-table {
+  min-width: 760px;
+}
+
+.whatsapp-row-disabled {
+  opacity: 0.55;
+}
+
+.whatsapp-preview,
+.sent-reminder-links {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-muted);
+}
+
+.whatsapp-preview strong,
+.sent-reminder-links strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.whatsapp-preview p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.sent-reminder-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.sent-reminder-links strong {
+  flex: 0 0 100%;
+}
+
+.sent-reminder-links a,
+.sent-reminder-links span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #e4f8ed;
+  color: #0b7040;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.whatsapp-reminder-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.whatsapp-reminder-actions span {
+  margin-right: auto;
+  color: var(--danger);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.whatsapp-reminder-actions .primary {
+  background: linear-gradient(180deg, #24d366 0%, #128c7e 100%);
+  border-color: #128c7e;
+  color: #fff;
+}
+
+.whatsapp-reminder-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── Módulo Caja ─────────────────────────────────────── */
+.caja-table-wrap {
+  overflow: auto;
+  flex: 1;
+  padding: 0 12px 12px;
+}
+
+.caja-table-wrap .euro-table {
+  min-width: 800px;
+}
+
+.row-pending td {
+  background: color-mix(in srgb, #fff8e1 80%, transparent);
+}
+
+html[data-theme="dark"] .row-pending td {
+  background: color-mix(in srgb, #3a2e00 40%, transparent);
+}
+
+/* ── Desk tabs (Caja / reutilizable) ─────────────────── */
+.desk-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 0 12px;
+}
+
+.desk-tabs button {
+  min-height: 30px;
+  padding: 2px 12px;
+  border: 1px solid var(--border-dark);
+  border-bottom: none;
+  border-radius: 7px 7px 0 0;
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.desk-tabs button.active {
+  background: var(--surface);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* ── Agenda search bar ───────────────────────────────── */
+.agenda-search-bar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 0;
+  align-items: center;
+}
+
+.agenda-search-bar input {
+  flex: 1;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 0.82rem;
+}
+
+.agenda-search-bar button {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-dark);
+  background: var(--surface-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+html[data-theme="dark"] .desk-tabs button {
+  background: #1e2a32;
+  border-color: #2c3e4a;
+  color: #8ab0c2;
+}
+
+html[data-theme="dark"] .desk-tabs button.active {
+  background: #162330;
+  color: #5bc8f5;
+  border-color: #5bc8f5;
+}
+
+html[data-theme="dark"] .euro-action-button {
+  background: #1e2a32;
+  border-color: #2c3e4a;
+  color: #cde4ef;
+}
+
+html[data-theme="dark"] .euro-action-button:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+html[data-theme="dark"] .whatsapp-template-panel,
+html[data-theme="dark"] .whatsapp-preview,
+html[data-theme="dark"] .sent-reminder-links {
+  background: #15242d;
+  border-color: #2c3e4a;
+}
+
+html[data-theme="dark"] .whatsapp-patient-toolbar,
+html[data-theme="dark"] .whatsapp-patient-list {
+  background: #101b23;
+  border-color: #2c3e4a;
+}
+
+html[data-theme="dark"] .whatsapp-template-panel input,
+html[data-theme="dark"] .whatsapp-template-panel select,
+html[data-theme="dark"] .whatsapp-template-panel textarea {
+  background: #0f1b23;
+  border-color: #2c3e4a;
+  color: #e4f3f8;
+}
+
+html[data-theme="dark"] .whatsapp-action {
+  background: #123629;
+  border-color: #237b55;
+  color: #9ef0c0;
+}
+
+html[data-theme="dark"] .hoy-patient-link {
+  color: #5bc8f5;
+}
+
+@media (max-width: 1100px) {
+  .hoy-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .whatsapp-reminder-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Odontograma V2: face diagram ───────────────────── */
+.face-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  margin: 6px 0;
+}
+
+.face-row {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.face-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 2px solid #c8dae4;
+  font-weight: 900;
+  font-size: 0.78rem;
+  color: #17364b;
+  cursor: pointer;
+  transition: border-color 0.14s, box-shadow 0.14s, transform 0.1s;
+}
+
+.face-btn:hover {
+  border-color: var(--primary);
+  transform: scale(1.08);
+}
+
+.face-btn-active {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+  transform: scale(1.1);
+  z-index: 1;
+}
+
+.face-o {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.surface-status-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.surface-status-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid rgba(15,23,42,0.18);
+  flex-shrink: 0;
+}
+
+.surface-status-label {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+/* Status picker grid in side panel */
+.status-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.status-pick-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.status-pick-btn i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(15,23,42,0.15);
+  flex-shrink: 0;
+}
+
+.status-pick-btn.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface-muted));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+/* Compact legend chips (2-column) */
+.odontograma-legend {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.legend-chip i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgba(15,23,42,0.18);
+  flex-shrink: 0;
+}
+
+.legend-chip.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+/* ── Presupuesto selector / pills ───────────────────── */
+.presupuesto-selector {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 0 4px;
+  align-items: center;
+}
+
+.presupuesto-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1.5px solid #c8dae4;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
+  white-space: nowrap;
+}
+
+.presupuesto-pill:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-muted));
+}
+
+.presupuesto-pill.active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.presupuesto-pill-aceptado.active { border-color: #16a34a; background: #f0fdf4; box-shadow: 0 0 0 3px #bbf7d0; }
+.presupuesto-pill-rechazado.active { border-color: #dc2626; background: #fef2f2; box-shadow: 0 0 0 3px #fecaca; }
+.presupuesto-pill-facturado.active { border-color: #7c3aed; background: #faf5ff; box-shadow: 0 0 0 3px #ddd6fe; }
+
+.presupuesto-pill .pp-num { font-weight: 900; }
+.presupuesto-pill .pp-estado {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+.presupuesto-pill .pp-date { color: var(--muted); font-size: 0.72rem; }
+
+.presupuesto-pill-nuevo {
+  border-style: dashed;
+  color: var(--primary);
+  border-color: var(--primary);
+  background: transparent;
+}
+
+.presupuesto-pill-nuevo:hover {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+/* ── Budget header redesign ─────────────────────────── */
+.budget-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.budget-num {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+/* ── Budget table totals row ────────────────────────── */
+.budget-totals-row td {
+  font-size: 0.82rem;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.budget-totals-row .totals-label {
+  font-weight: 700;
+  color: var(--muted);
+  text-align: right;
+}
+
+.budget-totals-row .totals-discount {
+  color: #ef4444;
+  font-weight: 800;
+}
+
+.budget-totals-row .totals-aceptado {
+  color: #16a34a;
+  font-weight: 900;
+}
+
+.budget-totals-row tr.totals-neto td {
+  font-weight: 900;
+  border-top: 2px solid var(--border-dark);
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+/* ── Linea estado badges ────────────────────────────── */
+.linea-estado-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.linea-estado-aceptado {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.linea-estado-planificado {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+/* ── Budget actions extra classes ───────────────────── */
+.btn-pending {
+  color: #0f7cad;
+  border-color: #0f7cad !important;
+}
+
+html[data-theme="dark"] .presupuesto-pill {
+  border-color: #2c3e4a;
+  background: #1a2933;
+  color: #cde4ef;
+}
+
+html[data-theme="dark"] .presupuesto-pill.active {
+  border-color: #5bc8f5;
+  background: #0f2333;
+  box-shadow: 0 0 0 3px rgba(91,200,245,0.15);
+}
+
+html[data-theme="dark"] .linea-estado-aceptado {
+  background: #052e16;
+  color: #4ade80;
+  border-color: #166534;
+}
+
+html[data-theme="dark"] .linea-estado-planificado {
+  background: #2c1400;
+  color: #fb923c;
+  border-color: #7c2d12;
+}
+
+html[data-theme="dark"] .budget-totals-row td {
+  background: #1a2933;
+}
+
+html[data-theme="dark"] .face-btn {
+  border-color: #2c3e4a;
+  color: #cde4ef;
+}
+
+html[data-theme="dark"] .status-pick-btn {
+  background: #1a2933;
+  border-color: #2c3e4a;
+  color: #cde4ef;
+}
+
+/* ── Budget panel header (full redesign) ──────────────── */
+.budget-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #d8e5ec;
+  background: linear-gradient(#f7fbfd, #eef5fa);
+  border-radius: 10px 10px 0 0;
+}
+
+.budget-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.budget-num {
+  font-size: 1rem;
+  font-weight: 900;
+  color: #0f3146;
+}
+
+.budget-estado-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.budget-date {
+  color: #60717f;
+  font-size: 0.82rem;
+}
+
+.budget-panel-kpis {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.budget-panel-kpis span {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 0.82rem;
+}
+
+.budget-panel-kpis em {
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #60717f;
+  letter-spacing: 0.04em;
+}
+
+.budget-panel-kpis span strong,
+.budget-panel-kpis span:not(em) {
+  font-weight: 700;
+  color: #0f3146;
+}
+
+.budget-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #ddeaf1;
+}
+
+.budget-panel-actions button {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid #b9ccd7;
+  border-radius: 8px;
+  background: linear-gradient(#ffffff, #edf5f8);
+  color: #17364b;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.budget-panel-actions button:hover:not(:disabled) {
+  border-color: #0f7cad;
+  background: #e8f6fc;
+}
+
+.budget-panel-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.budget-panel-actions .btn-accept {
+  border-color: #22c55e;
+  background: linear-gradient(#f0fdf4, #dcfce7);
+  color: #15803d;
+}
+
+.budget-panel-actions .btn-accept:hover:not(:disabled) {
+  background: #bbf7d0;
+}
+
+.budget-panel-actions .btn-invoice {
+  border-color: #0f7cad;
+  background: linear-gradient(#eff8fd, #daf0fa);
+  color: #075985;
+}
+
+.budget-panel-actions .btn-invoice:hover:not(:disabled) {
+  background: #bae6fd;
+}
+
+.budget-panel-actions .btn-reject {
+  border-color: #fca5a5;
+  background: linear-gradient(#fff5f5, #fee2e2);
+  color: #dc2626;
+}
+
+.budget-panel-actions .btn-reject:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+/* ── Odontograma legend chips ─────────────────────────── */
+.odontograma-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.legend-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.legend-chip i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(15,23,42,0.15);
+  flex-shrink: 0;
+}
+
+.legend-chip.active,
+.legend-chip:hover {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, var(--surface-muted));
+}
+
+/* ── FaceDiagram used in odontograma side panel ────────── */
+.odontograma-side .face-diagram {
+  align-self: center;
+}
+
+/* ── Presupuesto selector ─────────────────────────────── */
+.presupuesto-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #d8e5ec;
+  background: #f7fbfd;
+}
+
+/* dark mode additions */
+html[data-theme="dark"] .budget-panel-header {
+  background: linear-gradient(#0e1e2a, #0a1720);
+  border-color: #1e3345;
+}
+
+html[data-theme="dark"] .budget-panel-actions button {
+  background: linear-gradient(#1a2933, #111e28);
+  border-color: #2c3e4a;
+  color: #cde4ef;
+}
+
+html[data-theme="dark"] .budget-panel-actions button:hover:not(:disabled) {
+  background: #0f2333;
+  border-color: #5bc8f5;
+}
+
+html[data-theme="dark"] .budget-num {
+  color: #e0f2fe;
+}
+
+html[data-theme="dark"] .budget-panel-kpis em {
+  color: #7aa5bb;
+}
+
+html[data-theme="dark"] .budget-panel-kpis span {
+  color: #cde4ef;
+}
+
+html[data-theme="dark"] .presupuesto-selector {
+  background: #0a1720;
+  border-color: #1e3345;
+}
+
+html[data-theme="dark"] .legend-chip {
+  background: #1a2933;
+  border-color: #2c3e4a;
+  color: #cde4ef;
+}
+
+/* Presupuestos: keep treatment lists reachable on smaller clinic screens. */
+.patient-screen.no-bottom-bar .patient-desk {
+  overflow: auto;
+}
+
+.patient-screen.no-bottom-bar .budget-panel {
+  min-width: 0;
+  overflow: visible;
+}
+
+.odontograma-page-budget {
+  min-height: auto;
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 330px);
+}
+
+.odontograma-page-budget .odontograma-board {
+  min-width: 0;
+  overflow: auto;
+}
+
+.odontograma-page-budget .odontograma-treatment-picker {
+  max-height: 260px;
+}
+
+.budget-treatment-picker,
+.budget-treatment-list,
+.budget-line-editor {
+  min-width: 0;
+}
+
+.budget-treatment-list {
+  max-height: 320px;
+}
+
+@media (max-width: 980px) {
+  .odontograma-page-budget,
+  .budget-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-line-editor {
+    grid-template-columns: minmax(180px, 1fr) 80px 90px 80px 100px;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 }

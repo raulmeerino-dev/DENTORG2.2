@@ -6,6 +6,8 @@ import type { UserRole } from './types/api';
 import Layout from './components/Layout';
 import PacientesPage from './modules/pacientes';
 import AgendaPage from './modules/agenda';
+import CajaPage from './modules/caja';
+import HoyPage from './modules/hoy';
 import ListadosPage from './modules/listados';
 import ConfiguracionPage from './modules/configuracion';
 import LoginPage from './modules/auth/LoginPage';
@@ -36,10 +38,12 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+              <Route index element={<Navigate to="/hoy" replace />} />
+              <Route path="hoy" element={<HoyPage />} />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="pacientes" element={<PacientesPage />} />
               <Route path="agenda" element={<AgendaPage />} />
+              <Route path="caja" element={<RoleProtected roles={['admin', 'recepcion']}><CajaPage /></RoleProtected>} />
               <Route path="listados" element={<RoleProtected roles={['admin']}><ListadosPage /></RoleProtected>} />
               <Route path="configuracion" element={<RoleProtected roles={['admin']}><ConfiguracionPage /></RoleProtected>} />
               <Route path="admin-extras" element={<RoleProtected roles={['admin']}><AdminExtrasPage /></RoleProtected>} />

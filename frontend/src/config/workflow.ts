@@ -2,6 +2,7 @@ import type { UserRole } from '../types/api';
 
 export type AppSection =
   | 'dashboard'
+  | 'hoy'
   | 'pacientes'
   | 'agenda'
   | 'listados'
@@ -32,12 +33,20 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export const WORKFLOW_ITEMS: WorkflowItem[] = [
   {
-    id: 'dashboard',
-    label: 'Inicio',
-    description: 'Panel diario con citas, llamadas, caja, laboratorio y alertas.',
+    id: 'hoy',
+    label: 'Hoy',
+    description: 'Hub operativo: citas del día, flujo de recepción, telefonear y acciones rápidas.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
+    route: '/hoy',
+    shortcut: 'HO',
+  },
+  {
+    id: 'dashboard',
+    label: 'BI',
+    description: 'Panel de indicadores: producción, facturación, doctores y tratamientos.',
+    roles: ['admin'],
     route: '/dashboard',
-    shortcut: 'IN',
+    shortcut: 'BI',
   },
   {
     id: 'pacientes',
@@ -90,6 +99,8 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     label: 'Caja',
     description: 'Cobros, facturas, recibos, saldo y arqueo diario.',
     roles: ['admin', 'recepcion'],
+    route: '/caja',
+    shortcut: 'CA',
   },
   {
     id: 'documentos',

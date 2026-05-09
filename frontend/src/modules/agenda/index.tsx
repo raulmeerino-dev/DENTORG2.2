@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, marcarFaltaCita, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
+import { CancelCitaModal } from './modals/CancelCitaModal';
 
 type SlotDraft = {
   day: string;
@@ -264,6 +265,7 @@ function CitaModal({
   const [tempPhone, setTempPhone] = useState('');
   const [creatingTemp, setCreatingTemp] = useState(false);
   const [showTempPatient, setShowTempPatient] = useState(false);
+  const [tempError, setTempError] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
 
   const filteredPatients = useMemo(() => {
@@ -295,7 +297,7 @@ function CitaModal({
 
   async function createTempPatient() {
     if (!tempName.trim() || !tempPhone.trim()) {
-      window.alert('Indique nombre y teléfono para el paciente temporal');
+      setTempError('Indique nombre y teléfono para el paciente temporal');
       return;
     }
     setCreatingTemp(true);
@@ -388,8 +390,9 @@ function CitaModal({
             <div className="temporary-patient-box wide">
               <strong>Paciente temporal para cita</strong>
               <span>Solo nombre y telefono. Luego se completa la ficha desde Pacientes.</span>
-              <input value={tempName} onChange={(event) => setTempName(event.target.value)} placeholder="Nombre y apellidos" />
-              <input value={tempPhone} onChange={(event) => setTempPhone(event.target.value)} placeholder="Telefono" />
+              <input value={tempName} onChange={(event) => { setTempName(event.target.value); setTempError(''); }} placeholder="Nombre y apellidos" />
+              <input value={tempPhone} onChange={(event) => { setTempPhone(event.target.value); setTempError(''); }} placeholder="Telefono" />
+              {tempError && <span className="inline-alert">{tempError}</span>}
               <button type="button" onClick={() => void createTempPatient()} disabled={creatingTemp}>Apuntar</button>
             </div>
           )}
@@ -663,6 +666,10 @@ export default function AgendaPage() {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cita: Cita } | null>(null);
   const [showBuscarHueco, setShowBuscarHueco] = useState(false);
   const [showCitasPaciente, setShowCitasPaciente] = useState(false);
+  const [cancelCitaModal, setCancelCitaModal] = useState<{ cita: Cita; estado: 'anulada' | 'falta' } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearchBar, setShowSearchBar] = useState(false);
   const [now, setNow] = useState(new Date());
 
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
@@ -680,9 +687,9 @@ export default function AgendaPage() {
     queryFn: () => getCitas(range),
   });
 
-  const doctores = doctoresQuery.data ?? [];
-  const pacientes = pacientesQuery.data ?? [];
-  const citas = citasQuery.data ?? [];
+  const doctores = useMemo(() => doctoresQuery.data ?? [], [doctoresQuery.data]);
+  const pacientes = useMemo(() => pacientesQuery.data ?? [], [pacientesQuery.data]);
+  const citas = useMemo(() => citasQuery.data ?? [], [citasQuery.data]);
   const horariosAgendaQuery = useQuery({
     queryKey: ['agenda-horarios', doctores.map((doctor) => doctor.id).join(',')],
     queryFn: async () => {
@@ -810,7 +817,7 @@ export default function AgendaPage() {
   const days = monthGrid(day);
   const monthName = selected.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   const doctorById = useMemo(() => new Map(doctores.map((doctor) => [doctor.id, doctor])), [doctores]);
-  const horariosByDoctor = horariosAgendaQuery.data ?? {};
+  const horariosByDoctor = useMemo(() => horariosAgendaQuery.data ?? {}, [horariosAgendaQuery.data]);
   const slots = useMemo(() => buildAgendaSlots({
     day,
     doctorId,
@@ -843,6 +850,15 @@ export default function AgendaPage() {
     setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId });
   }
 
+  useEffect(() => {
+    if (sessionStorage.getItem('dentcore_agenda_action') !== 'new') return;
+    if (!doctores.length || !slots.length || slotDraft || modalCita) return;
+    const selectedPacienteId = sessionStorage.getItem('dentcore_selected_patient_id') ?? undefined;
+    const preferredSlot = slots.find((slot) => minutesFromTime(slot) >= 9 * 60) ?? slots[0];
+    sessionStorage.removeItem('dentcore_agenda_action');
+    openNew(preferredSlot, selectedPacienteId, day, doctorForSlot(preferredSlot, day));
+  }, [day, doctores.length, modalCita, slotDraft, slots]);
+
   function openPatient(cita: Cita) {
     sessionStorage.setItem('dentcore_selected_patient_id', cita.paciente_id);
     navigate(`/pacientes?paciente_id=${cita.paciente_id}`);
@@ -859,18 +875,19 @@ export default function AgendaPage() {
   }
 
   function cancelCita(cita: Cita, estado: 'anulada' | 'falta') {
-    const motivo = window.prompt('Motivo: cancelada por paciente, cancelada por clinica, no vino, reprogramada u otro', estado === 'falta' ? 'No vino' : 'Cancelada por paciente');
-    if (motivo === null) return;
+    setContextMenu(null);
+    setCancelCitaModal({ cita, estado });
+  }
+
+  function confirmCancelCita(motivo: string, tipo: string) {
+    if (!cancelCitaModal) return;
+    const { cita, estado } = cancelCitaModal;
+    setCancelCitaModal(null);
     if (estado === 'falta') {
       faltaMutation.mutate({ cita, motivo });
       return;
     }
-    const tipo = motivo.toLowerCase().includes('clinica')
-      ? 'anulacion_clinica'
-      : motivo.toLowerCase().includes('reprogram')
-        ? 'reprogramada'
-        : 'anulacion_paciente';
-    cancelMutation.mutate({ cita, motivo, tipo });
+    cancelMutation.mutate({ cita, motivo, tipo: tipo as 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro' });
   }
 
   function enviarRecordatorio(cita: Cita, canal: 'whatsapp' | 'email' | 'ambos') {
@@ -880,7 +897,7 @@ export default function AgendaPage() {
   function copiarTelefono(cita: Cita) {
     const telefono = cita.paciente?.telefono;
     if (!telefono) {
-      window.alert('Esta cita no tiene telefono de paciente.');
+      setToastMessage('Esta cita no tiene teléfono de paciente.');
       setContextMenu(null);
       return;
     }
@@ -905,17 +922,22 @@ export default function AgendaPage() {
       setShowCitasPaciente(true);
       return;
     }
-    const query = window.prompt('Buscar cita por paciente o tratamiento');
-    if (!query) return;
+    setShowSearchBar((prev) => !prev);
+  }
+
+  function ejecutarBusqueda(query: string) {
+    if (!query.trim()) return;
     const q = query.toLowerCase();
     const cita = (citasQuery.data ?? []).find((item) =>
       `${patientName(item)} ${item.motivo ?? ''}`.toLowerCase().includes(q),
     );
     if (cita) {
+      setSearchQuery('');
+      setShowSearchBar(false);
       setModalCita(cita);
       return;
     }
-    window.alert('No se ha encontrado una cita con ese texto en el dia visible.');
+    setToastMessage('No se ha encontrado una cita con ese texto en el día visible.');
   }
 
   function buscarHuecoLibre() {
@@ -925,7 +947,7 @@ export default function AgendaPage() {
   function verOcupacion() {
     const total = slots.length;
     const ocupadas = citas.length;
-    window.alert(total ? `Ocupacion visible: ${ocupadas}/${total} huecos (${Math.round((ocupadas / total) * 100)}%).` : 'No hay horario visible para calcular ocupacion.');
+    setToastMessage(total ? `Ocupación: ${ocupadas}/${total} huecos (${Math.round((ocupadas / total) * 100)}%).` : 'No hay horario visible para calcular ocupación.');
   }
 
   const selectedDoctor = doctorId ? doctorById.get(doctorId) : null;
@@ -1050,6 +1072,24 @@ export default function AgendaPage() {
             <button onClick={() => { setDoctorId(''); void citasQuery.refetch(); }}>Ver Todo</button>
             <button onClick={() => navigate('/dashboard')}>Salir</button>
           </div>
+          {showSearchBar && (
+            <form className="agenda-search-bar" onSubmit={(e) => { e.preventDefault(); ejecutarBusqueda(searchQuery); }}>
+              <input
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Nombre o tratamiento..."
+              />
+              <button type="submit">Buscar</button>
+              <button type="button" onClick={() => { setShowSearchBar(false); setSearchQuery(''); }}>×</button>
+            </form>
+          )}
+          {toastMessage && (
+            <div className="inline-alert" role="status">
+              {toastMessage}
+              <button type="button" onClick={() => setToastMessage(null)}>×</button>
+            </div>
+          )}
         </aside>
 
         <main className="agenda-slots">
@@ -1169,6 +1209,15 @@ export default function AgendaPage() {
             setShowCitasPaciente(false);
             setModalCita(cita);
           }}
+        />
+      )}
+
+      {cancelCitaModal && (
+        <CancelCitaModal
+          cita={cancelCitaModal.cita}
+          estado={cancelCitaModal.estado}
+          onClose={() => setCancelCitaModal(null)}
+          onConfirm={confirmCancelCita}
         />
       )}
 

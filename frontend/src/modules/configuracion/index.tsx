@@ -205,6 +205,8 @@ export default function ConfiguracionPage() {
   const [horarioSavedMessage, setHorarioSavedMessage] = useState('');
   const [tratamientoForm, setTratamientoForm] = useState<TreatmentForm>(EMPTY_TREATMENT_FORM);
   const [tratamientoSearch, setTratamientoSearch] = useState('');
+  const [familiaModalOpen, setFamiliaModalOpen] = useState(false);
+  const [familiaForm, setFamiliaForm] = useState({ nombre: '', icono: '' });
 
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
   const activeDoctor = doctorId || doctoresQuery.data?.[0]?.id || '';
@@ -236,13 +238,15 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     if (activeDoctorRecord) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDoctorForm(formFromDoctor(activeDoctorRecord));
     }
-  }, [activeDoctorRecord?.id, activeDoctorRecord?.nombre, activeDoctorRecord?.color_agenda, activeDoctorRecord?.porcentaje]);
+  }, [activeDoctorRecord?.id, activeDoctorRecord?.nombre, activeDoctorRecord?.color_agenda, activeDoctorRecord?.porcentaje]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const nextTab = searchParams.get('tab') as FicheroTab | null;
     const nextDoctorId = searchParams.get('doctor_id');
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (nextTab && FICHEROS.includes(nextTab)) setTab(nextTab);
     if (nextDoctorId) setDoctorId(nextDoctorId);
   }, [searchParams]);
@@ -252,6 +256,7 @@ export default function ConfiguracionPage() {
     DAYS.forEach((_, index) => {
       next[index] = horarioToForm((horariosQuery.data ?? []).find((horario) => horario.dia_semana === index));
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHorarioForms(next);
   }, [horariosQuery.data]);
 
@@ -380,13 +385,11 @@ export default function ConfiguracionPage() {
   }
 
   const createFamilyMutation = useMutation({
-    mutationFn: async () => {
-      const nombre = window.prompt('Nombre de la nueva familia');
-      if (!nombre) throw new Error('Cancelado');
-      const icono = window.prompt('Icono/codigo corto', nombre.slice(0, 2).toUpperCase()) ?? nombre.slice(0, 2).toUpperCase();
-      return createFamiliaTratamiento({ nombre, icono, orden: familias.length + 1 });
-    },
+    mutationFn: ({ nombre, icono }: { nombre: string; icono: string }) =>
+      createFamiliaTratamiento({ nombre, icono, orden: familias.length + 1 }),
     onSuccess: (familia) => {
+      setFamiliaModalOpen(false);
+      setFamiliaForm({ nombre: '', icono: '' });
       setTratamientoForm((prev) => ({ ...prev, familia_id: familia.id }));
       void queryClient.invalidateQueries({ queryKey: ['familias-tratamiento'] });
     },
@@ -576,7 +579,7 @@ export default function ConfiguracionPage() {
               <button onClick={() => setTratamientoForm({ ...EMPTY_TREATMENT_FORM, familia_id: familias[0]?.id ?? '' })}>Nuevo</button>
               <button disabled={!canEditTreatments || saveTreatmentMutation.isPending} onClick={() => saveTreatmentMutation.mutate()}>Guardar</button>
               <button disabled={!canEditTreatments || !tratamientoForm.id || deactivateTreatmentMutation.isPending} onClick={() => deactivateTreatmentMutation.mutate()}>Desactivar</button>
-              <button disabled={!canEditTreatments || createFamilyMutation.isPending} onClick={() => createFamilyMutation.mutate()}>Nueva familia</button>
+              <button disabled={!canEditTreatments} onClick={() => setFamiliaModalOpen(true)}>Nueva familia</button>
             </div>
             {saveTreatmentMutation.error && <p className="form-error">{String((saveTreatmentMutation.error as Error).message)}</p>}
             <div className="mini-family-list">
@@ -824,6 +827,46 @@ export default function ConfiguracionPage() {
             </tbody>
           </table>
         </section>
+      )}
+      {familiaModalOpen && (
+        <div className="modal-backdrop" onMouseDown={() => setFamiliaModalOpen(false)}>
+          <section className="patient-edit-modal" style={{ maxWidth: 360 }} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="modal-titlebar">
+              <strong>Nueva familia de tratamientos</strong>
+              <button type="button" onClick={() => setFamiliaModalOpen(false)}>Cerrar</button>
+            </div>
+            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <label>
+                Nombre
+                <input
+                  autoFocus
+                  value={familiaForm.nombre}
+                  onChange={(e) => setFamiliaForm((prev) => ({ ...prev, nombre: e.target.value, icono: prev.icono || e.target.value.slice(0, 2).toUpperCase() }))}
+                  placeholder="Ej: Ortodoncia"
+                />
+              </label>
+              <label>
+                Icono / código corto
+                <input
+                  value={familiaForm.icono}
+                  onChange={(e) => setFamiliaForm((prev) => ({ ...prev, icono: e.target.value.toUpperCase().slice(0, 4) }))}
+                  placeholder="Ej: OR"
+                />
+              </label>
+            </div>
+            <footer className="modal-actions">
+              <button type="button" onClick={() => setFamiliaModalOpen(false)}>Cancelar</button>
+              <button
+                type="button"
+                className="primary-action"
+                disabled={!familiaForm.nombre.trim() || createFamilyMutation.isPending}
+                onClick={() => createFamilyMutation.mutate({ nombre: familiaForm.nombre.trim(), icono: familiaForm.icono || familiaForm.nombre.slice(0, 2).toUpperCase() })}
+              >
+                Crear familia
+              </button>
+            </footer>
+          </section>
+        </div>
       )}
     </section>
   );
