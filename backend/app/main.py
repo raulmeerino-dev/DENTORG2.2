@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Eurodent 2.0 API",
+    title="DentOrg2 API",
     description="Sistema de gestión integral para clínica dental",
     version="0.1.0",
     lifespan=lifespan,
