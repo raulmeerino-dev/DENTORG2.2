@@ -4,12 +4,19 @@ backend/.pytest_cache/
 backend/.ruff_cache/
 backend/**/__pycache__/
 backend/**/*.py[cod]
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+*.py[cod]
 
 # Node / frontend
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
 node_modules/
 dist/
+build/
+*.tsbuildinfo
 
 # Local runtime data
 backend/.env
@@ -17,9 +24,19 @@ backend/uploads/
 backend/backups/
 backend/*.log
 frontend/*.log
+*.log
+*.tmp
+*.bak
+*.old
+*.orig
+*.rej
 output/
 tmp/
 .ruff_cache/
+coverage/
+htmlcov/
+test-results/
+playwright-report/
 
 # Editor / OS
 .DS_Store
