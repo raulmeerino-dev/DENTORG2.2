@@ -39,7 +39,11 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+ignore = [
+    "E501",  # Long clinical/API texts are easier to review unwrapped in this codebase.
+    "B008",  # FastAPI intentionally uses Depends/Query/Form/File in endpoint signatures.
+    "UP017", # Keep timezone.utc until the project drops Python 3.11 support.
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

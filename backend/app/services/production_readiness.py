@@ -3,8 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from app.config import DEFAULT_DB_ENCRYPTION_KEY, DEFAULT_FRONTEND_URL, DEFAULT_JWT_SECRET_KEY, Settings
-
+from app.config import (
+    DEFAULT_DB_ENCRYPTION_KEY,
+    DEFAULT_FRONTEND_URL,
+    DEFAULT_JWT_SECRET_KEY,
+    Settings,
+)
 
 CheckStatus = str
 

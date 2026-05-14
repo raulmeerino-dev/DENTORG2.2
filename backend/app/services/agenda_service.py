@@ -6,7 +6,7 @@ Responsabilidades:
 - Calcular huecos libres dentro del horario configurado
 - Respetar excepciones de horario (días festivos, vacaciones)
 """
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import and_, select

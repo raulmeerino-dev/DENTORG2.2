@@ -17,15 +17,21 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     generate_totp_secret,
-    verify_totp,
     verify_password,
     verify_refresh_token,
+    verify_totp,
 )
 from app.core.throttling import clear_login_failures, ensure_login_allowed, register_login_failure
 from app.database import get_db
 from app.models.auth_session import AuthSession
 from app.models.usuario import Usuario
-from app.schemas.auth import AuthSessionResponse, LoginRequest, RefreshRequest, TokenResponse, UsuarioMe
+from app.schemas.auth import (
+    AuthSessionResponse,
+    LoginRequest,
+    RefreshRequest,
+    TokenResponse,
+    UsuarioMe,
+)
 from app.schemas.extras import TwoFactorEnableResponse
 
 router = APIRouter()
@@ -201,7 +207,7 @@ async def refresh_token(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Sesion invalida",
-        )
+        ) from None
 
     auth_session = await db.get(AuthSession, session_uuid)
     if not auth_session or auth_session.usuario_id != user_uuid:

@@ -3,10 +3,9 @@ Router de citas — agenda.
 Fase 2: CRUD completo + búsqueda de huecos + panel Telefonear.
 """
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 from typing import Annotated
-from uuid import UUID
 from urllib.parse import quote
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
@@ -14,7 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.crypto import descifrar_bytes
-from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access, resolve_clinic_id, scope_select_by_clinic
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    ensure_clinic_access,
+    resolve_clinic_id,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.cita import Cita, CitaCambio, CitaTelefonear, HistorialFaltas
 from app.models.clinica import Teleconsulta
@@ -32,11 +37,17 @@ from app.schemas.cita import (
     CitaTelefonearResponse,
     CitaTelefonearUpdate,
     CitaUpdate,
-    HuecoLibre,
     DisponibilidadDia,
+    HuecoLibre,
 )
 from app.schemas.extras import RecordatorioCreate, RecordatorioResponse, VideoResponse
-from app.services.agenda_service import buscar_huecos_libres, esta_dentro_disponibilidad, get_horario_dia, hay_solapamiento, hay_solapamiento_gabinete
+from app.services.agenda_service import (
+    buscar_huecos_libres,
+    esta_dentro_disponibilidad,
+    get_horario_dia,
+    hay_solapamiento,
+    hay_solapamiento_gabinete,
+)
 from app.services.audit import write_audit_log
 
 router = APIRouter()

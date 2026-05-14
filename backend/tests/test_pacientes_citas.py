@@ -7,11 +7,11 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
+from app.models.cita import Cita
 from app.models.clinica import Clinica
 from app.models.consentimiento import Consentimiento
 from app.models.doctor import Doctor
 from app.models.documento import DocumentoPaciente
-from app.models.cita import Cita
 from app.models.factura import Cobro, Factura, FormaPago
 from app.models.historial import HistorialClinico
 from app.models.horario import HorarioDoctor

@@ -4,7 +4,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
 
-
 # ─── Líneas ───────────────────────────────────────────────────────────────────
 
 class PresupuestoLineaCreate(BaseModel):
@@ -126,12 +125,12 @@ class PresupuestoResponse(BaseModel):
     @computed_field  # type: ignore[misc]
     @property
     def total(self) -> Decimal:
-        return sum(l.importe_neto for l in self.lineas)
+        return sum(linea.importe_neto for linea in self.lineas)
 
     @computed_field  # type: ignore[misc]
     @property
     def total_aceptado(self) -> Decimal:
-        return sum(l.importe_neto for l in self.lineas if l.aceptado)
+        return sum(linea.importe_neto for linea in self.lineas if linea.aceptado)
 
     model_config = {"from_attributes": True}
 

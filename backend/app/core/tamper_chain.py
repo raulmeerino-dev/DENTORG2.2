@@ -19,4 +19,4 @@ def canonical_json(data: Mapping | None) -> str:
 def build_chain_hash(*, previous_hash: str | None, payload: Mapping | None) -> str:
     base = previous_hash or "0" * 64
     serialized = canonical_json(payload)
-    return hashlib.sha256(f"{base}|{serialized}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{base}|{serialized}".encode()).hexdigest()

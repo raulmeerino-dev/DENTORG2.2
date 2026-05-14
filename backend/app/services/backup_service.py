@@ -14,13 +14,12 @@ from app.config import get_settings
 from app.database import Base
 from app.models.backup import BackupRegistro
 
-
 BACKUP_DIR = Path(__file__).resolve().parents[2] / "backups"
 
 
 def _backup_key() -> bytes:
     settings = get_settings()
-    return hashlib.sha256(f"{settings.db_encryption_key}:dentcore-backup".encode("utf-8")).digest()
+    return hashlib.sha256(f"{settings.db_encryption_key}:dentcore-backup".encode()).digest()
 
 
 def _encrypt(raw: bytes) -> bytes:

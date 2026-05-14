@@ -9,10 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.citas import _get_cita_or_404, _registrar_cambio_cita, _snapshot_cita, _to_response
-from app.api.consentimientos import ConsentimientoFirmar, ConsentimientoResponse, firmar_consentimiento
+from app.api.consentimientos import (
+    ConsentimientoFirmar,
+    ConsentimientoResponse,
+    firmar_consentimiento,
+)
 from app.api.documentos import _doc_to_dict
 from app.api.pacientes import _build_response
-from app.core.permissions import CurrentUser, ROLE_PACIENTE, ensure_clinic_access
+from app.core.permissions import ROLE_PACIENTE, CurrentUser, ensure_clinic_access
 from app.database import get_db
 from app.models.cita import Cita, CitaTelefonear, HistorialFaltas
 from app.models.consentimiento import Consentimiento

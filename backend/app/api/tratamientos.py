@@ -7,18 +7,24 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, RequireAdmin, get_current_user
+from app.core.permissions import CurrentUser, RequireAdmin
 from app.database import get_db
 from app.models.historial import HistorialClinico
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
 from app.schemas.tratamiento import (
-    FamiliaCreate, FamiliaResponse, FamiliaUpdate,
-    HistorialCreate, HistorialResponse, HistorialUpdate,
-    TratamientoCreate, TratamientoResponse, TratamientoUpdate,
+    FamiliaCreate,
+    FamiliaResponse,
+    FamiliaUpdate,
+    HistorialCreate,
+    HistorialResponse,
+    HistorialUpdate,
+    TratamientoCreate,
+    TratamientoResponse,
+    TratamientoUpdate,
 )
 
 router = APIRouter()

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ApiPaciente } from '../../types/api';
+import { PatientOdontogramFlow } from '../odontogram';
 
 export type PrimeraVisitaData = {
   fecha?: string;
@@ -90,6 +91,12 @@ export function PrimeraVisitaPanel({
           <textarea value={data.observaciones_boca ?? ''} onChange={(event) => update('observaciones_boca', event.target.value)} disabled={!paciente} />
         </label>
       </div>
+      <PatientOdontogramFlow
+        paciente={paciente}
+        mode="initialVisit"
+        title="Odontograma base"
+        subtitle="Estado inicial de la boca en primera visita. Este mapa se reutilizara despues en presupuestos, pendientes y realizados."
+      />
     </section>
   );
 }

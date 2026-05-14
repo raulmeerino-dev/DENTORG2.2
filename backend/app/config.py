@@ -5,7 +5,6 @@ from urllib.parse import urlsplit, urlunsplit
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://eurodent:eurodent_dev_pass@localhost:5432/eurodent2"
 DEFAULT_DB_ENCRYPTION_KEY = "dev-encryption-key-change-in-prod-32ch"
 DEFAULT_JWT_SECRET_KEY = "dev-jwt-secret-change-in-prod"

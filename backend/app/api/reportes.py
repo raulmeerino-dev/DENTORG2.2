@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import Date, and_, case, cast, func, or_, select
+from sqlalchemy import Date, case, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import CurrentUser, scope_select_by_clinic

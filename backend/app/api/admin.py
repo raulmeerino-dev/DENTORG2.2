@@ -14,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.permissions import CurrentUser, RequireAdmin, get_current_user, require_roles
+from app.core.permissions import CurrentUser, RequireAdmin
 from app.core.security import hash_password
 from app.database import get_db
 from app.models.audit_log import AuditLog
@@ -24,12 +24,11 @@ from app.models.factura import Factura
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.usuario import Usuario
-from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
 from app.schemas.extras import BackupRegistroResponse
+from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
 from app.services.backup_service import crear_backup_cifrado, verificar_backup_archivo
 from app.services.production_readiness import build_production_readiness_report
-from app.services.verifactu_service import registrar_evento_sif
-from app.services.verifactu_service import obtener_resumen_cumplimiento_sif
+from app.services.verifactu_service import obtener_resumen_cumplimiento_sif, registrar_evento_sif
 
 router = APIRouter()
 settings = get_settings()

@@ -2,12 +2,23 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, Numeric, SmallInteger, String, Text
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import UUIDMixin, TimestampMixin
+from app.models.base import TimestampMixin, UUIDMixin
 
 TipoFacturaEnum = Enum("paciente", "iguala", "entidad", name="tipo_factura")
 EstadoFacturaEnum = Enum("borrador", "emitida", "cobrada", "pagada", "parcial", "anulada", name="estado_factura")

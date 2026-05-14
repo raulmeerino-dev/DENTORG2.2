@@ -2,12 +2,11 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, SmallInteger, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import UUIDMixin, TimestampMixin
+from app.models.base import TimestampMixin, UUIDMixin
 
 EstadoCitaEnum = Enum(
     "programada", "confirmada", "en_clinica", "atendida", "falta", "anulada",

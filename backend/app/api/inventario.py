@@ -17,7 +17,13 @@ from app.core.permissions import (
     scope_select_by_clinic,
 )
 from app.database import get_db
-from app.models.clinica import MovimientoInventario, PedidoLinea, PedidoProveedor, Producto, Proveedor
+from app.models.clinica import (
+    MovimientoInventario,
+    PedidoLinea,
+    PedidoProveedor,
+    Producto,
+    Proveedor,
+)
 from app.schemas.extras import (
     MovimientoInventarioCreate,
     MovimientoInventarioResponse,

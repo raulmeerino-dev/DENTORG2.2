@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -57,6 +57,7 @@ import { FacturaManualModal } from './modals/FacturaManualModal';
 import { RevocarConsentimientoModal } from './modals/RevocarConsentimientoModal';
 import { PatientFinder, PatientForm, PatientEditModal, PatientFullViewModal, NuevoPacienteModal } from './FichaPaciente';
 import { PresupuestoPanel, CitasPacientePanel } from './Presupuestos';
+import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 
 export type WorkTab = 'pacientes' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type PatientContextMenu =
@@ -201,17 +202,20 @@ export default function PacientesPage() {
   const presupuestos = presupuestosQuery.data ?? [];
   const facturas = facturasQuery.data ?? [];
   const pagosAnticipados = pagosAnticipadosQuery.data ?? [];
-  const totalFacturado = Number(saldoQuery.data?.total_facturado ?? facturas.reduce((sum, factura) => sum + Number(factura.total), 0));
-  const totalPendiente = Number(saldoQuery.data?.pendiente ?? facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0));
+  const billingTotals = getBillingTotals(facturas);
+  const totalFacturado = Number(saldoQuery.data?.total_facturado ?? billingTotals.facturado);
+  const totalPendiente = Number(saldoQuery.data?.pendiente ?? billingTotals.pendiente);
   const tratamientosRealizados = historialQuery.data?.filter((item) => ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(item.estado)).length ?? 0;
   const nextCita = citasPacienteQuery.data?.slice().sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0];
   const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
+  const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
 
   useEffect(() => {
     if (sessionStorage.getItem('dentcore_patient_action') !== 'new') return;
     sessionStorage.removeItem('dentcore_patient_action');
-    setNuevoPacienteOpen(true);
+    const timeout = window.setTimeout(() => setNuevoPacienteOpen(true), 0);
+    return () => window.clearTimeout(timeout);
   }, []);
 
   const nuevoPresupuesto = useMutation({
@@ -280,7 +284,7 @@ export default function PacientesPage() {
     mutationFn: async () => {
       const forma = formasPagoQuery.data?.[0];
       if (!forma) throw new Error('No hay formas de pago configuradas');
-      const factura = facturas.find((item) => Number(item.pendiente) > 0);
+      const factura = getFacturaPendientePreferida(facturas);
       if (!factura) throw new Error('No hay facturas pendientes');
       return registrarCobro(factura.id, forma.id, Number(factura.pendiente));
     },
@@ -460,6 +464,15 @@ export default function PacientesPage() {
     setTab('facturacion');
   }
 
+  function abrirCobroDesdeFicha(factura?: Factura | null) {
+    const target = getFacturaPendientePreferida(facturas, factura);
+    if (target) {
+      setCobroFactura(target);
+      return;
+    }
+    setAnticipoModal({ kind: 'crear' });
+  }
+
   function asociarFactura() {
     setTab('facturacion');
     setFacturaManualOpen(true);
@@ -535,74 +548,78 @@ export default function PacientesPage() {
   return (
     <>
       <div className="patient-selector-bar">
-      <PatientFinder
-        pacientes={pacientes}
-        selectedId={active?.id ?? null}
-        onNew={() => setNuevoPacienteOpen(true)}
-        onSelect={(paciente) => {
-          setSelected(paciente);
-          sessionStorage.setItem('dentcore_selected_patient_id', paciente.id);
-          setTab('pacientes');
-        }}
-      />
-      <div className="patient-selector-current">
-        <div>
-          <span>Paciente activo</span>
-          <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
-          <small>Historia {active?.num_historial ?? '-'} · {active?.telefono || 'sin telefono'}</small>
-        </div>
-        <button
-          type="button"
-          className="patient-agenda-shortcut"
-          onClick={abrirAgendaPaciente}
-          disabled={!active}
-          title="Abrir agenda con este paciente"
-          aria-label="Abrir agenda con este paciente"
-        >
-          <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-            <rect x="2" y="4" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.8" />
-            <line x1="2" y1="9" x2="20" y2="9" stroke="currentColor" strokeWidth="1.6" />
-            <line x1="7" y1="2" x2="7" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <line x1="15" y1="2" x2="15" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="7" cy="14" r="1.2" fill="currentColor" />
-            <circle cx="11" cy="14" r="1.2" fill="currentColor" />
-            <circle cx="15" cy="14" r="1.2" fill="currentColor" />
-          </svg>
-        </button>
-      </div>
-      {hasPatientError && (
-        <div className="inline-alert">
-          Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
-        </div>
-      )}
-      {hasPatientLoading && (
-        <div className="patient-loading-strip" aria-label="Cargando paciente">
-          <span />
-          <span />
-          <span />
-        </div>
-      )}
-    </div>
-    <section className={`page patient-screen${tab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
-      <div className="patient-titlebar">
-        <strong>{active ? `${fullName(active)} // CLINICA DENTAL` : 'Pacientes // CLINICA DENTAL'}</strong>
-      </div>
-      <nav className="patient-module-tabs">
-        {WORK_TABS.map((item) => (
-          <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>
-            <span className="tab-icon">{TAB_ICONS[item.id]}</span>{item.label}
+        <PatientFinder
+          pacientes={pacientes}
+          selectedId={active?.id ?? null}
+          onNew={() => setNuevoPacienteOpen(true)}
+          onSelect={(paciente) => {
+            setSelected(paciente);
+            sessionStorage.setItem('dentcore_selected_patient_id', paciente.id);
+            setTab('pacientes');
+          }}
+        />
+        <div className="patient-selector-current">
+          <div>
+            <span>Paciente activo</span>
+            <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
+            <small>
+              Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}
+              {alergias ? ' - ! Alergico' : ''}
+              {totalPendiente > 0 ? ` - ${money(totalPendiente)} pendiente` : ''}
+            </small>
+          </div>
+          <button
+            type="button"
+            className="patient-agenda-shortcut"
+            onClick={abrirAgendaPaciente}
+            disabled={!active}
+            title="Abrir agenda con este paciente"
+            aria-label="Abrir agenda con este paciente"
+          >
+            <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+              <rect x="2" y="4" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.8" />
+              <line x1="2" y1="9" x2="20" y2="9" stroke="currentColor" strokeWidth="1.6" />
+              <line x1="7" y1="2" x2="7" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <line x1="15" y1="2" x2="15" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="7" cy="14" r="1.2" fill="currentColor" />
+              <circle cx="11" cy="14" r="1.2" fill="currentColor" />
+              <circle cx="15" cy="14" r="1.2" fill="currentColor" />
+            </svg>
           </button>
-        ))}
-      </nav>
-      {tab !== 'pacientes' && (
-        <aside className="patient-summary-strip" onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
-          <span><b>Paciente</b>{active ? fullName(active) : 'Sin seleccionar'} - H {active?.num_historial ?? '-'}</span>
-          <span><b>Proxima</b>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)} - ${nextCita.motivo ?? ''}` : 'sin cita programada'}</span>
-          <span><b>Realizados</b>{tratamientosRealizados}</span>
-          <span><b>Saldo</b>{money(totalPendiente)} / {money(totalFacturado)}</span>
-          <span><b>Docs</b>{documentosQuery.data?.length ?? 0} · CI {consentimientosQuery.data?.length ?? 0}</span>
-        </aside>
-      )}
+        </div>
+        {hasPatientError && (
+          <div className="inline-alert">
+            Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
+          </div>
+        )}
+        {hasPatientLoading && (
+          <div className="patient-loading-strip" aria-label="Cargando paciente">
+            <span />
+            <span />
+            <span />
+          </div>
+        )}
+      </div>
+      <section className={`page patient-screen${tab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
+        <div className="patient-titlebar">
+          <strong>{active ? `${fullName(active)} // CLINICA DENTAL` : 'Pacientes // CLINICA DENTAL'}</strong>
+        </div>
+        <nav className="patient-module-tabs">
+          {WORK_TABS.map((item) => (
+            <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>
+              <span className="tab-icon">{TAB_ICONS[item.id]}</span>{item.label}
+            </button>
+          ))}
+        </nav>
+        {tab !== 'pacientes' && (
+          <aside className="patient-summary-strip" onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
+            <span><b>Paciente</b>{active ? fullName(active) : 'Sin seleccionar'} - H {active?.num_historial ?? '-'}</span>
+            <span><b>Proxima</b>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)} - ${nextCita.motivo ?? ''}` : 'sin cita programada'}</span>
+            <span><b>Realizados</b>{tratamientosRealizados}</span>
+            <span><b>Saldo</b>{money(totalPendiente)} / {money(totalFacturado)}</span>
+            <span><b>Docs</b>{documentosQuery.data?.length ?? 0} - CI {consentimientosQuery.data?.length ?? 0}</span>
+          </aside>
+        )}
 
       <main className="patient-desk">
         {tab === 'pacientes' && (
@@ -612,11 +629,26 @@ export default function PacientesPage() {
               facturas={facturas}
               historial={historialQuery.data ?? []}
               citas={citasPacienteQuery.data ?? []}
+              presupuestos={presupuestos}
+              documentos={documentosQuery.data ?? []}
+              consentimientos={consentimientosQuery.data ?? []}
+              laboratorio={laboratorioPacienteQuery.data ?? []}
               onEdit={() => setEditingPatient(true)}
               onOpenFull={() => setFullPatientOpen(true)}
+              onOpenDatos={() => setEditingPatient(true)}
               onOpenCitas={() => setTab('citas')}
+              onOpenPresupuestos={() => setTab('presupuestos')}
+              onOpenPendientes={() => setTab('pendiente')}
+              onOpenRealizados={() => setTab('realizados')}
+              onOpenHistoria={() => setTab('historial')}
+              onOpenFacturacion={() => setTab('facturacion')}
               onOpenHistorial={() => setTab('facturacion')}
               onOpenDocumentos={() => setTab('documentos')}
+              onOpenConsentimientos={() => setTab('consentimientos')}
+              onOpenLaboratorio={() => setTab('laboratorio')}
+              onEmitirFactura={() => setInvoiceCreatorOpen(true)}
+              onRegistrarCobro={abrirCobroDesdeFicha}
+              onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
             />
           </div>
         )}
@@ -625,6 +657,7 @@ export default function PacientesPage() {
             historial={historialQuery.data ?? []}
             consentimientos={consentimientosQuery.data ?? []}
             presupuestos={presupuestos}
+            paciente={active}
             doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
             doctorColor={doctoresQuery.data?.[0]?.color_agenda}
             tratamientos={tratamientosQuery.data ?? []}
@@ -634,6 +667,7 @@ export default function PacientesPage() {
           <TrabajoPendientePanel
             presupuestos={presupuestos}
             citas={citasPacienteQuery.data ?? []}
+            paciente={active}
             onDarCita={darCitaParaTratamiento}
             onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
           />
@@ -677,7 +711,6 @@ export default function PacientesPage() {
                   presupuesto={presupuesto}
                   paciente={active!}
                   tratamientos={tratamientosQuery.data ?? []}
-                  doctorId={doctoresQuery.data?.[0]?.id ?? null}
                 />
               );
             })()}
@@ -692,6 +725,7 @@ export default function PacientesPage() {
         )}
         {tab === 'historial' && (
           <ClinicalHistoryPanel
+            paciente={active}
             historial={historialQuery.data ?? []}
             onFacturar={() => setFacturaManualOpen(true)}
             onCobrar={() => cobrarFactura.mutate()}
@@ -752,7 +786,7 @@ export default function PacientesPage() {
               <strong>Paciente</strong>
               <button onClick={() => { setEditingPatient(true); setContextMenu(null); }}>Editar ficha</button>
               <button onClick={() => { setContextMenu(null); focusPacienteSearch(); }}>Buscar / cambiar paciente</button>
-              <button onClick={abrirAgendaPaciente}>Abrir agenda / nueva cita</button>
+              <button onClick={abrirAgendaPaciente}>Nueva cita</button>
               <button onClick={() => { nuevoPresupuesto.mutate(); setContextMenu(null); }} disabled={!active || nuevoPresupuesto.isPending}>Nuevo presupuesto</button>
               <span />
               <button onClick={() => { setTab('primera'); setContextMenu(null); }}>Primera visita</button>
@@ -760,10 +794,10 @@ export default function PacientesPage() {
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Circular / justificante</button>
               <button onClick={() => { setTab('documentos'); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
               <span />
-              <button onClick={() => { setFacturaManualOpen(true); setContextMenu(null); }} disabled={!active}>Emitir factura</button>
-              <button onClick={() => { cobrarFactura.mutate(); setContextMenu(null); }} disabled={!active || cobrarFactura.isPending}>Registrar cobro</button>
+              <button onClick={() => { setInvoiceCreatorOpen(true); setContextMenu(null); }} disabled={!active}>Emitir factura</button>
+              <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={!active}>Registrar cobro</button>
               <button onClick={() => { setTab('facturacion'); setContextMenu(null); }}>Historial / facturacion</button>
-              <button onClick={copiarDatosPaciente}>Copiar datos paciente</button>
+              <button onClick={copiarDatosPaciente}>Copiar datos</button>
             </>
           )}
           {contextMenu.kind === 'linea' && (

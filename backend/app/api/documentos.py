@@ -5,8 +5,6 @@ Los ficheros se guardan en: uploads/pacientes/{paciente_id}/{uuid}{ext}
 """
 import os
 import uuid
-import base64
-import binascii
 from datetime import date
 from io import BytesIO
 from pathlib import Path
@@ -16,10 +14,6 @@ from zipfile import BadZipFile, ZipFile
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import mm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +23,7 @@ from app.core.throttling import ensure_upload_allowed
 from app.database import get_db
 from app.models.documento import CATEGORIAS_DOCUMENTO, DocumentoPaciente
 from app.models.paciente import Paciente
+from app.services.pdf_service import generar_documento_clinico_pdf
 
 router = APIRouter()
 settings = get_settings()
@@ -139,51 +134,6 @@ def _validar_y_determinar_archivo(nombre_original: str, contenido: bytes) -> tup
     return mime, ext
 
 
-def _firma_png_bytes(data_url: str | None) -> bytes | None:
-    if not data_url:
-        return None
-    prefix = "data:image/png;base64,"
-    if not data_url.startswith(prefix):
-        return None
-    try:
-        return base64.b64decode(data_url[len(prefix):], validate=True)
-    except (ValueError, binascii.Error):  # type: ignore[name-defined]
-        return None
-
-
-def _generar_pdf_texto(titulo: str, contenido: str, firma_data_url: str | None = None) -> bytes:
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=18 * mm,
-        leftMargin=18 * mm,
-        topMargin=18 * mm,
-        bottomMargin=18 * mm,
-    )
-    styles = getSampleStyleSheet()
-    story = [
-        Paragraph(titulo, styles["Title"]),
-        Spacer(1, 6 * mm),
-    ]
-    for bloque in contenido.replace("\r\n", "\n").split("\n\n"):
-        texto = "<br/>".join(linea.strip() for linea in bloque.split("\n"))
-        if texto.strip():
-            story.append(Paragraph(texto, styles["BodyText"]))
-            story.append(Spacer(1, 4 * mm))
-    firma = _firma_png_bytes(firma_data_url)
-    if firma:
-        story.append(Spacer(1, 10 * mm))
-        story.append(Paragraph("Firma del paciente", styles["Heading3"]))
-        img = Image(BytesIO(firma), width=70 * mm, height=28 * mm)
-        img.hAlign = "LEFT"
-        story.append(img)
-        story.append(Spacer(1, 2 * mm))
-        story.append(Paragraph("Documento firmado digitalmente en la ficha del paciente.", styles["Italic"]))
-    doc.build(story)
-    return buffer.getvalue()
-
-
 @router.get("/{paciente_id}/documentos")
 async def listar_documentos(
     paciente_id: uuid.UUID,
@@ -288,7 +238,14 @@ async def generar_documento_pdf(
             detail=f"Categoria invalida. Validas: {', '.join(CATEGORIAS_DOCUMENTO)}",
         )
 
-    pdf_bytes = _generar_pdf_texto(data.titulo, data.contenido, data.firma_data_url)
+    paciente_nombre = " ".join(part for part in [pac.nombre, pac.apellidos] if part).strip()
+    pdf_bytes = generar_documento_clinico_pdf(
+        titulo=data.titulo,
+        contenido=data.contenido,
+        paciente_nombre=paciente_nombre,
+        fecha_documento=data.fecha_documento,
+        firma_data_url=data.firma_data_url,
+    )
     nombre_limpio = _sanear_nombre_archivo(data.titulo).replace(" ", "_").lower()
     nombre_original = f"{nombre_limpio or 'documento'}.pdf"
     nombre_guardado = f"{uuid.uuid4()}.pdf"

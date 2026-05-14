@@ -1,7 +1,8 @@
 import type { CSSProperties, MouseEvent } from 'react';
-import type { Cita, Presupuesto, PresupuestoLinea } from '../../types/api';
+import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea } from '../../types/api';
 import { colorForTreatment, formatDate, money, normalizeText } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
+import { PatientOdontogramFlow } from '../odontogram';
 
 function findCitaForTreatment(citas: Cita[], linea: PresupuestoLinea) {
   const target = normalizeText(linea.tratamiento?.nombre);
@@ -17,11 +18,13 @@ function findCitaForTreatment(citas: Cita[], linea: PresupuestoLinea) {
 export function TrabajoPendientePanel({
   presupuestos,
   citas,
+  paciente,
   onDarCita,
   onContextLinea,
 }: {
   presupuestos: Presupuesto[];
   citas: Cita[];
+  paciente?: ApiPaciente | null;
   onDarCita: (linea: PresupuestoLinea) => void;
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
 }) {
@@ -60,6 +63,14 @@ export function TrabajoPendientePanel({
           {!rows.length && <tr><td colSpan={8}>Sin tratamientos pendientes aceptados.</td></tr>}
         </tbody>
       </table>
+      <PatientOdontogramFlow
+        paciente={paciente ?? null}
+        mode="pending"
+        title="Pendientes por pieza"
+        subtitle="Mapa clinico compartido para ubicar trabajos aceptados y pendientes."
+        readOnly
+        enableQuickTreatments={false}
+      />
     </section>
   );
 }

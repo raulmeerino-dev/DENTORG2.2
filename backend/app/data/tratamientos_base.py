@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections import defaultdict
 from decimal import Decimal
 
-
 FAMILIAS_TRATAMIENTO_BASE = [
     {"nombre": "Protesis fija", "icono": "PF", "orden": 1},
     {"nombre": "Implantologia", "icono": "IM", "orden": 2},

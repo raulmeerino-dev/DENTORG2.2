@@ -21,12 +21,19 @@ from app.models.doctor import Doctor
 from app.models.gabinete import Gabinete
 from app.models.horario import HorarioDoctor, HorarioExcepcion
 from app.schemas.doctor import (
-    DoctorCreate, DoctorResponse, DoctorUpdate,
-    GabineteCreate, GabineteResponse, GabineteUpdate,
+    DoctorCreate,
+    DoctorResponse,
+    DoctorUpdate,
+    GabineteCreate,
+    GabineteResponse,
+    GabineteUpdate,
 )
 from app.schemas.horario import (
-    HorarioDoctorCreate, HorarioDoctorResponse, HorarioDoctorUpdate,
-    HorarioExcepcionCreate, HorarioExcepcionResponse,
+    HorarioDoctorCreate,
+    HorarioDoctorResponse,
+    HorarioDoctorUpdate,
+    HorarioExcepcionCreate,
+    HorarioExcepcionResponse,
 )
 
 router = APIRouter()
