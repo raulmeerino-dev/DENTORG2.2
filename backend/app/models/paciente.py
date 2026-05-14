@@ -13,7 +13,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import UUIDMixin, TimestampMixin, SoftDeleteMixin
+from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 
 class Paciente(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):

@@ -7731,6 +7731,268 @@ html[data-theme="dark"] .row-pending td {
   cursor: pointer;
 }
 
+/* Agenda operativa: filtros arriba, parrilla visible antes y menos ruido visual. */
+.agenda-euro {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  min-height: calc(100svh - 104px);
+}
+
+.agenda-compact-toolbar {
+  display: grid;
+  grid-template-columns: 148px minmax(210px, 300px) 104px minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid #cbdbe5;
+  background: linear-gradient(90deg, #ffffff, #eff8fb);
+}
+
+.agenda-compact-toolbar label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: #365164;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.agenda-compact-toolbar input,
+.agenda-compact-toolbar select {
+  width: 100%;
+  min-height: 32px;
+  min-width: 0;
+  border: 1px solid #b7ccd8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #102f43;
+  font-weight: 800;
+}
+
+.agenda-toolbar-status {
+  min-width: 0;
+  align-self: stretch;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  padding: 4px 10px;
+  border: 1px solid #d4e2ea;
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
+.agenda-toolbar-status b,
+.agenda-toolbar-status span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-toolbar-status b {
+  color: #0f4f72;
+  font-size: 12px;
+}
+
+.agenda-toolbar-status span {
+  color: #587083;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.agenda-toolbar-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.agenda-toolbar-actions button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #b8ceda;
+  border-radius: 8px;
+  background: linear-gradient(#ffffff, #edf5f8);
+  color: #0b547a;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.agenda-toolbar-actions button:nth-child(2) {
+  color: #ffffff;
+  border-color: #087ca6;
+  background: linear-gradient(135deg, #0f8bb5, #168d72);
+}
+
+.agenda-euro .agenda-layout {
+  min-height: 0;
+  grid-template-columns: minmax(248px, 290px) minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px;
+}
+
+.agenda-euro .agenda-left-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(130px, 188px) minmax(120px, 1fr) auto auto auto;
+  min-height: 0;
+  gap: 7px;
+  overflow: hidden;
+}
+
+.agenda-euro .doctor-legend {
+  max-height: 64px;
+  gap: 4px;
+  overflow: auto;
+}
+
+.agenda-euro .doctor-legend span {
+  flex: 1 1 96px;
+  min-width: 0;
+  max-width: none;
+  padding: 4px 7px;
+  font-size: 11px;
+}
+
+.agenda-euro .month-caption {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  color: #0f3146;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.agenda-euro .month-grid {
+  grid-auto-rows: minmax(22px, 1fr);
+  min-height: 0;
+}
+
+.agenda-euro .month-grid strong,
+.agenda-euro .month-grid button {
+  min-height: 22px;
+  font-size: 11px;
+}
+
+.agenda-euro .pending-call-panel {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agenda-euro .pending-call-panel .euro-table {
+  height: calc(100% - 34px);
+  overflow: auto;
+}
+
+.agenda-euro .agenda-button-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.agenda-euro .agenda-button-grid button {
+  min-height: 30px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.agenda-euro .agenda-slots {
+  min-height: 0;
+  overflow: auto;
+}
+
+.agenda-euro .agenda-status-legend {
+  gap: 5px;
+  padding: 6px 8px;
+}
+
+.agenda-euro .agenda-status-legend span {
+  min-height: 24px;
+  padding: 2px 8px 2px 3px;
+  font-size: 11px;
+}
+
+.agenda-euro .agenda-status-legend b {
+  min-width: 23px;
+  min-height: 20px;
+  font-size: 9px;
+}
+
+.agenda-euro .agenda-slot-row {
+  min-height: 30px;
+}
+
+.agenda-euro .agenda-slot-row time {
+  width: 54px;
+  font-size: 12px;
+}
+
+.agenda-euro .agenda-appointment {
+  grid-template-columns: 30px minmax(150px, 1fr) minmax(120px, 190px) 112px 58px;
+  min-height: 26px;
+  margin: 1px 3px;
+  padding: 2px 6px;
+}
+
+.agenda-euro .agenda-appointment b,
+.agenda-euro .appointment-state {
+  min-width: 22px;
+  min-height: 22px;
+  font-size: 9px;
+}
+
+.agenda-euro .agenda-appointment strong,
+.agenda-euro .agenda-appointment span,
+.agenda-euro .agenda-appointment small,
+.agenda-euro .agenda-appointment em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html[data-theme="dark"] .agenda-compact-toolbar {
+  border-color: #2d465a;
+  background: linear-gradient(90deg, #172638, #102030);
+}
+
+html[data-theme="dark"] .agenda-compact-toolbar label,
+html[data-theme="dark"] .agenda-toolbar-status b {
+  color: #eaf2f8;
+}
+
+html[data-theme="dark"] .agenda-toolbar-status {
+  border-color: #2f4a60;
+  background: #101b28;
+}
+
+html[data-theme="dark"] .agenda-toolbar-status span {
+  color: #a9c4d6;
+}
+
+html[data-theme="dark"] .agenda-toolbar-actions button {
+  border-color: #36516a;
+  color: #eaf2f8;
+  background: linear-gradient(#243648, #172638);
+}
+
+@media (max-width: 1080px) {
+  .agenda-compact-toolbar {
+    grid-template-columns: 140px minmax(180px, 1fr) 92px;
+  }
+
+  .agenda-toolbar-status,
+  .agenda-toolbar-actions {
+    grid-column: 1 / -1;
+  }
+
+  .agenda-euro .agenda-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-euro .agenda-left-panel {
+    grid-template-rows: auto auto auto auto auto;
+  }
+}
+
 html[data-theme="dark"] .desk-tabs button {
   background: #1e2a32;
   border-color: #2c3e4a;
@@ -8381,4 +8643,757 @@ html[data-theme="dark"] .legend-chip {
     overflow-x: auto;
     padding-bottom: 4px;
   }
+}
+
+/* Patient hub: clinical work surface, compact and module-oriented. */
+.patient-dashboard-mode .patient-desk {
+  padding: 7px 8px;
+}
+
+.patient-dashboard-mode .patient-hub-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(360px, 1.05fr) minmax(360px, 1fr) minmax(300px, .85fr);
+  grid-template-rows: auto auto minmax(112px, .85fr) minmax(138px, 1fr);
+  gap: 8px;
+}
+
+.patient-dashboard-mode .patient-hub-head {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 48px minmax(240px, 1.1fr) minmax(260px, 1fr) 150px 148px;
+  align-items: center;
+  gap: 10px;
+  min-height: 64px;
+  padding: 8px 10px;
+  border: 1px solid #d1dfe7;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.patient-dashboard-mode .patient-hub-identity,
+.patient-dashboard-mode .patient-hub-alert,
+.patient-dashboard-mode .patient-hub-balance {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.patient-dashboard-mode .patient-hub-identity span,
+.patient-dashboard-mode .patient-hub-alert span,
+.patient-dashboard-mode .patient-hub-balance span {
+  color: #60717f;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patient-dashboard-mode .patient-hub-identity strong {
+  overflow: hidden;
+  color: #0f3146;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 18px;
+}
+
+.patient-dashboard-mode .patient-hub-identity em,
+.patient-dashboard-mode .patient-hub-balance em {
+  overflow: hidden;
+  color: #60717f;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: normal;
+  font-size: 12px;
+}
+
+.patient-dashboard-mode .patient-hub-alert {
+  padding-left: 10px;
+  border-left: 1px solid #e2ebf0;
+}
+
+.patient-dashboard-mode .patient-hub-alert strong {
+  overflow: hidden;
+  color: #263d4c;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.patient-dashboard-mode .patient-hub-balance strong {
+  color: #0f4f72;
+  font-size: 18px;
+}
+
+.patient-dashboard-mode .patient-hub-balance strong.debt {
+  color: #b4232e;
+}
+
+.patient-dashboard-mode .patient-hub-head-actions {
+  display: grid;
+  gap: 5px;
+}
+
+.patient-dashboard-mode .patient-hub-head-actions button {
+  min-height: 28px;
+  border: 1px solid #b9ccd7;
+  border-radius: 7px;
+  background: #f4f9fc;
+  color: #0b547a;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.patient-dashboard-mode .patient-hub-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.patient-dashboard-mode .patient-hub-actions button {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid #d1dfe7;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0f3146;
+  text-align: left;
+  box-shadow: none;
+}
+
+.patient-dashboard-mode .patient-hub-actions button:hover {
+  border-color: #8fc7e1;
+  background: #f2fbff;
+}
+
+.patient-dashboard-mode .patient-hub-actions b,
+.patient-dashboard-mode .patient-hub-actions span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-dashboard-mode .patient-hub-actions b {
+  font-size: 12px;
+}
+
+.patient-dashboard-mode .patient-hub-actions span {
+  color: #60717f;
+  font-size: 10.5px;
+}
+
+.patient-dashboard-mode .patient-next-card {
+  grid-column: 1;
+  grid-row: 3;
+  border-left: 5px solid #16a34a;
+}
+
+.patient-dashboard-mode .patient-last-card {
+  grid-column: 2;
+  grid-row: 3;
+  border-left: 5px solid #0f7cad;
+}
+
+.patient-dashboard-mode .patient-history-card {
+  grid-column: 1 / span 2;
+  grid-row: 4;
+  padding: 9px 10px;
+}
+
+.patient-dashboard-mode .patient-hub-side-card {
+  grid-column: 3;
+  grid-row: 3 / span 2;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 9px;
+  padding: 10px;
+}
+
+.patient-hub-mini-links {
+  align-content: start;
+  border-top: 1px solid #e2ebf0;
+  padding-top: 8px;
+}
+
+.patient-hub-mini-links button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.patient-hub-mini-links span {
+  color: #0f7cad;
+  font-weight: 900;
+}
+
+.patient-dashboard-mode .patient-next-card,
+.patient-dashboard-mode .patient-last-card,
+.patient-dashboard-mode .patient-history-card,
+.patient-dashboard-mode .patient-hub-side-card {
+  min-width: 0;
+  min-height: 0;
+}
+
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-head,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-actions button {
+  border-color: #2f4a60;
+  background: #101b28;
+}
+
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-identity strong,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-alert strong,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-actions button,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-balance strong {
+  color: #eaf2f8;
+}
+
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-identity em,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-actions span,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-alert span,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-balance span,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-balance em {
+  color: #a9c4d6;
+}
+
+@media (max-width: 1180px) {
+  .patient-dashboard-mode .patient-hub-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto auto;
+  }
+
+  .patient-dashboard-mode .patient-hub-head {
+    grid-template-columns: 48px minmax(0, 1fr) 140px;
+  }
+
+  .patient-dashboard-mode .patient-hub-alert,
+  .patient-dashboard-mode .patient-hub-balance {
+    grid-column: 1 / -1;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .patient-dashboard-mode .patient-hub-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .patient-dashboard-mode .patient-next-card,
+  .patient-dashboard-mode .patient-last-card,
+  .patient-dashboard-mode .patient-history-card,
+  .patient-dashboard-mode .patient-hub-side-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+.patient-dashboard-mode .patient-history-card {
+  grid-column: 1;
+  grid-row: 4;
+}
+
+.patient-dashboard-mode .patient-billing-card {
+  grid-column: 2;
+  grid-row: 4;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid #d1dfe7;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.patient-billing-card .patient-card-head h3::before {
+  background: #b7791f;
+}
+
+.patient-billing-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.patient-billing-totals span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid #e0e9ef;
+  border-radius: 8px;
+  background: #f8fbfd;
+}
+
+.patient-billing-totals b {
+  color: #60717f;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.patient-billing-totals strong {
+  overflow: hidden;
+  color: #0f4f72;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-billing-totals strong.debt,
+.patient-billing-list em.debt,
+.billing-operational-strip strong.debt {
+  color: #b4232e;
+}
+
+.patient-billing-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.patient-billing-actions button {
+  min-height: 30px;
+  border: 1px solid #b9ccd7;
+  border-radius: 7px;
+  background: #f4f9fc;
+  color: #0b547a;
+  font-weight: 900;
+}
+
+.patient-billing-actions button:first-child {
+  color: #ffffff;
+  border-color: #16835f;
+  background: linear-gradient(135deg, #23a373, #16835f);
+}
+
+.patient-billing-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  overflow: auto;
+}
+
+.patient-billing-list button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(72px, .8fr) minmax(72px, .8fr) minmax(82px, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid #e0e9ef;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #263d4c;
+  text-align: left;
+}
+
+.patient-billing-list span,
+.patient-billing-list strong,
+.patient-billing-list em {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-billing-list em {
+  color: #16835f;
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
+}
+
+/* Pacientes: ficha compacta y operativa. Estas reglas finales pisan estilos
+   anteriores que se fueron acumulando durante las fases de prototipo. */
+.patient-header {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  margin: 6px 8px;
+  padding: 7px 8px;
+  border: 1px solid #c6d6e0;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 5px 14px rgba(34, 63, 82, .06);
+}
+
+.patient-header-top {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 7px;
+  align-items: center;
+}
+
+.patient-header .patient-finder {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+}
+
+.patient-header .patient-finder input {
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid #bfd0da;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f3146;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.patient-header .patient-search-label {
+  position: relative;
+  min-width: 0;
+}
+
+.patient-header .patient-live-results {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 5px);
+  left: 0;
+  width: min(560px, 78vw);
+  max-height: 270px;
+  overflow: auto;
+  border: 1px solid #c6d6e0;
+  border-radius: 9px;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(20, 42, 58, .18);
+}
+
+.patient-header-info {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 5px;
+  color: #425968;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.patient-header-name {
+  max-width: 280px;
+  overflow: hidden;
+  color: #0f3146;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.patient-header-info span {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-header-alerts,
+.patient-header-debt {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff4e6;
+  color: #9a3412;
+}
+
+.patient-header-debt {
+  background: #fff1f2;
+  color: #b4232e;
+}
+
+.patient-screen.patient-dashboard-mode.no-bottom-bar {
+  height: calc(100vh - 124px);
+  grid-template-rows: 38px 30px minmax(0, 1fr);
+}
+
+.patient-dashboard-mode .patient-titlebar {
+  display: none;
+}
+
+.patient-dashboard-mode .patient-desk {
+  padding: 6px 7px;
+}
+
+.patient-dashboard-mode .patient-hub-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(290px, .82fr) minmax(420px, 1.18fr) minmax(300px, .78fr);
+  grid-template-rows: auto minmax(132px, .72fr) minmax(210px, 1fr);
+  gap: 8px;
+}
+
+.patient-dashboard-mode .patient-hub-actions {
+  display: none;
+}
+
+.patient-dashboard-mode .patient-hub-head {
+  grid-column: 1 / -1;
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 44px minmax(240px, 1fr) minmax(240px, 1fr) 130px auto;
+  gap: 9px;
+  align-items: center;
+  padding: 7px 9px;
+  border: 1px solid #d1dfe7;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.patient-dashboard-mode .patient-hub-head-actions {
+  display: flex;
+  gap: 5px;
+  justify-content: flex-end;
+}
+
+.patient-dashboard-mode .patient-hub-head-actions button,
+.patient-dashboard-mode .patient-card-head button,
+.patient-dashboard-mode .patient-hub-side-card button {
+  min-height: 27px;
+  padding: 4px 8px;
+  border: 1px solid #b9ccd7;
+  border-radius: 7px;
+  background: #f4f9fc;
+  color: #0b547a;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.patient-dashboard-mode .patient-next-card {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.patient-dashboard-mode .patient-last-card {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.patient-dashboard-mode .patient-history-card {
+  grid-column: 1 / span 2;
+  grid-row: 3;
+}
+
+.patient-dashboard-mode .patient-billing-card {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.patient-dashboard-mode .patient-hub-side-card {
+  grid-column: 3;
+  grid-row: 3;
+}
+
+.patient-dashboard-mode .patient-next-card,
+.patient-dashboard-mode .patient-last-card,
+.patient-dashboard-mode .patient-history-card,
+.patient-dashboard-mode .patient-billing-card,
+.patient-dashboard-mode .patient-hub-side-card {
+  min-width: 0;
+  min-height: 0;
+  padding: 9px 10px;
+  border: 1px solid #d1dfe7;
+  border-left-width: 4px;
+  border-radius: 9px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.patient-dashboard-mode .patient-history-card,
+.patient-dashboard-mode .patient-hub-side-card,
+.patient-billing-list {
+  overflow: auto;
+}
+
+.patient-dashboard-mode .patient-hub-side-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+html[data-theme="dark"] .patient-header,
+html[data-theme="dark"] .patient-header .patient-live-results,
+html[data-theme="dark"] .patient-header .patient-finder input,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-head,
+html[data-theme="dark"] .patient-dashboard-mode .patient-next-card,
+html[data-theme="dark"] .patient-dashboard-mode .patient-last-card,
+html[data-theme="dark"] .patient-dashboard-mode .patient-history-card,
+html[data-theme="dark"] .patient-dashboard-mode .patient-billing-card,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-side-card {
+  border-color: #2f4a60;
+  background: #101b28;
+}
+
+@media (max-width: 1180px) {
+  .patient-header {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-header-info {
+    justify-content: flex-start;
+  }
+
+  .patient-dashboard-mode .patient-hub-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .patient-dashboard-mode .patient-hub-head,
+  .patient-dashboard-mode .patient-next-card,
+  .patient-dashboard-mode .patient-last-card,
+  .patient-dashboard-mode .patient-history-card,
+  .patient-dashboard-mode .patient-billing-card,
+  .patient-dashboard-mode .patient-hub-side-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+.billing-operational-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(100px, 1fr)) repeat(2, 130px);
+  gap: 7px;
+  padding: 8px;
+  border-bottom: 1px solid #d8e3ea;
+  background: #f8fbfd;
+}
+
+.billing-operational-strip div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 5px 8px;
+  border: 1px solid #dbe7ee;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.billing-operational-strip span {
+  color: #60717f;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.billing-operational-strip strong {
+  overflow: hidden;
+  color: #0f4f72;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+}
+
+.billing-operational-strip button {
+  min-height: 34px;
+  border: 1px solid #b9ccd7;
+  border-radius: 8px;
+  background: linear-gradient(#ffffff, #edf5f8);
+  color: #0b547a;
+  font-weight: 900;
+}
+
+.billing-operational-strip button:first-of-type {
+  color: #ffffff;
+  border-color: #16835f;
+  background: linear-gradient(135deg, #23a373, #16835f);
+}
+
+html[data-theme="dark"] .patient-dashboard-mode .patient-billing-card,
+html[data-theme="dark"] .patient-billing-list button,
+html[data-theme="dark"] .patient-billing-totals span,
+html[data-theme="dark"] .billing-operational-strip,
+html[data-theme="dark"] .billing-operational-strip div {
+  border-color: #2f4a60;
+  background: #101b28;
+}
+
+html[data-theme="dark"] .patient-billing-totals strong,
+html[data-theme="dark"] .billing-operational-strip strong,
+html[data-theme="dark"] .patient-billing-list button {
+  color: #eaf2f8;
+}
+
+@media (max-width: 1180px) {
+  .patient-dashboard-mode .patient-billing-card {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .billing-operational-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Restore Eurodent-style patient shell: one row of modules, visible titlebar,
+   and bottom shortcuts only inside the patient record. */
+.patient-screen.patient-dashboard-mode {
+  height: calc(100vh - 144px);
+  grid-template-rows: 28px 42px minmax(0, 1fr) 38px;
+}
+
+.patient-dashboard-mode .patient-titlebar {
+  display: flex;
+}
+
+.patient-dashboard-mode .patient-module-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.patient-dashboard-mode .patient-module-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: none;
+  min-height: 42px;
+}
+
+.patient-dashboard-mode .patient-hub-actions {
+  display: none;
+}
+
+.patient-dashboard-mode .patient-hub-grid {
+  grid-template-columns: minmax(300px, .95fr) minmax(360px, 1.15fr) minmax(300px, .9fr);
+  grid-template-rows: 72px minmax(142px, .85fr) minmax(126px, 1fr);
+}
+
+.patient-dashboard-mode .patient-hub-head {
+  grid-column: 1 / -1;
+  grid-template-columns: 48px minmax(240px, 1fr) minmax(260px, 1fr) 140px 156px;
+  min-height: 64px;
+}
+
+.patient-dashboard-mode .patient-next-card {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.patient-dashboard-mode .patient-last-card {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.patient-dashboard-mode .patient-history-card {
+  grid-column: 1 / span 2;
+  grid-row: 3;
+}
+
+.patient-dashboard-mode .patient-billing-card {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.patient-dashboard-mode .patient-hub-side-card {
+  grid-column: 3;
+  grid-row: 3;
 }

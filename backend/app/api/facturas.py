@@ -7,9 +7,8 @@ Router de facturas.
 - Controles de inalterabilidad fiscal
 - Integridad y eventos del SIF
 """
-from datetime import datetime, timezone
 import base64
-from io import BytesIO
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
@@ -19,7 +18,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access, resolve_clinic_id, scope_select_by_clinic
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    ensure_clinic_access,
+    resolve_clinic_id,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.clinica import Receta
 from app.models.factura import Cobro, Factura, FacturaLinea, FormaPago
@@ -40,6 +45,7 @@ from app.schemas.factura import (
     HistorialSinFacturarResponse,
 )
 from app.services.fiscal_document_service import archivar_pdf_factura
+from app.services.pdf_service import generar_receta_pdf, pdf_response_headers
 from app.services.verifactu_service import (
     registrar_evento_sif,
     registrar_registro_facturacion,
@@ -377,26 +383,17 @@ async def generar_receta(
     result = await db.execute(select(Receta).where(Receta.factura_id == factura_id))
     receta = result.scalar_one_or_none()
     if not receta:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.pdfgen import canvas
-
-        buffer = BytesIO()
-        pdf = canvas.Canvas(buffer, pagesize=A4)
-        pdf.setTitle(f"Receta factura {factura.serie}-{factura.numero}")
-        pdf.setFont("Helvetica-Bold", 16)
-        pdf.drawString(50, 800, "RECETA ELECTRONICA")
-        pdf.setFont("Helvetica", 10)
-        pdf.drawString(50, 780, "Formato interno DentOrg2. Validar integracion oficial antes de uso sanitario real.")
-        pdf.drawString(50, 750, f"Paciente: {factura.paciente.nombre} {factura.paciente.apellidos}")
-        pdf.drawString(50, 730, f"Factura: {factura.serie}-{factura.numero}  Fecha: {factura.fecha.isoformat()}")
-        y = 700
-        for linea in factura.lineas:
-            pdf.drawString(60, y, f"- {linea.concepto} ({linea.cantidad})")
-            y -= 18
-        pdf.drawString(50, 120, f"Emitida por usuario: {current_user.username}")
-        pdf.showPage()
-        pdf.save()
-        contenido = base64.b64encode(buffer.getvalue()).decode("ascii")
+        paciente_nombre = " ".join(
+            part for part in [factura.paciente.nombre, factura.paciente.apellidos] if part
+        ).strip()
+        pdf_bytes = generar_receta_pdf(
+            paciente_nombre=paciente_nombre,
+            factura_codigo=f"{factura.serie}-{factura.numero}",
+            fecha=factura.fecha,
+            lineas=[{"concepto": linea.concepto, "cantidad": linea.cantidad} for linea in factura.lineas],
+            usuario=current_user.username,
+        )
+        contenido = base64.b64encode(pdf_bytes).decode("ascii")
         receta = Receta(factura_id=factura_id, contenido_base64=contenido)
         db.add(receta)
         factura.tiene_receta_electronica = True
@@ -404,7 +401,7 @@ async def generar_receta(
     return Response(
         content=base64.b64decode(receta.contenido_base64),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="receta-{factura.serie}-{factura.numero}.pdf"'},
+        headers=pdf_response_headers(f"receta-{factura.serie}-{factura.numero}.pdf", inline=False),
     )
 
 

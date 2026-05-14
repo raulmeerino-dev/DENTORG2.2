@@ -1,4 +1,4 @@
-"""Consentimientos informados versionados, firmables y archivables."""
+﻿"""Consentimientos informados versionados, firmables y archivables."""
 import base64
 import binascii
 import hashlib
@@ -10,12 +10,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, Response
-from PIL import Image as PILImage, ImageFile
+from PIL import Image as PILImage
+from PIL import ImageFile
 from pydantic import BaseModel, Field
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import mm
-from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +29,7 @@ from app.models.consentimiento import Consentimiento, ConsentimientoPlantilla
 from app.models.documento import DocumentoPaciente
 from app.models.paciente import Paciente
 from app.services.audit import write_audit_log
+from app.services.pdf_service import generar_documento_clinico_pdf, pdf_response_headers
 
 router = APIRouter()
 
@@ -44,7 +42,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["implante", "cirugia"],
-        "contenido": "D./Dña. {{paciente_nombre}} autoriza el tratamiento de implantes dentales indicado por la clínica. Se explican alternativas, riesgos quirúrgicos, posible fracaso del implante, controles posteriores y necesidad de higiene y revisiones.",
+        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza el tratamiento de implantes dentales indicado por la clÃ­nica. Se explican alternativas, riesgos quirÃºrgicos, posible fracaso del implante, controles posteriores y necesidad de higiene y revisiones.",
     },
     {
         "codigo": "extracciones",
@@ -52,7 +50,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["extraccion", "cirugia"],
-        "contenido": "D./Dña. {{paciente_nombre}} autoriza la extracción dental indicada. Se informan riesgos de dolor, sangrado, infección, alveolitis, inflamación y posibles complicaciones anatómicas.",
+        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza la extracciÃ³n dental indicada. Se informan riesgos de dolor, sangrado, infecciÃ³n, alveolitis, inflamaciÃ³n y posibles complicaciones anatÃ³micas.",
     },
     {
         "codigo": "endodoncia",
@@ -60,7 +58,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["endodoncia"],
-        "contenido": "D./Dña. {{paciente_nombre}} autoriza el tratamiento de endodoncia. Se informa de pronóstico, controles, posible dolor postoperatorio, fractura, reinfección o necesidad de retratamiento/extracción.",
+        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza el tratamiento de endodoncia. Se informa de pronÃ³stico, controles, posible dolor postoperatorio, fractura, reinfecciÃ³n o necesidad de retratamiento/extracciÃ³n.",
     },
     {
         "codigo": "ortodoncia",
@@ -68,7 +66,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["ortodoncia"],
-        "contenido": "D./Dña. {{paciente_nombre}} acepta el tratamiento de ortodoncia y comprende la necesidad de colaboración, higiene, controles, retenedores y posibles variaciones del plan.",
+        "contenido": "D./DÃ±a. {{paciente_nombre}} acepta el tratamiento de ortodoncia y comprende la necesidad de colaboraciÃ³n, higiene, controles, retenedores y posibles variaciones del plan.",
     },
     {
         "codigo": "blanqueamiento",
@@ -76,7 +74,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["blanqueamiento"],
-        "contenido": "D./Dña. {{paciente_nombre}} autoriza el blanqueamiento dental. Se informa de sensibilidad temporal, limitaciones estéticas y necesidad de seguir las indicaciones profesionales.",
+        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza el blanqueamiento dental. Se informa de sensibilidad temporal, limitaciones estÃ©ticas y necesidad de seguir las indicaciones profesionales.",
     },
     {
         "codigo": "limpieza",
@@ -84,7 +82,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["limpieza", "higiene"],
-        "contenido": "D./Dña. {{paciente_nombre}} autoriza la higiene/profilaxis dental indicada. Se informa de posible sensibilidad, sangrado gingival temporal y recomendaciones de mantenimiento.",
+        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza la higiene/profilaxis dental indicada. Se informa de posible sensibilidad, sangrado gingival temporal y recomendaciones de mantenimiento.",
     },
 ]
 
@@ -183,7 +181,7 @@ def _firma_png_bytes(data_url: str | None) -> bytes | None:
     try:
         return base64.b64decode(data_url[len(prefix):], validate=True)
     except (ValueError, binascii.Error) as exc:
-        raise HTTPException(status_code=422, detail="Firma digital no válida") from exc
+        raise HTTPException(status_code=422, detail="Firma digital no vÃ¡lida") from exc
 
 
 def _firma_png_normalizada(data_url: str | None) -> bytes | None:
@@ -222,42 +220,27 @@ def _render_template(contenido: str, paciente: Paciente, tipo: str) -> str:
 
 
 def _generar_pdf_consentimiento(consentimiento: Consentimiento, paciente: Paciente) -> bytes:
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=18 * mm,
-        leftMargin=18 * mm,
-        topMargin=18 * mm,
-        bottomMargin=18 * mm,
-    )
-    styles = getSampleStyleSheet()
     nombre = " ".join(part for part in [paciente.nombre, paciente.apellidos] if part).strip()
-    story = [
-        Paragraph(f"Consentimiento informado - {consentimiento.tipo}", styles["Title"]),
-        Spacer(1, 5 * mm),
-        Paragraph(f"Paciente: {nombre}", styles["BodyText"]),
-        Paragraph(f"Fecha: {consentimiento.fecha_firma.isoformat()}", styles["BodyText"]),
-        Paragraph(f"Versión plantilla: {consentimiento.plantilla_version or consentimiento.version_plantilla or 'personalizada'}", styles["BodyText"]),
-        Spacer(1, 6 * mm),
-    ]
-    for bloque in (consentimiento.contenido or "").replace("\r\n", "\n").split("\n\n"):
-        texto = "<br/>".join(linea.strip() for linea in bloque.split("\n"))
-        if texto.strip():
-            story.append(Paragraph(texto, styles["BodyText"]))
-            story.append(Spacer(1, 4 * mm))
-
-    firma = _firma_png_normalizada(consentimiento.firma_paciente_base64)
-    if firma:
-        story.append(Spacer(1, 8 * mm))
-        story.append(Paragraph("Firma del paciente", styles["Heading3"]))
-        image = Image(BytesIO(firma), width=70 * mm, height=28 * mm)
-        image.hAlign = "LEFT"
-        story.append(image)
-        story.append(Spacer(1, 2 * mm))
-        story.append(Paragraph(f"Firmado digitalmente: {consentimiento.firmado_at.isoformat() if consentimiento.firmado_at else ''}", styles["Italic"]))
-    doc.build(story)
-    return buffer.getvalue()
+    version = consentimiento.plantilla_version or consentimiento.version_plantilla or "personalizada"
+    firmado = consentimiento.firmado_at.isoformat() if consentimiento.firmado_at else ""
+    contenido = (
+        f"Fecha: {consentimiento.fecha_firma.isoformat()}\n"
+        f"Version plantilla: {version}\n"
+        f"Firmado digitalmente: {firmado}\n\n"
+        f"{consentimiento.contenido or ''}"
+    )
+    firma_data_url = None
+    if consentimiento.firma_paciente_base64:
+        firma_data_url = "data:image/png;base64," + base64.b64encode(
+            _firma_png_normalizada(consentimiento.firma_paciente_base64)
+        ).decode("ascii")
+    return generar_documento_clinico_pdf(
+        titulo=f"Consentimiento informado - {consentimiento.tipo}",
+        contenido=contenido,
+        paciente_nombre=nombre,
+        fecha_documento=consentimiento.fecha_firma,
+        firma_data_url=firma_data_url,
+    )
 
 
 async def _get_paciente(db: AsyncSession, paciente_id: uuid.UUID, current_user: TokenData) -> Paciente:
@@ -399,7 +382,7 @@ async def crear_consentimiento_paciente(
         version_plantilla = plantilla.version
     if not base:
         base_item = next((item for item in PLANTILLAS_BASE if item["nombre"] == data.tipo or item["codigo"] == data.tipo.lower()), None)
-        base = base_item["contenido"] if base_item else "D./Dña. {{paciente_nombre}} recibe información suficiente sobre el tratamiento indicado y autoriza su realización."
+        base = base_item["contenido"] if base_item else "D./DÃ±a. {{paciente_nombre}} recibe informaciÃ³n suficiente sobre el tratamiento indicado y autoriza su realizaciÃ³n."
         plantilla_version = plantilla_version or (base_item["version"] if base_item else "personalizada")
         version_plantilla = version_plantilla or (base_item["version_num"] if base_item else None)
 
@@ -596,9 +579,5 @@ async def descargar_pdf_consentimiento(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={
-            "Content-Disposition": f'inline; filename="consentimiento_{consentimiento.id}.pdf"',
-            "Cache-Control": "no-store",
-            "X-Content-Type-Options": "nosniff",
-        },
+        headers=pdf_response_headers(f"consentimiento_{consentimiento.id}.pdf"),
     )

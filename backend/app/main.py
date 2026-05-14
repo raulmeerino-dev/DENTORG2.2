@@ -4,10 +4,29 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.api import (
+    admin,
+    auth,
+    citas,
+    clinicas,
+    consentimientos,
+    doctores,
+    documentos,
+    facturas,
+    inventario,
+    laboratorio,
+    odontograma,
+    pacientes,
+    pdf,
+    portal,
+    presupuestos,
+    reportes,
+    sync_import,
+    tratamientos,
+)
 from app.config import get_settings
 from app.core.audit import AuditLogMiddleware
 from app.core.http_security import SecurityHeadersMiddleware
-from app.api import auth, pacientes, citas, doctores, tratamientos, presupuestos, facturas, reportes, admin, pdf, documentos, laboratorio, consentimientos, clinicas, inventario, sync_import, odontograma, portal
 from app.services.backup_scheduler import start_backup_scheduler
 
 settings = get_settings()

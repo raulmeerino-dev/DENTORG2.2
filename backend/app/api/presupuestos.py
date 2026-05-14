@@ -9,7 +9,13 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access, resolve_clinic_id, scope_select_by_clinic
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    ensure_clinic_access,
+    resolve_clinic_id,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.factura import Cobro, Factura, FacturaLinea
 from app.models.paciente import Paciente
@@ -30,7 +36,11 @@ from app.schemas.presupuesto import (
     TrabajoPendienteResponse,
 )
 from app.services.fiscal_document_service import archivar_pdf_factura
-from app.services.verifactu_service import registrar_evento_sif, registrar_registro_facturacion, sellar_factura
+from app.services.verifactu_service import (
+    registrar_evento_sif,
+    registrar_registro_facturacion,
+    sellar_factura,
+)
 
 router = APIRouter()
 

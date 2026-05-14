@@ -3,6 +3,8 @@ import type { FormEvent } from 'react';
 import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, Presupuesto, TrabajoLaboratorio } from '../../types/api';
 import { formatDate, fullName, money } from '../../lib/utils';
 import type { WorkTab } from './index';
+import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
+import { PatientOdontogramFlow } from '../odontogram';
 
 function readableHealthData(datos?: Record<string, unknown> | null) {
   if (!datos) return '';
@@ -94,25 +96,53 @@ export function PatientForm({
   facturas,
   historial,
   citas,
+  presupuestos,
+  documentos,
+  consentimientos,
+  laboratorio,
   onEdit,
   onOpenFull,
+  onOpenDatos,
   onOpenCitas,
+  onOpenPresupuestos,
+  onOpenPendientes,
+  onOpenRealizados,
+  onOpenHistoria,
+  onOpenFacturacion,
   onOpenHistorial,
   onOpenDocumentos,
+  onOpenConsentimientos,
+  onOpenLaboratorio,
+  onEmitirFactura,
+  onRegistrarCobro,
+  onHistorialFacturas,
 }: {
   paciente: ApiPaciente | null;
   facturas: Factura[];
   historial: HistorialClinico[];
   citas: Cita[];
+  presupuestos: Presupuesto[];
+  documentos: DocumentoPaciente[];
+  consentimientos: Consentimiento[];
+  laboratorio: TrabajoLaboratorio[];
   onEdit: () => void;
   onOpenFull: () => void;
+  onOpenDatos: () => void;
   onOpenCitas: () => void;
+  onOpenPresupuestos: () => void;
+  onOpenPendientes: () => void;
+  onOpenRealizados: () => void;
+  onOpenHistoria: () => void;
+  onOpenFacturacion: () => void;
   onOpenHistorial: () => void;
   onOpenDocumentos: () => void;
+  onOpenConsentimientos: () => void;
+  onOpenLaboratorio: () => void;
+  onEmitirFactura: () => void;
+  onRegistrarCobro: (factura?: Factura | null) => void;
+  onHistorialFacturas: () => void;
 }) {
-  const total = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
-  const cobrado = facturas.reduce((sum, factura) => sum + Number(factura.total_cobrado), 0);
-  const saldo = facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0);
+  const totals = getBillingTotals(facturas);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
   const address = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' - ');
   const initials = paciente ? `${paciente.nombre?.[0] ?? ''}${paciente.apellidos?.[0] ?? ''}`.toUpperCase() : '--';
@@ -127,26 +157,60 @@ export function PatientForm({
   const lastComment = lastVisit?.observaciones || lastVisit?.diagnostico || 'Sin comentario clinico en esta entrada.';
   const nextTreatment = nextCita?.motivo || 'Sin tratamiento indicado';
   const nextComment = nextCita?.observaciones || 'Sin observaciones para la cita.';
+  const pendientes = presupuestos.flatMap((presupuesto) => presupuesto.lineas).filter((linea) => linea.aceptado && !linea.pasado_trabajo_pendiente);
+  const realizados = historial.filter((item) => ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(item.estado));
+  const alertText = healthText || paciente?.observaciones || 'Sin alertas ni observaciones generales.';
+  const facturasPendientes = getFacturasPendientes(facturas);
+  const ultimaFacturas = getFacturasRecientes(facturas);
+  const pagosParciales = getPagosParciales(facturas);
 
   return (
-    <div className="patient-form-grid">
+    <div className="patient-form-grid patient-hub-grid">
       {temporal && (
         <button type="button" className="temporary-patient-banner" onClick={onEdit}>
           Paciente temporal: completar datos en clinica
         </button>
       )}
-      <section className="patient-hero-card">
+      <section className="patient-hub-head">
         <div className="patient-avatar">{initials}</div>
-        <div>
+        <div className="patient-hub-identity">
           <span>Paciente</span>
           <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
-          <em>Historia {paciente?.num_historial ?? '-'} - {paciente?.codigo ?? `#${String(paciente?.num_historial ?? '').padStart(6, '0')}`}</em>
+          <em>H {paciente?.num_historial ?? '-'} - {paciente?.telefono || paciente?.telefono2 || 'sin telefono'} - {paciente?.dni_nie || 'sin DNI'}</em>
         </div>
-        <div className="patient-hero-actions">
+        <div className="patient-hub-alert">
+          <span>Alertas / obs.</span>
+          <strong>{alertText}</strong>
+        </div>
+        <div className="patient-hub-balance">
+          <span>Saldo</span>
+          <strong className={totals.pendiente > 0 ? 'debt' : ''}>{money(totals.pendiente)}</strong>
+          <em>{money(totals.cobrado)} cobrado</em>
+        </div>
+        <div className="patient-hub-head-actions">
           <button type="button" onClick={onOpenFull} disabled={!paciente}>Vista completa</button>
-          <button type="button" onClick={onEdit} disabled={!paciente}>Editar ficha</button>
+          <button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>
         </div>
       </section>
+
+      <section className="patient-hub-actions" aria-label="Accesos de la ficha del paciente">
+        <button type="button" onClick={onOpenDatos} disabled={!paciente}><b>Datos</b><span>ficha editable</span></button>
+        <button type="button" onClick={onOpenHistoria} disabled={!paciente}><b>Historia</b><span>{historial.length} entradas</span></button>
+        <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}><b>Presupuestos</b><span>{presupuestos.length} activos</span></button>
+        <button type="button" onClick={onOpenPendientes} disabled={!paciente}><b>Pendientes</b><span>{pendientes.length} tratamientos</span></button>
+        <button type="button" onClick={onOpenRealizados} disabled={!paciente}><b>Realizados</b><span>{realizados.length} hechos</span></button>
+        <button type="button" onClick={onOpenFacturacion} disabled={!paciente}><b>Cobros / fact.</b><span>{money(totals.pendiente)} pendiente</span></button>
+        <button type="button" onClick={onOpenCitas} disabled={!paciente}><b>Citas</b><span>{citas.length} registradas</span></button>
+        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}><b>Documentos</b><span>{documentos.length} archivos</span></button>
+      </section>
+
+      <PatientOdontogramFlow
+        paciente={paciente}
+        mode="summary"
+        title="Odontograma actual"
+        subtitle="Vista rapida del estado de boca y tratamientos activos."
+        className="odontogram-summary-flow"
+      />
 
       <section className="patient-next-card">
         <div className="patient-card-head">
@@ -189,24 +253,57 @@ export function PatientForm({
         {!recentHistory.length && <p>Sin entradas clinicas todavia.</p>}
       </section>
 
-      <section className="patient-side-card">
+      <section className="patient-billing-card">
+        <div className="patient-card-head">
+          <h3>Cobros / facturas</h3>
+          <div className="patient-card-head-right">
+            <span>{facturasPendientes.length ? `${facturasPendientes.length} pendientes` : 'al dia'}</span>
+            <button type="button" onClick={onHistorialFacturas} disabled={!paciente}>Facturas</button>
+          </div>
+        </div>
+        <div className="patient-billing-totals">
+          <span><b>Saldo</b><strong className={totals.pendiente > 0 ? 'debt' : ''}>{money(totals.pendiente)}</strong></span>
+          <span><b>Cobrado</b><strong>{money(totals.cobrado)}</strong></span>
+          <span><b>Parciales</b><strong>{pagosParciales.length}</strong></span>
+        </div>
+        <div className="patient-billing-actions">
+          <button type="button" onClick={() => onRegistrarCobro(facturasPendientes[0] ?? null)} disabled={!paciente}>
+            {facturasPendientes.length ? 'Registrar cobro' : 'Registrar anticipo'}
+          </button>
+          <button type="button" onClick={onEmitirFactura} disabled={!paciente}>Emitir factura</button>
+        </div>
+        <div className="patient-billing-list">
+          {ultimaFacturas.map((factura) => (
+            <button type="button" key={factura.id} onClick={() => Number(factura.pendiente) > 0 ? onRegistrarCobro(factura) : onOpenFacturacion()}>
+              <span>{factura.serie}/{factura.numero}</span>
+              <strong>{money(factura.total)}</strong>
+              <em className={Number(factura.pendiente) > 0 ? 'debt' : ''}>
+                {Number(factura.pendiente) > 0 ? `Pend. ${money(factura.pendiente)}` : 'Pagada'}
+              </em>
+            </button>
+          ))}
+          {!ultimaFacturas.length && <p>Sin facturas previas.</p>}
+        </div>
+      </section>
+
+      <section className="patient-side-card patient-hub-side-card">
         <div>
-          <h3>Contacto</h3>
+          <h3>Datos</h3>
           <p><b>Tel.</b> {paciente?.telefono || paciente?.telefono2 || 'Sin telefono'}</p>
           <p><b>Email</b> {paciente?.email || 'Sin email'}</p>
           <p><b>Dir.</b> {address || 'Sin direccion'}</p>
+          <button type="button" onClick={onEdit} disabled={!paciente}>Editar datos</button>
         </div>
         <div>
-          <h3>Clinica</h3>
+          <h3>Observaciones / alertas</h3>
           <p>{healthText || 'Sin alertas de salud registradas.'}</p>
           <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
-          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Archivos</button>
+          <button type="button" onClick={onOpenFull} disabled={!paciente}>Ver ficha completa</button>
         </div>
-        <div className="patient-side-balance">
-          <h3>Saldo</h3>
-          <span>Total {money(total)}</span>
-          <span>Pagado {money(cobrado)}</span>
-          <strong className={saldo > 0 ? 'debt' : ''}>Pendiente {money(saldo)}</strong>
+        <div className="patient-hub-mini-links">
+          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Consentimientos <span>{consentimientos.length}</span></button>
+          <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Laboratorio <span>{laboratorio.length}</span></button>
+          <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Historial / facturacion</button>
         </div>
       </section>
     </div>
@@ -404,9 +501,7 @@ export function PatientFullViewModal({
     .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta'].includes(cita.estado))
     .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
   const lastVisit = recentHistory[0] ?? null;
-  const totalFacturado = facturas.reduce((sum, factura) => sum + Number(factura.total), 0);
-  const totalCobrado = facturas.reduce((sum, factura) => sum + Number(factura.total_cobrado), 0);
-  const pendiente = facturas.reduce((sum, factura) => sum + Number(factura.pendiente), 0);
+  const billingTotals = getBillingTotals(facturas);
   const tratamientosPendientes = presupuestos.flatMap((presupuesto) => presupuesto.lineas).filter((linea) => linea.aceptado && !linea.pasado_trabajo_pendiente);
   const initials = `${paciente.nombre?.[0] ?? ''}${paciente.apellidos?.[0] ?? ''}`.toUpperCase();
 
@@ -438,7 +533,7 @@ export function PatientFullViewModal({
         <div className="patient-full-kpis">
           <div><span>Proxima cita</span><strong>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)}` : 'Sin cita'}</strong><small>{nextCita?.motivo ?? 'No hay tratamiento previsto'}</small></div>
           <div><span>Ultima visita</span><strong>{lastVisit ? formatDate(lastVisit.fecha) : 'Sin historial'}</strong><small>{lastVisit?.procedimiento || lastVisit?.tratamiento?.nombre || 'Sin tratamiento registrado'}</small></div>
-          <div><span>Pendiente</span><strong className={pendiente > 0 ? 'debt' : ''}>{money(pendiente)}</strong><small>Facturado {money(totalFacturado)} - cobrado {money(totalCobrado)}</small></div>
+          <div><span>Pendiente</span><strong className={billingTotals.pendiente > 0 ? 'debt' : ''}>{money(billingTotals.pendiente)}</strong><small>Facturado {money(billingTotals.facturado)} - cobrado {money(billingTotals.cobrado)}</small></div>
           <div><span>Documentos</span><strong>{documentos.length}</strong><small>{consentimientos.length} consentimientos - {laboratorio.length} trabajos lab.</small></div>
         </div>
 

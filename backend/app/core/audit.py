@@ -5,6 +5,7 @@ Registra en audit_log cada acceso a endpoints que manejan datos de pacientes.
 La tabla es append-only y cada entrada queda encadenada con hash.
 """
 import logging
+from contextlib import suppress
 from uuid import UUID
 
 from fastapi import Request, Response
@@ -73,15 +74,11 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             token = auth_header[7:]
             payload = verify_access_token(token)
             if payload and payload.get("sub"):
-                try:
+                with suppress(ValueError):
                     user_id = UUID(payload["sub"])
-                except ValueError:
-                    pass
                 if payload.get("clinica_id"):
-                    try:
+                    with suppress(ValueError):
                         clinica_id = UUID(payload["clinica_id"])
-                    except ValueError:
-                        pass
 
         accion = (
             "DENY"

@@ -1,12 +1,12 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Boolean
+from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import UUIDMixin, TimestampMixin, SoftDeleteMixin
+from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 RolEnum = Enum("recepcion", "doctor", "admin", "auxiliar", "paciente", name="rol_usuario")
 

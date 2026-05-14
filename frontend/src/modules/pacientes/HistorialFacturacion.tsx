@@ -5,6 +5,8 @@ import { colorForTreatment, formatDate, money } from '../../lib/utils';
 import type { TreatmentVisual } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { emitirRecetaPdf, facturaPdfUrl } from '../../lib/api';
+import { amount, getBillingTotals, getFacturaPendientePreferida, getPagosParciales } from './billingUtils';
+import { PatientOdontogramFlow } from '../odontogram';
 
 type HistoryBillingRow = {
   id: string;
@@ -27,10 +29,6 @@ type HistoryBillingRow = {
   facturaItem?: Factura;
   anticipoItem?: PagoAnticipadoPaciente;
 };
-
-function asNumber(value?: string | number | null) {
-  return Number(value ?? 0) || 0;
-}
 
 function sortByDate(a: { date: string }, b: { date: string }) {
   return a.date.localeCompare(b.date);
@@ -55,7 +53,7 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
       recibo: 'No',
       doc: entrada.doctor?.nombre?.replace(/\D/g, '').slice(-3).padStart(3, '0') || '',
       gabinete: entrada.gabinete_id ? String(entrada.gabinete_id).slice(0, 3) : '',
-      importe: asNumber(entrada.importe),
+      importe: amount(entrada.importe),
       cobrado: 0,
       comentario: entrada.observaciones || entrada.diagnostico || '',
       estado: entrada.estado,
@@ -79,7 +77,7 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
         recibo: 'No',
         doc: '004',
         gabinete: '',
-        importe: asNumber(factura.total),
+        importe: amount(factura.total),
         cobrado: 0,
         comentario: factura.estado,
         estado: factura.estado,
@@ -102,7 +100,7 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
         doc: '004',
         gabinete: '',
         importe: 0,
-        cobrado: cobro.anulado_at ? 0 : asNumber(cobro.importe),
+        cobrado: cobro.anulado_at ? 0 : amount(cobro.importe),
         comentario: cobro.motivo_anulacion || cobro.notas || '',
         estado: cobro.anulado_at ? 'anulado' : 'cobrado',
         treatment: null,
@@ -125,7 +123,7 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
       doc: '004',
       gabinete: '',
       importe: 0,
-      cobrado: anticipo.anulado_at ? 0 : asNumber(anticipo.importe),
+      cobrado: anticipo.anulado_at ? 0 : amount(anticipo.importe),
       comentario: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta del paciente',
       estado: anticipo.anulado_at ? 'anulado' : 'anticipo',
       treatment: null,
@@ -183,6 +181,9 @@ export function EurodentHistoryBillingPanel({
   const defaultSelectedRow = [...displayRows].reverse().find((row) => row.kind === 'tratamiento') ?? displayRows[displayRows.length - 1] ?? null;
   const selectedRow = displayRows.find((row) => row.id === selectedId) ?? defaultSelectedRow;
   const selectedFactura = selectedRow?.facturaItem ?? facturas[0] ?? null;
+  const totals = getBillingTotals(facturas);
+  const pagosParciales = getPagosParciales(facturas);
+  const firstPendingFactura = getFacturaPendientePreferida(facturas, selectedFactura);
   const doctores = Array.from(new Set(historial.map((entrada) => entrada.doctor?.nombre).filter(Boolean))) as string[];
   const currentDoctor = selectedRow?.kind === 'tratamiento'
     ? historial.find((entrada) => `hist-${entrada.id}` === selectedRow.id)?.doctor?.nombre
@@ -217,6 +218,28 @@ export function EurodentHistoryBillingPanel({
 
   return (
     <section className="history-billing-eurodent">
+      <div className="billing-operational-strip">
+        <div>
+          <span>Saldo paciente</span>
+          <strong className={totals.pendiente > 0 ? 'debt' : ''}>{money(totals.pendiente)}</strong>
+        </div>
+        <div>
+          <span>Facturado</span>
+          <strong>{money(totals.facturado)}</strong>
+        </div>
+        <div>
+          <span>Cobrado</span>
+          <strong>{money(totals.cobrado)}</strong>
+        </div>
+        <div>
+          <span>Parciales</span>
+          <strong>{pagosParciales.length}</strong>
+        </div>
+        <button type="button" onClick={() => firstPendingFactura ? onCobrarImporte(firstPendingFactura) : onAddAnticipo()}>
+          {firstPendingFactura ? 'Registrar cobro' : 'Registrar anticipo'}
+        </button>
+        <button type="button" onClick={onFacturar}>Emitir factura</button>
+      </div>
       <div className="history-eurodent-head">
         <label>
           Nombre
@@ -304,7 +327,7 @@ export function EurodentHistoryBillingPanel({
         <div className="history-action-buttons">
           <button onClick={onOrtodoncia}>C.Ortod.</button>
           <button onClick={() => selectedFactura && window.open(facturaPdfUrl(selectedFactura.id), '_blank')} disabled={!selectedFactura}>Imprimir</button>
-          <button onClick={onCobrar}>Cobrar</button>
+          <button onClick={() => firstPendingFactura ? onCobrarImporte(firstPendingFactura) : onCobrar()}>Cobrar</button>
           <span className="invoice-split-button">
             <button onClick={() => setInvoiceMenuOpen((open) => !open)}>Facturas</button>
             {invoiceMenuOpen && (
@@ -376,7 +399,7 @@ export function InvoiceHistoryModal({
   );
 }
 
-export function ClinicalHistoryPanel({ historial, onFacturar, onCobrar, onVerDeuda, onAsociarFactura }: { historial: HistorialClinico[]; onFacturar: () => void; onCobrar: () => void; onVerDeuda: () => void; onAsociarFactura: () => void }) {
+export function ClinicalHistoryPanel({ paciente, historial, onFacturar, onCobrar, onVerDeuda, onAsociarFactura }: { paciente: ApiPaciente | null; historial: HistorialClinico[]; onFacturar: () => void; onCobrar: () => void; onVerDeuda: () => void; onAsociarFactura: () => void }) {
   return (
     <section className="desk-panel">
       <div className="panel-caption"><strong>Historial clinico</strong><span>Observaciones por tratamiento, no mezcladas con la ficha general</span></div>
@@ -404,6 +427,14 @@ export function ClinicalHistoryPanel({ historial, onFacturar, onCobrar, onVerDeu
         <button onClick={onVerDeuda}>Ver deuda</button>
         <button onClick={onAsociarFactura}>Asociar factura</button>
       </div>
+      <PatientOdontogramFlow
+        paciente={paciente}
+        mode="history"
+        title="Historial por pieza"
+        subtitle="Mapa de lectura para filtrar y consultar la evolucion clinica por pieza."
+        readOnly
+        enableQuickTreatments={false}
+      />
     </section>
   );
 }

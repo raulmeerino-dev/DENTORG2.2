@@ -5,13 +5,12 @@ Los campos sensibles (dni_nie, telefono, telefono2, email) se cifran en la BD co
 pgcrypto. El backend los descifra antes de devolver la respuesta, y los cifra antes
 de escribir en la BD. Los schemas trabajan siempre con strings en claro.
 """
-from datetime import date
 import re
+from datetime import date
+from typing import Any
 from uuid import UUID
 
-from typing import Any
 from pydantic import BaseModel, Field, field_validator
-
 
 DNI_NIE_RE = re.compile(r"^[0-9XYZ][0-9]{7}[A-Z]$", re.IGNORECASE)
 PHONE_RE = re.compile(r"^[+0-9 ()-]{6,20}$")

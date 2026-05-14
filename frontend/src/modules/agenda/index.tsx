@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -218,6 +218,78 @@ function patientMatchesQuery(paciente: ApiPaciente, query: string) {
   if (!tokens.length) return true;
   const haystack = patientSearchText(paciente);
   return tokens.every((token) => haystack.includes(token));
+}
+
+function shortDoctorName(name: string) {
+  return name
+    .replace(/^Dra?\.\s*/i, '')
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(' ');
+}
+
+function AgendaToolbar({
+  day,
+  doctorId,
+  doctores,
+  horarioLabel,
+  citasCount,
+  pendingCount,
+  clinicCount,
+  onDayChange,
+  onDoctorChange,
+  onRefresh,
+  onSearchCita,
+  onSearchSlot,
+  onOpenHorario,
+}: {
+  day: string;
+  doctorId: string;
+  doctores: Doctor[];
+  horarioLabel: string;
+  citasCount: number;
+  pendingCount: number;
+  clinicCount: number;
+  onDayChange: (day: string) => void;
+  onDoctorChange: (doctorId: string) => void;
+  onRefresh: () => void;
+  onSearchCita: () => void;
+  onSearchSlot: () => void;
+  onOpenHorario: () => void;
+}) {
+  return (
+    <div className="agenda-compact-toolbar" onClick={(event) => event.stopPropagation()}>
+      <label>
+        <span>Fecha</span>
+        <input type="date" value={day} onChange={(event) => onDayChange(event.target.value)} />
+      </label>
+      <label className="agenda-toolbar-doctor">
+        <span>Doctor</span>
+        <select value={doctorId} onChange={(event) => onDoctorChange(event.target.value)}>
+          <option value="">Todas las agendas</option>
+          {doctores.map((doctor) => (
+            <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Vista</span>
+        <select value="dia" onChange={() => undefined}>
+          <option value="dia">Día</option>
+        </select>
+      </label>
+      <div className="agenda-toolbar-status" title={horarioLabel}>
+        <b>{horarioLabel}</b>
+        <span>{citasCount} citas · {pendingCount} confirmar · {clinicCount} en clínica</span>
+      </div>
+      <div className="agenda-toolbar-actions">
+        <button type="button" onClick={onSearchCita}>Buscar citas</button>
+        <button type="button" onClick={onSearchSlot}>Buscar hueco</button>
+        <button type="button" onClick={onOpenHorario}>Horario</button>
+        <button type="button" onClick={onRefresh}>Refrescar</button>
+      </div>
+    </div>
+  );
 }
 
 function CitaModal({
@@ -836,19 +908,19 @@ export default function AgendaPage() {
     return nowMinutes >= start && nowMinutes < start + 10;
   });
 
-  function doctorForSlot(slot: string, targetDay = day) {
+  const doctorForSlot = useCallback((slot: string, targetDay = day) => {
     if (doctorId) return doctorId;
     const weekday = weekdayIndex(targetDay);
     return doctores.find((doctor) => slotInHorario(slot, horariosByDoctor[doctor.id]?.find((horario) => horario.dia_semana === weekday)))?.id
       ?? doctores[0]?.id
       ?? '';
-  }
+  }, [day, doctorId, doctores, horariosByDoctor]);
 
-  function openNew(slot: string, pacienteId?: string, targetDay = day, targetDoctorId = doctorForSlot(slot, targetDay)) {
+  const openNew = useCallback((slot: string, pacienteId?: string, targetDay = day, targetDoctorId = doctorForSlot(slot, targetDay)) => {
     setContextMenu(null);
     setModalCita(null);
     setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId });
-  }
+  }, [day, doctorForSlot]);
 
   useEffect(() => {
     if (sessionStorage.getItem('dentorg_agenda_action') !== 'new') return;
@@ -856,8 +928,11 @@ export default function AgendaPage() {
     const selectedPacienteId = sessionStorage.getItem('dentorg_selected_patient_id') ?? undefined;
     const preferredSlot = slots.find((slot) => minutesFromTime(slot) >= 9 * 60) ?? slots[0];
     sessionStorage.removeItem('dentorg_agenda_action');
-    openNew(preferredSlot, selectedPacienteId, day, doctorForSlot(preferredSlot, day));
-  }, [day, doctores.length, modalCita, slotDraft, slots]);
+    const timeout = window.setTimeout(() => {
+      openNew(preferredSlot, selectedPacienteId, day, doctorForSlot(preferredSlot, day));
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [day, doctores.length, doctorForSlot, modalCita, openNew, slotDraft, slots]);
 
   function openPatient(cita: Cita) {
     sessionStorage.setItem('dentorg_selected_patient_id', cita.paciente_id);
@@ -950,7 +1025,6 @@ export default function AgendaPage() {
     setToastMessage(total ? `Ocupación: ${ocupadas}/${total} huecos (${Math.round((ocupadas / total) * 100)}%).` : 'No hay horario visible para calcular ocupación.');
   }
 
-  const selectedDoctor = doctorId ? doctorById.get(doctorId) : null;
   const todayHorario = doctorId
     ? horariosByDoctor[doctorId]?.find((horario) => horario.dia_semana === weekdayIndex(day))
     : null;
@@ -964,22 +1038,29 @@ export default function AgendaPage() {
   const citasActivas = citas.filter((cita) => !['anulada', 'falta'].includes(cita.estado));
   const pendientesConfirmar = citasActivas.filter((cita) => cita.estado === 'programada');
   const pacientesEnClinica = citasActivas.filter((cita) => cita.estado === 'en_clinica');
-  const currentTime = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   const hasAgendaError = doctoresQuery.isError || pacientesQuery.isError || citasQuery.isError || telefonearQuery.isError || horariosAgendaQuery.isError;
   const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
-  const siguienteCita = citasActivas
-    .filter((cita) => day !== nowDay || cita.fecha_hora.slice(11, 16) >= currentTime)
-    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? citasActivas[0];
 
   return (
     <section className="page agenda-euro" onClick={() => setContextMenu(null)}>
-      <div className="agenda-titlebar agenda-titlebar-rich">
-        <strong>Agenda</strong>
-        <span>{selected.toLocaleDateString('es-ES', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
-        <span>{selectedDoctor?.nombre ?? 'Todas las agendas'}</span>
-        <span>{horarioLabel}</span>
-        <button onClick={() => void horariosAgendaQuery.refetch()}>Actualizar horario</button>
-      </div>
+      <AgendaToolbar
+        day={day}
+        doctorId={doctorId}
+        doctores={doctores}
+        horarioLabel={horarioLabel}
+        citasCount={citasActivas.length}
+        pendingCount={pendientesConfirmar.length}
+        clinicCount={pacientesEnClinica.length}
+        onDayChange={setDay}
+        onDoctorChange={setDoctorId}
+        onRefresh={() => {
+          void citasQuery.refetch();
+          void horariosAgendaQuery.refetch();
+        }}
+        onSearchCita={buscarCita}
+        onSearchSlot={buscarHuecoLibre}
+        onOpenHorario={() => navigate(`/configuracion?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`)}
+      />
       {hasAgendaError && (
         <div className="inline-alert">
           No se ha podido cargar una parte de la agenda. Refresca la pantalla o revisa la conexion antes de mover citas.
@@ -994,29 +1075,12 @@ export default function AgendaPage() {
       )}
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
-          <label className="doctor-picker">
-            Doctor / Auxiliar
-            <select value={doctorId} onChange={(e) => setDoctorId(e.target.value)}>
-              <option value="">Todas las agendas</option>
-              {doctores.map((doctor) => (
-                <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
-              ))}
-            </select>
-          </label>
-
           <div className="doctor-legend">
             {doctores.map((doctor) => (
               <span key={doctor.id} style={{ '--doctor-color': doctor.color_agenda ?? '#2a7de1' } as CSSProperties}>
-                {doctor.nombre}
+                {shortDoctorName(doctor.nombre)}
               </span>
             ))}
-          </div>
-
-          <div className="agenda-day-flow">
-            <span><b>{citasActivas.length}</b> citas</span>
-            <span><b>{pendientesConfirmar.length}</b> confirmar</span>
-            <span><b>{pacientesEnClinica.length}</b> en clinica</span>
-            <span title={siguienteCita ? patientName(siguienteCita) : ''}><b>Siguiente</b> {siguienteCita ? `${siguienteCita.fecha_hora.slice(11, 16)} ${patientName(siguienteCita)}` : '-'}</span>
           </div>
 
           <div className="month-caption">{monthName}</div>
@@ -1063,10 +1127,6 @@ export default function AgendaPage() {
           </div>
 
           <div className="agenda-button-grid">
-            <button onClick={() => navigate(`/configuracion?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`)}>Cambiar horario</button>
-            <button onClick={buscarCita}>Buscar citas</button>
-            <button onClick={buscarHuecoLibre}>Buscar hueco</button>
-            <button onClick={() => void citasQuery.refetch()}>Refrescar</button>
             <button onClick={() => window.print()}>Imprimir</button>
             <button onClick={verOcupacion}>Ocupacion</button>
             <button onClick={() => { setDoctorId(''); void citasQuery.refetch(); }}>Ver Todo</button>

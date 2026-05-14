@@ -5,16 +5,17 @@ CRUD completo + búsqueda global + gestión de referencias/tags.
 Cifrado RGPD: DNI, teléfonos y email se cifran con pgcrypto antes de guardar
 y se descifran al leer. La clave nunca sale del servidor.
 """
+from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Annotated
 from uuid import UUID
-from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from datetime import datetime, timezone
 
+from app.api.citas import _to_response as cita_to_response
 from app.core.crypto import cifrar_campos_paciente, cifrar_json, descifrar_json, descifrar_paciente
 from app.core.permissions import (
     CurrentUser,
@@ -27,28 +28,27 @@ from app.core.permissions import (
     scope_select_by_clinic,
 )
 from app.database import get_db
-from app.models.paciente import Paciente
 from app.models.cita import Cita
 from app.models.factura import Factura, FormaPago, PagoAnticipadoPaciente
+from app.models.paciente import Paciente
+from app.models.referencia import Referencia
+from app.schemas.cita import CitaResponse
 from app.schemas.factura import (
     PagoAnticipadoCreate,
     PagoAnticipadoResponse,
     PagoAnticipadoUpdate,
     SaldoPacienteResponse,
 )
-from app.schemas.cita import CitaResponse
-from app.api.citas import _to_response as cita_to_response
-from app.models.referencia import Referencia
-from app.services.audit import write_audit_log
 from app.schemas.paciente import (
     AsignarReferenciasRequest,
     PacienteCreate,
-    PacienteResumen,
     PacienteResponse,
+    PacienteResumen,
     PacienteUpdate,
     ReferenciaCreate,
     ReferenciaResponse,
 )
+from app.services.audit import write_audit_log
 
 router = APIRouter()
 

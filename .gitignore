@@ -1,6 +1,7 @@
 # Python
 backend/.venv/
 backend/.pytest_cache/
+backend/.ruff_cache/
 backend/**/__pycache__/
 backend/**/*.py[cod]
 
@@ -17,6 +18,8 @@ backend/backups/
 backend/*.log
 frontend/*.log
 output/
+tmp/
+.ruff_cache/
 
 # Editor / OS
 .DS_Store

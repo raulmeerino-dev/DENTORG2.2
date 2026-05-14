@@ -7,7 +7,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, computed_field
 
-
 # ─── Historial sin facturar ──────────────────────────────────────────────────
 
 class HistorialSinFacturarResponse(BaseModel):

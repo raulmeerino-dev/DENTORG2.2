@@ -9,9 +9,19 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, can_view_health_data, ensure_clinic_access, resolve_clinic_id
+from app.core.permissions import (
+    CurrentUser,
+    can_view_health_data,
+    ensure_clinic_access,
+    resolve_clinic_id,
+)
 from app.database import get_db
-from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
+from app.models.odontograma import (
+    Odontograma,
+    OdontogramaEvento,
+    OdontogramaPieza,
+    OdontogramaSuperficie,
+)
 from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto, PresupuestoLinea
 from app.models.tratamiento import TratamientoCatalogo

@@ -6,13 +6,12 @@ Modelos de laboratorio dental.
 import uuid
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import Date, ForeignKey, Numeric, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import UUIDMixin, TimestampMixin, SoftDeleteMixin
-
+from app.models.base import SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 ESTADOS_TRABAJO_LAB = (
     "pendiente",       # registrado, aún no enviado

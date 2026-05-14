@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { Consentimiento, HistorialClinico, Presupuesto, PresupuestoLinea, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Consentimiento, HistorialClinico, Presupuesto, PresupuestoLinea, TratamientoCatalogo } from '../../types/api';
 import { colorForTreatment, formatDate, money, normalizeText } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
-import OdontogramaPlanView from '../../components/OdontogramaPlan';
+import { PatientOdontogramFlow } from '../odontogram';
 
 const CATALOGO_TRATAMIENTOS = [
   'Abrasion para obturar',
@@ -76,7 +76,6 @@ function TreatmentBoard({
   doctorColor?: string | null;
   tratamientos: TratamientoCatalogo[];
 }) {
-  const firstBudget = presupuestos[0];
   const lineas = presupuestos.flatMap((presupuesto) => presupuesto.lineas);
   const [selectedTool, setSelectedTool] = useState('X');
 
@@ -86,13 +85,6 @@ function TreatmentBoard({
         <div className="compact-controls">
           <label>Doctor <input readOnly value={doctorName} style={{ borderLeft: `8px solid ${doctorColor ?? '#2a7de1'}` }} /></label>
           <label>Gab. <select value="BOX 2" onChange={() => undefined}><option>BOX 2</option></select></label>
-        </div>
-        <div className="odontogram-stage">
-          {firstBudget ? (
-            <OdontogramaPlanView value={firstBudget.odontograma ?? {}} />
-          ) : (
-            <div className="empty-odontogram">Odontograma disponible al crear un presupuesto.</div>
-          )}
         </div>
         <TreatmentHistoryTable lineas={lineas} presupuestos={presupuestos} />
         <div className="observation-strip">
@@ -142,6 +134,7 @@ export function TratamientosRealizadosPanel({
   historial,
   consentimientos,
   presupuestos,
+  paciente,
   doctorName,
   doctorColor,
   tratamientos,
@@ -149,6 +142,7 @@ export function TratamientosRealizadosPanel({
   historial: HistorialClinico[];
   consentimientos: Consentimiento[];
   presupuestos: Presupuesto[];
+  paciente: ApiPaciente | null;
   doctorName: string;
   doctorColor?: string | null;
   tratamientos: TratamientoCatalogo[];
@@ -197,6 +191,14 @@ export function TratamientosRealizadosPanel({
         doctorName={doctorName}
         doctorColor={doctorColor}
         tratamientos={tratamientos}
+      />
+      <PatientOdontogramFlow
+        paciente={paciente}
+        mode="completed"
+        title="Odontograma actual"
+        subtitle="Estado real de la boca tras tratamientos realizados."
+        readOnly
+        enableQuickTreatments={false}
       />
     </div>
   );

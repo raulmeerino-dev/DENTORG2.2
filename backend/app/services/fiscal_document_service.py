@@ -11,7 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.models.factura import Cobro, DocumentoFiscal, Factura
-from app.services.pdf_service import generar_factura_pdf
+from app.services.pdf_service import PDF_TEMPLATE_VERSION, generar_factura_pdf, validate_pdf_bytes
 from app.services.verifactu_service import (
     _get_nif_emisor,
     generar_identificador_fiscal,
@@ -20,8 +20,7 @@ from app.services.verifactu_service import (
     obtener_leyenda_factura,
 )
 
-
-FACTURA_TEMPLATE_VERSION = "factura-reportlab-v2"
+FACTURA_TEMPLATE_VERSION = f"factura-{PDF_TEMPLATE_VERSION}"
 
 
 async def cargar_factura_para_pdf(db: AsyncSession, factura_id: UUID) -> Factura | None:
@@ -63,17 +62,17 @@ def build_factura_pdf_bytes(factura: Factura) -> bytes:
     ]
     lineas_data = [
         {
-            "concepto": l.concepto,
-            "concepto_ficticio": l.concepto_ficticio,
-            "cantidad": l.cantidad,
-            "precio_unitario": l.precio_unitario,
-            "iva_porcentaje": l.iva_porcentaje,
-            "subtotal": l.subtotal,
+            "concepto": linea.concepto,
+            "concepto_ficticio": linea.concepto_ficticio,
+            "cantidad": linea.cantidad,
+            "precio_unitario": linea.precio_unitario,
+            "iva_porcentaje": linea.iva_porcentaje,
+            "subtotal": linea.subtotal,
         }
-        for l in factura.lineas
+        for linea in factura.lineas
     ]
 
-    return generar_factura_pdf(
+    pdf_bytes = generar_factura_pdf(
         serie=factura.serie,
         numero=factura.numero,
         fecha=factura.fecha,
@@ -85,7 +84,7 @@ def build_factura_pdf_bytes(factura: Factura) -> bytes:
         paciente_nombre=pac.nombre if pac else "",
         paciente_apellidos=pac.apellidos if pac else "",
         paciente_num_historial=pac.num_historial if pac else 0,
-        paciente_dni=None,
+        paciente_dni=getattr(pac, "dni_nie", None) if pac else None,
         paciente_direccion=pac.direccion if pac else None,
         lineas=lineas_data,
         cobros=cobros_data,
@@ -95,6 +94,8 @@ def build_factura_pdf_bytes(factura: Factura) -> bytes:
         leyenda_fiscal=obtener_leyenda_factura(factura),
         estado_remision=obtener_estado_remision(factura),
     )
+    validate_pdf_bytes(pdf_bytes)
+    return pdf_bytes
 
 
 def _path_for_factura(factura: Factura) -> Path:
@@ -124,6 +125,7 @@ async def archivar_pdf_factura(
     base_path = Path(getattr(settings, "storage_root", "."))
     full_path = base_path / ruta
     full_path.parent.mkdir(parents=True, exist_ok=True)
+    validate_pdf_bytes(pdf_bytes)
     full_path.write_bytes(pdf_bytes)
 
     documento = DocumentoFiscal(

@@ -1,11 +1,10 @@
-import uuid
 
 from sqlalchemy import Column, ForeignKey, PrimaryKeyConstraint, String, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.base import UUIDMixin, TimestampMixin
+from app.models.base import TimestampMixin, UUIDMixin
 
 # Tabla M2M paciente ↔ referencia
 paciente_referencias = Table(

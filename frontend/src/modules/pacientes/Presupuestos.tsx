@@ -14,8 +14,7 @@ import {
 } from '../../lib/api';
 import { colorForTreatment, formatDate, money } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
-import { OdontogramaPacientePanel } from '../odontograma';
-import type { OdontogramaBudgetDraft } from '../odontograma';
+import { BudgetOdontogramFlow } from '../odontogram';
 
 const ESTADO_COLOR: Record<string, string> = {
   borrador: '#687480',
@@ -25,7 +24,7 @@ const ESTADO_COLOR: Record<string, string> = {
   facturado: '#7c3aed',
 };
 
-export function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId }: { presupuesto: Presupuesto; paciente: ApiPaciente; tratamientos: TratamientoCatalogo[]; doctorId?: string | null }) {
+export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { presupuesto: Presupuesto; paciente: ApiPaciente; tratamientos: TratamientoCatalogo[] }) {
   const queryClient = useQueryClient();
   const [selectedTreatmentId, setSelectedTreatmentId] = useState(tratamientos[0]?.id ?? '');
   const [lineaSeleccionada, setLineaSeleccionada] = useState<PresupuestoLinea | null>(presupuesto.lineas[0] ?? null);
@@ -55,40 +54,6 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId
         precio_unitario: precioLinea || selectedTreatment.precio,
         descuento_porcentaje: descuento || 0,
       });
-    },
-    onSuccess: invalidate,
-  });
-
-  const addLineFromOdontograma = useMutation({
-    mutationFn: (draft: OdontogramaBudgetDraft) => {
-      const treatment = tratamientos.find((item) => item.id === draft.tratamientoId);
-      if (!treatment) throw new Error('Seleccione tratamiento');
-      return addPresupuestoLinea(presupuesto.id, {
-        tratamiento_id: draft.tratamientoId,
-        pieza_dental: draft.piezaFdi,
-        caras: draft.caras || null,
-        precio_unitario: draft.precioUnitario || treatment.precio,
-        descuento_porcentaje: descuento || 0,
-      });
-    },
-    onSuccess: invalidate,
-  });
-
-  const addLinesFromOdontograma = useMutation({
-    mutationFn: async (drafts: OdontogramaBudgetDraft[]) => {
-      const created = [];
-      for (const draft of drafts) {
-        const treatment = tratamientos.find((item) => item.id === draft.tratamientoId);
-        if (!treatment) continue;
-        created.push(await addPresupuestoLinea(presupuesto.id, {
-          tratamiento_id: draft.tratamientoId,
-          pieza_dental: draft.piezaFdi,
-          caras: draft.caras || null,
-          precio_unitario: draft.precioUnitario || treatment.precio,
-          descuento_porcentaje: descuento || 0,
-        }));
-      }
-      return created;
     },
     onSuccess: invalidate,
   });
@@ -171,28 +136,6 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId
     setCatalogSearch('');
   }
 
-  function applyOdontogramaDraft(draft: OdontogramaBudgetDraft) {
-    if (pieza !== String(draft.piezaFdi)) setPieza(String(draft.piezaFdi));
-    if (caras !== draft.caras) setCaras(draft.caras);
-    if (selectedTreatmentId !== draft.tratamientoId) {
-      const tratamiento = tratamientos.find((item) => item.id === draft.tratamientoId);
-      setSelectedTreatmentId(draft.tratamientoId);
-      setPrecioLinea(String(tratamiento?.precio ?? draft.precioUnitario ?? ''));
-      setLineaSeleccionada(null);
-    }
-  }
-
-  function addOdontogramaDraft(draft: OdontogramaBudgetDraft) {
-    applyOdontogramaDraft(draft);
-    addLineFromOdontograma.mutate(draft);
-  }
-
-  function addOdontogramaDrafts(drafts: OdontogramaBudgetDraft[]) {
-    if (!drafts.length) return;
-    applyOdontogramaDraft(drafts[drafts.length - 1]);
-    addLinesFromOdontograma.mutate(drafts);
-  }
-
   const dtoAcum = presupuesto.lineas.reduce((sum, l) => sum + Number(l.descuento_porcentaje ?? 0), 0);
   const avgDto = presupuesto.lineas.length > 0 ? Math.round(dtoAcum / presupuesto.lineas.length) : 0;
 
@@ -224,15 +167,10 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, doctorId
         </div>
       </div>
 
-      <OdontogramaPacientePanel
+      <BudgetOdontogramFlow
         paciente={paciente}
+        presupuesto={presupuesto}
         tratamientos={tratamientos}
-        doctorId={doctorId}
-        context="presupuesto"
-        onBudgetDraftChange={applyOdontogramaDraft}
-        onAddBudgetTreatment={addOdontogramaDraft}
-        onAddBudgetTreatments={addOdontogramaDrafts}
-        onPresupuestoCreado={() => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] })}
       />
 
       {/* Workbench */}
