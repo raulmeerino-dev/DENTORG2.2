@@ -71,8 +71,8 @@ export function createBaseTooth(number: string): ToothData {
     side: getSide(number),
     status: 'healthy',
     surfaces: {},
-    visualAssetUrl: undefined,
-    occlusalAssetUrl: undefined,
+    visualAssetUrl: `/odontogram-assets/full/${number}.png`,
+    occlusalAssetUrl: `/odontogram-assets/occlusal/${number}.png`,
   };
 }
 
