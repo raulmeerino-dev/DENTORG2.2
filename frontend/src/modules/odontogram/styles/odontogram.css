@@ -98,6 +98,29 @@
   background: #fff1f1;
 }
 
+.odontogram-context-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.odontogram-context-actions button {
+  min-height: 28px;
+  border: 1px solid #bed6e4;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #005f80;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.odontogram-context-actions button:hover {
+  border-color: #0086a8;
+  background: #edf8fb;
+}
+
 .odontogram-summary-flow {
   grid-column: 1 / -1;
   margin-top: 0;

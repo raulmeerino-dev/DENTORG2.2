@@ -1,16 +1,14 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addPresupuestoLinea, getOdontogramaPaciente, saveOdontograma } from '../../lib/api';
-import { fullName } from '../../lib/utils';
 import type { ApiPaciente, Presupuesto, TratamientoCatalogo } from '../../types/api';
 import { odontogramaBackendToVisual } from './adapters/backendAdapter';
 import {
   budgetToVisualOdontogram,
   createBudgetSnapshotFromVisual,
-  treatmentCatalogToQuickTreatments,
   visualSelectionToBudgetLine,
 } from './adapters/budgetAdapter';
-import { Odontogram } from './components/Odontogram';
+import { OdontogramaTool } from './OdontogramaTool';
 import type { OdontogramChange, ToothData, Treatment, ToothSelection } from './types/odontogram.types';
 
 type BudgetOdontogramFlowProps = {
@@ -29,7 +27,6 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: Bu
 
   const baseData = useMemo(() => odontogramaBackendToVisual(odontogramaQuery.data), [odontogramaQuery.data]);
   const visualData = useMemo(() => budgetToVisualOdontogram(presupuesto, baseData), [baseData, presupuesto]);
-  const quickTreatments = useMemo(() => treatmentCatalogToQuickTreatments(tratamientos), [tratamientos]);
   const totalBudget = presupuesto.lineas.reduce((sum, linea) => sum + Number(linea.importe_neto || 0), 0);
 
   const addTreatmentMutation = useMutation({
@@ -62,18 +59,17 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: Bu
 
   return (
     <section className="odontogram-flow-panel budget-odontogram-flow">
-      <Odontogram
-        mode="budget"
-        patientId={paciente.id}
-        budgetId={presupuesto.id}
+      <OdontogramaTool
+        mode="presupuesto"
+        paciente={paciente}
+        contextId={presupuesto.id}
         data={visualData}
-        patientName={fullName(paciente)}
         title="Odontograma del presupuesto"
         subtitle="Seleccione pieza/superficie y doble clic para anadir tratamiento propuesto. No modifica el odontograma actual."
         totalBudget={totalBudget}
         readOnly={addTreatmentMutation.isPending}
         enableQuickTreatments
-        quickTreatments={quickTreatments}
+        tratamientos={tratamientos}
         onAddTreatment={handleAddTreatment}
       />
       {addTreatmentMutation.isPending && <div className="odontogram-flow-status">Anadiendo linea...</div>}

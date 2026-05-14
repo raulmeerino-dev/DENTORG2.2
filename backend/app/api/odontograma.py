@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,9 +23,12 @@ from app.models.odontograma import (
     OdontogramaSuperficie,
 )
 from app.models.paciente import Paciente
-from app.models.presupuesto import Presupuesto, PresupuestoLinea
+from app.models.historial import HistorialClinico
+from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
 from app.models.tratamiento import TratamientoCatalogo
 from app.schemas.odontograma import (
+    OdontogramaContextMode,
+    OdontogramaContextResponse,
     OdontogramaEventoResponse,
     OdontogramaPiezaResponse,
     OdontogramaPiezaUpdate,
@@ -49,6 +52,16 @@ ADULT_TEETH = (
 SURFACES = ("oclusal_incisal", "mesial", "distal", "vestibular", "lingual_palatina", "raiz")
 SURFACE_ALIASES = {"lingual_palatal": "lingual_palatina"}
 MODIFY_ROLES = {"admin", "doctor", "auxiliar"}
+CARAS_TO_SURFACES = {
+    "O": "oclusal_incisal",
+    "I": "oclusal_incisal",
+    "M": "mesial",
+    "D": "distal",
+    "V": "vestibular",
+    "L": "lingual_palatina",
+    "P": "lingual_palatina",
+    "R": "raiz",
+}
 
 
 def _ensure_clinical_access(user: CurrentUser) -> None:
@@ -193,6 +206,101 @@ def _surface_code(superficie: str | None) -> str | None:
     }.get(superficie or "")
 
 
+def _surfaces_from_caras(caras: str | None) -> list[str]:
+    if not caras:
+        return ["oclusal_incisal"]
+    surfaces: list[str] = []
+    for char in caras.upper():
+        surface = CARAS_TO_SURFACES.get(char)
+        if surface and surface not in surfaces:
+            surfaces.append(surface)
+    return surfaces or ["oclusal_incisal"]
+
+
+def _ensure_tooth_entry(teeth: dict, pieza_fdi: int) -> dict:
+    key = str(pieza_fdi)
+    if key not in teeth:
+        teeth[key] = {
+            "base": {"estado_general": "sano", "movilidad": None, "pronostico": None, "notas": None},
+            "surfaces": {},
+        }
+    return teeth[key]
+
+
+def _ensure_surface_entry(tooth: dict, surface: str) -> dict:
+    if surface not in tooth["surfaces"]:
+        tooth["surfaces"][surface] = {
+            "diagnostico": None,
+            "context_state": None,
+            "tratamiento_id": None,
+            "presupuesto_linea_id": None,
+            "historial_id": None,
+            "factura_id": None,
+            "label": None,
+            "amount": None,
+            "doctor": None,
+            "fecha": None,
+            "documentos": [],
+        }
+    return tooth["surfaces"][surface]
+
+
+def _build_base_teeth(odontograma: Odontograma) -> dict:
+    teeth: dict = {}
+    for piece in odontograma.piezas:
+        tooth = _ensure_tooth_entry(teeth, piece.pieza_fdi)
+        tooth["base"] = {
+            "estado_general": piece.estado_general,
+            "movilidad": piece.movilidad,
+            "pronostico": piece.pronostico,
+            "notas": piece.notas,
+        }
+        for surface in piece.superficies:
+            target = _ensure_surface_entry(tooth, surface.superficie)
+            target["diagnostico"] = surface.condicion
+            target["tratamiento_id"] = (
+                str(surface.tratamiento_planificado_id or surface.tratamiento_realizado_id)
+                if surface.tratamiento_planificado_id or surface.tratamiento_realizado_id
+                else None
+            )
+            target["presupuesto_linea_id"] = str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None
+            target["label"] = surface.notas
+    return teeth
+
+
+def _apply_context_tooth(
+    teeth: dict,
+    *,
+    pieza_fdi: int | None,
+    caras: str | None,
+    context_state: str,
+    label: str | None = None,
+    amount: Decimal | float | str | None = None,
+    tratamiento_id: UUID | None = None,
+    presupuesto_linea_id: UUID | None = None,
+    historial_id: UUID | None = None,
+    factura_id: UUID | None = None,
+    doctor: str | None = None,
+    fecha: date | None = None,
+) -> None:
+    if not pieza_fdi:
+        return
+    tooth = _ensure_tooth_entry(teeth, pieza_fdi)
+    for surface in _surfaces_from_caras(caras):
+        target = _ensure_surface_entry(tooth, surface)
+        target.update({
+            "context_state": context_state,
+            "label": label,
+            "amount": str(amount) if amount is not None else None,
+            "tratamiento_id": str(tratamiento_id) if tratamiento_id else None,
+            "presupuesto_linea_id": str(presupuesto_linea_id) if presupuesto_linea_id else None,
+            "historial_id": str(historial_id) if historial_id else None,
+            "factura_id": str(factura_id) if factura_id else None,
+            "doctor": doctor,
+            "fecha": fecha.isoformat() if fecha else None,
+        })
+
+
 def _normalize_superficie(superficie: str) -> str:
     normalized = SURFACE_ALIASES.get(superficie, superficie)
     if normalized not in SURFACES:
@@ -233,6 +341,125 @@ async def obtener_odontograma_paciente(
     return OdontogramaResponse.model_validate(odontograma)
 
 
+@router.get("/pacientes/{paciente_id}/odontograma/contexto", response_model=OdontogramaContextResponse)
+async def obtener_odontograma_contexto(
+    paciente_id: UUID,
+    request: Request,
+    current_user: CurrentUser,
+    mode: OdontogramaContextMode = Query("lectura"),
+    context_id: UUID | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+) -> OdontogramaContextResponse:
+    _ensure_clinical_access(current_user)
+    paciente = await _get_patient(db, paciente_id, current_user)
+    odontograma = await _active_odontograma(db, paciente.id)
+    if not odontograma:
+        odontograma = await _create_odontograma(db, paciente=paciente, user=current_user, request=request)
+        await db.commit()
+        odontograma = await _load_odontograma(db, odontograma.id, current_user)
+
+    teeth = _build_base_teeth(odontograma)
+
+    if mode == "presupuesto" and context_id:
+        result = await db.execute(
+            select(Presupuesto)
+            .options(selectinload(Presupuesto.lineas).selectinload(PresupuestoLinea.tratamiento))
+            .where(Presupuesto.id == context_id, Presupuesto.paciente_id == paciente.id)
+        )
+        presupuesto = result.scalar_one_or_none()
+        if not presupuesto:
+            raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+        ensure_clinic_access(current_user, presupuesto.clinica_id)
+        for linea in presupuesto.lineas:
+            _apply_context_tooth(
+                teeth,
+                pieza_fdi=linea.pieza_dental,
+                caras=linea.caras,
+                context_state="incluido_presupuesto" if linea.aceptado else "propuesto_presupuesto",
+                label=linea.tratamiento.nombre if linea.tratamiento else "Tratamiento propuesto",
+                amount=linea.precio_unitario,
+                tratamiento_id=linea.tratamiento_id,
+                presupuesto_linea_id=linea.id,
+            )
+
+    elif mode == "pendiente":
+        result = await db.execute(
+            select(TrabajoPendiente)
+            .options(selectinload(TrabajoPendiente.tratamiento))
+            .where(
+                TrabajoPendiente.paciente_id == paciente.id,
+                TrabajoPendiente.realizado == False,  # noqa: E712
+            )
+        )
+        for item in result.scalars().all():
+            _apply_context_tooth(
+                teeth,
+                pieza_fdi=item.pieza_dental,
+                caras=item.caras,
+                context_state="tratamiento_pendiente",
+                label=item.tratamiento.nombre if item.tratamiento else "Trabajo pendiente",
+                tratamiento_id=item.tratamiento_id,
+                presupuesto_linea_id=item.presupuesto_linea_id,
+            )
+
+    elif mode == "realizado":
+        result = await db.execute(
+            select(HistorialClinico)
+            .options(selectinload(HistorialClinico.tratamiento), selectinload(HistorialClinico.doctor))
+            .where(HistorialClinico.paciente_id == paciente.id, HistorialClinico.estado == "realizado")
+            .order_by(HistorialClinico.fecha.desc())
+        )
+        for item in result.scalars().all():
+            _apply_context_tooth(
+                teeth,
+                pieza_fdi=item.pieza_dental,
+                caras=item.caras,
+                context_state="tratamiento_realizado",
+                label=item.tratamiento.nombre if item.tratamiento else item.procedimiento,
+                amount=item.importe,
+                tratamiento_id=item.tratamiento_id,
+                historial_id=item.id,
+                factura_id=item.factura_id,
+                doctor=item.doctor.nombre if item.doctor else None,
+                fecha=item.fecha,
+            )
+
+    elif mode == "historial":
+        result = await db.execute(
+            select(OdontogramaEvento)
+            .where(OdontogramaEvento.odontograma_id == odontograma.id)
+            .order_by(OdontogramaEvento.created_at.desc())
+            .limit(200)
+        )
+        for event in result.scalars().all():
+            if event.pieza_fdi:
+                tooth = _ensure_tooth_entry(teeth, event.pieza_fdi)
+                surface = event.superficie or "oclusal_incisal"
+                target = _ensure_surface_entry(tooth, surface)
+                target["context_state"] = "evento_historial"
+                target["label"] = event.accion
+                target["fecha"] = event.created_at.isoformat()
+
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="ODONTOGRAMA_CONTEXT_VIEW",
+        entity_type="odontogramas",
+        entity_id=odontograma.id,
+        new_values={"paciente_id": str(paciente.id), "mode": mode, "context_id": str(context_id) if context_id else None},
+        clinica_id=odontograma.clinica_id,
+        request=request,
+    )
+    await db.commit()
+    return OdontogramaContextResponse(
+        mode=mode,
+        odontograma_id=odontograma.id,
+        paciente_id=paciente.id,
+        denticion=odontograma.denticion,
+        teeth=teeth,
+    )
+
+
 @router.post("/pacientes/{paciente_id}/odontograma", response_model=OdontogramaResponse, status_code=201)
 async def crear_odontograma_paciente(
     paciente_id: UUID,
@@ -266,7 +493,12 @@ async def actualizar_pieza(
     _validate_adult_tooth(pieza_fdi)
     odontograma = await _load_odontograma(db, odontograma_id, current_user)
     piece = await _get_or_create_piece(db, odontograma, pieza_fdi)
-    old = {"estado_general": piece.estado_general, "notas": piece.notas}
+    old = {
+        "estado_general": piece.estado_general,
+        "movilidad": piece.movilidad,
+        "pronostico": piece.pronostico,
+        "notas": piece.notas,
+    }
     changes = data.model_dump(exclude_unset=True)
     for field, value in changes.items():
         setattr(piece, field, value)
@@ -338,6 +570,7 @@ async def actualizar_superficie(
         "condicion": surface.condicion,
         "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
         "tratamiento_realizado_id": str(surface.tratamiento_realizado_id) if surface.tratamiento_realizado_id else None,
+        "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
         "color_estado": surface.color_estado,
         "notas": surface.notas,
     }
@@ -482,6 +715,8 @@ async def duplicar_version_odontograma(
             odontograma_id=nuevo.id,
             pieza_fdi=piece.pieza_fdi,
             estado_general=piece.estado_general,
+            movilidad=piece.movilidad,
+            pronostico=piece.pronostico,
             notas=piece.notas,
         )
         db.add(new_piece)
@@ -493,6 +728,7 @@ async def duplicar_version_odontograma(
                 condicion=surface.condicion,
                 tratamiento_planificado_id=surface.tratamiento_planificado_id,
                 tratamiento_realizado_id=surface.tratamiento_realizado_id,
+                presupuesto_linea_id=surface.presupuesto_linea_id,
                 color_estado=surface.color_estado,
                 notas=surface.notas,
             ))

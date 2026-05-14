@@ -1,6 +1,7 @@
 import './styles/odontogram.css';
 
 export { Odontogram } from './components/Odontogram';
+export { OdontogramaTool } from './OdontogramaTool';
 export { BudgetOdontogramFlow } from './BudgetOdontogramFlow';
 export { PatientOdontogramFlow } from './PatientOdontogramFlow';
 export { odontogramMock } from './data/odontogramMock';
@@ -8,6 +9,19 @@ export { odontogramModeConfig } from './data/modeConfig';
 export { dentalArches, getAnatomicalSurfaceFromVisualSurface, getPrimarySurface, mirrorMap } from './data/toothMap';
 export { legendStatuses, statusConfig } from './data/statusConfig';
 export { quickTreatmentCatalog } from './data/treatmentCatalog';
+export {
+  getAvailableActions,
+} from './utils/actions';
+export {
+  buildOdontogramaViewModel,
+  getSurfaceColor,
+  getToothColor,
+  mapToolModeToOdontogramMode,
+} from './utils/viewModel';
+export {
+  mapCarasToSurface,
+  mapSurfaceToCaras,
+} from './utils/surfaceMapping';
 export {
   backendToVisualStatus,
   toBackendStatus,
@@ -35,6 +49,7 @@ export type {
   OdontogramChange,
   OdontogramContextAction,
   OdontogramMode,
+  OdontogramaToolMode,
   OdontogramProps,
   SurfaceKey,
   ToothData,

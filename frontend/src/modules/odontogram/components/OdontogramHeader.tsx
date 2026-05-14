@@ -16,6 +16,8 @@ const modeLabels: Record<OdontogramMode, string> = {
   completed: 'Realizados',
   current: 'Actual',
   history: 'Historico',
+  documents: 'Documentos',
+  reading: 'Lectura',
 };
 
 function formatCurrency(value: number) {

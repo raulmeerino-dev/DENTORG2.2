@@ -5,7 +5,17 @@ export type OdontogramModeConfig = {
   kicker: string;
   readOnly: boolean;
   quickTreatments: boolean;
-  intent: 'summary' | 'base' | 'diagnosis' | 'proposal' | 'pending' | 'completed' | 'current' | 'history';
+  intent:
+    | 'summary'
+    | 'base'
+    | 'diagnosis'
+    | 'proposal'
+    | 'pending'
+    | 'completed'
+    | 'current'
+    | 'history'
+    | 'documents'
+    | 'reading';
 };
 
 export const odontogramModeConfig: Record<OdontogramMode, OdontogramModeConfig> = {
@@ -20,14 +30,14 @@ export const odontogramModeConfig: Record<OdontogramMode, OdontogramModeConfig> 
     title: 'Odontograma de primera visita',
     kicker: 'Base clinica',
     readOnly: false,
-    quickTreatments: true,
+    quickTreatments: false,
     intent: 'base',
   },
   diagnosis: {
     title: 'Diagnostico odontologico',
     kicker: 'Exploracion',
     readOnly: false,
-    quickTreatments: true,
+    quickTreatments: false,
     intent: 'diagnosis',
   },
   budget: {
@@ -64,5 +74,19 @@ export const odontogramModeConfig: Record<OdontogramMode, OdontogramModeConfig> 
     readOnly: true,
     quickTreatments: false,
     intent: 'history',
+  },
+  documents: {
+    title: 'Documentos por pieza',
+    kicker: 'Archivos clinicos',
+    readOnly: false,
+    quickTreatments: false,
+    intent: 'documents',
+  },
+  reading: {
+    title: 'Odontograma actual',
+    kicker: 'Vista rapida',
+    readOnly: true,
+    quickTreatments: false,
+    intent: 'reading',
   },
 };
