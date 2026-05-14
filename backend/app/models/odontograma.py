@@ -30,6 +30,7 @@ class Odontograma(UUIDMixin, TimestampMixin, Base):
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     activo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    denticion: Mapped[str] = mapped_column(String(20), nullable=False, default="adulta")
 
     paciente: Mapped["Paciente"] = relationship("Paciente")  # noqa: F821
     piezas: Mapped[list["OdontogramaPieza"]] = relationship(
@@ -51,6 +52,8 @@ class OdontogramaPieza(UUIDMixin, TimestampMixin, Base):
     )
     pieza_fdi: Mapped[int] = mapped_column(SmallInteger, nullable=False, index=True)
     estado_general: Mapped[str] = mapped_column(String(40), nullable=False, default="sano", index=True)
+    movilidad: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    pronostico: Mapped[str | None] = mapped_column(String(40), nullable=True)
     notas: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     odontograma: Mapped["Odontograma"] = relationship("Odontograma", back_populates="piezas")
@@ -79,12 +82,16 @@ class OdontogramaSuperficie(UUIDMixin, TimestampMixin, Base):
     tratamiento_realizado_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("historial_clinico.id"), nullable=True
     )
+    presupuesto_linea_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("presupuesto_lineas.id"), nullable=True, index=True
+    )
     color_estado: Mapped[str | None] = mapped_column(String(20), nullable=True)
     notas: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     pieza: Mapped["OdontogramaPieza"] = relationship("OdontogramaPieza", back_populates="superficies")
     tratamiento_planificado: Mapped["TratamientoCatalogo"] = relationship("TratamientoCatalogo")  # noqa: F821
     tratamiento_realizado: Mapped["HistorialClinico"] = relationship("HistorialClinico")  # noqa: F821
+    presupuesto_linea: Mapped["PresupuestoLinea | None"] = relationship("PresupuestoLinea")  # noqa: F821
 
 
 class OdontogramaEvento(UUIDMixin, Base):

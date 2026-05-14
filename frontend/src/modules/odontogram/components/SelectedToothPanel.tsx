@@ -28,13 +28,13 @@ const surfaceLabels: Record<SurfaceKey, string> = {
   distal: 'Distal',
   occlusal: 'Oclusal',
   incisal: 'Incisal',
-  root: 'Raíz',
+  root: 'Raiz',
   crown: 'Corona',
 };
 
 const actionButtons: { label: string; status: ToothStatus; tone?: 'danger' | 'primary' | 'success' }[] = [
   { label: 'Caries', status: 'caries', tone: 'danger' },
-  { label: 'Obturación', status: 'filling', tone: 'primary' },
+  { label: 'Obturacion', status: 'filling', tone: 'primary' },
   { label: 'Endodoncia', status: 'endodontics', tone: 'primary' },
   { label: 'Corona', status: 'crown' },
   { label: 'Ausente', status: 'missing', tone: 'danger' },
@@ -57,7 +57,11 @@ export function SelectedToothPanel({
 }: SelectedToothPanelProps) {
   const effectiveSurface = selectedSurface ?? getPrimarySurface(tooth.type);
   const currentStatus = tooth.surfaces[selectedSurface ?? effectiveSurface] ?? tooth.status ?? 'healthy';
-  const plannedTreatment = tooth.plannedTreatments?.find((treatment) => treatment.surface === selectedSurface) ?? tooth.plannedTreatments?.[0];
+  const plannedTreatment =
+    tooth.plannedTreatments?.find((treatment) => treatment.surface === selectedSurface) ?? tooth.plannedTreatments?.[0];
+  const completedTreatment =
+    tooth.completedTreatments?.find((treatment) => treatment.surface === selectedSurface) ?? tooth.completedTreatments?.[0];
+  const contextTreatment = plannedTreatment ?? completedTreatment;
 
   return (
     <aside className="od-side-panel" aria-label="Panel de pieza seleccionada">
@@ -99,36 +103,44 @@ export function SelectedToothPanel({
       </section>
 
       <section className="od-panel-section">
-        <h2>Tratamiento planificado</h2>
-        {plannedTreatment ? (
+        <h2>Detalle del contexto</h2>
+        {tooth.contextLabel ? (
           <div className="od-treatment-card">
-            <strong>{plannedTreatment.name}</strong>
-            <span>{plannedTreatment.price ? `${plannedTreatment.price.toFixed(2)} €` : 'Sin precio demo'}</span>
+            <strong>{tooth.contextLabel}</strong>
+            <span>
+              {tooth.contextAmount ? `${Number(tooth.contextAmount).toFixed(2)} EUR` : tooth.contextState ?? 'Sin importe'}
+            </span>
+          </div>
+        ) : contextTreatment ? (
+          <div className="od-treatment-card">
+            <strong>{contextTreatment.name}</strong>
+            <span>{contextTreatment.price ? `${contextTreatment.price.toFixed(2)} EUR` : contextTreatment.status}</span>
           </div>
         ) : (
-          <p className="od-muted">No hay tratamiento planificado en esta superficie.</p>
+          <p className="od-muted">No hay informacion destacada en esta superficie.</p>
         )}
       </section>
 
-      <section className="od-panel-section">
-        <h2>Acciones clínicas</h2>
-        <div className="od-action-grid">
-          {actionButtons.map((action) => (
-            <button
-              key={action.status}
-              className={`od-action-button ${action.tone ? `is-${action.tone}` : ''}`}
-              type="button"
-              disabled={readOnly}
-              onClick={() => onApplyStatus(action.status)}
-            >
-              {action.label}
+      {!readOnly && (
+        <section className="od-panel-section">
+          <h2>Acciones clinicas</h2>
+          <div className="od-action-grid">
+            {actionButtons.map((action) => (
+              <button
+                key={action.status}
+                className={`od-action-button ${action.tone ? `is-${action.tone}` : ''}`}
+                type="button"
+                onClick={() => onApplyStatus(action.status)}
+              >
+                {action.label}
+              </button>
+            ))}
+            <button className="od-action-button is-ghost" type="button" onClick={onClearSurface}>
+              Limpiar
             </button>
-          ))}
-          <button className="od-action-button is-ghost" type="button" disabled={readOnly} onClick={onClearSurface}>
-            Limpiar
-          </button>
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
     </aside>
   );
 }

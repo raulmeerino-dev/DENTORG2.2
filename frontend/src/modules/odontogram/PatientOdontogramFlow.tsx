@@ -5,12 +5,11 @@ import {
   updateOdontogramaPieza,
   updateOdontogramaSuperficie,
 } from '../../lib/api';
-import { fullName } from '../../lib/utils';
 import type { ApiPaciente, OdontogramaSurfaceName } from '../../types/api';
 import { odontogramaBackendToVisual, odontogramChangeToBackendPatch } from './adapters/backendAdapter';
-import { Odontogram } from './components/Odontogram';
+import { OdontogramaTool } from './OdontogramaTool';
 import { odontogramModeConfig } from './data/modeConfig';
-import type { OdontogramChange, OdontogramMode } from './types/odontogram.types';
+import type { OdontogramChange, OdontogramMode, OdontogramaToolMode } from './types/odontogram.types';
 
 type PatientOdontogramFlowProps = {
   paciente: ApiPaciente | null;
@@ -20,6 +19,19 @@ type PatientOdontogramFlowProps = {
   readOnly?: boolean;
   enableQuickTreatments?: boolean;
   className?: string;
+};
+
+const modeToToolMode: Record<OdontogramMode, OdontogramaToolMode> = {
+  summary: 'lectura',
+  initialVisit: 'diagnostico',
+  diagnosis: 'diagnostico',
+  budget: 'presupuesto',
+  pending: 'pendiente',
+  completed: 'realizado',
+  current: 'lectura',
+  history: 'historial',
+  documents: 'documentos',
+  reading: 'lectura',
 };
 
 export function PatientOdontogramFlow({
@@ -83,11 +95,10 @@ export function PatientOdontogramFlow({
 
   return (
     <section className={`odontogram-flow-panel ${className ?? ''}`}>
-      <Odontogram
-        mode={mode}
-        patientId={paciente.id}
+      <OdontogramaTool
+        mode={modeToToolMode[mode]}
+        paciente={paciente}
         data={visualData}
-        patientName={fullName(paciente)}
         title={title}
         subtitle={subtitle ?? `Historia ${paciente.num_historial} - odontograma clinico compartido`}
         totalBudget={0}

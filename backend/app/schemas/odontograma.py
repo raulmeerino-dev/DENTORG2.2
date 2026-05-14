@@ -35,12 +35,15 @@ class OdontogramaSuperficieUpdate(BaseModel):
     condicion: EstadoOdontograma | None = None
     tratamiento_planificado_id: UUID | None = None
     tratamiento_realizado_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
     color_estado: str | None = Field(None, max_length=20)
     notas: str | None = None
 
 
 class OdontogramaPiezaUpdate(BaseModel):
     estado_general: EstadoOdontograma | None = None
+    movilidad: str | None = Field(None, max_length=40)
+    pronostico: str | None = Field(None, max_length=40)
     notas: str | None = None
 
 
@@ -51,6 +54,7 @@ class OdontogramaSuperficieResponse(BaseModel):
     condicion: str
     tratamiento_planificado_id: UUID | None
     tratamiento_realizado_id: UUID | None
+    presupuesto_linea_id: UUID | None
     color_estado: str | None
     notas: str | None
 
@@ -62,6 +66,8 @@ class OdontogramaPiezaResponse(BaseModel):
     odontograma_id: UUID
     pieza_fdi: int
     estado_general: str
+    movilidad: str | None
+    pronostico: str | None
     notas: str | None
     superficies: list[OdontogramaSuperficieResponse] = []
 
@@ -74,6 +80,7 @@ class OdontogramaResponse(BaseModel):
     clinica_id: UUID | None
     version: int
     activo: bool
+    denticion: str
     created_at: datetime
     updated_at: datetime | None
     piezas: list[OdontogramaPiezaResponse] = []
@@ -111,3 +118,22 @@ class PlanTratamientoCreate(BaseModel):
 class PlanTratamientoResponse(BaseModel):
     presupuesto_id: UUID
     lineas_creadas: int
+
+
+OdontogramaContextMode = Literal[
+    "diagnostico",
+    "presupuesto",
+    "pendiente",
+    "realizado",
+    "historial",
+    "documentos",
+    "lectura",
+]
+
+
+class OdontogramaContextResponse(BaseModel):
+    mode: OdontogramaContextMode
+    odontograma_id: UUID
+    paciente_id: UUID
+    denticion: str
+    teeth: dict

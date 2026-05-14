@@ -95,6 +95,15 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     pieza_24 = next(item for item in stored.json()["piezas"] if item["pieza_fdi"] == 24)
     assert pieza_24["superficies"][0]["condicion"] == "tratamiento_pendiente"
 
+    diagnostico_contexto = await client.get(
+        f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=diagnostico",
+        headers=headers,
+    )
+    assert diagnostico_contexto.status_code == 200
+    pieza_contexto = diagnostico_contexto.json()["teeth"]["24"]
+    assert pieza_contexto["base"]["estado_general"] == "caries"
+    assert pieza_contexto["surfaces"]["lingual_palatina"]["diagnostico"] == "tratamiento_pendiente"
+
     presupuesto_response = await client.post(
         f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
         headers=headers,
@@ -110,6 +119,16 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
         .where(Presupuesto.id == presupuesto_id, PresupuestoLinea.pieza_dental == 24)
     )
     assert result.scalar_one_or_none() is not None
+
+    presupuesto_contexto = await client.get(
+        f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=presupuesto&context_id={presupuesto_id}",
+        headers=headers,
+    )
+    assert presupuesto_contexto.status_code == 200
+    presupuesto_surface = presupuesto_contexto.json()["teeth"]["24"]["surfaces"]["lingual_palatina"]
+    assert presupuesto_surface["context_state"] == "propuesto_presupuesto"
+    assert presupuesto_surface["label"] == "Endodoncia prueba"
+    assert presupuesto_surface["presupuesto_linea_id"]
 
     legacy_surface = await client.patch(
         f"/api/odontograma/{odontograma_id}/pieza/25/superficie/lingual_palatal",

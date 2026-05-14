@@ -651,6 +651,7 @@ export interface OdontogramaSuperficie {
   condicion: OdontogramaStatus | string;
   tratamiento_planificado_id: string | null;
   tratamiento_realizado_id: string | null;
+  presupuesto_linea_id?: string | null;
   color_estado: string | null;
   notas: string | null;
 }
@@ -660,6 +661,8 @@ export interface OdontogramaPieza {
   odontograma_id: string;
   pieza_fdi: number;
   estado_general: OdontogramaStatus | string;
+  movilidad?: string | null;
+  pronostico?: string | null;
   notas: string | null;
   superficies: OdontogramaSuperficie[];
 }
@@ -670,6 +673,7 @@ export interface OdontogramaPaciente {
   clinica_id: string | null;
   version: number;
   activo: boolean;
+  denticion?: string;
   created_at: string;
   updated_at: string | null;
   piezas: OdontogramaPieza[];
@@ -685,4 +689,45 @@ export interface OdontogramaEvento {
   new_values: Record<string, unknown> | null;
   usuario_id: string | null;
   created_at: string;
+}
+
+export type OdontogramaContextMode =
+  | 'diagnostico'
+  | 'presupuesto'
+  | 'pendiente'
+  | 'realizado'
+  | 'historial'
+  | 'documentos'
+  | 'lectura';
+
+export interface OdontogramaContextSurface {
+  diagnostico?: string | null;
+  context_state?: string | null;
+  tratamiento_id?: string | null;
+  presupuesto_linea_id?: string | null;
+  historial_id?: string | null;
+  factura_id?: string | null;
+  label?: string | null;
+  amount?: string | null;
+  doctor?: string | null;
+  fecha?: string | null;
+  documentos?: Array<Record<string, unknown>>;
+}
+
+export interface OdontogramaContextTooth {
+  base: {
+    estado_general: string;
+    movilidad?: string | null;
+    pronostico?: string | null;
+    notas?: string | null;
+  };
+  surfaces: Record<string, OdontogramaContextSurface>;
+}
+
+export interface OdontogramaContexto {
+  mode: OdontogramaContextMode;
+  odontograma_id: string;
+  paciente_id: string;
+  denticion: string;
+  teeth: Record<string, OdontogramaContextTooth>;
 }

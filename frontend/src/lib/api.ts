@@ -20,6 +20,8 @@ import type {
   HorarioDoctor,
   HuecoLibre,
   Laboratorio,
+  OdontogramaContextMode,
+  OdontogramaContexto,
   OdontogramaEvento,
   OdontogramaPaciente,
   OdontogramaPlan,
@@ -1843,6 +1845,45 @@ function demoOdontograma(pacienteId: string): OdontogramaPaciente {
 
 export async function getOdontogramaPaciente(pacienteId: string) {
   return withDemoFallback(api.get<OdontogramaPaciente>(`/pacientes/${pacienteId}/odontograma`), demoOdontograma(pacienteId));
+}
+
+export async function getOdontogramaContexto(
+  pacienteId: string,
+  mode: OdontogramaContextMode,
+  contextId?: string | null,
+) {
+  const fallback = demoOdontograma(pacienteId);
+  const teeth = Object.fromEntries(fallback.piezas.map((pieza) => [
+    String(pieza.pieza_fdi),
+    {
+      base: {
+        estado_general: pieza.estado_general,
+        movilidad: pieza.movilidad ?? null,
+        pronostico: pieza.pronostico ?? null,
+        notas: pieza.notas,
+      },
+      surfaces: Object.fromEntries(pieza.superficies.map((surface) => [
+        surface.superficie,
+        {
+          diagnostico: surface.condicion,
+          context_state: mode === 'presupuesto' ? 'incluido_presupuesto' : surface.condicion,
+          tratamiento_id: surface.tratamiento_planificado_id ?? surface.tratamiento_realizado_id,
+          presupuesto_linea_id: surface.presupuesto_linea_id ?? null,
+          label: surface.notas,
+          amount: null,
+        },
+      ])),
+    },
+  ]));
+  return withDemoFallback(api.get<OdontogramaContexto>(`/pacientes/${pacienteId}/odontograma/contexto`, {
+    params: { mode, context_id: contextId || undefined },
+  }), {
+    mode,
+    odontograma_id: fallback.id,
+    paciente_id: pacienteId,
+    denticion: fallback.denticion ?? 'adulta',
+    teeth,
+  });
 }
 
 export async function createOdontogramaPaciente(pacienteId: string) {

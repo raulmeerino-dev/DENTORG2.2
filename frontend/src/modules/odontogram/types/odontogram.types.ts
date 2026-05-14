@@ -51,7 +51,18 @@ export type OdontogramMode =
   | 'pending'
   | 'completed'
   | 'current'
-  | 'history';
+  | 'history'
+  | 'documents'
+  | 'reading';
+
+export type OdontogramaToolMode =
+  | 'diagnostico'
+  | 'presupuesto'
+  | 'pendiente'
+  | 'realizado'
+  | 'historial'
+  | 'documentos'
+  | 'lectura';
 
 export type ToothData = {
   number: string;
@@ -63,6 +74,10 @@ export type ToothData = {
   plannedTreatments?: Treatment[];
   completedTreatments?: Treatment[];
   notes?: string;
+  contextLabel?: string;
+  contextAmount?: string;
+  contextState?: string;
+  contextMeta?: Record<string, unknown>;
   visualAssetUrl?: string;
   occlusalAssetUrl?: string;
 };
