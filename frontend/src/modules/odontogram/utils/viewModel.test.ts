@@ -45,4 +45,23 @@ describe('buildOdontogramaViewModel', () => {
     expect(pieza16).toBeDefined();
     expect(getToothColor(pieza16!, 'lectura')).toBe(getSurfaceColor(undefined, 'lectura'));
   });
+
+  it('trata estados presupuestado y aceptado como pendientes visuales por contexto', () => {
+    const presupuesto = buildOdontogramaViewModel({
+      ...contexto,
+      teeth: {
+        '16': {
+          base: { estado_general: 'sano' },
+          surfaces: {
+            distal: { diagnostico: 'tratamiento_presupuestado', context_state: 'tratamiento_presupuestado' },
+            mesial: { diagnostico: 'tratamiento_aceptado', context_state: 'tratamiento_aceptado' },
+          },
+        },
+      },
+    }, 'presupuesto');
+    const pieza16 = presupuesto.find((tooth) => tooth.number === '16');
+
+    expect(pieza16?.surfaces.distal).toBe('pending');
+    expect(pieza16?.surfaces.mesial).toBe('pending');
+  });
 });

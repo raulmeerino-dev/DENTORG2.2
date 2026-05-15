@@ -760,6 +760,7 @@ export default function PacientesPage() {
         )}
         {tab === 'documentos' && (
           <DocumentosPanel
+            paciente={active}
             pacienteId={active?.id ?? null}
             documentos={documentosQuery.data ?? []}
             onSubir={(data) => subirDocumento.mutate(data)}

@@ -52,4 +52,13 @@ describe('OdontogramaTool', () => {
     expect(screen.queryByText('Anadir linea')).not.toBeInTheDocument();
     expect(screen.queryByText('Acciones clinicas')).not.toBeInTheDocument();
   });
+
+  it('renderiza documentos como capa de lectura con acciones propias', () => {
+    renderTool('documentos');
+
+    expect(screen.getByText('Documentos vinculados')).toBeInTheDocument();
+    expect(screen.getByText('Asociar documento')).toBeInTheDocument();
+    expect(screen.queryByText('Anadir linea')).not.toBeInTheDocument();
+    expect(screen.queryByText('Guardar diagnostico')).not.toBeInTheDocument();
+  });
 });

@@ -641,6 +641,8 @@ export type OdontogramaStatus =
   | 'fractura'
   | 'movilidad'
   | 'protesis'
+  | 'tratamiento_presupuestado'
+  | 'tratamiento_aceptado'
   | 'tratamiento_pendiente'
   | 'tratamiento_realizado';
 
