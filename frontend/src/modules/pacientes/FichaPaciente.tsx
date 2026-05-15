@@ -4,6 +4,7 @@ import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, His
 import { formatDate, fullName, money } from '../../lib/utils';
 import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
+import { PatientOdontogramFlow } from '../odontogram';
 
 function readableHealthData(datos?: Record<string, unknown> | null) {
   if (!datos) return '';
@@ -196,6 +197,16 @@ export function PatientForm({
         <button type="button" onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
         <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
       </section>
+
+      <PatientOdontogramFlow
+        paciente={paciente}
+        mode="reading"
+        title="Odontograma actual"
+        subtitle="Vista rapida de lectura del estado clinico del paciente."
+        readOnly
+        enableQuickTreatments={false}
+        className="patient-summary-odontogram odontogram-summary-flow"
+      />
 
       <section className="patient-next-card">
         <div className="patient-card-head">
