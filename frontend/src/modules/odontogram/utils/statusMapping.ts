@@ -32,6 +32,8 @@ export const backendToVisualStatus: Record<string, ToothStatus> = {
   fractura: 'fracture',
   movilidad: 'mobility',
   protesis: 'prosthesis',
+  tratamiento_presupuestado: 'pending',
+  tratamiento_aceptado: 'pending',
   tratamiento_pendiente: 'pending',
   tratamiento_realizado: 'completed',
 };

@@ -22,6 +22,7 @@ from app.models.odontograma import (
     OdontogramaPieza,
     OdontogramaSuperficie,
 )
+from app.models.documento import DocumentoPaciente
 from app.models.paciente import Paciente
 from app.models.historial import HistorialClinico
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
@@ -301,6 +302,38 @@ def _apply_context_tooth(
         })
 
 
+def _append_document_context(
+    teeth: dict,
+    *,
+    pieza_fdi: int | None,
+    caras: str | None,
+    documento: DocumentoPaciente,
+    label: str | None = None,
+) -> None:
+    if not pieza_fdi:
+        return
+    tooth = _ensure_tooth_entry(teeth, pieza_fdi)
+    for surface in _surfaces_from_caras(caras):
+        target = _ensure_surface_entry(tooth, surface)
+        target["context_state"] = "documento_asociado"
+        target["label"] = label or documento.descripcion or documento.nombre_original
+        target["fecha"] = (
+            documento.fecha_documento.isoformat()
+            if documento.fecha_documento
+            else documento.created_at.isoformat()
+            if documento.created_at
+            else None
+        )
+        target["documentos"].append({
+            "id": str(documento.id),
+            "nombre": documento.nombre_original,
+            "categoria": documento.categoria,
+            "descripcion": documento.descripcion,
+            "historial_id": str(documento.historial_id) if documento.historial_id else None,
+            "tratamiento_id": str(documento.tratamiento_id) if documento.tratamiento_id else None,
+        })
+
+
 def _normalize_superficie(superficie: str) -> str:
     normalized = SURFACE_ALIASES.get(superficie, superficie)
     if normalized not in SURFACES:
@@ -439,6 +472,40 @@ async def obtener_odontograma_contexto(
                 target["context_state"] = "evento_historial"
                 target["label"] = event.accion
                 target["fecha"] = event.created_at.isoformat()
+
+    elif mode == "documentos":
+        result = await db.execute(
+            select(DocumentoPaciente)
+            .options(selectinload(DocumentoPaciente.historial), selectinload(DocumentoPaciente.tratamiento))
+            .where(DocumentoPaciente.paciente_id == paciente.id)
+            .order_by(DocumentoPaciente.created_at.desc())
+        )
+        documentos = result.scalars().all()
+        for documento in documentos:
+            if documento.historial and documento.historial.pieza_dental:
+                _append_document_context(
+                    teeth,
+                    pieza_fdi=documento.historial.pieza_dental,
+                    caras=documento.historial.caras,
+                    documento=documento,
+                    label=documento.tratamiento.nombre if documento.tratamiento else documento.nombre_original,
+                )
+                continue
+            if not documento.tratamiento_id:
+                continue
+            for piece in odontograma.piezas:
+                for surface in piece.superficies:
+                    if documento.tratamiento_id in {
+                        surface.tratamiento_planificado_id,
+                        surface.tratamiento_realizado_id,
+                    }:
+                        _append_document_context(
+                            teeth,
+                            pieza_fdi=piece.pieza_fdi,
+                            caras=_surface_code(surface.superficie),
+                            documento=documento,
+                            label=documento.tratamiento.nombre if documento.tratamiento else documento.nombre_original,
+                        )
 
     await write_audit_log(
         db,
@@ -654,6 +721,7 @@ async def crear_presupuesto_desde_plan(
     max_num = await db.scalar(select(func.max(Presupuesto.numero)))
     presupuesto = Presupuesto(
         paciente_id=odontograma.paciente_id,
+        clinica_id=odontograma.clinica_id,
         doctor_id=data.doctor_id,
         fecha=date.today(),
         pie_pagina=data.pie_pagina,
@@ -661,7 +729,20 @@ async def crear_presupuesto_desde_plan(
     )
     db.add(presupuesto)
     await db.flush()
+    lineas_creadas = 0
     for item in items:
+        normalized_surface = _normalize_superficie(item.superficie) if item.superficie else None
+        if item.pieza_fdi and normalized_surface:
+            piece = await _get_or_create_piece(db, odontograma, item.pieza_fdi)
+            existing_surface_result = await db.execute(
+                select(OdontogramaSuperficie).where(
+                    OdontogramaSuperficie.pieza_id == piece.id,
+                    OdontogramaSuperficie.superficie == normalized_surface,
+                )
+            )
+            existing_surface = existing_surface_result.scalar_one_or_none()
+            if existing_surface and existing_surface.presupuesto_linea_id:
+                continue
         linea = PresupuestoLinea(
             presupuesto_id=presupuesto.id,
             tratamiento_id=item.tratamiento_id,
@@ -672,23 +753,28 @@ async def crear_presupuesto_desde_plan(
         )
         db.add(linea)
         await db.flush()
+        lineas_creadas += 1
         if item.pieza_fdi and item.superficie:
             piece = await _get_or_create_piece(db, odontograma, item.pieza_fdi)
             result = await db.execute(
                 select(OdontogramaSuperficie).where(
                     OdontogramaSuperficie.pieza_id == piece.id,
-                    OdontogramaSuperficie.superficie == _normalize_superficie(item.superficie),
+                    OdontogramaSuperficie.superficie == normalized_surface,
                 )
             )
             surface = result.scalar_one_or_none()
             if surface:
+                surface.condicion = "tratamiento_presupuestado"
                 surface.presupuesto_linea_id = linea.id
+                surface.tratamiento_planificado_id = item.tratamiento_id
+    if lineas_creadas == 0:
+        raise HTTPException(status_code=409, detail="Las superficies seleccionadas ya tienen presupuesto vinculado")
     await _add_event(
         db,
         odontograma=odontograma,
         user=current_user,
         action="crear_presupuesto_desde_plan",
-        new_values={"presupuesto_id": str(presupuesto.id), "lineas": len(items)},
+        new_values={"presupuesto_id": str(presupuesto.id), "lineas": lineas_creadas},
     )
     await write_audit_log(
         db,
@@ -696,12 +782,12 @@ async def crear_presupuesto_desde_plan(
         action="ODONTOGRAMA_PLAN_TO_PRESUPUESTO",
         entity_type="presupuestos",
         entity_id=presupuesto.id,
-        new_values={"odontograma_id": str(odontograma.id), "lineas": len(items)},
+        new_values={"odontograma_id": str(odontograma.id), "lineas": lineas_creadas},
         clinica_id=odontograma.clinica_id,
         request=request,
     )
     await db.commit()
-    return PlanTratamientoResponse(presupuesto_id=presupuesto.id, lineas_creadas=len(items))
+    return PlanTratamientoResponse(presupuesto_id=presupuesto.id, lineas_creadas=lineas_creadas)
 
 
 @router.get("/odontograma/{odontograma_id}/historial", response_model=list[OdontogramaEventoResponse])

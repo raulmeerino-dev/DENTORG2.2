@@ -9,10 +9,12 @@ const allAdultTeeth = [...dentalArches.upper, ...dentalArches.lower];
 const contextStatusByMode: Record<OdontogramaToolMode, Record<string, ToothStatus>> = {
   diagnostico: {},
   presupuesto: {
+    tratamiento_presupuestado: 'pending',
     propuesto_presupuesto: 'pending',
     incluido_presupuesto: 'pending',
   },
   pendiente: {
+    tratamiento_aceptado: 'pending',
     tratamiento_pendiente: 'pending',
     en_proceso: 'pending',
   },

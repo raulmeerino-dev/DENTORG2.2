@@ -1,4 +1,4 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
+from app.models.documento import DocumentoPaciente
 from app.models.doctor import Doctor
 from app.models.presupuesto import Presupuesto, PresupuestoLinea
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
@@ -129,6 +130,12 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert presupuesto_surface["context_state"] == "propuesto_presupuesto"
     assert presupuesto_surface["label"] == "Endodoncia prueba"
     assert presupuesto_surface["presupuesto_linea_id"]
+    stored_after_budget = await client.get(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
+    stored_budget_surface = next(
+        item for item in stored_after_budget.json()["piezas"]
+        if item["pieza_fdi"] == 24
+    )["superficies"][0]
+    assert stored_budget_surface["condicion"] == "tratamiento_presupuestado"
 
     lectura_contexto = await client.get(
         f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=lectura",
@@ -147,6 +154,12 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert pendiente_contexto.status_code == 200
     pendiente_surface = pendiente_contexto.json()["teeth"]["24"]["surfaces"]["lingual_palatina"]
     assert pendiente_surface["context_state"] == "tratamiento_pendiente"
+    stored_after_accept = await client.get(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
+    stored_pending_surface = next(
+        item for item in stored_after_accept.json()["piezas"]
+        if item["pieza_fdi"] == 24
+    )["superficies"][0]
+    assert stored_pending_surface["condicion"] == "tratamiento_pendiente"
 
     pending_list = await client.get(f"/api/presupuestos/trabajo-pendiente/{paciente_id}", headers=headers)
     assert pending_list.status_code == 200
@@ -155,6 +168,7 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
         headers=headers,
     )
     assert realizado.status_code == 200
+    assert realizado.json()["historial_id"]
     realizado_contexto = await client.get(
         f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=realizado",
         headers=headers,
@@ -162,6 +176,29 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert realizado_contexto.status_code == 200
     realizado_surface = realizado_contexto.json()["teeth"]["24"]["surfaces"]["lingual_palatina"]
     assert realizado_surface["diagnostico"] == "tratamiento_realizado"
+    assert realizado_surface["historial_id"] == realizado.json()["historial_id"]
+
+    db_session.add(DocumentoPaciente(
+        paciente_id=UUID(paciente_id),
+        nombre_original="rx-24.pdf",
+        nombre_guardado="rx-24.pdf",
+        ruta="pacientes/test/rx-24.pdf",
+        mime_type="application/pdf",
+        tamano_bytes=128,
+        categoria="radiografia",
+        descripcion="Radiografia de control pieza 24",
+        historial_id=UUID(realizado.json()["historial_id"]),
+        tratamiento_id=tratamiento.id,
+    ))
+    await db_session.commit()
+    documentos_contexto = await client.get(
+        f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=documentos",
+        headers=headers,
+    )
+    assert documentos_contexto.status_code == 200
+    documento_surface = documentos_contexto.json()["teeth"]["24"]["surfaces"]["lingual_palatina"]
+    assert documento_surface["context_state"] == "documento_asociado"
+    assert documento_surface["documentos"][0]["nombre"] == "rx-24.pdf"
 
     duplicated_items = await client.post(
         f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
@@ -170,14 +207,14 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
             "doctor_id": str(doctor.id),
             "items": [
                 {
-                    "pieza_fdi": 24,
-                    "superficie": "lingual_palatina",
+                    "pieza_fdi": 26,
+                    "superficie": "mesial",
                     "tratamiento_id": str(tratamiento.id),
                     "precio_unitario": "150.00",
                 },
                 {
-                    "pieza_fdi": 24,
-                    "superficie": "lingual_palatina",
+                    "pieza_fdi": 26,
+                    "superficie": "mesial",
                     "tratamiento_id": str(tratamiento.id),
                     "precio_unitario": "150.00",
                 },
@@ -186,6 +223,23 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     )
     assert duplicated_items.status_code == 201
     assert duplicated_items.json()["lineas_creadas"] == 1
+
+    already_linked_items = await client.post(
+        f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
+        headers=headers,
+        json={
+            "doctor_id": str(doctor.id),
+            "items": [
+                {
+                    "pieza_fdi": 26,
+                    "superficie": "mesial",
+                    "tratamiento_id": str(tratamiento.id),
+                    "precio_unitario": "150.00",
+                },
+            ],
+        },
+    )
+    assert already_linked_items.status_code == 409
 
     legacy_surface = await client.patch(
         f"/api/odontograma/{odontograma_id}/pieza/25/superficie/lingual_palatal",
