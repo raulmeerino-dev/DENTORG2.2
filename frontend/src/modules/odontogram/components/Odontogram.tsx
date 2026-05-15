@@ -12,13 +12,12 @@ import type {
 import { odontogramMock } from '../data/odontogramMock';
 import { odontogramModeConfig } from '../data/modeConfig';
 import type { QuickTreatment } from '../data/treatmentCatalog';
-import { dentalArches, getPrimarySurface } from '../data/toothMap';
-import { DentalArch } from './DentalArch';
+import { getPrimarySurface } from '../data/toothMap';
 import { OdontogramHeader } from './OdontogramHeader';
 import { OdontogramLegend } from './OdontogramLegend';
-import { OclusalArch } from './OclusalArch';
+import { OdontogramaSidePanel } from './OdontogramaSidePanel';
 import { QuickTreatmentModal } from './QuickTreatmentModal';
-import { SelectedToothPanel } from './SelectedToothPanel';
+import { ToothArch } from './ToothArch';
 import { ToothContextMenu } from './ToothContextMenu';
 import { ToothHistoryModal } from './ToothHistoryModal';
 
@@ -317,68 +316,37 @@ export function Odontogram({
 
           <div className="od-layout">
             <div className="od-chart-area">
-              <div className="od-arch-block od-arch-block-upper">
-                <div className="od-arch-caption">Arcada superior</div>
-                <div className="od-arch-stack">
-                  <OclusalArch
-                    arch="upper"
-                    toothNumbers={dentalArches.upper}
-                    teeth={teeth}
-                    selectedToothNumber={selectedTooth.number}
-                    selectedSurface={selectedSurface}
-                    onSelectSurface={handleSelectSurface}
-                    onOpenQuickTreatment={openQuickTreatment}
-                    onOpenContextMenu={openContextMenu}
-                  />
-                  <DentalArch
-                    arch="upper"
-                    toothNumbers={dentalArches.upper}
-                    teeth={teeth}
-                    selectedToothNumber={selectedTooth.number}
-                    selectedSurface={selectedSurface}
-                    onSelectTooth={handleSelectTooth}
-                    onSelectSurface={handleSelectSurface}
-                    onOpenQuickTreatment={openQuickTreatment}
-                    onOpenContextMenu={openContextMenu}
-                  />
-                </div>
-              </div>
+              <ToothArch
+                arch="upper"
+                teeth={teeth}
+                selectedToothNumber={selectedTooth.number}
+                selectedSurface={selectedSurface}
+                onSelectTooth={handleSelectTooth}
+                onSelectSurface={handleSelectSurface}
+                onOpenQuickTreatment={openQuickTreatment}
+                onOpenContextMenu={openContextMenu}
+              />
               <div className="od-midline" aria-hidden="true">
                 <span />
               </div>
-              <div className="od-arch-block od-arch-block-lower">
-                <div className="od-arch-caption">Arcada inferior</div>
-                <div className="od-arch-stack">
-                  <DentalArch
-                    arch="lower"
-                    toothNumbers={dentalArches.lower}
-                    teeth={teeth}
-                    selectedToothNumber={selectedTooth.number}
-                    selectedSurface={selectedSurface}
-                    onSelectTooth={handleSelectTooth}
-                    onSelectSurface={handleSelectSurface}
-                    onOpenQuickTreatment={openQuickTreatment}
-                    onOpenContextMenu={openContextMenu}
-                  />
-                  <OclusalArch
-                    arch="lower"
-                    toothNumbers={dentalArches.lower}
-                    teeth={teeth}
-                    selectedToothNumber={selectedTooth.number}
-                    selectedSurface={selectedSurface}
-                    onSelectSurface={handleSelectSurface}
-                    onOpenQuickTreatment={openQuickTreatment}
-                    onOpenContextMenu={openContextMenu}
-                  />
-                </div>
-              </div>
+              <ToothArch
+                arch="lower"
+                teeth={teeth}
+                selectedToothNumber={selectedTooth.number}
+                selectedSurface={selectedSurface}
+                onSelectTooth={handleSelectTooth}
+                onSelectSurface={handleSelectSurface}
+                onOpenQuickTreatment={openQuickTreatment}
+                onOpenContextMenu={openContextMenu}
+              />
               {showLegend ? <OdontogramLegend data={teeth} compact /> : null}
             </div>
 
-            <SelectedToothPanel
+            <OdontogramaSidePanel
               tooth={selectedTooth}
               selectedSurface={selectedSurface}
               readOnly={isReadOnly}
+              mode={mode}
               onSelectSurface={(surface) => handleSelectSurface(selectedTooth.number, surface)}
               onApplyStatus={applyStatus}
               onClearSurface={clearSelectedSurface}

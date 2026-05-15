@@ -26,7 +26,7 @@ function Protected({ children }: { children: ReactNode }) {
 
 function RoleProtected({ roles, children }: { roles: UserRole[]; children: ReactNode }) {
   const { user } = useAuth();
-  if (!user || !roles.includes(user.rol)) return <Navigate to="/dashboard" replace />;
+  if (!user || !roles.includes(user.rol)) return <Navigate to="/hoy" replace />;
   return children;
 }
 
@@ -40,7 +40,7 @@ export default function App() {
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<Navigate to="/hoy" replace />} />
               <Route path="hoy" element={<HoyPage />} />
-              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="dashboard" element={<RoleProtected roles={['admin']}><DashboardPage /></RoleProtected>} />
               <Route path="pacientes" element={<PacientesPage />} />
               <Route path="agenda" element={<AgendaPage />} />
               <Route path="caja" element={<RoleProtected roles={['admin', 'recepcion']}><CajaPage /></RoleProtected>} />

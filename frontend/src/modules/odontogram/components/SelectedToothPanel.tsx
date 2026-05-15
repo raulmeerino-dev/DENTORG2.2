@@ -1,4 +1,4 @@
-import type { SurfaceKey, ToothData, ToothStatus } from '../types/odontogram.types';
+import type { OdontogramMode, SurfaceKey, ToothData, ToothStatus } from '../types/odontogram.types';
 import { statusConfig } from '../data/statusConfig';
 import { getPrimarySurface } from '../data/toothMap';
 import { ToothSurfaceSelector } from './ToothSurfaceSelector';
@@ -7,6 +7,7 @@ type SelectedToothPanelProps = {
   tooth: ToothData;
   selectedSurface?: SurfaceKey;
   readOnly?: boolean;
+  mode?: OdontogramMode;
   onSelectSurface: (surface: SurfaceKey) => void;
   onApplyStatus: (status: ToothStatus) => void;
   onClearSurface: () => void;
@@ -42,6 +43,61 @@ const actionButtons: { label: string; status: ToothStatus; tone?: 'danger' | 'pr
   { label: 'Realizado', status: 'completed', tone: 'success' },
 ];
 
+const modeCopy: Record<OdontogramMode, { detailTitle: string; empty: string; badge: string }> = {
+  summary: {
+    detailTitle: 'Resumen',
+    empty: 'Sin incidencias destacadas en esta pieza.',
+    badge: 'Lectura',
+  },
+  initialVisit: {
+    detailTitle: 'Estado base',
+    empty: 'Marque el estado inicial de la pieza o superficie.',
+    badge: 'Editable',
+  },
+  diagnosis: {
+    detailTitle: 'Diagnostico',
+    empty: 'Sin diagnostico registrado en esta superficie.',
+    badge: 'Editable',
+  },
+  budget: {
+    detailTitle: 'Propuesta',
+    empty: 'Seleccione una superficie y doble clic para anadir tratamiento al presupuesto.',
+    badge: 'Presupuesto',
+  },
+  pending: {
+    detailTitle: 'Pendiente',
+    empty: 'Sin tratamiento pendiente destacado en esta pieza.',
+    badge: 'Pendiente',
+  },
+  completed: {
+    detailTitle: 'Realizado',
+    empty: 'Sin tratamiento realizado destacado en esta pieza.',
+    badge: 'Realizado',
+  },
+  current: {
+    detailTitle: 'Estado actual',
+    empty: 'Sin informacion actual destacada.',
+    badge: 'Lectura',
+  },
+  history: {
+    detailTitle: 'Evento',
+    empty: 'Seleccione una pieza con eventos para consultar su historial.',
+    badge: 'Historial',
+  },
+  documents: {
+    detailTitle: 'Documentos',
+    empty: 'Sin documentos asociados a esta pieza.',
+    badge: 'Documentos',
+  },
+  reading: {
+    detailTitle: 'Resumen',
+    empty: 'Vista rapida sin edicion.',
+    badge: 'Lectura',
+  },
+};
+
+const statusEditingModes = new Set<OdontogramMode>(['initialVisit', 'diagnosis']);
+
 function formatSurface(surface?: SurfaceKey) {
   if (!surface) return 'Pieza completa';
   return surfaceLabels[surface];
@@ -51,10 +107,13 @@ export function SelectedToothPanel({
   tooth,
   selectedSurface,
   readOnly = false,
+  mode = 'reading',
   onSelectSurface,
   onApplyStatus,
   onClearSurface,
 }: SelectedToothPanelProps) {
+  const copy = modeCopy[mode];
+  const canEditStatus = !readOnly && statusEditingModes.has(mode);
   const effectiveSurface = selectedSurface ?? getPrimarySurface(tooth.type);
   const currentStatus = tooth.surfaces[selectedSurface ?? effectiveSurface] ?? tooth.status ?? 'healthy';
   const plannedTreatment =
@@ -70,7 +129,7 @@ export function SelectedToothPanel({
           <span>Pieza seleccionada</span>
           <strong>Pieza {tooth.number}</strong>
         </div>
-        <div className="od-panel-mode">{readOnly ? 'Solo lectura' : 'Editable'}</div>
+        <div className="od-panel-mode">{readOnly ? 'Solo lectura' : copy.badge}</div>
       </div>
 
       <dl className="od-tooth-facts">
@@ -103,7 +162,7 @@ export function SelectedToothPanel({
       </section>
 
       <section className="od-panel-section">
-        <h2>Detalle del contexto</h2>
+        <h2>{copy.detailTitle}</h2>
         {tooth.contextLabel ? (
           <div className="od-treatment-card">
             <strong>{tooth.contextLabel}</strong>
@@ -117,11 +176,11 @@ export function SelectedToothPanel({
             <span>{contextTreatment.price ? `${contextTreatment.price.toFixed(2)} EUR` : contextTreatment.status}</span>
           </div>
         ) : (
-          <p className="od-muted">No hay informacion destacada en esta superficie.</p>
+          <p className="od-muted">{copy.empty}</p>
         )}
       </section>
 
-      {!readOnly && (
+      {canEditStatus && (
         <section className="od-panel-section">
           <h2>Acciones clinicas</h2>
           <div className="od-action-grid">

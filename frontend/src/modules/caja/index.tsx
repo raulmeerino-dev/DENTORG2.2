@@ -131,7 +131,7 @@ export default function CajaPage() {
         <div className="inline-alert">No se han podido cargar las facturas. Revisa la conexión.</div>
       )}
 
-      <div className="dashboard-metrics">
+      <div className="dashboard-metrics caja-metrics">
         <div>
           <span>Pendiente de cobro</span>
           <strong>{money(totalPendiente)}</strong>

@@ -4,7 +4,6 @@ import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, His
 import { formatDate, fullName, money } from '../../lib/utils';
 import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
-import { PatientOdontogramFlow } from '../odontogram';
 
 function readableHealthData(datos?: Record<string, unknown> | null) {
   if (!datos) return '';
@@ -102,12 +101,10 @@ export function PatientForm({
   laboratorio,
   onEdit,
   onOpenFull,
-  onOpenDatos,
   onOpenCitas,
   onOpenPresupuestos,
   onOpenPendientes,
   onOpenRealizados,
-  onOpenHistoria,
   onOpenFacturacion,
   onOpenHistorial,
   onOpenDocumentos,
@@ -127,12 +124,10 @@ export function PatientForm({
   laboratorio: TrabajoLaboratorio[];
   onEdit: () => void;
   onOpenFull: () => void;
-  onOpenDatos: () => void;
   onOpenCitas: () => void;
   onOpenPresupuestos: () => void;
   onOpenPendientes: () => void;
   onOpenRealizados: () => void;
-  onOpenHistoria: () => void;
   onOpenFacturacion: () => void;
   onOpenHistorial: () => void;
   onOpenDocumentos: () => void;
@@ -193,24 +188,14 @@ export function PatientForm({
         </div>
       </section>
 
-      <section className="patient-hub-actions" aria-label="Accesos de la ficha del paciente">
-        <button type="button" onClick={onOpenDatos} disabled={!paciente}><b>Datos</b><span>ficha editable</span></button>
-        <button type="button" onClick={onOpenHistoria} disabled={!paciente}><b>Historia</b><span>{historial.length} entradas</span></button>
-        <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}><b>Presupuestos</b><span>{presupuestos.length} activos</span></button>
-        <button type="button" onClick={onOpenPendientes} disabled={!paciente}><b>Pendientes</b><span>{pendientes.length} tratamientos</span></button>
-        <button type="button" onClick={onOpenRealizados} disabled={!paciente}><b>Realizados</b><span>{realizados.length} hechos</span></button>
-        <button type="button" onClick={onOpenFacturacion} disabled={!paciente}><b>Cobros / fact.</b><span>{money(totals.pendiente)} pendiente</span></button>
-        <button type="button" onClick={onOpenCitas} disabled={!paciente}><b>Citas</b><span>{citas.length} registradas</span></button>
-        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}><b>Documentos</b><span>{documentos.length} archivos</span></button>
+      <section className="patient-flow-strip" aria-label="Flujo clinico del paciente">
+        <button type="button" onClick={onOpenCitas} disabled={!paciente}>Citas <strong>{citas.length}</strong></button>
+        <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}>Presupuestos <strong>{presupuestos.length}</strong></button>
+        <button type="button" onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
+        <button type="button" onClick={onOpenRealizados} disabled={!paciente}>Realizados <strong>{realizados.length}</strong></button>
+        <button type="button" onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
+        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
       </section>
-
-      <PatientOdontogramFlow
-        paciente={paciente}
-        mode="summary"
-        title="Odontograma actual"
-        subtitle="Vista rapida del estado de boca y tratamientos activos."
-        className="odontogram-summary-flow"
-      />
 
       <section className="patient-next-card">
         <div className="patient-card-head">
@@ -236,21 +221,6 @@ export function PatientForm({
         <strong>{lastVisit ? `${formatDate(lastVisit.fecha)} - ${lastTreatment}` : 'Sin historial clinico'}</strong>
         <p><b>Comentario:</b> {lastComment}</p>
         <small>{lastVisit?.doctor?.nombre ? `Doctor: ${lastVisit.doctor.nombre}` : 'Sin profesional asociado'}</small>
-      </section>
-
-      <section className="patient-history-card">
-        <div className="patient-card-head">
-          <h3>Historial reciente</h3>
-          <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Ver todo</button>
-        </div>
-        {recentHistory.slice(0, 4).map((entrada) => (
-          <article key={entrada.id}>
-            <time>{formatDate(entrada.fecha)}</time>
-            <strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong>
-            <span>{entrada.observaciones || entrada.diagnostico || entrada.estado}</span>
-          </article>
-        ))}
-        {!recentHistory.length && <p>Sin entradas clinicas todavia.</p>}
       </section>
 
       <section className="patient-billing-card">
@@ -300,11 +270,14 @@ export function PatientForm({
           <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
           <button type="button" onClick={onOpenFull} disabled={!paciente}>Ver ficha completa</button>
         </div>
-        <div className="patient-hub-mini-links">
-          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Consentimientos <span>{consentimientos.length}</span></button>
-          <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Laboratorio <span>{laboratorio.length}</span></button>
-          <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Historial / facturacion</button>
-        </div>
+        <details className="patient-secondary-links">
+          <summary>Mas secciones</summary>
+          <div className="patient-hub-mini-links">
+            <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Consentimientos <span>{consentimientos.length}</span></button>
+            <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Laboratorio <span>{laboratorio.length}</span></button>
+            <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Historial / facturacion</button>
+          </div>
+        </details>
       </section>
     </div>
   );

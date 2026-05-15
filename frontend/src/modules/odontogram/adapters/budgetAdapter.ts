@@ -1,6 +1,6 @@
 import type { QuickTreatment } from '../data/treatmentCatalog';
 import type { OdontogramaPlan, Presupuesto, PresupuestoLinea, TratamientoCatalogo } from '../../../types/api';
-import type { OdontogramChange, SurfaceKey, ToothData, Treatment } from '../types/odontogram.types';
+import type { OdontogramChange, SurfaceKey, ToothData, ToothSelection, Treatment } from '../types/odontogram.types';
 import { odontogramaBackendToVisual } from './backendAdapter';
 
 const FACE_BY_SURFACE: Partial<Record<SurfaceKey, string>> = {
@@ -110,6 +110,20 @@ export function visualSelectionToBudgetLine(change: OdontogramChange): {
     precio_unitario: Number(change.treatment.price ?? 0),
     descuento_porcentaje: 0,
   };
+}
+
+export function hasBudgetLineForSelection(
+  presupuesto: Presupuesto,
+  treatment: Treatment,
+  selection: ToothSelection,
+): boolean {
+  const toothNumber = Number(selection.toothNumber);
+  const face = FACE_BY_SURFACE[selection.surface ?? treatment.surface ?? 'crown'] ?? null;
+  return presupuesto.lineas.some((linea) => (
+    linea.tratamiento_id === treatment.id
+    && linea.pieza_dental === (Number.isFinite(toothNumber) ? toothNumber : null)
+    && (linea.caras ?? null) === face
+  ));
 }
 
 export function createBudgetSnapshotFromVisual(data: ToothData[]): OdontogramaPlan {

@@ -79,7 +79,10 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { pres
 
   const passPending = useMutation({
     mutationFn: () => pasarPresupuestoTrabajoPendiente(presupuesto.id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate();
+      void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', presupuesto.paciente_id] });
+    },
   });
 
   const presentBudget = useMutation({
@@ -92,6 +95,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { pres
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['trabajo-pendiente', presupuesto.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', presupuesto.paciente_id] });
     },
   });
 
@@ -158,12 +162,19 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { pres
             {avgDto > 0 && <span><em>Dto med.</em>{avgDto}%</span>}
           </div>
         </div>
-        <div className="budget-panel-actions">
+        <div className="budget-panel-actions budget-primary-actions">
           <button onClick={() => presentBudget.mutate()} disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}>Presentar</button>
           <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuesto.estado === 'rechazado'} className="btn-accept">Aceptar todo</button>
           <button onClick={() => passPending.mutate()} disabled={passPending.isPending || !acceptedLines.length} className="btn-pending">Trabajo pendiente</button>
           <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !acceptedLines.length} className="btn-invoice">Facturar</button>
-          <button onClick={() => setRechazarOpen(true)} disabled={rejectBudget.isPending || presupuesto.estado === 'rechazado'} className="btn-reject">Rechazar</button>
+          <details className="budget-secondary-menu">
+            <summary>Mas</summary>
+            <div>
+              <button onClick={() => updateLine.mutate({ aceptado: !lineaSeleccionada?.aceptado })} disabled={!lineaSeleccionada || updateLine.isPending}>{lineaSeleccionada?.aceptado ? 'Quitar aceptado' : 'Aceptar linea'}</button>
+              <button onClick={() => deleteLine.mutate()} disabled={!lineaSeleccionada || deleteLine.isPending}>Borrar linea</button>
+              <button onClick={() => setRechazarOpen(true)} disabled={rejectBudget.isPending || presupuesto.estado === 'rechazado'} className="btn-reject">Rechazar</button>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -174,6 +185,8 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { pres
       />
 
       {/* Workbench */}
+      <details className="budget-step-panel" open>
+        <summary>Paso 2: anadir o editar tratamientos</summary>
       <div className="budget-workbench">
         <aside className="budget-treatment-picker">
           <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Buscar tratamiento" />
@@ -202,11 +215,10 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { pres
           <div className="budget-actions">
             <button onClick={() => addLine.mutate()} disabled={!selectedTreatment || addLine.isPending}>Anadir</button>
             <button onClick={() => updateLine.mutate({ pieza_dental: pieza ? Number(pieza) : null, caras: caras || null, precio_unitario: precioLinea || selectedTreatment?.precio || 0, descuento_porcentaje: descuento || 0 })} disabled={!lineaSeleccionada || updateLine.isPending}>Modificar</button>
-            <button onClick={() => updateLine.mutate({ aceptado: !lineaSeleccionada?.aceptado })} disabled={!lineaSeleccionada || updateLine.isPending}>{lineaSeleccionada?.aceptado ? 'Quitar aceptado' : 'Aceptar'}</button>
-            <button onClick={() => deleteLine.mutate()} disabled={!lineaSeleccionada || deleteLine.isPending}>Borrar</button>
           </div>
         </div>
       </div>
+      </details>
 
       {/* Lines table with totals row */}
       <table className="euro-table">

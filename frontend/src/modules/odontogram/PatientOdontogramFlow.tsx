@@ -44,13 +44,15 @@ export function PatientOdontogramFlow({
   className,
 }: PatientOdontogramFlowProps) {
   const modeConfig = odontogramModeConfig[mode];
+  const toolMode = modeToToolMode[mode];
+  const usesDirectBaseData = toolMode === 'diagnostico';
   const effectiveReadOnly = readOnly ?? modeConfig.readOnly;
   const effectiveQuickTreatments = enableQuickTreatments ?? modeConfig.quickTreatments;
   const queryClient = useQueryClient();
   const odontogramaQuery = useQuery({
     queryKey: ['patient-odontogram-flow', paciente?.id],
     queryFn: () => getOdontogramaPaciente(paciente!.id),
-    enabled: Boolean(paciente?.id),
+    enabled: Boolean(paciente?.id) && usesDirectBaseData,
     staleTime: 30_000,
   });
 
@@ -96,20 +98,20 @@ export function PatientOdontogramFlow({
   return (
     <section className={`odontogram-flow-panel ${className ?? ''}`}>
       <OdontogramaTool
-        mode={modeToToolMode[mode]}
+        mode={toolMode}
         paciente={paciente}
-        data={visualData}
+        data={usesDirectBaseData ? visualData : undefined}
         title={title}
         subtitle={subtitle ?? `Historia ${paciente.num_historial} - odontograma clinico compartido`}
         totalBudget={0}
         readOnly={effectiveReadOnly || updateMutation.isPending}
         enableQuickTreatments={effectiveQuickTreatments && !effectiveReadOnly}
         onChange={(_, change) => {
-          if (!effectiveReadOnly) updateMutation.mutate(change);
+          if (!effectiveReadOnly && usesDirectBaseData) updateMutation.mutate(change);
         }}
       />
-      {odontogramaQuery.isLoading && <div className="odontogram-flow-status">Cargando odontograma...</div>}
-      {odontogramaQuery.isError && <div className="odontogram-flow-status error">No se pudo cargar el odontograma.</div>}
+      {usesDirectBaseData && odontogramaQuery.isLoading && <div className="odontogram-flow-status">Cargando odontograma...</div>}
+      {usesDirectBaseData && odontogramaQuery.isError && <div className="odontogram-flow-status error">No se pudo cargar el odontograma.</div>}
     </section>
   );
 }

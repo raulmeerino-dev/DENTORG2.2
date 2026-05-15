@@ -637,6 +637,17 @@ async def crear_presupuesto_desde_plan(
                             "tratamiento_id": surface.tratamiento_planificado_id,
                             "precio_unitario": Decimal(tratamiento.precio),
                         })())
+    if items:
+        unique_items = []
+        seen: set[tuple[int | None, str | None, UUID]] = set()
+        for item in items:
+            key = (item.pieza_fdi, _normalize_superficie(item.superficie) if item.superficie else None, item.tratamiento_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_items.append(item)
+        items = unique_items
+
     if not items:
         raise HTTPException(status_code=400, detail="No hay tratamientos planificados para presupuestar")
 
@@ -651,14 +662,27 @@ async def crear_presupuesto_desde_plan(
     db.add(presupuesto)
     await db.flush()
     for item in items:
-        db.add(PresupuestoLinea(
+        linea = PresupuestoLinea(
             presupuesto_id=presupuesto.id,
             tratamiento_id=item.tratamiento_id,
             pieza_dental=item.pieza_fdi,
             caras=_surface_code(item.superficie),
             precio_unitario=item.precio_unitario,
             descuento_porcentaje=Decimal("0"),
-        ))
+        )
+        db.add(linea)
+        await db.flush()
+        if item.pieza_fdi and item.superficie:
+            piece = await _get_or_create_piece(db, odontograma, item.pieza_fdi)
+            result = await db.execute(
+                select(OdontogramaSuperficie).where(
+                    OdontogramaSuperficie.pieza_id == piece.id,
+                    OdontogramaSuperficie.superficie == _normalize_superficie(item.superficie),
+                )
+            )
+            surface = result.scalar_one_or_none()
+            if surface:
+                surface.presupuesto_linea_id = linea.id
     await _add_event(
         db,
         odontograma=odontograma,

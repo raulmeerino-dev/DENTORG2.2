@@ -18,6 +18,7 @@ from app.core.permissions import (
 )
 from app.database import get_db
 from app.models.factura import Cobro, Factura, FacturaLinea
+from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
 from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
 from app.schemas.factura import FacturaResponse
@@ -58,6 +59,18 @@ FACTURA_LOAD = [
     selectinload(Factura.lineas),
     selectinload(Factura.cobros).selectinload(Cobro.forma_pago),
 ]
+
+CARAS_TO_SURFACES = {
+    "O": "oclusal_incisal",
+    "I": "oclusal_incisal",
+    "M": "mesial",
+    "D": "distal",
+    "V": "vestibular",
+    "B": "vestibular",
+    "L": "lingual_palatina",
+    "P": "lingual_palatina",
+    "R": "raiz",
+}
 
 
 async def _get_presupuesto_or_404(db: AsyncSession, presupuesto_id: UUID) -> Presupuesto:
@@ -107,6 +120,165 @@ def _totales_factura(lineas: list[PresupuestoLinea]) -> tuple[Decimal, Decimal, 
         subtotal += base
         iva_total += iva
     return subtotal, iva_total, subtotal + iva_total
+
+
+def _normalize_caras(caras: str | None) -> str | None:
+    if not caras:
+        return None
+    return "".join(dict.fromkeys(caras.upper().strip()))
+
+
+def _surfaces_from_caras(caras: str | None) -> list[str]:
+    normalized = _normalize_caras(caras)
+    if not normalized:
+        return ["oclusal_incisal"]
+    surfaces: list[str] = []
+    for char in normalized:
+        surface = CARAS_TO_SURFACES.get(char)
+        if surface and surface not in surfaces:
+            surfaces.append(surface)
+    return surfaces or ["oclusal_incisal"]
+
+
+async def _active_odontograma_for_patient(db: AsyncSession, paciente_id: UUID) -> Odontograma | None:
+    result = await db.execute(
+        select(Odontograma)
+        .options(selectinload(Odontograma.piezas).selectinload(OdontogramaPieza.superficies))
+        .where(Odontograma.paciente_id == paciente_id, Odontograma.activo == True)  # noqa: E712
+        .order_by(Odontograma.version.desc(), Odontograma.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _get_or_create_odontograma_surface(
+    db: AsyncSession,
+    odontograma: Odontograma,
+    pieza_fdi: int,
+    superficie: str,
+) -> OdontogramaSuperficie:
+    piece = next((item for item in odontograma.piezas if item.pieza_fdi == pieza_fdi), None)
+    if not piece:
+        piece = OdontogramaPieza(odontograma_id=odontograma.id, pieza_fdi=pieza_fdi)
+        db.add(piece)
+        await db.flush()
+        odontograma.piezas.append(piece)
+
+    surface = next((item for item in piece.superficies if item.superficie == superficie), None)
+    if surface:
+        return surface
+    surface = OdontogramaSuperficie(pieza_id=piece.id, superficie=superficie)
+    db.add(surface)
+    await db.flush()
+    piece.superficies.append(surface)
+    return surface
+
+
+async def _link_budget_line_to_odontograma(
+    db: AsyncSession,
+    *,
+    presupuesto: Presupuesto,
+    linea: PresupuestoLinea,
+    user: CurrentUser,
+) -> None:
+    if not linea.pieza_dental:
+        return
+    odontograma = await _active_odontograma_for_patient(db, presupuesto.paciente_id)
+    if not odontograma:
+        return
+    for surface_name in _surfaces_from_caras(linea.caras):
+        surface = await _get_or_create_odontograma_surface(db, odontograma, linea.pieza_dental, surface_name)
+        old_values = {
+            "condicion": surface.condicion,
+            "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
+            "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
+        }
+        surface.tratamiento_planificado_id = linea.tratamiento_id
+        surface.presupuesto_linea_id = linea.id
+        db.add(OdontogramaEvento(
+            odontograma_id=odontograma.id,
+            pieza_fdi=linea.pieza_dental,
+            superficie=surface_name,
+            accion="vincular_linea_presupuesto",
+            old_values=old_values,
+            new_values={
+                "tratamiento_id": str(linea.tratamiento_id),
+                "presupuesto_linea_id": str(linea.id),
+            },
+            usuario_id=user.user_id,
+        ))
+
+
+async def _unlink_budget_line_from_odontograma(
+    db: AsyncSession,
+    *,
+    presupuesto: Presupuesto,
+    linea: PresupuestoLinea,
+    user: CurrentUser,
+) -> None:
+    if not linea.pieza_dental:
+        return
+    odontograma = await _active_odontograma_for_patient(db, presupuesto.paciente_id)
+    if not odontograma:
+        return
+    for piece in odontograma.piezas:
+        if piece.pieza_fdi != linea.pieza_dental:
+            continue
+        for surface in piece.superficies:
+            if surface.presupuesto_linea_id != linea.id:
+                continue
+            old_values = {
+                "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
+                "presupuesto_linea_id": str(surface.presupuesto_linea_id),
+            }
+            if surface.tratamiento_planificado_id == linea.tratamiento_id:
+                surface.tratamiento_planificado_id = None
+            surface.presupuesto_linea_id = None
+            db.add(OdontogramaEvento(
+                odontograma_id=odontograma.id,
+                pieza_fdi=linea.pieza_dental,
+                superficie=surface.superficie,
+                accion="desvincular_linea_presupuesto",
+                old_values=old_values,
+                new_values={"presupuesto_linea_id": None},
+                usuario_id=user.user_id,
+            ))
+
+
+async def _mark_odontograma_surface_realized(
+    db: AsyncSession,
+    *,
+    trabajo: TrabajoPendiente,
+    user: CurrentUser,
+) -> None:
+    if not trabajo.pieza_dental:
+        return
+    odontograma = await _active_odontograma_for_patient(db, trabajo.paciente_id)
+    if not odontograma:
+        return
+    for surface_name in _surfaces_from_caras(trabajo.caras):
+        surface = await _get_or_create_odontograma_surface(db, odontograma, trabajo.pieza_dental, surface_name)
+        old_values = {
+            "condicion": surface.condicion,
+            "tratamiento_realizado_id": str(surface.tratamiento_realizado_id) if surface.tratamiento_realizado_id else None,
+            "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
+        }
+        surface.condicion = "tratamiento_realizado"
+        surface.presupuesto_linea_id = trabajo.presupuesto_linea_id
+        if trabajo.historial_id:
+            surface.tratamiento_realizado_id = trabajo.historial_id
+        db.add(OdontogramaEvento(
+            odontograma_id=odontograma.id,
+            pieza_fdi=trabajo.pieza_dental,
+            superficie=surface_name,
+            accion="marcar_tratamiento_realizado",
+            old_values=old_values,
+            new_values={
+                "trabajo_pendiente_id": str(trabajo.id),
+                "presupuesto_linea_id": str(trabajo.presupuesto_linea_id),
+            },
+            usuario_id=user.user_id,
+        ))
 
 
 @router.get("", response_model=list[PresupuestoResponse])
@@ -255,6 +427,7 @@ async def aceptar_presupuesto(
                     caras=linea.caras,
                 ))
                 linea.pasado_trabajo_pendiente = True
+            await _link_budget_line_to_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
     await db.commit()
     return PresupuestoResponse.model_validate(await _get_presupuesto_or_404(db, presupuesto_id))
 
@@ -359,8 +532,25 @@ async def anadir_linea(
 ) -> PresupuestoLineaResponse:
     presupuesto = await _get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
-    linea = PresupuestoLinea(presupuesto_id=presupuesto_id, **data.model_dump())
+    payload = data.model_dump()
+    payload["caras"] = _normalize_caras(payload.get("caras"))
+    duplicate_stmt = select(PresupuestoLinea).options(selectinload(PresupuestoLinea.tratamiento)).where(
+        PresupuestoLinea.presupuesto_id == presupuesto_id,
+        PresupuestoLinea.tratamiento_id == payload["tratamiento_id"],
+        PresupuestoLinea.pieza_dental == payload.get("pieza_dental"),
+    )
+    if payload.get("caras") is None:
+        duplicate_stmt = duplicate_stmt.where(PresupuestoLinea.caras.is_(None))
+    else:
+        duplicate_stmt = duplicate_stmt.where(PresupuestoLinea.caras == payload["caras"])
+    duplicate = await db.scalar(duplicate_stmt)
+    if duplicate:
+        return PresupuestoLineaResponse.model_validate(duplicate)
+
+    linea = PresupuestoLinea(presupuesto_id=presupuesto_id, **payload)
     db.add(linea)
+    await db.flush()
+    await _link_budget_line_to_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
     await db.commit()
     result = await db.execute(
         select(PresupuestoLinea)
@@ -388,8 +578,27 @@ async def actualizar_linea(
     linea = result.scalar_one_or_none()
     if not linea:
         raise HTTPException(status_code=404, detail="Linea no encontrada")
+    old_pieza = linea.pieza_dental
+    old_caras = linea.caras
+    old_tratamiento_id = linea.tratamiento_id
     for field, value in data.model_dump(exclude_none=True).items():
-        setattr(linea, field, value)
+        setattr(linea, field, _normalize_caras(value) if field == "caras" else value)
+    if (
+        old_pieza != linea.pieza_dental
+        or old_caras != linea.caras
+        or old_tratamiento_id != linea.tratamiento_id
+    ):
+        old_linea = PresupuestoLinea(
+            presupuesto_id=presupuesto_id,
+            tratamiento_id=old_tratamiento_id,
+            pieza_dental=old_pieza,
+            caras=old_caras,
+            precio_unitario=linea.precio_unitario,
+            descuento_porcentaje=linea.descuento_porcentaje,
+        )
+        old_linea.id = linea.id
+        await _unlink_budget_line_from_odontograma(db, presupuesto=presupuesto, linea=old_linea, user=current_user)
+    await _link_budget_line_to_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
     await db.commit()
     result2 = await db.execute(
         select(PresupuestoLinea)
@@ -414,6 +623,7 @@ async def eliminar_linea(
     linea = result.scalar_one_or_none()
     if not linea:
         raise HTTPException(status_code=404, detail="Linea no encontrada")
+    await _unlink_budget_line_from_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
     await db.delete(linea)
     await db.commit()
 
@@ -439,6 +649,7 @@ async def pasar_a_trabajo_pendiente(
             )
             db.add(tp)
             linea.pasado_trabajo_pendiente = True
+            await _link_budget_line_to_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
             creadas.append(tp)
 
     await db.commit()
@@ -493,6 +704,7 @@ async def marcar_realizado(
     paciente = await db.get(Paciente, tp.paciente_id)
     ensure_clinic_access(current_user, paciente.clinica_id if paciente else None)
     tp.realizado = True
+    await _mark_odontograma_surface_realized(db, trabajo=tp, user=current_user)
     await db.commit()
     await db.refresh(tp)
     return TrabajoPendienteResponse.model_validate(tp)

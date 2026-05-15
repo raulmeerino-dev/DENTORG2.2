@@ -4,6 +4,10 @@ export { Odontogram } from './components/Odontogram';
 export { OdontogramaTool } from './OdontogramaTool';
 export { BudgetOdontogramFlow } from './BudgetOdontogramFlow';
 export { PatientOdontogramFlow } from './PatientOdontogramFlow';
+export { OdontogramaContextActions } from './components/OdontogramaContextActions';
+export { OdontogramaSidePanel } from './components/OdontogramaSidePanel';
+export { SurfaceMiniMap } from './components/SurfaceMiniMap';
+export { ToothArch } from './components/ToothArch';
 export { odontogramMock } from './data/odontogramMock';
 export { odontogramModeConfig } from './data/modeConfig';
 export { dentalArches, getAnatomicalSurfaceFromVisualSurface, getPrimarySurface, mirrorMap } from './data/toothMap';
@@ -18,6 +22,10 @@ export {
   getToothColor,
   mapToolModeToOdontogramMode,
 } from './utils/viewModel';
+export {
+  getSurfaceColor as getOdontogramaSurfaceColor,
+  getToothColor as getOdontogramaToothColor,
+} from './utils/colors';
 export {
   mapCarasToSurface,
   mapSurfaceToCaras,

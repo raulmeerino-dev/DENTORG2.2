@@ -4,8 +4,9 @@ import { getOdontogramaContexto } from '../../lib/api';
 import { fullName } from '../../lib/utils';
 import type { ApiPaciente, OdontogramaContextMode, TratamientoCatalogo } from '../../types/api';
 import { Odontogram } from './components/Odontogram';
+import { OdontogramaContextActions } from './components/OdontogramaContextActions';
 import { treatmentCatalogToQuickTreatments } from './adapters/budgetAdapter';
-import { getAvailableActions, odontogramaActionLabels, type OdontogramaAction } from './utils/actions';
+import { getAvailableActions, type OdontogramaAction } from './utils/actions';
 import { buildOdontogramaViewModel, mapToolModeToOdontogramMode } from './utils/viewModel';
 import type {
   OdontogramChange,
@@ -127,17 +128,13 @@ export function OdontogramaTool({
       />
       {contextQuery.isLoading && <div className="odontogram-flow-status">Cargando capa {mode}...</div>}
       {contextQuery.isError && <div className="odontogram-flow-status error">No se pudo cargar la capa {mode}.</div>}
-      {actions.length > 0 && (
-        <div className="odontogram-context-actions" aria-label="Acciones del odontograma">
-          {actions
-            .filter((action) => action !== 'filtrar_pieza')
-            .map((action) => (
-              <button key={action} type="button" onClick={() => onAction?.(action, { mode, paciente, contextId })}>
-                {odontogramaActionLabels[action]}
-              </button>
-            ))}
-        </div>
-      )}
+      <OdontogramaContextActions
+        actions={actions}
+        mode={mode}
+        paciente={paciente}
+        contextId={contextId}
+        onAction={onAction}
+      />
     </section>
   );
 }
