@@ -635,12 +635,10 @@ export default function PacientesPage() {
               laboratorio={laboratorioPacienteQuery.data ?? []}
               onEdit={() => setEditingPatient(true)}
               onOpenFull={() => setFullPatientOpen(true)}
-              onOpenDatos={() => setEditingPatient(true)}
               onOpenCitas={() => setTab('citas')}
               onOpenPresupuestos={() => setTab('presupuestos')}
               onOpenPendientes={() => setTab('pendiente')}
               onOpenRealizados={() => setTab('realizados')}
-              onOpenHistoria={() => setTab('historial')}
               onOpenFacturacion={() => setTab('facturacion')}
               onOpenHistorial={() => setTab('facturacion')}
               onOpenDocumentos={() => setTab('documentos')}

@@ -59,6 +59,7 @@ export const api = axios.create({
 
 export const AUTH_TOKEN_KEY = 'dentorg_token';
 const DEMO_TOKEN_PREFIX = 'demo:';
+const DEMO_FALLBACK_ENABLED = import.meta.env.VITE_DEMO_FALLBACK !== 'false';
 
 function addMinutesLocal(time: string, minutes: number) {
   const [hour, minute] = time.split(':').map(Number);
@@ -1715,8 +1716,12 @@ export async function getTrabajosLaboratorio(params: { pendientes?: boolean; est
   return withDemoFallback(api.get<TrabajoLaboratorio[]>('/laboratorio/trabajos', { params }), filtered);
 }
 
-export async function getReportKpis() {
-  return withDemoFallback(api.get<ReportKpis>('/reportes/kpis'), {
+type ReportDateParams = { fecha_desde?: string; fecha_hasta?: string; limit?: number };
+
+export function getReportKpis(): Promise<ReportKpis>;
+export function getReportKpis(params: ReportDateParams): Promise<ReportKpis>;
+export async function getReportKpis(params: ReportDateParams = {}): Promise<ReportKpis> {
+  return withDemoFallback(api.get<ReportKpis>('/reportes/kpis', { params }), {
     citas: { total: 18, por_estado: { confirmada: 12, atendida: 4, falta: 2 }, asistencia: 4, faltas: 2, anuladas: 0, no_show_rate: 11.1 },
     pacientes_nuevos: 5,
     facturacion: { num_facturas: 7, total_facturado: 4260, total_cobrado: 3110, pendiente: 1150, ticket_medio: 608.57 },
@@ -1725,7 +1730,9 @@ export async function getReportKpis() {
   });
 }
 
-export async function getReportDashboard() {
+export function getReportDashboard(): Promise<ReportDashboard>;
+export function getReportDashboard(params: ReportDateParams): Promise<ReportDashboard>;
+export async function getReportDashboard(params: ReportDateParams = {}): Promise<ReportDashboard> {
   const fallbackKpis: ReportKpis = {
     citas: { total: 18, por_estado: { programada: 3, confirmada: 8, en_clinica: 2, atendida: 4, falta: 1 }, asistencia: 4, faltas: 1, anuladas: 0, no_show_rate: 5.55 },
     pacientes_nuevos: 5,
@@ -1733,7 +1740,7 @@ export async function getReportDashboard() {
     tratamientos_realizados: 22,
     presupuestos: { total: 9, por_estado: { borrador: 2, presentado: 1, aceptado: 5, rechazado: 1 }, aceptacion_rate: 55.5, rechazo_rate: 11.1 },
   };
-  return withDemoFallback(api.get<ReportDashboard>('/reportes/dashboard'), {
+  return withDemoFallback(api.get<ReportDashboard>('/reportes/dashboard', { params }), {
     periodo: { desde: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10), hasta: new Date().toISOString().slice(0, 10) },
     kpis: fallbackKpis,
     series: {
@@ -1788,15 +1795,19 @@ export async function getReportPacientes() {
   })));
 }
 
-export async function getReportTopTratamientos() {
-  return withDemoFallback(api.get<ReportTopTratamiento[]>('/reportes/top-tratamientos'), DEMO_TRATAMIENTOS.slice(0, 5).map((item, index) => ({
+export function getReportTopTratamientos(): Promise<ReportTopTratamiento[]>;
+export function getReportTopTratamientos(params: ReportDateParams): Promise<ReportTopTratamiento[]>;
+export async function getReportTopTratamientos(params: ReportDateParams = {}): Promise<ReportTopTratamiento[]> {
+  return withDemoFallback(api.get<ReportTopTratamiento[]>('/reportes/top-tratamientos', { params }), DEMO_TRATAMIENTOS.slice(0, 5).map((item, index) => ({
     tratamiento: item.nombre,
     cantidad: 12 - index,
   })));
 }
 
-export async function getReportCitasDoctor() {
-  return withDemoFallback(api.get<ReportCitasDoctor[]>('/reportes/citas-por-doctor'), DEMO_DOCTORES.map((doctor, index) => ({
+export function getReportCitasDoctor(): Promise<ReportCitasDoctor[]>;
+export function getReportCitasDoctor(params: ReportDateParams): Promise<ReportCitasDoctor[]>;
+export async function getReportCitasDoctor(params: ReportDateParams = {}): Promise<ReportCitasDoctor[]> {
+  return withDemoFallback(api.get<ReportCitasDoctor[]>('/reportes/citas-por-doctor', { params }), DEMO_DOCTORES.map((doctor, index) => ({
     doctor_id: doctor.id,
     doctor: doctor.nombre,
     color: doctor.color_agenda,
@@ -1959,12 +1970,12 @@ export function facturaPdfUrl(facturaId: string) {
 
 function shouldUseDemo(error?: unknown) {
   const axiosError = error as AxiosError | undefined;
-  return import.meta.env.DEV && Boolean(axiosError?.isAxiosError && !axiosError.response);
+  return import.meta.env.DEV && DEMO_FALLBACK_ENABLED && Boolean(axiosError?.isAxiosError && !axiosError.response);
 }
 
 function demoLogin(username: string, password: string, error?: unknown) {
   const axiosError = error as AxiosError | undefined;
-  const backendRejectedInDev = import.meta.env.DEV && Boolean(axiosError?.isAxiosError && axiosError.response && [401, 403, 404].includes(axiosError.response.status));
+  const backendRejectedInDev = import.meta.env.DEV && DEMO_FALLBACK_ENABLED && Boolean(axiosError?.isAxiosError && axiosError.response && [401, 403, 404].includes(axiosError.response.status));
   if (!shouldUseDemo(error) && !backendRejectedInDev) return null;
   const users: Record<string, { password: string; role: UsuarioMe['rol']; nombre: string; doctor_id: string | null }> = {
     admin: { password: 'admin1234', role: 'admin', nombre: 'Administrador', doctor_id: null },

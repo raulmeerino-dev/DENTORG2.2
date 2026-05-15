@@ -221,7 +221,7 @@ export default function HoyPage() {
         <div className="inline-alert">No se han podido cargar las citas de hoy. Revisa la conexión.</div>
       )}
 
-      <div className="dashboard-metrics">
+      <div className="dashboard-metrics hoy-metrics">
         <div>
           <span>Citas hoy</span>
           <strong>{activas.length}</strong>
@@ -372,6 +372,7 @@ export default function HoyPage() {
             <div className="panel-caption"><strong>Acciones rápidas</strong></div>
             <div className="agenda-button-grid">
               <Link to="/pacientes" className="euro-action-button" onClick={prepararNuevaFicha}>Nueva ficha</Link>
+              <Link to="/pacientes" className="euro-action-button">Buscar paciente</Link>
               <Link to="/agenda" className="euro-action-button" onClick={prepararNuevaCita}>Nueva cita</Link>
               <Link to="/caja" className="euro-action-button">Caja / cobros</Link>
               <button type="button" className="euro-action-button whatsapp-action" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp" title="Recordatorios WhatsApp">

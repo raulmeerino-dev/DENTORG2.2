@@ -17,4 +17,14 @@ describe('workflow permissions', () => {
     expect(Object.keys(ROLE_LABELS).sort()).toEqual(['admin', 'auxiliar', 'doctor', 'paciente', 'recepcion']);
     expect(canRoleAccess('auxiliar', ['admin', 'doctor', 'auxiliar'])).toBe(true);
   });
+
+  it('keeps the primary navigation focused on the daily workflow', () => {
+    const routed = WORKFLOW_ITEMS.filter((item) => item.route);
+    const primary = routed
+      .filter((item) => ['hoy', 'pacientes', 'agenda', 'caja', 'dashboard', 'adminExtras'].includes(item.id))
+      .map((item) => item.label);
+
+    expect(primary).toEqual(['Hoy', 'Pacientes', 'Agenda', 'Caja', 'Reportes', 'Admin']);
+    expect(canAccess('recepcion', WORKFLOW_ITEMS.find((item) => item.id === 'dashboard')!)).toBe(false);
+  });
 });

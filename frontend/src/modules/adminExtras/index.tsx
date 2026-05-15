@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Chart from 'chart.js/auto';
 import {
   createClinica,
   createPedidoInventario,
@@ -10,12 +10,10 @@ import {
   enableTwoFactor,
   getAuditLog,
   getClinicas,
-  getIngresosReporte,
   getInventario,
   getMovimientosInventario,
   getPedidosInventario,
   getProveedoresInventario,
-  getReportKpis,
   importPacientes,
   recibirPedidoInventario,
   registrarMovimientoInventario,
@@ -24,8 +22,11 @@ import {
   updateProductoInventario,
 } from '../../lib/api';
 import { addOfflinePending, clearOfflinePending, getOfflinePending } from '../../lib/offline';
+import { ADMIN_TABS } from './tabs';
+import type { AdminTabId } from './tabs';
+import { AdminReportes } from './AdminReportes';
 
-type Tab = 'clinicas' | 'inventario' | 'reportes' | 'auditoria' | 'offline' | 'importacion' | 'seguridad';
+type Tab = AdminTabId;
 type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
 
 export default function AdminExtrasPage() {
@@ -50,13 +51,9 @@ export default function AdminExtrasPage() {
   });
   const [proveedorForm, setProveedorForm] = useState({ nombre: '', contacto: '', telefono: '', email: '', notas: '' });
   const [pedidoForm, setPedidoForm] = useState({ proveedor_id: '', producto_id: '', cantidad: '1', coste_unitario: '0', notas: '' });
-  const [desde, setDesde] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10));
-  const [hasta, setHasta] = useState(new Date().toISOString().slice(0, 10));
   const [importText, setImportText] = useState('nombre,apellidos,dni_nie,telefono\nAna,Garcia,12345678A,600000000');
   const [twoFactor, setTwoFactor] = useState<{ secret: string; qrDataUrl: string; otpauthUrl: string } | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
-  const reportCanvas = useRef<HTMLCanvasElement | null>(null);
-  const citasCanvas = useRef<HTMLCanvasElement | null>(null);
   const online = typeof navigator === 'undefined' ? true : navigator.onLine;
 
   const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
@@ -68,8 +65,6 @@ export default function AdminExtrasPage() {
     queryFn: () => getMovimientosInventario(productoActivoId),
     enabled: Boolean(productoActivoId),
   });
-  const ingresosQuery = useQuery({ queryKey: ['ingresos', desde, hasta], queryFn: () => getIngresosReporte(desde, hasta) });
-  const kpisQuery = useQuery({ queryKey: ['admin-report-kpis'], queryFn: getReportKpis, enabled: tab === 'reportes' });
   const auditoriaQuery = useQuery({ queryKey: ['auditoria'], queryFn: () => getAuditLog(), enabled: tab === 'auditoria' });
 
   const crearClinica = useMutation({
@@ -168,39 +163,6 @@ export default function AdminExtrasPage() {
   });
 
   useEffect(() => {
-    if (!reportCanvas.current || tab !== 'reportes') return undefined;
-    const data = ingresosQuery.data ?? { total: 0, pac: 0, seg: 0 };
-    const chart = new Chart(reportCanvas.current, {
-      type: 'bar',
-      data: {
-        labels: ['Total', 'Pacientes', 'Seguros'],
-        datasets: [{ label: 'Ingresos', data: [data.total, data.pac, data.seg], backgroundColor: ['#2563eb', '#16a34a', '#f59e0b'], borderRadius: 6, maxBarThickness: 54 }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (context) => `${Number(context.raw).toFixed(2)} EUR` } } },
-        scales: { y: { beginAtZero: true, ticks: { callback: (value) => `${value} EUR` } } },
-      },
-    });
-    return () => chart.destroy();
-  }, [ingresosQuery.data, tab]);
-
-  useEffect(() => {
-    if (!citasCanvas.current || tab !== 'reportes') return undefined;
-    const citas = kpisQuery.data?.citas ?? { asistencia: 0, faltas: 0, total: 0 };
-    const chart = new Chart(citasCanvas.current, {
-      type: 'doughnut',
-      data: {
-        labels: ['Cumplidas', 'No asistió', 'Pendientes/otras'],
-        datasets: [{ data: [citas.asistencia, citas.faltas, Math.max(0, citas.total - citas.asistencia - citas.faltas)], backgroundColor: ['#16a34a', '#dc2626', '#94a3b8'], borderWidth: 0 }],
-      },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
-    });
-    return () => chart.destroy();
-  }, [kpisQuery.data, tab]);
-
-  useEffect(() => {
     async function flushOfflineQueue() {
       if (!navigator.onLine) return;
       const pending = await getOfflinePending();
@@ -245,21 +207,15 @@ export default function AdminExtrasPage() {
       <div className="toolbar">
         <div>
           <p className="eyebrow">Admin</p>
-          <h1>Clínicas, inventario, BI y seguridad</h1>
+          <h1>Administracion</h1>
         </div>
         <span className={online ? 'online-pill' : 'offline-pill'}>{online ? 'Con conexión' : 'Sin conexión'}</span>
       </div>
 
       <nav className="file-tabs">
-        {(['clinicas', 'inventario', 'reportes', 'auditoria', 'offline', 'importacion', 'seguridad'] as Tab[]).map((item) => (
-          <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
-            {item === 'clinicas' && 'Clínicas'}
-            {item === 'inventario' && 'Inventario'}
-            {item === 'reportes' && 'Reportes'}
-            {item === 'auditoria' && 'Auditoría'}
-            {item === 'offline' && 'Offline'}
-            {item === 'importacion' && 'Importación'}
-            {item === 'seguridad' && '2FA'}
+        {ADMIN_TABS.map((item) => (
+          <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>
+            {item.label}
           </button>
         ))}
       </nav>
@@ -279,6 +235,22 @@ export default function AdminExtrasPage() {
             <button type="submit">Crear clínica</button>
           </form>
         </div>
+      )}
+
+      {tab === 'usuarios' && (
+        <section className="desk-panel admin-gateway-panel">
+          <div className="panel-caption"><strong>Usuarios y roles</strong><span>Gestion centralizada</span></div>
+          <p>Alta de usuarios, roles, doctores y permisos se gestiona desde Configuracion para evitar duplicidades.</p>
+          <Link to="/configuracion?tab=usuarios" className="euro-action-button">Abrir usuarios</Link>
+        </section>
+      )}
+
+      {tab === 'catalogo' && (
+        <section className="desk-panel admin-gateway-panel">
+          <div className="panel-caption"><strong>Catalogo de tratamientos</strong><span>Precios, familias, colores e iconos</span></div>
+          <p>El catalogo sigue siendo el punto unico de verdad para tratamientos y tarifas.</p>
+          <Link to="/configuracion?tab=tratamientos" className="euro-action-button">Abrir catalogo</Link>
+        </section>
       )}
 
       {tab === 'inventario' && (
@@ -310,8 +282,9 @@ export default function AdminExtrasPage() {
           </section>
 
           <div className="desk-panel settings-form inventory-side">
-            <form onSubmit={submitProducto}>
-              <div className="panel-caption"><strong>Nuevo producto</strong></div>
+            <details className="admin-create-panel">
+              <summary>Nuevo producto</summary>
+              <form onSubmit={submitProducto}>
               <label>Nombre<input value={productoForm.nombre} onChange={(e) => setProductoForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
               <div className="form-grid-2">
                 <label>Categoría<input value={productoForm.categoria} onChange={(e) => setProductoForm((p) => ({ ...p, categoria: e.target.value }))} /></label>
@@ -327,32 +300,36 @@ export default function AdminExtrasPage() {
                   {(proveedoresQuery.data ?? []).map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}
                 </select>
               </label>
-              <button type="submit">Crear producto</button>
-            </form>
-            {productoActivoId && (
-              <form className="movement-form" onSubmit={(event) => { event.preventDefault(); registrarMovimiento.mutate(); }}>
-                <div className="panel-caption"><strong>Movimiento</strong></div>
-                <label>Tipo<select value={movimientoForm.tipo} onChange={(e) => setMovimientoForm((p) => ({ ...p, tipo: e.target.value as MovimientoTipo }))}>
-                  <option value="entrada">Entrada</option>
-                  <option value="salida">Salida</option>
-                  <option value="ajuste">Ajuste a cantidad</option>
-                  <option value="consumo_factura">Consumo por factura</option>
-                </select></label>
-                <div className="form-grid-2">
-                  <label>Cantidad<input type="number" min="1" value={movimientoForm.cantidad} onChange={(e) => setMovimientoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
-                  <label>Motivo<input value={movimientoForm.motivo} onChange={(e) => setMovimientoForm((p) => ({ ...p, motivo: e.target.value }))} /></label>
-                </div>
-                <button type="submit">Registrar movimiento</button>
-                <div className="movement-list">
-                  {(movimientosQuery.data ?? []).slice(0, 5).map((mov) => <p key={mov.id}><strong>{mov.tipo}</strong> {mov.cantidad} -&gt; {mov.stock_resultante}</p>)}
-                </div>
+                <button type="submit">Crear producto</button>
               </form>
+            </details>
+            {productoActivoId && (
+              <details className="admin-create-panel movement-form" open>
+                <summary>Movimiento</summary>
+                <form onSubmit={(event) => { event.preventDefault(); registrarMovimiento.mutate(); }}>
+                  <label>Tipo<select value={movimientoForm.tipo} onChange={(e) => setMovimientoForm((p) => ({ ...p, tipo: e.target.value as MovimientoTipo }))}>
+                    <option value="entrada">Entrada</option>
+                    <option value="salida">Salida</option>
+                    <option value="ajuste">Ajuste a cantidad</option>
+                    <option value="consumo_factura">Consumo por factura</option>
+                  </select></label>
+                  <div className="form-grid-2">
+                    <label>Cantidad<input type="number" min="1" value={movimientoForm.cantidad} onChange={(e) => setMovimientoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
+                    <label>Motivo<input value={movimientoForm.motivo} onChange={(e) => setMovimientoForm((p) => ({ ...p, motivo: e.target.value }))} /></label>
+                  </div>
+                  <button type="submit">Registrar movimiento</button>
+                  <div className="movement-list">
+                    {(movimientosQuery.data ?? []).slice(0, 5).map((mov) => <p key={mov.id}><strong>{mov.tipo}</strong> {mov.cantidad} -&gt; {mov.stock_resultante}</p>)}
+                  </div>
+                </form>
+              </details>
             )}
           </div>
 
           <section className="desk-panel settings-form">
-            <form onSubmit={submitProveedor}>
-              <div className="panel-caption"><strong>Proveedores</strong></div>
+            <details className="admin-create-panel">
+              <summary>Nuevo proveedor</summary>
+              <form onSubmit={submitProveedor}>
               <label>Nombre<input value={proveedorForm.nombre} onChange={(e) => setProveedorForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
               <div className="form-grid-2">
                 <label>Contacto<input value={proveedorForm.contacto} onChange={(e) => setProveedorForm((p) => ({ ...p, contacto: e.target.value }))} /></label>
@@ -360,8 +337,9 @@ export default function AdminExtrasPage() {
                 <label>Email<input value={proveedorForm.email} onChange={(e) => setProveedorForm((p) => ({ ...p, email: e.target.value }))} /></label>
                 <label>Notas<input value={proveedorForm.notas} onChange={(e) => setProveedorForm((p) => ({ ...p, notas: e.target.value }))} /></label>
               </div>
-              <button type="submit">Crear proveedor</button>
-            </form>
+                <button type="submit">Crear proveedor</button>
+              </form>
+            </details>
             <div className="compact-list">
               {(proveedoresQuery.data ?? []).slice(0, 6).map((proveedor) => (
                 <p key={proveedor.id}><strong>{proveedor.nombre}</strong><span>{proveedor.telefono || proveedor.email || proveedor.contacto || '-'}</span></p>
@@ -370,8 +348,9 @@ export default function AdminExtrasPage() {
           </section>
 
           <section className="desk-panel settings-form">
-            <form onSubmit={submitPedido}>
-              <div className="panel-caption"><strong>Pedidos</strong></div>
+            <details className="admin-create-panel">
+              <summary>Nuevo pedido</summary>
+              <form onSubmit={submitPedido}>
               <label>Proveedor
                 <select value={pedidoForm.proveedor_id} onChange={(e) => setPedidoForm((p) => ({ ...p, proveedor_id: e.target.value }))} required>
                   <option value="">Seleccionar</option>
@@ -392,8 +371,9 @@ export default function AdminExtrasPage() {
                 <label>Coste<input type="number" min="0" step="0.01" value={pedidoForm.coste_unitario} onChange={(e) => setPedidoForm((p) => ({ ...p, coste_unitario: e.target.value }))} /></label>
               </div>
               <label>Notas<input value={pedidoForm.notas} onChange={(e) => setPedidoForm((p) => ({ ...p, notas: e.target.value }))} /></label>
-              <button type="submit">Crear pedido</button>
-            </form>
+                <button type="submit">Crear pedido</button>
+              </form>
+            </details>
             <div className="compact-list">
               {(pedidosQuery.data ?? []).slice(0, 6).map((pedido) => {
                 const proveedor = (proveedoresQuery.data ?? []).find((item) => item.id === pedido.proveedor_id);
@@ -411,18 +391,7 @@ export default function AdminExtrasPage() {
         </div>
       )}
 
-      {tab === 'reportes' && (
-        <div className="fichero-grid">
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Ingresos</strong><label>Desde<input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} /></label><label>Hasta<input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} /></label></div>
-            <div className="bi-chart"><canvas ref={reportCanvas} aria-label="Ingresos por origen" /></div>
-          </section>
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Citas cumplidas / no-shows</strong></div>
-            <div className="bi-chart"><canvas ref={citasCanvas} aria-label="Citas cumplidas y no asistidas" /></div>
-          </section>
-        </div>
-      )}
+      {tab === 'reportes' && <AdminReportes />}
 
       {tab === 'auditoria' && (
         <section className="desk-panel">
@@ -444,9 +413,9 @@ export default function AdminExtrasPage() {
         </section>
       )}
 
-      {tab === 'offline' && (
+      {tab === 'backups' && (
         <section className="desk-panel">
-          <div className="panel-caption"><strong>Modo offline</strong></div>
+          <div className="panel-caption"><strong>Backups y modo offline</strong></div>
           <p>La app marca "Sin conexión" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
           <div className="editor-actions">
             <button onClick={async () => {

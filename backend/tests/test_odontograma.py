@@ -130,6 +130,63 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert presupuesto_surface["label"] == "Endodoncia prueba"
     assert presupuesto_surface["presupuesto_linea_id"]
 
+    lectura_contexto = await client.get(
+        f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=lectura",
+        headers=headers,
+    )
+    assert lectura_contexto.status_code == 200
+    assert lectura_contexto.json()["mode"] == "lectura"
+
+    accepted = await client.post(f"/api/presupuestos/{presupuesto_id}/aceptar", headers=headers, json={})
+    assert accepted.status_code == 200
+
+    pendiente_contexto = await client.get(
+        f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=pendiente",
+        headers=headers,
+    )
+    assert pendiente_contexto.status_code == 200
+    pendiente_surface = pendiente_contexto.json()["teeth"]["24"]["surfaces"]["lingual_palatina"]
+    assert pendiente_surface["context_state"] == "tratamiento_pendiente"
+
+    pending_list = await client.get(f"/api/presupuestos/trabajo-pendiente/{paciente_id}", headers=headers)
+    assert pending_list.status_code == 200
+    realizado = await client.patch(
+        f"/api/presupuestos/trabajo-pendiente/{pending_list.json()[0]['id']}/realizar",
+        headers=headers,
+    )
+    assert realizado.status_code == 200
+    realizado_contexto = await client.get(
+        f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=realizado",
+        headers=headers,
+    )
+    assert realizado_contexto.status_code == 200
+    realizado_surface = realizado_contexto.json()["teeth"]["24"]["surfaces"]["lingual_palatina"]
+    assert realizado_surface["diagnostico"] == "tratamiento_realizado"
+
+    duplicated_items = await client.post(
+        f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
+        headers=headers,
+        json={
+            "doctor_id": str(doctor.id),
+            "items": [
+                {
+                    "pieza_fdi": 24,
+                    "superficie": "lingual_palatina",
+                    "tratamiento_id": str(tratamiento.id),
+                    "precio_unitario": "150.00",
+                },
+                {
+                    "pieza_fdi": 24,
+                    "superficie": "lingual_palatina",
+                    "tratamiento_id": str(tratamiento.id),
+                    "precio_unitario": "150.00",
+                },
+            ],
+        },
+    )
+    assert duplicated_items.status_code == 201
+    assert duplicated_items.json()["lineas_creadas"] == 1
+
     legacy_surface = await client.patch(
         f"/api/odontograma/{odontograma_id}/pieza/25/superficie/lingual_palatal",
         headers=headers,

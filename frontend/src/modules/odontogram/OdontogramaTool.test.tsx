@@ -40,6 +40,8 @@ describe('OdontogramaTool', () => {
 
     expect(screen.getByText('Odontograma del presupuesto')).toBeInTheDocument();
     expect(screen.getByText('Anadir linea')).toBeInTheDocument();
+    expect(screen.queryByText('Guardar diagnostico')).not.toBeInTheDocument();
+    expect(screen.queryByText('Acciones clinicas')).not.toBeInTheDocument();
   });
 
   it('modo lectura no muestra acciones modificables', () => {
@@ -48,5 +50,6 @@ describe('OdontogramaTool', () => {
     expect(screen.getByText('Odontograma actual')).toBeInTheDocument();
     expect(screen.queryByText('Guardar diagnostico')).not.toBeInTheDocument();
     expect(screen.queryByText('Anadir linea')).not.toBeInTheDocument();
+    expect(screen.queryByText('Acciones clinicas')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addPresupuestoLinea, getOdontogramaPaciente, saveOdontograma } from '../../lib/api';
 import type { ApiPaciente, Presupuesto, TratamientoCatalogo } from '../../types/api';
@@ -6,6 +6,7 @@ import { odontogramaBackendToVisual } from './adapters/backendAdapter';
 import {
   budgetToVisualOdontogram,
   createBudgetSnapshotFromVisual,
+  hasBudgetLineForSelection,
   visualSelectionToBudgetLine,
 } from './adapters/budgetAdapter';
 import { OdontogramaTool } from './OdontogramaTool';
@@ -19,6 +20,7 @@ type BudgetOdontogramFlowProps = {
 
 export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: BudgetOdontogramFlowProps) {
   const queryClient = useQueryClient();
+  const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
   const odontogramaQuery = useQuery({
     queryKey: ['patient-odontogram-flow', paciente.id],
     queryFn: () => getOdontogramaPaciente(paciente.id),
@@ -39,10 +41,17 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: Bu
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['presupuestos', paciente.id] });
+      void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', paciente.id] });
     },
   });
 
   function handleAddTreatment(_treatment: Treatment, _selection: ToothSelection, nextData: ToothData[]) {
+    if (hasBudgetLineForSelection(presupuesto, _treatment, _selection)) {
+      setDuplicateNotice('Ese tratamiento ya esta en el presupuesto para esa pieza/superficie.');
+      return;
+    }
+
+    setDuplicateNotice(null);
     const lastTooth = nextData.find((tooth) => tooth.plannedTreatments?.some((item) => item.id === _treatment.id));
     const surface = _selection.surface ?? _treatment.surface;
     addTreatmentMutation.mutate({
@@ -74,6 +83,7 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: Bu
       />
       {addTreatmentMutation.isPending && <div className="odontogram-flow-status">Anadiendo linea...</div>}
       {addTreatmentMutation.isError && <div className="odontogram-flow-status error">No se pudo crear la linea.</div>}
+      {duplicateNotice && <div className="odontogram-flow-status">{duplicateNotice}</div>}
     </section>
   );
 }

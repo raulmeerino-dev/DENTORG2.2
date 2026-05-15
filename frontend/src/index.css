@@ -9193,6 +9193,142 @@ html[data-theme="dark"] .patient-dashboard-mode .patient-hub-balance em {
   grid-row: 3;
 }
 
+/* UX consolidation: keep the app operational and calm. */
+.euro-main-nav {
+  gap: 4px;
+  padding: 4px 8px;
+  height: 50px;
+}
+
+.euro-nav-button {
+  min-width: 86px;
+}
+
+.admin-mode-links {
+  display: none;
+}
+
+.hoy-metrics div:nth-child(n + 5),
+.caja-metrics div:nth-child(n + 5) {
+  display: none;
+}
+
+.hoy-metrics,
+.caja-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.patient-dashboard-mode .patient-hub-grid {
+  grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr) minmax(280px, .85fr);
+  grid-template-rows: auto auto minmax(140px, 1fr) minmax(120px, 1fr);
+  gap: 8px;
+}
+
+.patient-flow-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.patient-flow-strip button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid #bed3df;
+  border-radius: 7px;
+  background: #f7fbfd;
+  color: #07324c;
+  font-weight: 800;
+}
+
+.patient-flow-strip strong {
+  color: #0084a5;
+}
+
+.patient-dashboard-mode .patient-next-card {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.patient-dashboard-mode .patient-last-card {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.patient-dashboard-mode .patient-billing-card {
+  grid-column: 3;
+  grid-row: 3 / span 2;
+}
+
+.patient-dashboard-mode .patient-hub-side-card {
+  grid-column: 1 / span 2;
+  grid-row: 4;
+}
+
+.patient-secondary-links summary,
+.budget-step-panel summary,
+.budget-secondary-menu summary,
+.admin-create-panel summary {
+  cursor: pointer;
+  font-weight: 850;
+  color: #005f80;
+}
+
+.budget-primary-actions {
+  align-items: center;
+}
+
+.budget-secondary-menu {
+  position: relative;
+}
+
+.budget-secondary-menu > div {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 180px;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #bed3df;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 26px rgba(15, 45, 66, .16);
+}
+
+.budget-step-panel {
+  margin-top: 8px;
+}
+
+.budget-step-panel > summary {
+  padding: 6px 2px;
+}
+
+.admin-gateway-panel {
+  max-width: 760px;
+  margin: 12px;
+  padding: 14px;
+}
+
+.admin-create-panel {
+  padding: 10px;
+}
+
+.admin-create-panel form {
+  margin-top: 10px;
+}
+
+html[data-theme="dark"] .patient-flow-strip button,
+html[data-theme="dark"] .budget-secondary-menu > div,
+html[data-theme="dark"] .admin-gateway-panel {
+  background: #132a3a;
+  border-color: #31566c;
+  color: #eaf2f8;
+}
+
 .patient-dashboard-mode .patient-next-card,
 .patient-dashboard-mode .patient-last-card,
 .patient-dashboard-mode .patient-history-card,
@@ -9396,4 +9532,247 @@ html[data-theme="dark"] .patient-billing-list button {
 .patient-dashboard-mode .patient-hub-side-card {
   grid-column: 3;
   grid-row: 3;
+}
+/* Admin reports: visual, contained, and separate from operational modules. */
+.admin-reportes {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.admin-report-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(15, 142, 160, 0.18);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.admin-report-header h2 {
+  margin: 0.2rem 0 0;
+  font-size: 1.35rem;
+}
+
+.admin-report-filters,
+.admin-report-builder {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-report-filters label,
+.admin-report-builder label {
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #3a5364;
+}
+
+.admin-report-filters input,
+.admin-report-builder select {
+  height: 34px;
+  min-width: 150px;
+}
+
+.admin-report-filters button {
+  height: 34px;
+}
+
+.admin-report-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.admin-report-kpis article {
+  padding: 0.75rem;
+  border: 1px solid rgba(15, 142, 160, 0.18);
+  background: #fff;
+}
+
+.admin-report-kpis span,
+.admin-report-kpis small {
+  display: block;
+  color: #617789;
+  font-weight: 700;
+}
+
+.admin-report-kpis strong {
+  display: block;
+  margin: 0.15rem 0;
+  font-size: 1.35rem;
+  color: #08324b;
+}
+
+.admin-report-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.7fr);
+  gap: 0.75rem;
+}
+
+.admin-general-report-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.admin-general-report-grid button {
+  text-align: left;
+  min-height: 74px;
+  padding: 0.7rem;
+  border: 1px solid rgba(15, 142, 160, 0.22);
+  background: #f8fcfd;
+}
+
+.admin-general-report-grid button.active {
+  border-color: #0f8ea0;
+  background: #e8fbfd;
+  box-shadow: inset 3px 0 0 #0f8ea0;
+}
+
+.admin-general-report-grid strong,
+.admin-general-report-grid span {
+  display: block;
+}
+
+.admin-general-report-grid span {
+  margin-top: 0.25rem;
+  color: #617789;
+  font-size: 0.78rem;
+}
+
+.admin-report-chart {
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(15, 142, 160, 0.16);
+}
+
+.admin-month-bars {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(28px, 1fr));
+  align-items: end;
+  gap: 0.35rem;
+  height: 170px;
+  padding-top: 0.5rem;
+}
+
+.admin-month-bars div {
+  display: grid;
+  grid-template-rows: 18px 1fr 28px;
+  align-items: end;
+  height: 100%;
+  min-width: 0;
+}
+
+.admin-month-bars span,
+.admin-month-bars em {
+  text-align: center;
+  font-size: 0.68rem;
+  color: #617789;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-month-bars i {
+  display: block;
+  width: 100%;
+  min-height: 4px;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(180deg, #0f8ea0, #18b690);
+}
+
+.admin-doctor-bars {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.admin-doctor-bars p {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+}
+
+.admin-doctor-bars span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 800;
+}
+
+.admin-doctor-bars span i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.admin-report-bar {
+  position: relative;
+  display: block;
+  height: 24px;
+  border-radius: 6px;
+  background: #edf6f8;
+  overflow: hidden;
+}
+
+.admin-report-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #0f8ea0;
+}
+
+.admin-report-bar b {
+  position: relative;
+  z-index: 1;
+  display: block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.admin-custom-report .euro-table {
+  margin-top: 0.65rem;
+}
+
+html[data-theme="dark"] .admin-report-header,
+html[data-theme="dark"] .admin-report-kpis article,
+html[data-theme="dark"] .admin-general-report-grid button,
+html[data-theme="dark"] .admin-report-bar {
+  background: rgba(15, 23, 42, 0.74);
+  border-color: rgba(148, 163, 184, 0.24);
+}
+
+html[data-theme="dark"] .admin-general-report-grid button.active {
+  background: rgba(15, 142, 160, 0.18);
+}
+
+html[data-theme="dark"] .admin-report-kpis strong,
+html[data-theme="dark"] .admin-report-header h2 {
+  color: #e5f6ff;
+}
+
+@media (max-width: 1100px) {
+  .admin-report-layout,
+  .admin-report-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-general-report-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-report-header,
+  .admin-report-layout,
+  .admin-report-kpis,
+  .admin-general-report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-report-header {
+    display: grid;
+  }
 }
