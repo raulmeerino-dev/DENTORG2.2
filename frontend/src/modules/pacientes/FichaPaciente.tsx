@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, Presupuesto, TrabajoLaboratorio } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, Presupuesto, TrabajoLaboratorio, UserRole } from '../../types/api';
 import { formatDate, fullName, money } from '../../lib/utils';
 import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
@@ -114,6 +114,7 @@ export function PatientForm({
   onEmitirFactura,
   onRegistrarCobro,
   onHistorialFacturas,
+  userRole,
 }: {
   paciente: ApiPaciente | null;
   facturas: Factura[];
@@ -137,6 +138,7 @@ export function PatientForm({
   onEmitirFactura: () => void;
   onRegistrarCobro: (factura?: Factura | null) => void;
   onHistorialFacturas: () => void;
+  userRole?: UserRole | null;
 }) {
   const totals = getBillingTotals(facturas);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
@@ -206,6 +208,7 @@ export function PatientForm({
         readOnly
         enableQuickTreatments={false}
         className="patient-summary-odontogram odontogram-summary-flow"
+        userRole={userRole}
       />
 
       <section className="patient-next-card">

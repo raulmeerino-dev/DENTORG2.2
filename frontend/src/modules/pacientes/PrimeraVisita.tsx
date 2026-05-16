@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ApiPaciente } from '../../types/api';
+import type { ApiPaciente, UserRole } from '../../types/api';
 import { PatientOdontogramFlow } from '../odontogram';
 
 export type PrimeraVisitaData = {
@@ -36,10 +36,12 @@ export function PrimeraVisitaPanel({
   paciente,
   onSave,
   saving,
+  userRole,
 }: {
   paciente: ApiPaciente | null;
   onSave: (data: PrimeraVisitaData) => void;
   saving: boolean;
+  userRole?: UserRole | null;
 }) {
   const [data, setData] = useState<PrimeraVisitaData>(() => getPrimeraVisita(paciente));
 
@@ -96,6 +98,7 @@ export function PrimeraVisitaPanel({
         mode="initialVisit"
         title="Odontograma base"
         subtitle="Estado inicial de la boca en primera visita. Este mapa se reutilizara despues en presupuestos, pendientes y realizados."
+        userRole={userRole}
       />
     </section>
   );

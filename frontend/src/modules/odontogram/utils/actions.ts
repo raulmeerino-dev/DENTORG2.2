@@ -39,7 +39,13 @@ export const odontogramaActionLabels: Record<OdontogramaAction, string> = {
 
 export function getAvailableActions(
   mode: OdontogramaToolMode,
-  permissions: { canEdit?: boolean } = {},
+  permissions: {
+    canEdit?: boolean;
+    canSchedule?: boolean;
+    canCompleteTreatment?: boolean;
+    canAttachDocument?: boolean;
+    canViewBilling?: boolean;
+  } = {},
 ): OdontogramaAction[] {
   if (mode === 'lectura') return [];
   if (mode === 'diagnostico') {
@@ -48,8 +54,19 @@ export function getAvailableActions(
   if (mode === 'presupuesto') {
     return permissions.canEdit ? ['anadir_linea', 'actualizar_linea', 'quitar_linea'] : [];
   }
-  if (mode === 'pendiente') return ['dar_cita', 'marcar_en_proceso', 'marcar_realizado'];
-  if (mode === 'realizado') return ['ver_detalle', 'asociar_documento', 'ver_factura'];
+  if (mode === 'pendiente') {
+    return [
+      ...(permissions.canSchedule ? ['dar_cita' as const] : []),
+      ...(permissions.canCompleteTreatment ? ['marcar_en_proceso' as const, 'marcar_realizado' as const] : []),
+    ];
+  }
+  if (mode === 'realizado') {
+    return [
+      'ver_detalle',
+      ...(permissions.canAttachDocument ? ['asociar_documento' as const] : []),
+      ...(permissions.canViewBilling ? ['ver_factura' as const] : []),
+    ];
+  }
   if (mode === 'historial') return ['filtrar_pieza', 'ver_evento', 'abrir_documento'];
   if (mode === 'documentos') return ['asociar_documento_pieza', 'abrir_documento'];
   return [];

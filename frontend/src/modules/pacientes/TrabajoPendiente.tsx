@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent } from 'react';
-import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea } from '../../types/api';
+import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, UserRole } from '../../types/api';
 import { colorForTreatment, formatDate, money, normalizeText } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { PatientOdontogramFlow } from '../odontogram';
@@ -21,12 +21,14 @@ export function TrabajoPendientePanel({
   paciente,
   onDarCita,
   onContextLinea,
+  userRole,
 }: {
   presupuestos: Presupuesto[];
   citas: Cita[];
   paciente?: ApiPaciente | null;
   onDarCita: (linea: PresupuestoLinea) => void;
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
+  userRole?: UserRole | null;
 }) {
   const rows = presupuestos.flatMap((presupuesto) => (
     presupuesto.lineas
@@ -70,6 +72,7 @@ export function TrabajoPendientePanel({
         subtitle="Mapa clinico compartido para ubicar trabajos aceptados y pendientes."
         readOnly
         enableQuickTreatments={false}
+        userRole={userRole}
       />
     </section>
   );

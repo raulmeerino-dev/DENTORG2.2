@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
-import type { ApiPaciente, Factura, HistorialClinico, PagoAnticipadoPaciente } from '../../types/api';
+import type { ApiPaciente, Factura, HistorialClinico, PagoAnticipadoPaciente, UserRole } from '../../types/api';
 import { colorForTreatment, formatDate, money } from '../../lib/utils';
 import type { TreatmentVisual } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
@@ -399,7 +399,7 @@ export function InvoiceHistoryModal({
   );
 }
 
-export function ClinicalHistoryPanel({ paciente, historial, onFacturar, onCobrar, onVerDeuda, onAsociarFactura }: { paciente: ApiPaciente | null; historial: HistorialClinico[]; onFacturar: () => void; onCobrar: () => void; onVerDeuda: () => void; onAsociarFactura: () => void }) {
+export function ClinicalHistoryPanel({ paciente, historial, onFacturar, onCobrar, onVerDeuda, onAsociarFactura, userRole }: { paciente: ApiPaciente | null; historial: HistorialClinico[]; onFacturar: () => void; onCobrar: () => void; onVerDeuda: () => void; onAsociarFactura: () => void; userRole?: UserRole | null }) {
   return (
     <section className="desk-panel">
       <div className="panel-caption"><strong>Historial clinico</strong><span>Observaciones por tratamiento, no mezcladas con la ficha general</span></div>
@@ -434,6 +434,7 @@ export function ClinicalHistoryPanel({ paciente, historial, onFacturar, onCobrar
         subtitle="Mapa de lectura para filtrar y consultar la evolucion clinica por pieza."
         readOnly
         enableQuickTreatments={false}
+        userRole={userRole}
       />
     </section>
   );

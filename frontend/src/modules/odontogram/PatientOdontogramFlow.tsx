@@ -5,7 +5,7 @@ import {
   updateOdontogramaPieza,
   updateOdontogramaSuperficie,
 } from '../../lib/api';
-import type { ApiPaciente, OdontogramaSurfaceName } from '../../types/api';
+import type { ApiPaciente, OdontogramaSurfaceName, UserRole } from '../../types/api';
 import { odontogramaBackendToVisual, odontogramChangeToBackendPatch } from './adapters/backendAdapter';
 import { OdontogramaTool } from './OdontogramaTool';
 import { odontogramModeConfig } from './data/modeConfig';
@@ -19,6 +19,7 @@ type PatientOdontogramFlowProps = {
   readOnly?: boolean;
   enableQuickTreatments?: boolean;
   className?: string;
+  userRole?: UserRole | null;
 };
 
 const modeToToolMode: Record<OdontogramMode, OdontogramaToolMode> = {
@@ -42,6 +43,7 @@ export function PatientOdontogramFlow({
   readOnly,
   enableQuickTreatments,
   className,
+  userRole,
 }: PatientOdontogramFlowProps) {
   const modeConfig = odontogramModeConfig[mode];
   const toolMode = modeToToolMode[mode];
@@ -106,6 +108,7 @@ export function PatientOdontogramFlow({
         totalBudget={0}
         readOnly={effectiveReadOnly || updateMutation.isPending}
         enableQuickTreatments={effectiveQuickTreatments && !effectiveReadOnly}
+        userRole={userRole}
         onChange={(_, change) => {
           if (!effectiveReadOnly && usesDirectBaseData) updateMutation.mutate(change);
         }}
