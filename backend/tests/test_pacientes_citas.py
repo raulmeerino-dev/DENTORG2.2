@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
@@ -108,6 +108,20 @@ async def test_paciente_no_accesible_desde_otra_clinica(client: AsyncClient, db_
     listed = await client.get("/api/pacientes?q=Clara", headers=other_headers)
     assert listed.status_code == 200
     assert listed.json() == []
+
+    db_session.add(DocumentoPaciente(
+        paciente_id=UUID(created.json()["id"]),
+        nombre_original="privado.pdf",
+        nombre_guardado="privado.pdf",
+        ruta="pacientes/test/privado.pdf",
+        mime_type="application/pdf",
+        tamano_bytes=64,
+        categoria="radiografia",
+    ))
+    await db_session.commit()
+
+    forbidden_documents = await client.get(f"/api/pacientes/{created.json()['id']}/documentos", headers=other_headers)
+    assert forbidden_documents.status_code == 403
 
 
 @pytest.mark.asyncio

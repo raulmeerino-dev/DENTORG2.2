@@ -18,6 +18,7 @@ from app.core.permissions import (
 )
 from app.database import get_db
 from app.models.factura import Cobro, Factura, FacturaLinea
+from app.models.historial import HistorialClinico
 from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
 from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
@@ -615,16 +616,28 @@ async def convertir_presupuesto_a_factura(
     db.add(factura)
     await db.flush()
 
+    trabajos_result = await db.execute(
+        select(TrabajoPendiente).where(TrabajoPendiente.presupuesto_linea_id.in_([linea.id for linea in lineas]))
+    )
+    trabajos_por_linea = {trabajo.presupuesto_linea_id: trabajo for trabajo in trabajos_result.scalars().all()}
+
     for linea in lineas:
         base, iva, total_linea = _importe_linea(linea)
+        trabajo = trabajos_por_linea.get(linea.id)
+        historial_id = trabajo.historial_id if trabajo else None
         db.add(FacturaLinea(
             factura_id=factura.id,
+            historial_id=historial_id,
             concepto=linea.tratamiento.nombre,
             cantidad=1,
             precio_unitario=base,
             iva_porcentaje=linea.tratamiento.iva_porcentaje,
             subtotal=total_linea,
         ))
+        if historial_id:
+            historial = await db.get(HistorialClinico, historial_id)
+            if historial and historial.factura_id is None:
+                historial.factura_id = factura.id
 
     await sellar_factura(db, factura)
     await registrar_registro_facturacion(

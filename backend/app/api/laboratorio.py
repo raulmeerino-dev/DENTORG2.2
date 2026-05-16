@@ -9,13 +9,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, RequireAdmin
+from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
 from app.database import get_db
 from app.models.laboratorio import Laboratorio, TrabajoLaboratorio
+from app.models.paciente import Paciente
+from app.models.doctor import Doctor
 
 router = APIRouter()
 
@@ -213,10 +215,21 @@ def _trabajo_query():
     )
 
 
+async def _get_trabajo_or_404(db: AsyncSession, trabajo_id: uuid.UUID, current_user: CurrentUser) -> TrabajoLaboratorio:
+    result = await db.execute(
+        _trabajo_query().where(TrabajoLaboratorio.id == trabajo_id)
+    )
+    trabajo = result.scalar_one_or_none()
+    if not trabajo:
+        raise HTTPException(status_code=404, detail="Trabajo no encontrado")
+    ensure_clinic_access(current_user, trabajo.paciente.clinica_id if trabajo.paciente else None)
+    return trabajo
+
+
 @router.get("/laboratorio/trabajos", response_model=list[TrabajoResponse])
 async def listar_trabajos(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     laboratorio_id: uuid.UUID | None = Query(None),
     paciente_id: uuid.UUID | None = Query(None),
     doctor_id: uuid.UUID | None = Query(None),
@@ -224,6 +237,10 @@ async def listar_trabajos(
     pendientes: bool = Query(False),  # solo estados activos (pendiente/enviado/en_proceso)
 ) -> list[TrabajoResponse]:
     q = _trabajo_query().order_by(TrabajoLaboratorio.created_at.desc())
+    if current_user.rol != "admin" and current_user.clinica_id:
+        q = q.join(TrabajoLaboratorio.paciente).where(
+            or_(Paciente.clinica_id == current_user.clinica_id, Paciente.clinica_id.is_(None))
+        )
     if laboratorio_id:
         q = q.where(TrabajoLaboratorio.laboratorio_id == laboratorio_id)
     if paciente_id:
@@ -242,8 +259,16 @@ async def listar_trabajos(
 async def crear_trabajo(
     data: TrabajoCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> TrabajoResponse:
+    paciente = await db.get(Paciente, data.paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    doctor = await db.get(Doctor, data.doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    ensure_clinic_access(current_user, doctor.clinica_id)
     trabajo = TrabajoLaboratorio(**data.model_dump())
     db.add(trabajo)
     await db.commit()
@@ -257,11 +282,9 @@ async def actualizar_trabajo(
     trabajo_id: uuid.UUID,
     data: TrabajoUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ) -> TrabajoResponse:
-    trabajo = await db.get(TrabajoLaboratorio, trabajo_id)
-    if not trabajo:
-        raise HTTPException(status_code=404, detail="Trabajo no encontrado")
+    trabajo = await _get_trabajo_or_404(db, trabajo_id, current_user)
     cambios = data.model_dump(exclude_none=True)
     if "estado" in cambios and cambios["estado"] not in ESTADOS_VALIDOS:
         raise HTTPException(status_code=422, detail=f"Estado inválido. Válidos: {', '.join(ESTADOS_VALIDOS)}")
@@ -276,9 +299,8 @@ async def actualizar_trabajo(
 async def eliminar_trabajo(
     trabajo_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> None:
-    trabajo = await db.get(TrabajoLaboratorio, trabajo_id)
-    if not trabajo:
-        raise HTTPException(status_code=404, detail="Trabajo no encontrado")
+    trabajo = await _get_trabajo_or_404(db, trabajo_id, current_user)
     await db.delete(trabajo)
     await db.commit()

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { MouseEvent } from 'react';
-import type { ApiPaciente, DocumentoPaciente } from '../../types/api';
+import type { ApiPaciente, DocumentoPaciente, UserRole } from '../../types/api';
 import { formatDate } from '../../lib/utils';
 import { openDocumentoPaciente } from '../../lib/api';
 import { PatientOdontogramFlow } from '../odontogram';
@@ -11,12 +11,14 @@ export function DocumentosPanel({
   documentos,
   onSubir,
   onContextDocumento,
+  userRole,
 }: {
   paciente: ApiPaciente | null;
   pacienteId: string | null;
   documentos: DocumentoPaciente[];
   onSubir: (data: { archivo: File; categoria: string; descripcion?: string; fecha_documento?: string; etiquetas?: string }) => void;
   onContextDocumento: (event: MouseEvent, documento: DocumentoPaciente) => void;
+  userRole?: UserRole | null;
 }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [categoria, setCategoria] = useState('otro');
@@ -64,6 +66,7 @@ export function DocumentosPanel({
         subtitle="Capa de documentos reales vinculados a historial, tratamiento o pieza del paciente."
         readOnly
         enableQuickTreatments={false}
+        userRole={userRole}
       />
       <table className="euro-table">
         <thead><tr><th>Fecha</th><th>Categoria</th><th>Archivo</th><th>Tratamiento</th><th>Profesional</th><th>Notas</th><th>Etiquetas</th><th>Acciones</th></tr></thead>

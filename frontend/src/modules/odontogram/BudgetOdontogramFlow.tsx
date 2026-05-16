@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addPresupuestoLinea, getOdontogramaPaciente, saveOdontograma } from '../../lib/api';
-import type { ApiPaciente, Presupuesto, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Presupuesto, TratamientoCatalogo, UserRole } from '../../types/api';
 import { odontogramaBackendToVisual } from './adapters/backendAdapter';
 import {
   budgetToVisualOdontogram,
@@ -16,9 +16,10 @@ type BudgetOdontogramFlowProps = {
   paciente: ApiPaciente;
   presupuesto: Presupuesto;
   tratamientos: TratamientoCatalogo[];
+  userRole?: UserRole | null;
 };
 
-export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: BudgetOdontogramFlowProps) {
+export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, userRole }: BudgetOdontogramFlowProps) {
   const queryClient = useQueryClient();
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
   const odontogramaQuery = useQuery({
@@ -79,6 +80,7 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos }: Bu
         readOnly={addTreatmentMutation.isPending}
         enableQuickTreatments
         tratamientos={tratamientos}
+        userRole={userRole}
         onAddTreatment={handleAddTreatment}
       />
       {addTreatmentMutation.isPending && <div className="odontogram-flow-status">Anadiendo linea...</div>}

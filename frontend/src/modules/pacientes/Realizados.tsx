@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { ApiPaciente, Consentimiento, HistorialClinico, Presupuesto, PresupuestoLinea, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Consentimiento, HistorialClinico, Presupuesto, PresupuestoLinea, TratamientoCatalogo, UserRole } from '../../types/api';
 import { colorForTreatment, formatDate, money, normalizeText } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { PatientOdontogramFlow } from '../odontogram';
@@ -138,6 +138,7 @@ export function TratamientosRealizadosPanel({
   doctorName,
   doctorColor,
   tratamientos,
+  userRole,
 }: {
   historial: HistorialClinico[];
   consentimientos: Consentimiento[];
@@ -146,6 +147,7 @@ export function TratamientosRealizadosPanel({
   doctorName: string;
   doctorColor?: string | null;
   tratamientos: TratamientoCatalogo[];
+  userRole?: UserRole | null;
 }) {
   const realizados = historial.filter((entrada) => hasFinishedState(entrada.estado));
 
@@ -199,6 +201,7 @@ export function TratamientosRealizadosPanel({
         subtitle="Estado real de la boca tras tratamientos realizados."
         readOnly
         enableQuickTreatments={false}
+        userRole={userRole}
       />
     </div>
   );

@@ -59,7 +59,7 @@ export const api = axios.create({
 
 export const AUTH_TOKEN_KEY = 'dentorg_token';
 const DEMO_TOKEN_PREFIX = 'demo:';
-const DEMO_FALLBACK_ENABLED = import.meta.env.VITE_DEMO_FALLBACK !== 'false';
+const DEMO_FALLBACK_ENABLED = import.meta.env.VITE_DEMO_FALLBACK === 'true';
 
 function addMinutesLocal(time: string, minutes: number) {
   const [hour, minute] = time.split(':').map(Number);

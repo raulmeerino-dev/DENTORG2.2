@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, TratamientoCatalogo, UserRole } from '../../types/api';
 import {
   addPresupuestoLinea,
   aceptarPresupuesto,
@@ -24,7 +24,7 @@ const ESTADO_COLOR: Record<string, string> = {
   facturado: '#7c3aed',
 };
 
-export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { presupuesto: Presupuesto; paciente: ApiPaciente; tratamientos: TratamientoCatalogo[] }) {
+export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole }: { presupuesto: Presupuesto; paciente: ApiPaciente; tratamientos: TratamientoCatalogo[]; userRole?: UserRole | null }) {
   const queryClient = useQueryClient();
   const [selectedTreatmentId, setSelectedTreatmentId] = useState(tratamientos[0]?.id ?? '');
   const [lineaSeleccionada, setLineaSeleccionada] = useState<PresupuestoLinea | null>(presupuesto.lineas[0] ?? null);
@@ -182,6 +182,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos }: { pres
         paciente={paciente}
         presupuesto={presupuesto}
         tratamientos={tratamientos}
+        userRole={userRole}
       />
 
       {/* Workbench */}

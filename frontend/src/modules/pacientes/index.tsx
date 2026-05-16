@@ -2,6 +2,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../auth/AuthContext';
 import {
   createConsentimientoPaciente,
   createFacturaDesdeHistorial,
@@ -116,6 +117,7 @@ const WORK_TABS: Array<{ id: WorkTab; label: string }> = [
   { id: 'facturacion', label: 'Historial / Fact.' },
 ];
 export default function PacientesPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<ApiPaciente | null>(null);
@@ -647,6 +649,7 @@ export default function PacientesPage() {
               onEmitirFactura={() => setInvoiceCreatorOpen(true)}
               onRegistrarCobro={abrirCobroDesdeFicha}
               onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
+              userRole={user?.rol}
             />
           </div>
         )}
@@ -659,6 +662,7 @@ export default function PacientesPage() {
             doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
             doctorColor={doctoresQuery.data?.[0]?.color_agenda}
             tratamientos={tratamientosQuery.data ?? []}
+            userRole={user?.rol}
           />
         )}
         {tab === 'pendiente' && (
@@ -668,6 +672,7 @@ export default function PacientesPage() {
             paciente={active}
             onDarCita={darCitaParaTratamiento}
             onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
+            userRole={user?.rol}
           />
         )}
         {tab === 'presupuestos' && (
@@ -709,6 +714,7 @@ export default function PacientesPage() {
                   presupuesto={presupuesto}
                   paciente={active!}
                   tratamientos={tratamientosQuery.data ?? []}
+                  userRole={user?.rol}
                 />
               );
             })()}
@@ -719,6 +725,7 @@ export default function PacientesPage() {
             paciente={active}
             onSave={(data) => guardarPrimeraVisita.mutate(data)}
             saving={guardarPrimeraVisita.isPending}
+            userRole={user?.rol}
           />
         )}
         {tab === 'historial' && (
@@ -729,6 +736,7 @@ export default function PacientesPage() {
             onCobrar={() => cobrarFactura.mutate()}
             onVerDeuda={verSaldoPaciente}
             onAsociarFactura={asociarFactura}
+            userRole={user?.rol}
           />
         )}
         {tab === 'citas' && <CitasPacientePanel citas={citasPacienteQuery.data ?? []} />}
@@ -765,6 +773,7 @@ export default function PacientesPage() {
             documentos={documentosQuery.data ?? []}
             onSubir={(data) => subirDocumento.mutate(data)}
             onContextDocumento={(event, documento) => openContext(event, { kind: 'documento', documento })}
+            userRole={user?.rol}
           />
         )}
         {tab === 'laboratorio' && <LaboratorioPacientePanel trabajos={laboratorioPacienteQuery.data ?? []} />}

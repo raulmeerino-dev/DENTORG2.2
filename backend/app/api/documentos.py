@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.permissions import CurrentUser
+from app.core.permissions import CurrentUser, ensure_clinic_access
 from app.core.throttling import ensure_upload_allowed
 from app.database import get_db
 from app.models.documento import CATEGORIAS_DOCUMENTO, DocumentoPaciente
@@ -138,12 +138,13 @@ def _validar_y_determinar_archivo(nombre_original: str, contenido: bytes) -> tup
 async def listar_documentos(
     paciente_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     categoria: str | None = None,
 ):
     pac = await db.get(Paciente, paciente_id)
     if not pac:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, pac.clinica_id)
 
     q = (
         select(DocumentoPaciente)
@@ -163,7 +164,7 @@ async def subir_documento(
     paciente_id: uuid.UUID,
     request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     archivo: UploadFile = File(...),
     categoria: str = Form("otro"),
     descripcion: str | None = Form(None),
@@ -176,6 +177,7 @@ async def subir_documento(
     pac = await db.get(Paciente, paciente_id)
     if not pac:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, pac.clinica_id)
 
     if categoria not in CATEGORIAS_DOCUMENTO:
         raise HTTPException(
@@ -227,11 +229,12 @@ async def generar_documento_pdf(
     paciente_id: uuid.UUID,
     data: DocumentoPdfCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ):
     pac = await db.get(Paciente, paciente_id)
     if not pac:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, pac.clinica_id)
     if data.categoria not in CATEGORIAS_DOCUMENTO:
         raise HTTPException(
             status_code=422,
@@ -280,11 +283,15 @@ async def descargar_documento(
     paciente_id: uuid.UUID,
     doc_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ):
     doc = await db.get(DocumentoPaciente, doc_id)
     if not doc or doc.paciente_id != paciente_id:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
+    pac = await db.get(Paciente, paciente_id)
+    if not pac:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, pac.clinica_id)
 
     ruta_abs = UPLOAD_ROOT / str(paciente_id) / doc.nombre_guardado
     if not ruta_abs.exists():
@@ -307,11 +314,15 @@ async def eliminar_documento(
     paciente_id: uuid.UUID,
     doc_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
 ):
     doc = await db.get(DocumentoPaciente, doc_id)
     if not doc or doc.paciente_id != paciente_id:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
+    pac = await db.get(Paciente, paciente_id)
+    if not pac:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, pac.clinica_id)
 
     ruta_abs = UPLOAD_ROOT / str(paciente_id) / doc.nombre_guardado
     if ruta_abs.exists():

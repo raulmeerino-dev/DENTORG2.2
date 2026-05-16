@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getOdontogramaContexto } from '../../lib/api';
 import { fullName } from '../../lib/utils';
-import type { ApiPaciente, OdontogramaContextMode, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, OdontogramaContextMode, TratamientoCatalogo, UserRole } from '../../types/api';
 import { Odontogram } from './components/Odontogram';
 import { OdontogramaContextActions } from './components/OdontogramaContextActions';
 import { treatmentCatalogToQuickTreatments } from './adapters/budgetAdapter';
@@ -30,6 +30,7 @@ type OdontogramaToolProps = {
   onAction?: (action: OdontogramaAction, payload: Record<string, unknown>) => void;
   onChange?: (nextData: ToothData[], change: OdontogramChange) => void;
   onAddTreatment?: (treatment: Treatment, selection: ToothSelection, nextData: ToothData[]) => void;
+  userRole?: UserRole | null;
 };
 
 const modeText: Record<OdontogramaToolMode, { title: string; subtitle: string }> = {
@@ -77,6 +78,7 @@ export function OdontogramaTool({
   onAction,
   onChange,
   onAddTreatment,
+  userRole,
 }: OdontogramaToolProps) {
   const contextQuery = useQuery({
     queryKey: ['odontograma-contexto', paciente?.id, mode, contextId],
@@ -90,7 +92,20 @@ export function OdontogramaTool({
     [contextQuery.data, data, mode],
   );
   const quickTreatments = useMemo(() => treatmentCatalogToQuickTreatments(tratamientos), [tratamientos]);
-  const actions = getAvailableActions(mode, { canEdit: readOnly !== true });
+  const role = userRole ?? undefined;
+  const canEditDiagnosis = role === 'admin' || role === 'doctor';
+  const canEditBudget = role === 'admin' || role === 'doctor' || role === 'recepcion';
+  const canSchedule = role === 'admin' || role === 'doctor' || role === 'recepcion' || role === 'auxiliar';
+  const canCompleteTreatment = role === 'admin' || role === 'doctor';
+  const canAttachDocument = role === 'admin' || role === 'doctor' || role === 'auxiliar';
+  const canViewBilling = role === 'admin' || role === 'recepcion';
+  const actions = getAvailableActions(mode, {
+    canEdit: readOnly !== true && (mode === 'diagnostico' ? canEditDiagnosis : canEditBudget),
+    canSchedule,
+    canCompleteTreatment,
+    canAttachDocument,
+    canViewBilling,
+  });
   const odontogramMode = mapToolModeToOdontogramMode(mode);
   const forcedReadOnly = readOnly ?? mode === 'lectura';
   const quickTreatmentsEnabled = enableQuickTreatments ?? mode === 'presupuesto';

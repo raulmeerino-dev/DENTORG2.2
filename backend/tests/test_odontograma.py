@@ -1,3 +1,4 @@
+from datetime import date
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import hash_password
 from app.models.documento import DocumentoPaciente
 from app.models.doctor import Doctor
+from app.models.factura import FormaPago
+from app.models.historial import HistorialClinico
 from app.models.presupuesto import Presupuesto, PresupuestoLinea
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
 from app.models.usuario import Usuario
@@ -37,7 +40,8 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     headers = await auth_headers(client, db_session)
     doctor = Doctor(nombre="Dra. Odontograma", color_agenda="#0f766e", activo=True)
     familia = FamiliaTratamiento(nombre="Endodoncia", icono="EN", orden=1)
-    db_session.add_all([doctor, familia])
+    forma_pago = FormaPago(nombre="Efectivo", activo=True)
+    db_session.add_all([doctor, familia, forma_pago])
     await db_session.flush()
     tratamiento = TratamientoCatalogo(
         familia_id=familia.id,
@@ -76,6 +80,14 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
         json={"estado_general": "caries"},
     )
     assert invalid_piece.status_code == 422
+
+    recepcion_headers = await auth_headers(client, db_session, rol="recepcion")
+    forbidden_clinical_change = await client.patch(
+        f"/api/odontogramas/{odontograma_id}/piezas/24/superficies/mesial",
+        headers=recepcion_headers,
+        json={"condicion": "caries"},
+    )
+    assert forbidden_clinical_change.status_code == 403
 
     surface = await client.patch(
         f"/api/odontogramas/{odontograma_id}/piezas/24/superficies/lingual_palatina",
@@ -200,6 +212,45 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert documento_surface["context_state"] == "documento_asociado"
     assert documento_surface["documentos"][0]["nombre"] == "rx-24.pdf"
 
+    factura_response = await client.post(
+        f"/api/presupuestos/{presupuesto_id}/convertir-a-factura",
+        headers=headers,
+        json={"serie": "A", "fecha": date.today().isoformat(), "forma_pago_id": str(forma_pago.id), "solo_aceptadas": True},
+    )
+    assert factura_response.status_code == 201
+    factura_id = factura_response.json()["id"]
+    assert factura_response.json()["estado"] == "emitida"
+    assert factura_response.json()["huella"]
+    historial_facturado = await db_session.get(HistorialClinico, UUID(realizado.json()["historial_id"]))
+    assert historial_facturado is not None
+    assert historial_facturado.factura_id == UUID(factura_id)
+
+    cobro_response = await client.post(
+        f"/api/facturas/{factura_id}/cobros",
+        headers=headers,
+        json={"importe": "150.00", "forma_pago_id": str(forma_pago.id), "notas": "Cobro completo"},
+    )
+    assert cobro_response.status_code == 201
+    assert cobro_response.json()["estado"] == "pagada"
+    cobro_id = cobro_response.json()["cobros"][0]["id"]
+
+    anular_cobro = await client.post(
+        f"/api/facturas/{factura_id}/cobros/{cobro_id}/anular",
+        headers=headers,
+        json={"motivo": "Prueba de anulacion trazable"},
+    )
+    assert anular_cobro.status_code == 204
+    factura_tras_anular_cobro = await client.get(f"/api/facturas/{factura_id}", headers=headers)
+    assert factura_tras_anular_cobro.status_code == 200
+    assert factura_tras_anular_cobro.json()["estado"] == "emitida"
+    assert factura_tras_anular_cobro.json()["cobros"][0]["anulado_at"]
+
+    anular_factura = await client.delete(f"/api/facturas/{factura_id}", headers=headers)
+    assert anular_factura.status_code == 204
+    factura_anulada = await client.get(f"/api/facturas/{factura_id}", headers=headers)
+    assert factura_anulada.status_code == 200
+    assert factura_anulada.json()["estado"] == "anulada"
+
     duplicated_items = await client.post(
         f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
         headers=headers,
@@ -223,6 +274,14 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     )
     assert duplicated_items.status_code == 201
     assert duplicated_items.json()["lineas_creadas"] == 1
+    stored_after_explicit_items = await client.get(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
+    piece_26 = next(
+        item for item in stored_after_explicit_items.json()["piezas"]
+        if item["pieza_fdi"] == 26
+    )
+    surface_26_mesial = next(item for item in piece_26["superficies"] if item["superficie"] == "mesial")
+    assert surface_26_mesial["condicion"] == "tratamiento_presupuestado"
+    assert surface_26_mesial["presupuesto_linea_id"]
 
     already_linked_items = await client.post(
         f"/api/odontogramas/{odontograma_id}/generar-presupuesto",
@@ -252,4 +311,9 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     historial = await client.get(f"/api/odontogramas/{odontograma_id}/historial", headers=headers)
     assert historial.status_code == 200
     actions = {item["accion"] for item in historial.json()}
-    assert {"actualizar_pieza", "actualizar_superficie", "crear_presupuesto_desde_plan"} <= actions
+    assert {
+        "actualizar_pieza",
+        "actualizar_superficie",
+        "crear_presupuesto_desde_plan",
+        "vincular_linea_presupuesto",
+    } <= actions

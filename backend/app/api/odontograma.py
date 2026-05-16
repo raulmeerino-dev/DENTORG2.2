@@ -195,6 +195,30 @@ async def _get_or_create_piece(db: AsyncSession, odontograma: Odontograma, pieza
     return piece
 
 
+async def _get_or_create_surface(
+    db: AsyncSession,
+    *,
+    piece: OdontogramaPieza,
+    superficie: str,
+) -> OdontogramaSuperficie:
+    for surface in piece.superficies:
+        if surface.superficie == superficie:
+            return surface
+    result = await db.execute(
+        select(OdontogramaSuperficie).where(
+            OdontogramaSuperficie.pieza_id == piece.id,
+            OdontogramaSuperficie.superficie == superficie,
+        )
+    )
+    surface = result.scalar_one_or_none()
+    if surface:
+        return surface
+    surface = OdontogramaSuperficie(pieza_id=piece.id, superficie=superficie)
+    db.add(surface)
+    await db.flush()
+    return surface
+
+
 def _surface_code(superficie: str | None) -> str | None:
     return {
         "mesial": "M",
@@ -756,17 +780,31 @@ async def crear_presupuesto_desde_plan(
         lineas_creadas += 1
         if item.pieza_fdi and item.superficie:
             piece = await _get_or_create_piece(db, odontograma, item.pieza_fdi)
-            result = await db.execute(
-                select(OdontogramaSuperficie).where(
-                    OdontogramaSuperficie.pieza_id == piece.id,
-                    OdontogramaSuperficie.superficie == normalized_surface,
-                )
+            surface = await _get_or_create_surface(db, piece=piece, superficie=normalized_surface)
+            old_values = {
+                "condicion": surface.condicion,
+                "tratamiento_planificado_id": (
+                    str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None
+                ),
+                "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
+            }
+            surface.condicion = "tratamiento_presupuestado"
+            surface.presupuesto_linea_id = linea.id
+            surface.tratamiento_planificado_id = item.tratamiento_id
+            await _add_event(
+                db,
+                odontograma=odontograma,
+                user=current_user,
+                action="vincular_linea_presupuesto",
+                pieza_fdi=item.pieza_fdi,
+                superficie=normalized_surface,
+                old_values=old_values,
+                new_values={
+                    "tratamiento_id": str(item.tratamiento_id),
+                    "presupuesto_linea_id": str(linea.id),
+                    "condicion": surface.condicion,
+                },
             )
-            surface = result.scalar_one_or_none()
-            if surface:
-                surface.condicion = "tratamiento_presupuestado"
-                surface.presupuesto_linea_id = linea.id
-                surface.tratamiento_planificado_id = item.tratamiento_id
     if lineas_creadas == 0:
         raise HTTPException(status_code=409, detail="Las superficies seleccionadas ya tienen presupuesto vinculado")
     await _add_event(
