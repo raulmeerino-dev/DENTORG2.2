@@ -6,7 +6,7 @@ Modelos de laboratorio dental.
 import uuid
 from datetime import date
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, SmallInteger, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, SmallInteger, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -68,7 +68,12 @@ class TrabajoLaboratorio(UUIDMixin, TimestampMixin, Base):
     presupuesto_linea_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("presupuesto_lineas.id"), nullable=True
     )
-    numero_orden: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    numero_orden: Mapped[int | None] = mapped_column(
+        Integer,
+        server_default=text("nextval('trabajos_lab_numero_orden_seq')"),
+        nullable=True,
+        index=True,
+    )
     referencia: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     referencia_interna: Mapped[str | None] = mapped_column(String(80), nullable=True)
     referencia_proveedor: Mapped[str | None] = mapped_column(String(80), nullable=True)

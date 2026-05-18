@@ -10,7 +10,7 @@ from datetime import date
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 DNI_NIE_RE = re.compile(r"^[0-9XYZ][0-9]{7}[A-Z]$", re.IGNORECASE)
 PHONE_RE = re.compile(r"^[+0-9 ()-]{6,20}$")
@@ -81,6 +81,18 @@ class PacienteBaseExtras(PacienteBase):
         if not DNI_NIE_RE.match(normalized):
             raise ValueError("DNI/NIE del pagador no válido")
         return normalized
+
+    @model_validator(mode="after")
+    def _validate_pagador_consistente(self):
+        """Si pagador_distinto=True, debe haber al menos pagador_nombre."""
+        pagador_distinto = getattr(self, "pagador_distinto", None)
+        if pagador_distinto is True:
+            nombre = getattr(self, "pagador_nombre", None)
+            if not nombre or not str(nombre).strip():
+                raise ValueError(
+                    "Si pagador_distinto=true, pagador_nombre es obligatorio"
+                )
+        return self
 
 
 class PacienteCreate(PacienteBaseExtras):

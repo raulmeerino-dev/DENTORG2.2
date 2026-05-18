@@ -93,7 +93,7 @@ export function PatientActionsMenu({
           <button type="button" role="menuitem" onClick={fire(handlers.onConsentimiento)}>Consentimiento informado</button>
           <button type="button" role="menuitem" onClick={fire(handlers.onRevocarConsentimiento)}>Revocar consentimiento</button>
           <button type="button" role="menuitem" onClick={fire(handlers.onCircular)}>Circular / justificante</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onCuestionarioMedico)}>Cuestionario medico</button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onCuestionarioMedico)}>Documento cuestionario medico</button>
           <button type="button" role="menuitem" onClick={fire(handlers.onDocumentoLOPD)}>Documento LOPD</button>
           <button
             type="button"
