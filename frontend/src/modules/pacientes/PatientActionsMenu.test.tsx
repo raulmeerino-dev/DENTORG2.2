@@ -82,6 +82,8 @@ describe('PatientActionsMenu', () => {
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
     expect(screen.getByRole('menuitem', { name: 'Crear receta' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Pedido de laboratorio' })).toBeDisabled();
+    // Label cambiado en F1
+    expect(screen.getByRole('menuitem', { name: 'Documento cuestionario medico' })).toBeInTheDocument();
   });
 
   it('si se proporcionan onCrearReceta y onPedidoLaboratorio, se habilitan', async () => {

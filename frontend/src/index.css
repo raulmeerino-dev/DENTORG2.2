@@ -11840,3 +11840,57 @@ html[data-theme="dark"] .laboratorio-row-actions button:hover {
   border-color: #58c8d3;
   color: #58c8d3;
 }
+
+/* Flash messages (toast) */
+.patient-flash {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  animation: patient-flash-in 180ms ease-out;
+}
+
+.patient-flash button {
+  background: transparent;
+  border: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+  padding: 2px 6px;
+}
+
+.patient-flash-success {
+  background: #d6f5e0;
+  border: 1px solid #2c8a52;
+  color: #15532e;
+}
+
+.patient-flash-error {
+  background: #fbd1d1;
+  border: 1px solid #c1432a;
+  color: #6e1818;
+}
+
+html[data-theme="dark"] .patient-flash-success {
+  background: #133b25;
+  border-color: #2c8a52;
+  color: #b6e6c4;
+}
+
+html[data-theme="dark"] .patient-flash-error {
+  background: #3a2520;
+  border-color: #c1432a;
+  color: #f7c8b8;
+}
+
+@keyframes patient-flash-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

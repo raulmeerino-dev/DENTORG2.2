@@ -163,6 +163,7 @@ export default function PacientesPage() {
   const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>('primera');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [billingLedgerOpen, setBillingLedgerOpen] = useState(false);
+  const [laboratorioDetailsOpen, setLaboratorioDetailsOpen] = useState(false);
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
   const [editingPatient, setEditingPatient] = useState(false);
   const [fullPatientOpen, setFullPatientOpen] = useState(false);
@@ -179,6 +180,13 @@ export default function PacientesPage() {
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
   const [recetasDrawerOpen, setRecetasDrawerOpen] = useState(false);
   const [recetaError, setRecetaError] = useState<string | null>(null);
+  const [flashMessage, setFlashMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (!flashMessage) return;
+    const t = window.setTimeout(() => setFlashMessage(null), 5000);
+    return () => window.clearTimeout(t);
+  }, [flashMessage]);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -555,6 +563,11 @@ export default function PacientesPage() {
       updateTrabajoLaboratorio(trabajoId, cambios),
     onSuccess: () => {
       void laboratorioPacienteQuery.refetch();
+      setFlashMessage({ kind: 'success', text: 'Trabajo de laboratorio actualizado.' });
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'No se pudo actualizar el trabajo de laboratorio';
+      setFlashMessage({ kind: 'error', text: message });
     },
   });
 
@@ -567,7 +580,10 @@ export default function PacientesPage() {
       setRecetaModalOpen(false);
       setRecetaError(null);
       void recetasPacienteQuery.refetch();
-      void openRecetaClinicaPdf(receta.id);
+      setFlashMessage({ kind: 'success', text: 'Receta creada. Abriendo PDF...' });
+      void openRecetaClinicaPdf(receta.id).catch(() => {
+        setFlashMessage({ kind: 'error', text: 'Receta creada pero el navegador bloqueó el PDF. Búscala en el historial.' });
+      });
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'No se pudo crear la receta';
@@ -597,10 +613,6 @@ export default function PacientesPage() {
     window.setTimeout(() => document.getElementById('patient-search-input')?.focus(), 0);
   }
 
-  function imprimirFicha() {
-    setDesigner(active ? { mode: 'circular' } : null);
-  }
-
   function abrirCobroDesdeFicha(factura?: Factura | null) {
     const target = getFacturaPendientePreferida(facturas, factura);
     if (target) {
@@ -626,11 +638,6 @@ export default function PacientesPage() {
   function abrirRecibos() {
     openPatientArea('historial');
     if (facturas[0]) window.open(facturaPdfUrl(facturas[0].id), '_blank');
-  }
-
-  function abrirEnlaces() {
-    setTab('pacientes');
-    setDocumentsDrawerOpen(true);
   }
 
   function openContext(event: MouseEvent, menu: PatientContextDraft) {
@@ -722,24 +729,6 @@ export default function PacientesPage() {
               {totalPendiente > 0 ? ` - ${money(totalPendiente)} pendiente` : ''}
             </small>
           </div>
-          <button
-            type="button"
-            className="patient-agenda-shortcut"
-            onClick={abrirAgendaPaciente}
-            disabled={!active}
-            title="Abrir agenda con este paciente"
-            aria-label="Abrir agenda con este paciente"
-          >
-            <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <rect x="2" y="4" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.8" />
-              <line x1="2" y1="9" x2="20" y2="9" stroke="currentColor" strokeWidth="1.6" />
-              <line x1="7" y1="2" x2="7" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <line x1="15" y1="2" x2="15" y2="6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="7" cy="14" r="1.2" fill="currentColor" />
-              <circle cx="11" cy="14" r="1.2" fill="currentColor" />
-              <circle cx="15" cy="14" r="1.2" fill="currentColor" />
-            </svg>
-          </button>
           <PatientActionsMenu
             paciente={active}
             busy={nuevoPresupuesto.isPending}
@@ -777,6 +766,12 @@ export default function PacientesPage() {
             <span />
             <span />
             <span />
+          </div>
+        )}
+        {flashMessage && (
+          <div className={`patient-flash patient-flash-${flashMessage.kind}`} role="status">
+            <span>{flashMessage.text}</span>
+            <button type="button" onClick={() => setFlashMessage(null)} aria-label="Cerrar mensaje">×</button>
           </div>
         )}
       </div>
@@ -827,7 +822,10 @@ export default function PacientesPage() {
               onOpenHistorial={() => openPatientArea('historial')}
               onOpenDocumentos={() => setDocumentsDrawerOpen(true)}
               onOpenConsentimientos={() => setDesigner(active ? { mode: 'consentimiento' } : null)}
-              onOpenLaboratorio={() => openPatientArea('historial')}
+              onOpenLaboratorio={() => {
+                setLaboratorioDetailsOpen(true);
+                openPatientArea('historial');
+              }}
               onEmitirFactura={() => setInvoiceCreatorOpen(true)}
               onRegistrarCobro={abrirCobroDesdeFicha}
               onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
@@ -1008,7 +1006,11 @@ export default function PacientesPage() {
               onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
               userRole={user?.rol}
             />
-            <details className="history-ledger-details">
+            <details
+              className="history-ledger-details"
+              open={laboratorioDetailsOpen}
+              onToggle={(event) => setLaboratorioDetailsOpen(event.currentTarget.open)}
+            >
               <summary>Trabajos de laboratorio del paciente {contarLaboratorioVencidos(laboratorioPacienteQuery.data ?? []) > 0 ? `(${contarLaboratorioVencidos(laboratorioPacienteQuery.data ?? [])} vencido${contarLaboratorioVencidos(laboratorioPacienteQuery.data ?? []) === 1 ? '' : 's'})` : ''}</summary>
               <LaboratorioPacientePanel
                 trabajos={laboratorioPacienteQuery.data ?? []}
@@ -1040,15 +1042,6 @@ export default function PacientesPage() {
           </section>
         )}
       </main>
-
-      {activeMainTab === 'pacientes' && (
-        <footer className="patient-bottom-bar">
-          <button onClick={focusPacienteSearch}>Buscar</button>
-          <button onClick={imprimirFicha}>Circular</button>
-          <button onClick={() => setDesigner(active ? { mode: 'consentimiento' } : null)}>Cons.Inf.</button>
-          <button onClick={abrirEnlaces}>Enlaces</button>
-        </footer>
-      )}
       {contextMenu && (
         <div className="context-menu patient-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
           {contextMenu.kind === 'paciente' && (
@@ -1149,7 +1142,11 @@ export default function PacientesPage() {
           laboratorios={laboratoriosCatalogoQuery.data ?? []}
           presupuestoLinea={pedidoLabContext.linea}
           saving={crearPedidoLab.isPending}
-          errorMessage={pedidoLabError}
+          errorMessage={pedidoLabError ?? (
+            (laboratoriosCatalogoQuery.data?.length ?? 0) === 0
+              ? 'No hay laboratorios configurados. Configura uno en Admin antes de crear pedidos.'
+              : null
+          )}
           onClose={() => {
             setPedidoLabContext({ open: false, linea: null });
             setPedidoLabError(null);

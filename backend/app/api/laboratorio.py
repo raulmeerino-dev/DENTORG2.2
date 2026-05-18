@@ -9,15 +9,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
 from app.database import get_db
+from app.models.doctor import Doctor
 from app.models.laboratorio import Laboratorio, TrabajoLaboratorio
 from app.models.paciente import Paciente
-from app.models.doctor import Doctor
 from app.services.audit import write_audit_log
 
 router = APIRouter()
@@ -289,15 +289,6 @@ async def listar_trabajos(
     return [TrabajoResponse.model_validate(t) for t in result.scalars().all()]
 
 
-async def _siguiente_numero_orden(db: AsyncSession, clinica_id: uuid.UUID | None) -> int:
-    """Calcula el siguiente numero de orden de laboratorio para la clinica."""
-    stmt = select(func.coalesce(func.max(TrabajoLaboratorio.numero_orden), 0))
-    if clinica_id is not None:
-        stmt = stmt.join(TrabajoLaboratorio.paciente).where(Paciente.clinica_id == clinica_id)
-    actual = await db.scalar(stmt) or 0
-    return int(actual) + 1
-
-
 @router.post("/laboratorio/trabajos", response_model=TrabajoResponse, status_code=status.HTTP_201_CREATED)
 async def crear_trabajo(
     data: TrabajoCreate,
@@ -320,11 +311,28 @@ async def crear_trabajo(
     if not laboratorio:
         raise HTTPException(status_code=404, detail="Laboratorio no encontrado")
 
+    if data.presupuesto_linea_id is not None:
+        from app.models.presupuesto import Presupuesto, PresupuestoLinea
+        linea = await db.scalar(
+            select(PresupuestoLinea)
+            .join(Presupuesto, Presupuesto.id == PresupuestoLinea.presupuesto_id)
+            .where(
+                PresupuestoLinea.id == data.presupuesto_linea_id,
+                Presupuesto.paciente_id == paciente.id,
+            )
+        )
+        if linea is None:
+            raise HTTPException(
+                status_code=400,
+                detail="La línea de presupuesto no pertenece a este paciente",
+            )
+
     payload = data.model_dump(exclude_none=True)
-    payload["numero_orden"] = await _siguiente_numero_orden(db, paciente.clinica_id)
     trabajo = TrabajoLaboratorio(**payload)
     db.add(trabajo)
     await db.flush()
+    # numero_orden lo asigna la BD via sequence (migration 0029)
+    await db.refresh(trabajo, ["numero_orden"])
     await write_audit_log(
         db,
         user=current_user,
