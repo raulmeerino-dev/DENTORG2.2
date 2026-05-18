@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -31,7 +31,9 @@ type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
 
 export default function AdminExtrasPage() {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState<Tab>('clinicas');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = (searchParams.get('tab') ?? 'clinicas') as Tab;
+  const tab = ADMIN_TABS.some((item) => item.id === requestedTab) ? requestedTab : 'clinicas';
   const [clinicaForm, setClinicaForm] = useState({ nombre: '', direccion: '' });
   const [productoForm, setProductoForm] = useState({
     nombre: '',
@@ -181,6 +183,10 @@ export default function AdminExtrasPage() {
     return () => window.removeEventListener('online', flushOfflineQueue);
   }, []);
 
+  function selectTab(nextTab: Tab) {
+    setSearchParams(nextTab === 'clinicas' ? {} : { tab: nextTab }, { replace: true });
+  }
+
   function submitClinica(event: FormEvent) {
     event.preventDefault();
     crearClinica.mutate();
@@ -203,7 +209,7 @@ export default function AdminExtrasPage() {
   }
 
   return (
-    <section className="page fichero-screen admin-extras">
+    <section className="page page-shell fichero-screen admin-extras">
       <div className="toolbar">
         <div>
           <p className="eyebrow">Admin</p>
@@ -214,7 +220,7 @@ export default function AdminExtrasPage() {
 
       <nav className="file-tabs">
         {ADMIN_TABS.map((item) => (
-          <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>
+          <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => selectTab(item.id)}>
             {item.label}
           </button>
         ))}

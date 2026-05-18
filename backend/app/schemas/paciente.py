@@ -56,7 +56,34 @@ class PacienteBase(BaseModel):
         return value
 
 
-class PacienteCreate(PacienteBase):
+SEXO_VALORES = {"M", "F", "otro"}
+
+
+class PacienteBaseExtras(PacienteBase):
+    """Campos opcionales compartidos entre Create y Update."""
+
+    @field_validator("sexo", mode="before", check_fields=False)
+    @classmethod
+    def validate_sexo(cls, value: str | None) -> str | None:
+        if value in (None, ""):
+            return None
+        normalized = value.strip()
+        if normalized not in SEXO_VALORES:
+            raise ValueError("Sexo no válido (use 'M', 'F' u 'otro')")
+        return normalized
+
+    @field_validator("pagador_dni", mode="before", check_fields=False)
+    @classmethod
+    def validate_pagador_dni(cls, value: str | None) -> str | None:
+        if value in (None, ""):
+            return None
+        normalized = value.strip().upper().replace(" ", "").replace("-", "")
+        if not DNI_NIE_RE.match(normalized):
+            raise ValueError("DNI/NIE del pagador no válido")
+        return normalized
+
+
+class PacienteCreate(PacienteBaseExtras):
     nombre: str = Field(..., min_length=1, max_length=100)
     apellidos: str = Field(..., min_length=1, max_length=150)
     fecha_nacimiento: date | None = None
@@ -76,9 +103,19 @@ class PacienteCreate(PacienteBase):
     observaciones: str | None = None
     datos_salud: dict[str, Any] | None = None
     clinica_id: UUID | None = None
+    # Ficha ampliada
+    sexo: str | None = Field(None, max_length=10)
+    profesion: str | None = Field(None, max_length=100)
+    pais: str | None = Field(None, max_length=100)
+    doctor_habitual_id: UUID | None = None
+    num_poliza: str | None = Field(None, max_length=80)
+    pagador_distinto: bool = False
+    pagador_nombre: str | None = Field(None, max_length=200)
+    pagador_dni: str | None = Field(None, max_length=20)
+    pagador_direccion: str | None = None
 
 
-class PacienteUpdate(PacienteBase):
+class PacienteUpdate(PacienteBaseExtras):
     nombre: str | None = Field(None, max_length=100)
     apellidos: str | None = Field(None, max_length=150)
     fecha_nacimiento: date | None = None
@@ -97,6 +134,16 @@ class PacienteUpdate(PacienteBase):
     datos_salud: dict[str, Any] | None = None
     activo: bool | None = None
     clinica_id: UUID | None = None
+    # Ficha ampliada
+    sexo: str | None = Field(None, max_length=10)
+    profesion: str | None = Field(None, max_length=100)
+    pais: str | None = Field(None, max_length=100)
+    doctor_habitual_id: UUID | None = None
+    num_poliza: str | None = Field(None, max_length=80)
+    pagador_distinto: bool | None = None
+    pagador_nombre: str | None = Field(None, max_length=200)
+    pagador_dni: str | None = Field(None, max_length=20)
+    pagador_direccion: str | None = None
 
 
 class ReferenciaResponse(BaseModel):
@@ -132,6 +179,19 @@ class PacienteResponse(BaseModel):
     activo: bool
     clinica_id: UUID | None = None
     referencias: list[ReferenciaResponse] = []
+    # Ficha ampliada
+    sexo: str | None = None
+    profesion: str | None = None
+    pais: str | None = None
+    doctor_habitual_id: UUID | None = None
+    num_poliza: str | None = None
+    pagador_distinto: bool = False
+    pagador_nombre: str | None = None
+    pagador_dni: str | None = None
+    pagador_direccion: str | None = None
+    # Calculados desde historial clínico (no persistidos)
+    fecha_primera_visita: date | None = None
+    fecha_ultima_visita: date | None = None
 
     model_config = {"from_attributes": True}
 

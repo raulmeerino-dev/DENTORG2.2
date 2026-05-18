@@ -10,6 +10,8 @@ export interface UsuarioMe {
   two_factor_enabled?: boolean;
 }
 
+export type PacienteSexo = 'M' | 'F' | 'otro';
+
 export interface ApiPaciente {
   id: string;
   codigo?: string | null;
@@ -28,6 +30,22 @@ export interface ApiPaciente {
   observaciones?: string | null;
   datos_salud?: Record<string, unknown> | null;
   activo: boolean;
+  clinica_id?: string | null;
+  entidad_id?: string | null;
+  entidad_alt_id?: string | null;
+  // Ficha ampliada (paridad Eurodent)
+  sexo?: PacienteSexo | null;
+  profesion?: string | null;
+  pais?: string | null;
+  doctor_habitual_id?: string | null;
+  num_poliza?: string | null;
+  pagador_distinto?: boolean;
+  pagador_nombre?: string | null;
+  pagador_dni?: string | null;
+  pagador_direccion?: string | null;
+  // Calculados desde historial clínico
+  fecha_primera_visita?: string | null;
+  fecha_ultima_visita?: string | null;
 }
 
 export interface PortalMe {
@@ -468,6 +486,48 @@ export interface Doctor {
   activo: boolean;
 }
 
+export interface RecetaClinica {
+  id: string;
+  paciente_id: string;
+  doctor_id: string;
+  clinica_id: string | null;
+  medicamento: string;
+  principio_activo: string | null;
+  forma_farmaceutica: string | null;
+  via_administracion: string | null;
+  unidades: string | null;
+  duracion: string | null;
+  posologia: string;
+  pauta: string | null;
+  diagnostico: string | null;
+  instrucciones_paciente: string | null;
+  instrucciones_farmacia: string | null;
+  fecha_prescripcion: string;
+  fecha_dispensacion: string | null;
+  firma_data_url: string | null;
+  pdf_generado_at: string | null;
+  created_at: string;
+  doctor?: { id: string; nombre: string } | null;
+}
+
+export interface RecetaCreateInput {
+  doctor_id: string;
+  medicamento: string;
+  posologia: string;
+  principio_activo?: string | null;
+  forma_farmaceutica?: string | null;
+  via_administracion?: string | null;
+  unidades?: string | null;
+  duracion?: string | null;
+  pauta?: string | null;
+  diagnostico?: string | null;
+  instrucciones_paciente?: string | null;
+  instrucciones_farmacia?: string | null;
+  fecha_prescripcion?: string | null;
+  fecha_dispensacion?: string | null;
+  firma_data_url?: string | null;
+}
+
 export interface Laboratorio {
   id: string;
   nombre: string;
@@ -487,8 +547,12 @@ export interface TrabajoLaboratorio {
   historial_id: string | null;
   tratamiento_id?: string | null;
   presupuesto_id?: string | null;
+  presupuesto_linea_id?: string | null;
   factura_id?: string | null;
+  numero_orden?: number | null;
   referencia?: string | null;
+  referencia_interna?: string | null;
+  referencia_proveedor?: string | null;
   tipo_trabajo?: string | null;
   descripcion: string;
   pieza_dental: number | null;
@@ -506,9 +570,41 @@ export interface TrabajoLaboratorio {
   comision_doctor_pct?: number | null;
   estado_pago_laboratorio?: string;
   estado_cobro_paciente?: string;
+  colocado?: boolean;
+  material_enviado?: boolean;
+  material_devuelto?: boolean;
   paciente: { id: string; nombre: string; apellidos: string; num_historial: number } | null;
   doctor: { id: string; nombre: string } | null;
   laboratorio: Laboratorio | null;
+}
+
+export interface TrabajoLaboratorioCreateInput {
+  paciente_id: string;
+  doctor_id: string;
+  laboratorio_id: string;
+  descripcion: string;
+  tipo_trabajo?: string | null;
+  pieza_dental?: number | null;
+  color?: string | null;
+  observaciones?: string | null;
+  fecha_entrega_prevista?: string | null;
+  referencia_interna?: string | null;
+  referencia_proveedor?: string | null;
+  presupuesto_id?: string | null;
+  presupuesto_linea_id?: string | null;
+  tratamiento_id?: string | null;
+  material_enviado?: boolean | null;
+}
+
+export interface TrabajoLaboratorioUpdateInput {
+  estado?: string;
+  fecha_recepcion?: string | null;
+  fecha_entrega_paciente?: string | null;
+  colocado?: boolean;
+  material_enviado?: boolean;
+  material_devuelto?: boolean;
+  referencia_proveedor?: string | null;
+  observaciones?: string | null;
 }
 
 export interface ReportKpis {

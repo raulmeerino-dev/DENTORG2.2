@@ -1042,7 +1042,7 @@ export default function AgendaPage() {
   const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
 
   return (
-    <section className="page agenda-euro" onClick={() => setContextMenu(null)}>
+    <section className="page page-shell agenda-euro" onClick={() => setContextMenu(null)}>
       <AgendaToolbar
         day={day}
         doctorId={doctorId}

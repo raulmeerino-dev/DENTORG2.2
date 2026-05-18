@@ -8203,6 +8203,92 @@ html[data-theme="dark"] .hoy-patient-link {
 }
 
 /* ── Presupuesto selector / pills ───────────────────── */
+.budget-workflow-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #cfe0e9;
+  border-radius: 10px;
+  background: #f8fcfe;
+}
+
+.budget-workflow-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.budget-workflow-header strong {
+  font-size: 0.98rem;
+  font-weight: 900;
+  color: #0f3146;
+}
+
+.budget-workflow-header span {
+  font-size: 0.78rem;
+  color: #60717f;
+}
+
+.budget-create-button {
+  min-height: 34px;
+  white-space: nowrap;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.budget-create-alert {
+  margin-top: 6px;
+}
+
+.budget-closed-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 8px;
+  padding: 9px 12px;
+  border: 1px solid #f7c36a;
+  border-radius: 10px;
+  background: #fff8e6;
+  color: #6b4b00;
+}
+
+.budget-closed-notice > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.budget-closed-notice strong {
+  font-size: 0.85rem;
+  font-weight: 900;
+}
+
+.budget-closed-notice span {
+  font-size: 0.78rem;
+}
+
+.budget-closed-notice button {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid #d99a1e;
+  border-radius: 8px;
+  background: #fff;
+  color: #7a4f00;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.budget-closed-notice button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .presupuesto-selector {
   display: flex;
   gap: 6px;
@@ -8250,7 +8336,22 @@ html[data-theme="dark"] .hoy-patient-link {
   letter-spacing: 0.03em;
   color: var(--muted);
 }
-.presupuesto-pill .pp-date { color: var(--muted); font-size: 0.72rem; }
+.presupuesto-pill .pp-date,
+.presupuesto-pill .pp-total,
+.presupuesto-pill .pp-accepted {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.presupuesto-pill .pp-total {
+  font-weight: 800;
+  color: #17364b;
+}
+
+.presupuesto-pill .pp-accepted {
+  color: #15803d;
+  font-weight: 900;
+}
 
 .presupuesto-pill-nuevo {
   border-style: dashed;
@@ -8341,6 +8442,32 @@ html[data-theme="dark"] .presupuesto-pill {
   border-color: #2c3e4a;
   background: #1a2933;
   color: #cde4ef;
+}
+
+html[data-theme="dark"] .budget-workflow-header {
+  background: #0a1720;
+  border-color: #1e3345;
+}
+
+html[data-theme="dark"] .budget-workflow-header strong,
+html[data-theme="dark"] .presupuesto-pill .pp-total {
+  color: #e0f2fe;
+}
+
+html[data-theme="dark"] .budget-workflow-header span {
+  color: #7aa5bb;
+}
+
+html[data-theme="dark"] .budget-closed-notice {
+  background: #2c2108;
+  border-color: #8a6514;
+  color: #fde68a;
+}
+
+html[data-theme="dark"] .budget-closed-notice button {
+  background: #0a1720;
+  border-color: #8a6514;
+  color: #fde68a;
 }
 
 html[data-theme="dark"] .presupuesto-pill.active {
@@ -9572,6 +9699,7 @@ html[data-theme="dark"] .patient-billing-list button {
 }
 
 .admin-report-filters input,
+.admin-report-filters select,
 .admin-report-builder select {
   height: 34px;
   min-width: 150px;
@@ -9648,6 +9776,12 @@ html[data-theme="dark"] .patient-billing-list button {
   margin-top: 0.85rem;
   padding-top: 0.7rem;
   border-top: 1px solid rgba(15, 142, 160, 0.16);
+}
+
+.admin-report-chart-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.85fr);
+  gap: 0.85rem;
 }
 
 .admin-month-bars {
@@ -9732,6 +9866,58 @@ html[data-theme="dark"] .patient-billing-list button {
   font-size: 0.78rem;
 }
 
+.admin-status-bars,
+.admin-report-alerts {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.admin-status-bars p,
+.admin-report-alerts p {
+  margin: 0;
+}
+
+.admin-status-bars p {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-status-bars span {
+  font-weight: 800;
+  color: #3a5364;
+  text-transform: capitalize;
+}
+
+.admin-report-alerts {
+  margin-top: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-report-alerts p {
+  padding: 0.55rem;
+  border: 1px solid rgba(15, 142, 160, 0.16);
+  background: #f8fcfd;
+}
+
+.admin-report-alerts strong,
+.admin-report-alerts span {
+  display: block;
+}
+
+.admin-report-alerts strong {
+  color: #08324b;
+  font-size: 1.05rem;
+}
+
+.admin-report-alerts span {
+  color: #617789;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .admin-custom-report .euro-table {
   margin-top: 0.65rem;
 }
@@ -9739,7 +9925,8 @@ html[data-theme="dark"] .patient-billing-list button {
 html[data-theme="dark"] .admin-report-header,
 html[data-theme="dark"] .admin-report-kpis article,
 html[data-theme="dark"] .admin-general-report-grid button,
-html[data-theme="dark"] .admin-report-bar {
+html[data-theme="dark"] .admin-report-bar,
+html[data-theme="dark"] .admin-report-alerts p {
   background: rgba(15, 23, 42, 0.74);
   border-color: rgba(148, 163, 184, 0.24);
 }
@@ -9749,7 +9936,8 @@ html[data-theme="dark"] .admin-general-report-grid button.active {
 }
 
 html[data-theme="dark"] .admin-report-kpis strong,
-html[data-theme="dark"] .admin-report-header h2 {
+html[data-theme="dark"] .admin-report-header h2,
+html[data-theme="dark"] .admin-report-alerts strong {
   color: #e5f6ff;
 }
 
@@ -9761,6 +9949,10 @@ html[data-theme="dark"] .admin-report-header h2 {
 
   .admin-general-report-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-report-chart-split {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -9775,4 +9967,1876 @@ html[data-theme="dark"] .admin-report-header h2 {
   .admin-report-header {
     display: grid;
   }
+}
+/* Pacientes: estructura principal simplificada */
+.patient-selector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.patient-selector-actions button,
+.treatment-subtabs button,
+.history-filter-tabs button,
+.patient-documents-summary-actions button {
+  border: 1px solid #b8d3df;
+  background: #f8fcff;
+  color: #07314f;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-weight: 800;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.patient-selector-actions button:hover,
+.treatment-subtabs button:hover,
+.history-filter-tabs button:hover,
+.patient-documents-summary-actions button:hover {
+  border-color: #0f9faf;
+  color: #00748a;
+}
+
+.treatments-workspace,
+.history-complete-workspace {
+  display: grid;
+  gap: 10px;
+}
+
+.treatment-subtabs,
+.history-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid #c9dde7;
+  background: #f3f9fc;
+  border-radius: 8px;
+}
+
+.treatment-subtabs button.active,
+.history-filter-tabs button.active {
+  background: #0891a4;
+  border-color: #0891a4;
+  color: #fff;
+}
+
+.patient-documents-summary-card {
+  grid-column: 1 / span 2;
+  border: 1px solid #c9dde7;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 0;
+}
+
+.patient-odontogram-summary-card {
+  grid-column: 1 / span 2;
+  border: 1px solid #c9dde7;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 0;
+}
+
+.mini-odontogram {
+  display: grid;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.mini-odontogram-arch {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(20px, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+
+.mini-tooth {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 0;
+  color: #527085;
+}
+
+.mini-tooth i {
+  width: 18px;
+  height: 24px;
+  border: 1px solid #c6d6de;
+  border-radius: 55% 55% 45% 45% / 65% 65% 35% 35%;
+  background: #eef4f7;
+  box-shadow: inset 0 -4px 0 rgba(15, 49, 70, 0.06);
+}
+
+.mini-tooth small {
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+i.mini-tooth-pendiente,
+.mini-tooth.mini-tooth-pendiente i {
+  border-color: #ef4444;
+  background: #fee2e2;
+}
+
+i.mini-tooth-presupuestado,
+.mini-tooth.mini-tooth-presupuestado i {
+  border-color: #f59e0b;
+  background: #ffedd5;
+}
+
+i.mini-tooth-realizado,
+.mini-tooth.mini-tooth-realizado i {
+  border-color: #22c55e;
+  background: #dcfce7;
+}
+
+i.mini-tooth-neutral,
+.mini-tooth.mini-tooth-neutral i {
+  border-color: #c6d6de;
+  background: #eef4f7;
+}
+
+.mini-odontogram-footer,
+.mini-odontogram-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  padding-top: 7px;
+  border-top: 1px solid #e2edf2;
+  font-size: 0.76rem;
+  color: #4f6879;
+}
+
+.mini-odontogram-footer b {
+  color: #17364b;
+}
+
+.mini-odontogram-legend {
+  border-top: 0;
+  padding-top: 6px;
+}
+
+.mini-odontogram-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+}
+
+.mini-odontogram-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+}
+
+.patient-documents-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.patient-documents-summary-grid > div {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.patient-documents-summary-grid strong {
+  color: #0a3654;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.patient-documents-summary-grid button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  border: 1px solid #d4e4eb;
+  background: #fafdff;
+  border-radius: 7px;
+  padding: 7px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.patient-documents-summary-grid button span,
+.patient-documents-summary-grid button small,
+.patient-documents-summary-grid em {
+  color: #577083;
+  font-size: 0.75rem;
+}
+
+.patient-documents-summary-grid button b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-documents-summary-grid em.pending {
+  color: #b45309;
+  font-weight: 800;
+}
+
+.patient-documents-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.patient-documents-drawer {
+  width: min(1180px, calc(100vw - 36px));
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  background: #f7fbfe;
+  border: 1px solid #b9d2df;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 20px 50px rgba(8, 47, 73, 0.24);
+}
+
+.patient-documents-drawer .desk-panel {
+  margin-top: 10px;
+}
+
+.complete-history-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.complete-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #c9dde7;
+  background: #fff;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.complete-history-head span,
+.complete-history-head em {
+  color: #5e7587;
+  font-size: 0.78rem;
+  font-style: normal;
+}
+
+.complete-history-head strong {
+  display: block;
+  color: #092e4a;
+  font-size: 1.05rem;
+}
+
+.complete-history-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.9fr) minmax(520px, 1.1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.complete-history-timeline {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-event {
+  display: grid;
+  grid-template-columns: 86px 100px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 1px solid #d2e3ea;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.history-event time,
+.history-event > span {
+  color: #526d80;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.history-event > span {
+  justify-self: start;
+  border-radius: 999px;
+  background: #eaf8fb;
+  color: #087989;
+  padding: 3px 7px;
+}
+
+.history-event strong {
+  color: #082f49;
+}
+
+.history-event p {
+  margin: 2px 0 0;
+  color: #3f5868;
+  font-size: 0.84rem;
+}
+
+.history-event footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+  color: #5e7587;
+}
+
+.history-event footer button {
+  margin-left: auto;
+  border: 1px solid #b8d3df;
+  background: #f8fcff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-weight: 800;
+}
+
+.history-ledger-details {
+  border: 1px solid #c9dde7;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.history-ledger-details summary {
+  cursor: pointer;
+  color: #07314f;
+  font-weight: 900;
+}
+
+html[data-theme="dark"] .patient-documents-summary-card,
+html[data-theme="dark"] .patient-odontogram-summary-card,
+html[data-theme="dark"] .complete-history-head,
+html[data-theme="dark"] .history-event,
+html[data-theme="dark"] .history-ledger-details,
+html[data-theme="dark"] .patient-documents-drawer {
+  background: #0f1f2b;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .treatment-subtabs,
+html[data-theme="dark"] .history-filter-tabs {
+  background: #0f1f2b;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .patient-selector-actions button,
+html[data-theme="dark"] .treatment-subtabs button,
+html[data-theme="dark"] .history-filter-tabs button,
+html[data-theme="dark"] .patient-documents-summary-actions button,
+html[data-theme="dark"] .patient-documents-summary-grid button {
+  background: #132b3a;
+  border-color: #315368;
+  color: #d7eef7;
+}
+
+html[data-theme="dark"] .mini-odontogram-footer {
+  border-color: #29485a;
+  color: #9fc1d1;
+}
+
+html[data-theme="dark"] .mini-odontogram-footer b,
+html[data-theme="dark"] .patient-odontogram-summary-card h3 {
+  color: #e0f2fe;
+}
+
+@media (max-width: 1100px) {
+  .complete-history-layout,
+  .patient-documents-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Visual system refresh: calmer clinical workspace */
+:root {
+  --app-bg: #f3f6f8;
+  --surface: #ffffff;
+  --surface-soft: #f8fbfc;
+  --surface-muted: #edf3f6;
+  --line: #d8e3e9;
+  --line-soft: #edf2f5;
+  --shadow-soft: 0 12px 34px rgba(15, 49, 70, 0.08);
+  --shadow-subtle: 0 4px 16px rgba(15, 49, 70, 0.06);
+  --radius-sm: 7px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --state-red: #dc2626;
+  --state-green: #16a34a;
+  --state-orange: #f59e0b;
+  --state-blue: #0f88a8;
+  --state-gray: #64748b;
+  --text-strong: #0b2f45;
+  --text-soft: #5d7280;
+  --bg: var(--app-bg);
+  --panel: var(--surface);
+  --paper: var(--surface);
+  --field: #ffffff;
+  --border-mid: var(--line);
+  --border-dark: #b8c9d3;
+  --border-light: #ffffff;
+  --blue: var(--state-blue);
+  --blue-dark: #08758f;
+  --green: var(--state-green);
+  --red: var(--state-red);
+  --text: #102a3a;
+  --muted: var(--text-soft);
+}
+
+body,
+.app-shell {
+  background: var(--app-bg);
+}
+
+.main-content {
+  padding: 10px 12px;
+  background:
+    radial-gradient(circle at top left, rgba(15, 136, 168, 0.06), transparent 28rem),
+    var(--app-bg);
+}
+
+.euro-shell-header {
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 6px 24px rgba(15, 49, 70, 0.06);
+}
+
+.euro-titlebar {
+  height: 30px;
+  border-bottom: 1px solid var(--line-soft);
+  background: #fbfdfe;
+}
+
+.euro-main-nav {
+  height: 52px;
+  gap: 6px;
+  padding: 7px 10px;
+  background: #f7fafc;
+}
+
+.euro-nav-button {
+  min-width: 112px;
+  border: 1px solid #cddde5;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 49, 70, 0.04);
+  color: #113348;
+}
+
+.euro-nav-button.active {
+  border-color: rgba(15, 136, 168, 0.35);
+  background: #eaf8fb;
+  color: #075f72;
+  box-shadow: inset 3px 0 0 #0f9faf;
+}
+
+.nav-icon {
+  color: #0f8ea0;
+}
+
+.page-shell {
+  min-height: calc(100vh - 104px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.page-shell .desk-panel,
+.page-shell .patient-hub-head,
+.page-shell .patient-next-card,
+.page-shell .patient-last-card,
+.page-shell .patient-billing-card,
+.page-shell .patient-documents-summary-card,
+.page-shell .patient-odontogram-summary-card,
+.page-shell .patient-side-card,
+.page-shell .complete-history-head,
+.page-shell .history-ledger-details,
+.page-shell .agenda-left-panel,
+.page-shell .agenda-slots,
+.page-shell .admin-report-header,
+.page-shell .admin-report-kpis article,
+.page-shell .admin-custom-report,
+.page-shell .caja-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-subtle);
+}
+
+.section-card,
+.summary-card,
+.kpi-card,
+.drawer-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-subtle);
+}
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.primary-action,
+.page-shell .primary-action,
+.budget-create-button {
+  border: 1px solid #0b7f98;
+  border-radius: 9px;
+  background: linear-gradient(180deg, #18a7b8, #0d8ba0);
+  color: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 136, 168, 0.18);
+}
+
+.secondary-action {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #ffffff;
+  color: #17364b;
+}
+
+.status-chip,
+.status-pill,
+.appointment-state,
+.linea-estado-badge,
+.budget-estado-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-weight: 900;
+  font-size: 0.72rem;
+  line-height: 1;
+  text-transform: none;
+}
+
+.compact-table,
+.page-shell .euro-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.page-shell .euro-table th {
+  border-bottom: 1px solid var(--line);
+  background: #eef5f8;
+  color: #24475c;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.page-shell .euro-table td {
+  border-color: #ecf2f5;
+  background: #fff;
+}
+
+.page-shell .euro-table tr:hover td {
+  background: #f7fbfd;
+}
+
+.page-shell button:not(.euro-nav-button) {
+  border-radius: 8px;
+}
+
+.timeline,
+.complete-history-timeline {
+  position: relative;
+}
+
+.empty-state {
+  border-color: #ccdbe3;
+  border-radius: var(--radius-md);
+  background: #f8fbfc;
+  color: var(--text-soft);
+}
+
+/* Pacientes: cleaner hierarchy */
+.patient-selector-bar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+  margin-bottom: 8px;
+}
+
+.patient-selector-current {
+  grid-template-columns: minmax(0, 1fr) 36px auto;
+  border-left-color: var(--line);
+  background: #fbfdfe;
+}
+
+.patient-selector-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.patient-selector-actions button {
+  white-space: nowrap;
+}
+
+.patient-screen .patient-titlebar {
+  border-bottom: 1px solid var(--line-soft);
+  background: #fbfdfe;
+  color: var(--text-strong);
+}
+
+.patient-module-tabs {
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+  background: #f7fafc;
+}
+
+.patient-module-tabs button {
+  border: 1px solid transparent;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  box-shadow: none;
+  color: #35586b;
+}
+
+.patient-module-tabs button.active {
+  border-color: var(--line);
+  border-bottom-color: #fff;
+  background: #fff;
+  color: #062f4a;
+  box-shadow: inset 0 3px 0 #0f9faf;
+}
+
+.patient-desk {
+  padding: 10px;
+}
+
+.patient-hub-grid {
+  gap: 10px;
+}
+
+.patient-hub-head {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+}
+
+.patient-avatar {
+  border-radius: 12px;
+  background: #eaf8fb;
+  color: #08758f;
+}
+
+.patient-hub-alert {
+  border-left: 3px solid var(--state-orange);
+  background: #fffaf0;
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+
+.patient-hub-balance .debt,
+.debt {
+  color: var(--state-red);
+}
+
+.patient-flow-strip {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+}
+
+.patient-flow-strip button {
+  border: 0;
+  border-right: 1px solid var(--line-soft);
+  background: transparent;
+  color: #24475c;
+}
+
+.patient-flow-strip button:hover {
+  background: #f3fafc;
+  color: #06748b;
+}
+
+.patient-card-head h3 {
+  color: var(--text-strong);
+  font-size: 0.92rem;
+}
+
+.patient-card-head-right span {
+  border-radius: 999px;
+  background: #edf5f8;
+  color: #496878;
+  padding: 3px 8px;
+  font-weight: 800;
+}
+
+.patient-card-head-right button,
+.patient-billing-actions button,
+.patient-documents-summary-actions button,
+.patient-hub-head-actions button,
+.patient-side-card button {
+  border: 1px solid #c9dce5;
+  background: #fff;
+  color: #0b4d63;
+  box-shadow: none;
+}
+
+.patient-card-head-right button:hover,
+.patient-billing-actions button:hover,
+.patient-documents-summary-actions button:hover,
+.patient-hub-head-actions button:hover,
+.patient-side-card button:hover {
+  border-color: #0f9faf;
+  background: #effbfe;
+}
+
+.patient-odontogram-summary-card {
+  min-height: unset;
+}
+
+.mini-odontogram {
+  gap: 5px;
+  padding: 6px 0;
+}
+
+.mini-odontogram-arch {
+  gap: 3px;
+}
+
+.mini-tooth i {
+  width: 16px;
+  height: 20px;
+  box-shadow: none;
+}
+
+.mini-tooth small {
+  color: #5f7480;
+}
+
+.mini-odontogram-footer {
+  padding-top: 6px;
+}
+
+.treatment-subtabs,
+.history-filter-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  border-radius: var(--radius-md);
+  background: rgba(248, 251, 252, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+.treatment-subtabs button,
+.history-filter-tabs button {
+  box-shadow: none;
+}
+
+.treatment-subtabs button.active,
+.history-filter-tabs button.active {
+  background: #0f8ea0;
+}
+
+/* Presupuestos */
+.budget-workflow-header,
+.budget-panel-header,
+.budget-step-panel,
+.budget-workbench {
+  border-radius: var(--radius-md);
+  border-color: var(--line);
+  background: #fff;
+}
+
+.budget-panel-header {
+  box-shadow: var(--shadow-subtle);
+}
+
+.budget-panel-actions button {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.budget-secondary-menu summary,
+.secondary-clinic-panel summary,
+.odontogram-support-panel summary,
+.history-ledger-details summary {
+  cursor: pointer;
+  color: #0b4d63;
+  font-weight: 900;
+}
+
+.budget-treatment-picker,
+.budget-line-editor {
+  border-color: var(--line);
+  border-radius: var(--radius-md);
+  background: #fbfdfe;
+}
+
+.budget-treatment-list button {
+  border-color: #dce8ee;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.budget-treatment-list button.active {
+  border-color: #0f9faf;
+  background: #effbfe;
+}
+
+/* Pendientes, realizados, historial */
+.odontogram-support-panel,
+.secondary-clinic-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+  padding: 10px 12px;
+}
+
+.odontogram-support-panel[open],
+.secondary-clinic-panel[open] {
+  display: grid;
+  gap: 10px;
+}
+
+.realizados-workspace {
+  gap: 10px;
+}
+
+.tool-legend {
+  margin: 6px 0 0;
+  color: #496878;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.tooth-tools button {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.complete-history-layout {
+  grid-template-columns: minmax(420px, 1fr);
+}
+
+.history-odontogram-panel {
+  align-self: start;
+}
+
+.history-event {
+  border-color: var(--line);
+  box-shadow: var(--shadow-subtle);
+}
+
+.history-event > span {
+  background: #edf8fb;
+}
+
+/* Agenda */
+.agenda-euro {
+  padding: 10px;
+}
+
+.agenda-layout {
+  gap: 10px;
+}
+
+.agenda-compact-toolbar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+  margin-bottom: 10px;
+}
+
+.agenda-left-panel {
+  padding: 10px;
+}
+
+.agenda-status-legend {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+}
+
+.agenda-appointment {
+  border: 1px solid rgba(15, 49, 70, 0.12);
+  border-left: 5px solid var(--doctor-color, #0f8ea0);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 5px 14px rgba(15, 49, 70, 0.07);
+}
+
+.agenda-appointment.status-confirmada,
+.appointment-state.status-confirmada {
+  background: #ecfdf5;
+}
+
+.agenda-appointment.status-programada,
+.appointment-state.status-programada {
+  background: #fff7ed;
+}
+
+.agenda-appointment.status-en-clinica,
+.appointment-state.status-en-clinica {
+  background: #eff6ff;
+}
+
+.agenda-appointment.status-anulada,
+.agenda-appointment.status-falta,
+.appointment-state.status-anulada,
+.appointment-state.status-falta {
+  background: #fef2f2;
+}
+
+.agenda-slot-row time {
+  color: #526d80;
+  font-weight: 900;
+}
+
+.agenda-slot-content {
+  border-color: #e2edf2;
+  background: #fbfdfe;
+}
+
+.agenda-slot-content:hover {
+  background: #f4fbfd;
+}
+
+/* Caja */
+.caja-screen {
+  padding: 10px;
+}
+
+.caja-screen > .panel-caption {
+  border: 0 !important;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+  margin-bottom: 10px;
+}
+
+.dashboard-metrics.caja-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.dashboard-metrics.caja-metrics > div {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+}
+
+.dashboard-metrics.caja-metrics > div:first-child strong {
+  color: var(--state-red);
+}
+
+.dashboard-metrics.caja-metrics > div:nth-child(2) strong,
+.dashboard-metrics.caja-metrics > div:nth-child(5) strong {
+  color: var(--state-green);
+}
+
+.caja-table-wrap {
+  padding: 8px;
+}
+
+/* Admin */
+.admin-extras {
+  padding: 10px;
+}
+
+.admin-extras .toolbar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+}
+
+.file-tabs {
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+}
+
+.file-tabs button {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #3a5869;
+  box-shadow: none;
+}
+
+.file-tabs button.active {
+  border-color: #bfe3ea;
+  background: #eaf8fb;
+  color: #076072;
+}
+
+.admin-create-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: #fbfdfe;
+  padding: 8px;
+}
+
+.admin-create-panel + .admin-create-panel {
+  margin-top: 8px;
+}
+
+.admin-create-panel summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: #0b4d63;
+}
+
+.admin-gateway-panel {
+  max-width: 720px;
+}
+
+html[data-theme="dark"] {
+  --app-bg: #08131b;
+  --surface: #0e1b25;
+  --surface-soft: #102333;
+  --surface-muted: #132b3a;
+  --line: #29485a;
+  --line-soft: #213948;
+  --text-strong: #e1f5fb;
+  --text-soft: #9cb9c9;
+  --bg: var(--app-bg);
+  --panel: var(--surface);
+  --paper: var(--surface);
+  --field: #0b1822;
+  --text: #e6f3f7;
+  --muted: var(--text-soft);
+}
+
+html[data-theme="dark"] .main-content {
+  background: #08131b;
+}
+
+html[data-theme="dark"] .page-shell,
+html[data-theme="dark"] .euro-shell-header,
+html[data-theme="dark"] .euro-titlebar,
+html[data-theme="dark"] .euro-main-nav,
+html[data-theme="dark"] .patient-selector-bar,
+html[data-theme="dark"] .file-tabs,
+html[data-theme="dark"] .admin-extras .toolbar,
+html[data-theme="dark"] .agenda-compact-toolbar,
+html[data-theme="dark"] .agenda-status-legend,
+html[data-theme="dark"] .caja-screen > .panel-caption,
+html[data-theme="dark"] .dashboard-metrics.caja-metrics > div {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .page-shell .desk-panel,
+html[data-theme="dark"] .page-shell .patient-hub-head,
+html[data-theme="dark"] .page-shell .patient-next-card,
+html[data-theme="dark"] .page-shell .patient-last-card,
+html[data-theme="dark"] .page-shell .patient-billing-card,
+html[data-theme="dark"] .page-shell .patient-documents-summary-card,
+html[data-theme="dark"] .page-shell .patient-odontogram-summary-card,
+html[data-theme="dark"] .page-shell .patient-side-card,
+html[data-theme="dark"] .odontogram-support-panel,
+html[data-theme="dark"] .secondary-clinic-panel,
+html[data-theme="dark"] .budget-workflow-header,
+html[data-theme="dark"] .budget-panel-header,
+html[data-theme="dark"] .budget-step-panel,
+html[data-theme="dark"] .budget-workbench,
+html[data-theme="dark"] .budget-treatment-picker,
+html[data-theme="dark"] .budget-line-editor {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .patient-module-tabs,
+html[data-theme="dark"] .treatment-subtabs,
+html[data-theme="dark"] .history-filter-tabs,
+html[data-theme="dark"] .agenda-slot-content,
+html[data-theme="dark"] .budget-treatment-list button,
+html[data-theme="dark"] .admin-create-panel {
+  background: var(--surface-soft);
+  border-color: var(--line);
+}
+
+html[data-theme="dark"] .euro-nav-button,
+html[data-theme="dark"] .patient-card-head-right button,
+html[data-theme="dark"] .patient-billing-actions button,
+html[data-theme="dark"] .patient-documents-summary-actions button,
+html[data-theme="dark"] .patient-hub-head-actions button,
+html[data-theme="dark"] .patient-side-card button {
+  background: #102333;
+  border-color: var(--line);
+  color: #d8eef6;
+}
+
+html[data-theme="dark"] .page-shell .euro-table,
+html[data-theme="dark"] .page-shell .euro-table td {
+  background: #0d1a24;
+  border-color: #213948;
+}
+
+html[data-theme="dark"] .page-shell .euro-table th {
+  background: #132b3a;
+  border-color: #29485a;
+  color: #cfe6ef;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-metrics.caja-metrics {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+}
+
+/* Ficha ampliada — Fase 1 */
+.patient-identity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.patient-identity-chips li {
+  background: #eef4f8;
+  color: #2b4756;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border-radius: 10px;
+  padding: 2px 8px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+html[data-theme="dark"] .patient-identity-chips li {
+  background: #1a2f3c;
+  color: #cfe6ef;
+}
+
+.patient-edit-extras {
+  margin-top: 12px;
+  border-top: 1px solid #e0e6ea;
+  padding-top: 8px;
+}
+
+.patient-edit-extras > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #0f3146;
+  padding: 4px 0;
+  list-style: revert;
+}
+
+.patient-edit-extras[open] > summary {
+  margin-bottom: 10px;
+}
+
+.patient-edit-extras .patient-edit-grid {
+  margin-top: 6px;
+}
+
+.patient-edit-grid label.checkbox-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.patient-edit-grid label.checkbox-line input {
+  width: auto;
+  margin: 0;
+}
+
+html[data-theme="dark"] .patient-edit-extras {
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .patient-edit-extras > summary {
+  color: #cfe6ef;
+}
+
+/* Acciones rapidas del paciente — Fase 2 */
+.patient-actions {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.patient-actions-primary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.patient-actions-primary button {
+  border: 1px solid #b8d3df;
+  background: #f8fcff;
+  color: #07314f;
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-weight: 800;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.patient-actions-primary button:hover:not(:disabled) {
+  border-color: #0f9faf;
+  color: #00748a;
+}
+
+.patient-actions-primary button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.patient-actions-more {
+  width: 34px;
+  padding: 6px 0 !important;
+  font-size: 1rem !important;
+  line-height: 1;
+}
+
+.patient-actions-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  background: #ffffff;
+  border: 1px solid #b8d3df;
+  border-radius: 9px;
+  box-shadow: 0 10px 24px rgba(7, 49, 79, 0.15);
+  padding: 6px;
+  gap: 1px;
+}
+
+.patient-actions-menu .patient-actions-group {
+  padding: 6px 8px 4px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #60717f;
+}
+
+.patient-actions-menu button {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: #07314f;
+  cursor: pointer;
+}
+
+.patient-actions-menu button:hover:not(:disabled) {
+  background: #eef6fa;
+  color: #00748a;
+}
+
+.patient-actions-menu button:disabled {
+  color: #94a4ad;
+  cursor: not-allowed;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+html[data-theme="dark"] .patient-actions-primary button {
+  background: #112634;
+  border-color: #2c4a5d;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .patient-actions-primary button:hover:not(:disabled) {
+  border-color: #58c8d3;
+  color: #58c8d3;
+}
+
+html[data-theme="dark"] .patient-actions-menu {
+  background: #132b3a;
+  border-color: #29485a;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme="dark"] .patient-actions-menu button {
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .patient-actions-menu button:hover:not(:disabled) {
+  background: #1a3849;
+  color: #58c8d3;
+}
+
+html[data-theme="dark"] .patient-actions-menu .patient-actions-group {
+  color: #8aa3b1;
+}
+
+/* Modal de comentario */
+.patient-comment-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  width: min(520px, 92vw);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 18px 40px rgba(7, 49, 79, 0.25);
+}
+
+.patient-comment-modal textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #b8d3df;
+  border-radius: 8px;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  min-height: 120px;
+}
+
+.patient-comment-help {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #60717f;
+}
+
+html[data-theme="dark"] .patient-comment-modal {
+  background: #132b3a;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .patient-comment-modal textarea {
+  background: #0e2230;
+  border-color: #29485a;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .patient-comment-help {
+  color: #8aa3b1;
+}
+
+/* Recetas — Fase 3 */
+.receta-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  width: min(820px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 18px 40px rgba(7, 49, 79, 0.25);
+}
+
+.receta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.receta-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #07314f;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.receta-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.receta-grid input,
+.receta-grid select,
+.receta-grid textarea {
+  border: 1px solid #b8d3df;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: #ffffff;
+  color: #07314f;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.receta-grid textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.receta-firma-block {
+  border-top: 1px solid #e0e6ea;
+  padding-top: 8px;
+}
+
+.receta-firma-block > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: #0f3146;
+  padding: 4px 0;
+  list-style: revert;
+}
+
+.receta-help {
+  margin: 6px 0;
+  font-size: 0.78rem;
+  color: #60717f;
+}
+
+.recetas-drawer {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  width: min(560px, 96vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 18px 40px rgba(7, 49, 79, 0.25);
+}
+
+.recetas-drawer-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.recetas-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recetas-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e0e6ea;
+  border-radius: 9px;
+  background: #f8fcff;
+}
+
+.recetas-list li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.recetas-list strong {
+  color: #0f3146;
+  font-size: 0.95rem;
+}
+
+.recetas-list small {
+  color: #2b4756;
+  font-size: 0.82rem;
+}
+
+.recetas-list em {
+  font-style: normal;
+  color: #60717f;
+  font-size: 0.75rem;
+}
+
+.recetas-list button {
+  border: 1px solid #b8d3df;
+  background: #ffffff;
+  color: #07314f;
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.recetas-list button:hover {
+  border-color: #0f9faf;
+  color: #00748a;
+}
+
+.recetas-empty {
+  text-align: center;
+  color: #60717f;
+  font-size: 0.85rem;
+  padding: 16px 0;
+}
+
+html[data-theme="dark"] .receta-modal,
+html[data-theme="dark"] .recetas-drawer {
+  background: #132b3a;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .receta-grid label {
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .receta-grid input,
+html[data-theme="dark"] .receta-grid select,
+html[data-theme="dark"] .receta-grid textarea {
+  background: #0e2230;
+  border-color: #29485a;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .receta-firma-block {
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .receta-firma-block > summary {
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .receta-help,
+html[data-theme="dark"] .recetas-empty {
+  color: #8aa3b1;
+}
+
+html[data-theme="dark"] .recetas-list li {
+  background: #112634;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .recetas-list strong,
+html[data-theme="dark"] .recetas-list small {
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .recetas-list em {
+  color: #8aa3b1;
+}
+
+html[data-theme="dark"] .recetas-list button {
+  background: #112634;
+  border-color: #2c4a5d;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .recetas-list button:hover {
+  border-color: #58c8d3;
+  color: #58c8d3;
+}
+
+/* Laboratorio avanzado — Fase 4 */
+.laboratorio-panel .panel-caption {
+  margin-bottom: 6px;
+}
+
+.laboratorio-actions-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.laboratorio-table th,
+.laboratorio-table td {
+  vertical-align: top;
+  font-size: 0.8rem;
+}
+
+.laboratorio-table td strong {
+  display: block;
+  color: #0f3146;
+  font-size: 0.85rem;
+}
+
+.laboratorio-table td em {
+  display: block;
+  font-style: normal;
+  color: #2b4756;
+  font-size: 0.75rem;
+}
+
+.laboratorio-table td small {
+  display: block;
+  color: #60717f;
+  font-size: 0.7rem;
+}
+
+.laboratorio-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.laboratorio-badge.estado-pendiente { background: #fff3cd; color: #7a5d00; }
+.laboratorio-badge.estado-enviado { background: #cfe5ff; color: #0d4d9b; }
+.laboratorio-badge.estado-proceso { background: #ffe2c2; color: #93540b; }
+.laboratorio-badge.estado-recibido { background: #c8f0d6; color: #146634; }
+.laboratorio-badge.estado-entregado { background: #d8d8f7; color: #3d3d8a; }
+.laboratorio-badge.estado-incidencia { background: #fbd1d1; color: #8a1f1f; }
+.laboratorio-badge.estado-cancelado { background: #e6e6e6; color: #555; }
+
+.laboratorio-vencido-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #c1432a;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.laboratorio-flags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.laboratorio-flags span {
+  background: #e8f1f5;
+  color: #07314f;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.trabajo-vencido {
+  background: #fef4f0;
+}
+
+html[data-theme="dark"] .trabajo-vencido {
+  background: #3a2520;
+}
+
+.laboratorio-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-direction: column;
+}
+
+.laboratorio-row-actions button {
+  border: 1px solid #b8d3df;
+  background: #ffffff;
+  color: #07314f;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.laboratorio-row-actions button:hover {
+  border-color: #0f9faf;
+  color: #00748a;
+}
+
+.laboratorio-empty {
+  text-align: center;
+  color: #60717f;
+  font-size: 0.85rem;
+  padding: 12px 0;
+}
+
+.laboratorio-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  width: min(760px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 18px 40px rgba(7, 49, 79, 0.25);
+}
+
+.laboratorio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.laboratorio-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #07314f;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.laboratorio-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.laboratorio-grid input,
+.laboratorio-grid select,
+.laboratorio-grid textarea {
+  border: 1px solid #b8d3df;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  background: #ffffff;
+  color: #07314f;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.laboratorio-grid textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.laboratorio-context-hint {
+  margin: 0;
+  padding: 8px 12px;
+  background: #eef4f8;
+  border-left: 3px solid #0f9faf;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #07314f;
+}
+
+.laboratorio-vencidos-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #c1432a;
+  background: #fef4f0;
+  color: #8a1f1f;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+}
+
+.laboratorio-vencidos-banner em {
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.trabajo-pendiente-acciones {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.trabajo-pendiente-acciones button {
+  font-size: 0.72rem;
+  padding: 4px 8px;
+}
+
+html[data-theme="dark"] .laboratorio-modal {
+  background: #132b3a;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .laboratorio-grid label {
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .laboratorio-grid input,
+html[data-theme="dark"] .laboratorio-grid select,
+html[data-theme="dark"] .laboratorio-grid textarea {
+  background: #0e2230;
+  border-color: #29485a;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .laboratorio-context-hint {
+  background: #1a2f3c;
+  color: #cfe6ef;
+  border-left-color: #58c8d3;
+}
+
+html[data-theme="dark"] .laboratorio-vencidos-banner {
+  background: #3a2520;
+  border-color: #c1432a;
+  color: #f7c8b8;
+}
+
+html[data-theme="dark"] .laboratorio-flags span {
+  background: #1a3849;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .laboratorio-row-actions button {
+  background: #112634;
+  border-color: #2c4a5d;
+  color: #cfe6ef;
+}
+
+html[data-theme="dark"] .laboratorio-row-actions button:hover {
+  border-color: #58c8d3;
+  color: #58c8d3;
 }

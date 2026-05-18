@@ -21,6 +21,7 @@ export function TrabajoPendientePanel({
   paciente,
   onDarCita,
   onContextLinea,
+  onCrearPedidoLab,
   userRole,
 }: {
   presupuestos: Presupuesto[];
@@ -28,6 +29,7 @@ export function TrabajoPendientePanel({
   paciente?: ApiPaciente | null;
   onDarCita: (linea: PresupuestoLinea) => void;
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
+  onCrearPedidoLab?: (linea: PresupuestoLinea) => void;
   userRole?: UserRole | null;
 }) {
   const rows = presupuestos.flatMap((presupuesto) => (
@@ -59,21 +61,31 @@ export function TrabajoPendientePanel({
               <td className="num">{money(linea.importe_neto)}</td>
               <td>{cita ? `${formatDate(cita.fecha_hora)} ${cita.fecha_hora.slice(11, 16)}` : 'Sin cita'}</td>
               <td>{cita ? cita.estado : (linea.aceptado ? 'Aceptado' : 'Pendiente')}</td>
-              <td><button onClick={() => onDarCita(linea)}>Dar cita</button></td>
+              <td className="trabajo-pendiente-acciones">
+                <button onClick={() => onDarCita(linea)}>Dar cita</button>
+                {onCrearPedidoLab && (
+                  <button type="button" onClick={() => onCrearPedidoLab(linea)} title="Crear pedido de laboratorio para este tratamiento">
+                    + Lab
+                  </button>
+                )}
+              </td>
             </tr>
           ))}
           {!rows.length && <tr><td colSpan={8}>Sin tratamientos pendientes aceptados.</td></tr>}
         </tbody>
       </table>
-      <PatientOdontogramFlow
-        paciente={paciente ?? null}
-        mode="pending"
-        title="Pendientes por pieza"
-        subtitle="Mapa clinico compartido para ubicar trabajos aceptados y pendientes."
-        readOnly
-        enableQuickTreatments={false}
-        userRole={userRole}
-      />
+      <details className="odontogram-support-panel">
+        <summary>Ver mapa de pendientes por pieza</summary>
+        <PatientOdontogramFlow
+          paciente={paciente ?? null}
+          mode="pending"
+          title="Pendientes por pieza"
+          subtitle="Mapa clinico compartido para ubicar trabajos aceptados y pendientes."
+          readOnly
+          enableQuickTreatments={false}
+          userRole={userRole}
+        />
+      </details>
     </section>
   );
 }

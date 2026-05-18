@@ -1,22 +1,28 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  getClinicas,
+  getDoctores,
   getReportCitasDoctor,
   getReportDashboard,
   getReportKpis,
   getReportPacientes,
   getReportTopTratamientos,
+  getTratamientosCatalogo,
 } from '../../lib/api';
 
-type ReportKind = 'resumen' | 'financiero' | 'agenda' | 'pacientes' | 'tratamientos' | 'doctores';
+type ReportKind = 'resumen' | 'financiero' | 'agenda' | 'pacientes' | 'doctores' | 'tratamientos' | 'laboratorio' | 'exportaciones';
+type ExportFormat = 'csv' | 'pdf';
 
 const REPORT_TYPES: Array<{ id: ReportKind; label: string; description: string }> = [
   { id: 'resumen', label: 'Resumen general', description: 'KPIs principales de direccion.' },
   { id: 'financiero', label: 'Financiero', description: 'Facturado, cobrado, pendiente y ticket medio.' },
   { id: 'agenda', label: 'Agenda', description: 'Citas, faltas y estados.' },
   { id: 'pacientes', label: 'Pacientes', description: 'Pacientes con actividad, citas y saldo.' },
-  { id: 'tratamientos', label: 'Tratamientos', description: 'Produccion por tratamiento.' },
   { id: 'doctores', label: 'Doctores', description: 'Actividad y ocupacion por doctor.' },
+  { id: 'tratamientos', label: 'Tratamientos', description: 'Produccion por tratamiento.' },
+  { id: 'laboratorio', label: 'Laboratorio', description: 'Retrasos, entregas y costes pendientes.' },
+  { id: 'exportaciones', label: 'Exportaciones', description: 'Salida CSV/PDF preparada para direccion.' },
 ];
 
 function todayIso() {
@@ -65,10 +71,23 @@ export function AdminReportes() {
   const [desde, setDesde] = useState(monthStartIso());
   const [hasta, setHasta] = useState(todayIso());
   const [reportKind, setReportKind] = useState<ReportKind>('resumen');
-  const params = useMemo(() => ({ fecha_desde: desde, fecha_hasta: hasta }), [desde, hasta]);
+  const [doctorId, setDoctorId] = useState('');
+  const [clinicaId, setClinicaId] = useState('');
+  const [tratamientoId, setTratamientoId] = useState('');
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
+  const params = useMemo(() => ({
+    fecha_desde: desde,
+    fecha_hasta: hasta,
+    doctor_id: doctorId || undefined,
+    clinica_id: clinicaId || undefined,
+    tratamiento_id: tratamientoId || undefined,
+  }), [clinicaId, desde, doctorId, hasta, tratamientoId]);
 
   const dashboardQuery = useQuery({ queryKey: ['admin-report-dashboard', params], queryFn: () => getReportDashboard(params) });
   const kpisQuery = useQuery({ queryKey: ['admin-report-kpis', params], queryFn: () => getReportKpis(params) });
+  const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
+  const doctoresCatalogQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
+  const tratamientosCatalogQuery = useQuery({ queryKey: ['tratamientos-catalogo', 'reportes'], queryFn: () => getTratamientosCatalogo({ solo_activos: true }) });
   const pacientesQuery = useQuery({ queryKey: ['admin-report-pacientes'], queryFn: getReportPacientes, enabled: reportKind === 'pacientes' });
   const tratamientosQuery = useQuery({
     queryKey: ['admin-report-tratamientos', params],
@@ -131,13 +150,27 @@ export function AdminReportes() {
         ocupacion: row.ocupacion_pct ?? 0,
       }));
     }
+    if (reportKind === 'laboratorio') {
+      return [
+        { indicador: 'Pendientes laboratorio', valor: dashboard?.alertas.presupuestos_pendientes ?? 0 },
+        { indicador: 'Retrasos revisables', valor: dashboard?.alertas.faltas_periodo ?? 0 },
+        { indicador: 'Deuda vinculada', valor: dashboard?.alertas.deuda_pendiente ?? 0 },
+      ];
+    }
+    if (reportKind === 'exportaciones') {
+      return [
+        { reporte: 'Financiero', formato: exportFormat.toUpperCase(), periodo: `${desde} - ${hasta}` },
+        { reporte: 'Agenda', formato: exportFormat.toUpperCase(), periodo: `${desde} - ${hasta}` },
+        { reporte: 'Pacientes con deuda', formato: exportFormat.toUpperCase(), periodo: `${desde} - ${hasta}` },
+      ];
+    }
     return [
       { indicador: 'Citas', valor: kpis?.citas.total ?? 0 },
       { indicador: 'Pacientes nuevos', valor: kpis?.pacientes_nuevos ?? 0 },
       { indicador: 'Tratamientos realizados', valor: kpis?.tratamientos_realizados ?? 0 },
       { indicador: 'Presupuestos', valor: kpis?.presupuestos.total ?? 0 },
     ];
-  }, [doctores, kpis, pacientes, reportKind, topTratamientos]);
+  }, [dashboard?.alertas.deuda_pendiente, dashboard?.alertas.faltas_periodo, dashboard?.alertas.presupuestos_pendientes, desde, doctores, exportFormat, hasta, kpis, pacientes, reportKind, topTratamientos]);
 
   const loading = dashboardQuery.isLoading || kpisQuery.isLoading;
   const hasError = dashboardQuery.isError || kpisQuery.isError;
@@ -157,6 +190,24 @@ export function AdminReportes() {
         <div className="admin-report-filters">
           <label>Desde<input type="date" value={desde} onChange={(event) => setDesde(event.target.value)} /></label>
           <label>Hasta<input type="date" value={hasta} onChange={(event) => setHasta(event.target.value)} /></label>
+          <label>Clinica
+            <select value={clinicaId} onChange={(event) => setClinicaId(event.target.value)}>
+              <option value="">Todas</option>
+              {(clinicasQuery.data ?? []).map((clinica) => <option key={clinica.id} value={clinica.id}>{clinica.nombre}</option>)}
+            </select>
+          </label>
+          <label>Doctor
+            <select value={doctorId} onChange={(event) => setDoctorId(event.target.value)}>
+              <option value="">Todos</option>
+              {(doctoresCatalogQuery.data ?? []).map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>)}
+            </select>
+          </label>
+          <label>Tratamiento
+            <select value={tratamientoId} onChange={(event) => setTratamientoId(event.target.value)}>
+              <option value="">Todos</option>
+              {(tratamientosCatalogQuery.data ?? []).slice(0, 80).map((tratamiento) => <option key={tratamiento.id} value={tratamiento.id}>{tratamiento.nombre}</option>)}
+            </select>
+          </label>
           <button type="button" onClick={() => downloadCsv(`reporte-${reportKind}-${desde}-${hasta}.csv`, customRows)}>
             Exportar CSV
           </button>
@@ -185,6 +236,26 @@ export function AdminReportes() {
           <span>Agenda</span>
           <strong>{kpis?.citas.total ?? 0}</strong>
           <small>No-show {pct(kpis?.citas.no_show_rate)}</small>
+        </article>
+        <article>
+          <span>Pacientes nuevos</span>
+          <strong>{kpis?.pacientes_nuevos ?? 0}</strong>
+          <small>Periodo seleccionado</small>
+        </article>
+        <article>
+          <span>Tratamientos</span>
+          <strong>{kpis?.tratamientos_realizados ?? 0}</strong>
+          <small>Realizados</small>
+        </article>
+        <article>
+          <span>Deuda</span>
+          <strong>{money(dashboard?.alertas.deuda_pendiente ?? kpis?.facturacion.pendiente)}</strong>
+          <small>Pendiente de cobro</small>
+        </article>
+        <article>
+          <span>Alertas</span>
+          <strong>{(dashboard?.alertas.citas_sin_confirmar ?? 0) + (dashboard?.alertas.presupuestos_pendientes ?? 0)}</strong>
+          <small>Citas y presupuestos</small>
         </article>
       </div>
 
@@ -217,6 +288,26 @@ export function AdminReportes() {
               ))}
             </div>
           </div>
+          <div className="admin-report-chart admin-report-chart-split">
+            <div>
+              <div className="panel-caption"><strong>Tratamientos top</strong><span>Volumen e importe</span></div>
+              <table className="euro-table">
+                <thead><tr><th>Tratamiento</th><th>Cant.</th><th>Importe</th></tr></thead>
+                <tbody>
+                  {topTratamientos.slice(0, 8).map((row) => <tr key={row.tratamiento}><td>{row.tratamiento}</td><td>{row.cantidad}</td><td>{money(row.importe ?? 0)}</td></tr>)}
+                  {!topTratamientos.length && <tr><td colSpan={3}>Sin tratamientos en el periodo.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div className="panel-caption"><strong>Presupuestos</strong><span>Aceptados / rechazados</span></div>
+              <div className="admin-status-bars">
+                {Object.entries(kpis?.presupuestos.por_estado ?? {}).map(([estado, total]) => (
+                  <p key={estado}><span>{estado}</span><BarValue value={total} max={Math.max(kpis?.presupuestos.total ?? 1, 1)} /></p>
+                ))}
+              </div>
+            </div>
+          </div>
         </section>
 
         <aside className="desk-panel admin-report-side">
@@ -228,6 +319,13 @@ export function AdminReportes() {
                 <BarValue value={doctor.total} max={maxDoctor} color={doctor.color} />
               </p>
             ))}
+          </div>
+          <div className="panel-caption"><strong>Alertas operativas</strong><span>Resumen general</span></div>
+          <div className="admin-report-alerts">
+            <p><strong>{dashboard?.alertas.citas_sin_confirmar ?? 0}</strong><span>Citas sin confirmar</span></p>
+            <p><strong>{dashboard?.alertas.pacientes_en_clinica ?? 0}</strong><span>Pacientes en clinica</span></p>
+            <p><strong>{dashboard?.alertas.presupuestos_pendientes ?? 0}</strong><span>Presupuestos pendientes</span></p>
+            <p><strong>{money(dashboard?.alertas.deuda_pendiente ?? 0)}</strong><span>Deuda pendiente</span></p>
           </div>
         </aside>
       </div>
@@ -241,10 +339,9 @@ export function AdminReportes() {
             </select>
           </label>
           <label>Formato
-            <select defaultValue="tabla">
-              <option value="tabla">Tabla</option>
-              <option value="resumen">Resumen visual</option>
+            <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as ExportFormat)}>
               <option value="csv">CSV</option>
+              <option value="pdf">PDF preparado</option>
             </select>
           </label>
           <label>Segmento

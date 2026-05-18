@@ -648,6 +648,98 @@ def generar_documento_clinico_pdf(
     return _build_pdf(story, title=_clean(titulo, "Documento clinico"))
 
 
+def generar_receta_clinica_pdf(
+    *,
+    paciente_nombre: str,
+    paciente_dni: str | None,
+    paciente_fecha_nacimiento: date | None,
+    doctor_nombre: str,
+    fecha_prescripcion: date,
+    fecha_dispensacion: date | None,
+    medicamento: str,
+    principio_activo: str | None,
+    forma_farmaceutica: str | None,
+    via_administracion: str | None,
+    unidades: str | None,
+    duracion: str | None,
+    posologia: str,
+    pauta: str | None,
+    diagnostico: str | None,
+    instrucciones_paciente: str | None,
+    instrucciones_farmacia: str | None,
+    firma_data_url: str | None,
+    receta_id: str,
+) -> bytes:
+    """PDF de receta clínica autónoma (RecetaClinica)."""
+    estilos = _estilos()
+    story: list[Any] = []
+    story.extend(_header_doc("Receta clinica", f"RC-{receta_id[:8]}", fecha_prescripcion))
+    story.append(
+        _p(
+            "Formato interno DentCore. Validar integracion oficial antes de uso sanitario real.",
+            estilos["pie"],
+        )
+    )
+    story.append(Spacer(1, 4 * mm))
+
+    paciente_detalle = paciente_nombre
+    if paciente_dni:
+        paciente_detalle += f"  ·  NIF {paciente_dni}"
+    if paciente_fecha_nacimiento:
+        paciente_detalle += f"  ·  Nac. {_format_date(paciente_fecha_nacimiento)}"
+    story.append(_p(f"Paciente: {paciente_detalle}", estilos["dato_bold"]))
+    story.append(_p(f"Doctor prescriptor: {doctor_nombre}", estilos["dato"]))
+    if fecha_dispensacion:
+        story.append(_p(f"Fecha dispensacion: {_format_date(fecha_dispensacion)}", estilos["dato"]))
+    story.append(Spacer(1, 4 * mm))
+
+    story.append(_p("Medicamento", estilos["seccion"]))
+    story.append(_p(medicamento, estilos["dato_bold"]))
+    detalles: list[str] = []
+    if principio_activo:
+        detalles.append(f"Principio activo: {principio_activo}")
+    if forma_farmaceutica:
+        detalles.append(f"Forma farmaceutica: {forma_farmaceutica}")
+    if via_administracion:
+        detalles.append(f"Via: {via_administracion}")
+    if unidades:
+        detalles.append(f"Unidades: {unidades}")
+    if duracion:
+        detalles.append(f"Duracion: {duracion}")
+    for linea in detalles:
+        story.append(_p(linea, estilos["dato"]))
+    story.append(Spacer(1, 3 * mm))
+
+    story.append(_p("Posologia", estilos["seccion"]))
+    story.extend(_paragraphs_from_text(posologia, estilos["dato"]))
+    if pauta:
+        story.append(_p(f"Pauta: {pauta}", estilos["dato"]))
+
+    if diagnostico:
+        story.append(Spacer(1, 3 * mm))
+        story.append(_p("Diagnostico", estilos["seccion"]))
+        story.extend(_paragraphs_from_text(diagnostico, estilos["dato"]))
+
+    if instrucciones_paciente:
+        story.append(Spacer(1, 3 * mm))
+        story.append(_p("Instrucciones al paciente", estilos["seccion"]))
+        story.extend(_paragraphs_from_text(instrucciones_paciente, estilos["dato"]))
+
+    if instrucciones_farmacia:
+        story.append(Spacer(1, 3 * mm))
+        story.append(_p("Instrucciones a farmacia", estilos["seccion"]))
+        story.extend(_paragraphs_from_text(instrucciones_farmacia, estilos["dato"]))
+
+    firma = _firma_png_bytes(firma_data_url)
+    if firma:
+        story.extend([Spacer(1, 8 * mm), _p("Firma del doctor", estilos["seccion"])])
+        image = Image(io.BytesIO(firma), width=70 * mm, height=28 * mm)
+        image.hAlign = "LEFT"
+        story.append(image)
+
+    return _build_pdf(story, title=f"Receta clinica {receta_id[:8]}")
+
+
 def generar_receta_pdf(
     *,
     paciente_nombre: str,

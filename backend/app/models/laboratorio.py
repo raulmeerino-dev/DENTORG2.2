@@ -6,7 +6,7 @@ Modelos de laboratorio dental.
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Numeric, SmallInteger, String, Text
+from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -65,12 +65,21 @@ class TrabajoLaboratorio(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("facturas.id"), nullable=True
     )
 
+    presupuesto_linea_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("presupuesto_lineas.id"), nullable=True
+    )
+    numero_orden: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     referencia: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    referencia_interna: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    referencia_proveedor: Mapped[str | None] = mapped_column(String(80), nullable=True)
     tipo_trabajo: Mapped[str | None] = mapped_column(String(50), nullable=True)
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     pieza_dental: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     color: Mapped[str | None] = mapped_column(String(50), nullable=True)      # color dental (A2, B1, ...)
     observaciones: Mapped[str | None] = mapped_column(Text, nullable=True)
+    colocado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    material_enviado: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    material_devuelto: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     fecha_salida: Mapped[date | None] = mapped_column(Date, nullable=True)    # cuándo sale a lab
     fecha_entrega_prevista: Mapped[date | None] = mapped_column(Date, nullable=True)

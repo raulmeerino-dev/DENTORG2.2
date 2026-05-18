@@ -80,7 +80,7 @@ export function ConsentimientosPanel({
   );
 }
 
-function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
+export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const signed = useRef(false);

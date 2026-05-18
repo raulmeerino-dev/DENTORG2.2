@@ -122,6 +122,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   const totalDescuentos = totalBruto - presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
   const totalNeto = presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
   const totalAceptado = acceptedLines.reduce((sum, l) => sum + Number(l.importe_neto), 0);
+  const presupuestoCerrado = ['aceptado', 'facturado', 'rechazado'].includes(presupuesto.estado);
 
   function loadLine(linea: PresupuestoLinea) {
     setLineaSeleccionada(linea);
@@ -164,15 +165,15 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
         </div>
         <div className="budget-panel-actions budget-primary-actions">
           <button onClick={() => presentBudget.mutate()} disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}>Presentar</button>
-          <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuesto.estado === 'rechazado'} className="btn-accept">Aceptar todo</button>
+          <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuestoCerrado} className="btn-accept">Aceptar todo</button>
           <button onClick={() => passPending.mutate()} disabled={passPending.isPending || !acceptedLines.length} className="btn-pending">Trabajo pendiente</button>
           <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !acceptedLines.length} className="btn-invoice">Facturar</button>
           <details className="budget-secondary-menu">
             <summary>Mas</summary>
             <div>
-              <button onClick={() => updateLine.mutate({ aceptado: !lineaSeleccionada?.aceptado })} disabled={!lineaSeleccionada || updateLine.isPending}>{lineaSeleccionada?.aceptado ? 'Quitar aceptado' : 'Aceptar linea'}</button>
-              <button onClick={() => deleteLine.mutate()} disabled={!lineaSeleccionada || deleteLine.isPending}>Borrar linea</button>
-              <button onClick={() => setRechazarOpen(true)} disabled={rejectBudget.isPending || presupuesto.estado === 'rechazado'} className="btn-reject">Rechazar</button>
+              <button onClick={() => updateLine.mutate({ aceptado: !lineaSeleccionada?.aceptado })} disabled={!lineaSeleccionada || updateLine.isPending || presupuestoCerrado}>{lineaSeleccionada?.aceptado ? 'Quitar aceptado' : 'Aceptar linea'}</button>
+              <button onClick={() => deleteLine.mutate()} disabled={!lineaSeleccionada || deleteLine.isPending || presupuestoCerrado}>Borrar linea</button>
+              <button onClick={() => setRechazarOpen(true)} disabled={rejectBudget.isPending || presupuestoCerrado} className="btn-reject">Rechazar</button>
             </div>
           </details>
         </div>
@@ -214,8 +215,8 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
           <label>Dto %<input value={descuento} onChange={(event) => setDescuento(event.target.value)} /></label>
           <label>Precio<input value={precioLinea || selectedTreatment?.precio || ''} onChange={(event) => setPrecioLinea(event.target.value.replace(',', '.'))} /></label>
           <div className="budget-actions">
-            <button onClick={() => addLine.mutate()} disabled={!selectedTreatment || addLine.isPending}>Anadir</button>
-            <button onClick={() => updateLine.mutate({ pieza_dental: pieza ? Number(pieza) : null, caras: caras || null, precio_unitario: precioLinea || selectedTreatment?.precio || 0, descuento_porcentaje: descuento || 0 })} disabled={!lineaSeleccionada || updateLine.isPending}>Modificar</button>
+            <button onClick={() => addLine.mutate()} disabled={!selectedTreatment || addLine.isPending || presupuestoCerrado}>Anadir</button>
+            <button onClick={() => updateLine.mutate({ pieza_dental: pieza ? Number(pieza) : null, caras: caras || null, precio_unitario: precioLinea || selectedTreatment?.precio || 0, descuento_porcentaje: descuento || 0 })} disabled={!lineaSeleccionada || updateLine.isPending || presupuestoCerrado}>Modificar</button>
           </div>
         </div>
       </div>

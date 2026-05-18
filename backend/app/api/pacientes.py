@@ -5,13 +5,13 @@ CRUD completo + búsqueda global + gestión de referencias/tags.
 Cifrado RGPD: DNI, teléfonos y email se cifran con pgcrypto antes de guardar
 y se descifran al leer. La clave nunca sale del servidor.
 """
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -66,9 +66,24 @@ async def _get_paciente_or_404(db: AsyncSession, paciente_id: UUID) -> Paciente:
     return p
 
 
+async def _fechas_visita_paciente(db: AsyncSession, paciente_id: UUID) -> tuple[date | None, date | None]:
+    """Calcula primera y última visita desde el historial clínico del paciente."""
+    from app.models.historial import HistorialClinico
+
+    result = await db.execute(
+        select(
+            func.min(HistorialClinico.fecha),
+            func.max(HistorialClinico.fecha),
+        ).where(HistorialClinico.paciente_id == paciente_id)
+    )
+    primera, ultima = result.one()
+    return primera, ultima
+
+
 async def _build_response(db: AsyncSession, p: Paciente, include_health: bool) -> PacienteResponse:
     """Construye PacienteResponse descifrando campos sensibles."""
     descifrados = await descifrar_paciente(db, p)
+    primera_visita, ultima_visita = await _fechas_visita_paciente(db, p.id)
     data = {
         "id": p.id,
         "clinica_id": p.clinica_id,
@@ -89,6 +104,17 @@ async def _build_response(db: AsyncSession, p: Paciente, include_health: bool) -
         "datos_salud": descifrados["datos_salud"] if include_health else None,
         "activo": p.activo,
         "referencias": p.referencias if hasattr(p, "referencias") else [],
+        "sexo": p.sexo,
+        "profesion": p.profesion,
+        "pais": p.pais,
+        "doctor_habitual_id": p.doctor_habitual_id,
+        "num_poliza": p.num_poliza,
+        "pagador_distinto": p.pagador_distinto,
+        "pagador_nombre": p.pagador_nombre,
+        "pagador_dni": p.pagador_dni,
+        "pagador_direccion": p.pagador_direccion,
+        "fecha_primera_visita": primera_visita,
+        "fecha_ultima_visita": ultima_visita,
         **descifrados,
     }
     if not include_health:
@@ -184,6 +210,9 @@ async def crear_paciente(
 
     campos_planos = data.model_dump(exclude={"dni_nie", "telefono", "telefono2", "email", "datos_salud"})
     campos_planos["clinica_id"] = resolve_clinic_id(current_user, campos_planos.get("clinica_id"))
+    await _ensure_doctor_habitual_valido(
+        db, current_user, campos_planos.get("doctor_habitual_id"), campos_planos.get("clinica_id")
+    )
     paciente = Paciente(**campos_planos, **cifrados)
     paciente.datos_salud_cifrado = await cifrar_json(db, data.datos_salud)
     paciente.datos_salud = None
@@ -207,18 +236,83 @@ async def obtener_paciente(
     return await _build_response(db, p, include_health=_puede_ver_datos_salud(current_user))
 
 
+_CAMPOS_AUDITABLES = (
+    "nombre",
+    "apellidos",
+    "fecha_nacimiento",
+    "direccion",
+    "codigo_postal",
+    "ciudad",
+    "provincia",
+    "entidad_id",
+    "entidad_alt_id",
+    "no_correo",
+    "observaciones",
+    "activo",
+    "sexo",
+    "profesion",
+    "pais",
+    "doctor_habitual_id",
+    "num_poliza",
+    "pagador_distinto",
+    "pagador_nombre",
+    "pagador_dni",
+    "pagador_direccion",
+)
+
+
+def _snapshot_paciente(p: Paciente) -> dict[str, Any]:
+    snapshot: dict[str, Any] = {}
+    for campo in _CAMPOS_AUDITABLES:
+        valor = getattr(p, campo, None)
+        if isinstance(valor, UUID):
+            snapshot[campo] = str(valor)
+        elif isinstance(valor, date):
+            snapshot[campo] = valor.isoformat()
+        else:
+            snapshot[campo] = valor
+    return snapshot
+
+
+async def _ensure_doctor_habitual_valido(
+    db: AsyncSession,
+    current_user: CurrentUser,
+    doctor_id: UUID | None,
+    clinica_id: UUID | None,
+) -> None:
+    if doctor_id is None:
+        return
+    from app.models.doctor import Doctor
+
+    doctor = await db.get(Doctor, doctor_id)
+    if doctor is None:
+        raise HTTPException(status_code=404, detail="Doctor habitual no encontrado")
+    if doctor.clinica_id is not None and clinica_id is not None and doctor.clinica_id != clinica_id:
+        raise HTTPException(status_code=400, detail="Doctor habitual de otra clínica")
+    if doctor.clinica_id is not None:
+        ensure_clinic_access(current_user, doctor.clinica_id)
+
+
 @router.patch("/{paciente_id}", response_model=PacienteResponse)
 async def actualizar_paciente(
     paciente_id: UUID,
     data: PacienteUpdate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
 ) -> PacienteResponse:
     p = await _get_paciente_or_404(db, paciente_id)
     ensure_clinic_access(current_user, p.clinica_id)
+    old_snapshot = _snapshot_paciente(p)
+
+    campos = data.model_dump(exclude_unset=True)
+
+    if "doctor_habitual_id" in campos:
+        await _ensure_doctor_habitual_valido(
+            db, current_user, campos.get("doctor_habitual_id"), p.clinica_id
+        )
 
     # Separar campos sensibles de planos
-    campos = data.model_dump(exclude_none=True)
     sensibles = {}
     for campo in ("dni_nie", "telefono", "telefono2", "email"):
         if campo in campos:
@@ -238,6 +332,27 @@ async def actualizar_paciente(
         if campo == "clinica_id":
             valor = resolve_clinic_id(current_user, valor)
         setattr(p, campo, valor)
+
+    new_snapshot = _snapshot_paciente(p)
+    diff_old = {k: old_snapshot[k] for k in _CAMPOS_AUDITABLES if old_snapshot[k] != new_snapshot[k]}
+    diff_new = {k: new_snapshot[k] for k in _CAMPOS_AUDITABLES if old_snapshot[k] != new_snapshot[k]}
+    campos_sensibles_modificados = sorted(sensibles.keys()) if sensibles else []
+    if diff_old or diff_new or campos_sensibles_modificados or "datos_salud" in data.model_fields_set:
+        await write_audit_log(
+            db,
+            user=current_user,
+            action="paciente_actualizado",
+            entity_type="pacientes",
+            entity_id=p.id,
+            old_values=diff_old or None,
+            new_values={
+                **diff_new,
+                **({"campos_sensibles": campos_sensibles_modificados} if campos_sensibles_modificados else {}),
+                **({"datos_salud_modificado": True} if "datos_salud" in data.model_fields_set else {}),
+            } or None,
+            clinica_id=p.clinica_id,
+            request=request,
+        )
 
     await db.commit()
     p2 = await _get_paciente_or_404(db, paciente_id)

@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, Presupuesto, TrabajoLaboratorio, UserRole } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, Doctor, DocumentoPaciente, Factura, HistorialClinico, PacienteSexo, Presupuesto, TrabajoLaboratorio } from '../../types/api';
 import { formatDate, fullName, money } from '../../lib/utils';
 import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
-import { PatientOdontogramFlow } from '../odontogram';
+import { PatientOdontogramSummary } from './PatientOdontogramSummary';
 
 function readableHealthData(datos?: Record<string, unknown> | null) {
   if (!datos) return '';
@@ -91,6 +91,30 @@ export function PatientFinder({
   );
 }
 
+const SEXO_LABEL: Record<PacienteSexo, string> = {
+  M: 'Hombre',
+  F: 'Mujer',
+  otro: 'Otro',
+};
+
+export function PatientIdentityChips({ paciente }: { paciente: ApiPaciente | null }) {
+  if (!paciente) return null;
+  const chips: Array<{ key: string; label: string }> = [];
+  if (paciente.sexo) chips.push({ key: 'sexo', label: SEXO_LABEL[paciente.sexo] ?? paciente.sexo });
+  if (paciente.profesion) chips.push({ key: 'profesion', label: paciente.profesion });
+  if (paciente.num_poliza) chips.push({ key: 'poliza', label: `Póliza ${paciente.num_poliza}` });
+  if (paciente.pagador_distinto) chips.push({ key: 'pagador', label: 'Pagador distinto' });
+  if (paciente.fecha_primera_visita) chips.push({ key: 'primera', label: `1ª visita ${formatDate(paciente.fecha_primera_visita)}` });
+  if (!chips.length) return null;
+  return (
+    <ul className="patient-identity-chips" aria-label="Datos administrativos del paciente">
+      {chips.map((chip) => (
+        <li key={chip.key}>{chip.label}</li>
+      ))}
+    </ul>
+  );
+}
+
 export function PatientForm({
   paciente,
   facturas,
@@ -106,6 +130,7 @@ export function PatientForm({
   onOpenPresupuestos,
   onOpenPendientes,
   onOpenRealizados,
+  onOpenOdontogramaDetail,
   onOpenFacturacion,
   onOpenHistorial,
   onOpenDocumentos,
@@ -114,7 +139,6 @@ export function PatientForm({
   onEmitirFactura,
   onRegistrarCobro,
   onHistorialFacturas,
-  userRole,
 }: {
   paciente: ApiPaciente | null;
   facturas: Factura[];
@@ -130,6 +154,7 @@ export function PatientForm({
   onOpenPresupuestos: () => void;
   onOpenPendientes: () => void;
   onOpenRealizados: () => void;
+  onOpenOdontogramaDetail: () => void;
   onOpenFacturacion: () => void;
   onOpenHistorial: () => void;
   onOpenDocumentos: () => void;
@@ -138,7 +163,6 @@ export function PatientForm({
   onEmitirFactura: () => void;
   onRegistrarCobro: (factura?: Factura | null) => void;
   onHistorialFacturas: () => void;
-  userRole?: UserRole | null;
 }) {
   const totals = getBillingTotals(facturas);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
@@ -161,6 +185,22 @@ export function PatientForm({
   const facturasPendientes = getFacturasPendientes(facturas);
   const ultimaFacturas = getFacturasRecientes(facturas);
   const pagosParciales = getPagosParciales(facturas);
+  const ultimosDocumentos = documentos
+    .slice()
+    .sort((a, b) => (b.fecha_documento || b.created_at || '').localeCompare(a.fecha_documento || a.created_at || ''))
+    .slice(0, 3);
+  const ultimosConsentimientos = consentimientos
+    .slice()
+    .sort((a, b) => (b.fecha_firma || b.created_at || '').localeCompare(a.fecha_firma || a.created_at || ''))
+    .slice(0, 3);
+  const consentimientosPendientes = consentimientos.filter((item) => item.estado !== 'firmado' && item.estado !== 'revocado').length;
+  const today = new Date().toISOString().slice(0, 10);
+  const laboratorioVencidos = laboratorio.filter((trabajo) => (
+    !!trabajo.fecha_entrega_prevista
+    && !trabajo.fecha_recepcion
+    && !['entregado', 'cancelado'].includes(trabajo.estado)
+    && trabajo.fecha_entrega_prevista < today
+  ));
 
   return (
     <div className="patient-form-grid patient-hub-grid">
@@ -169,12 +209,19 @@ export function PatientForm({
           Paciente temporal: completar datos en clinica
         </button>
       )}
+      {laboratorioVencidos.length > 0 && (
+        <button type="button" className="laboratorio-vencidos-banner" onClick={onOpenLaboratorio}>
+          <span>{laboratorioVencidos.length} pedido{laboratorioVencidos.length === 1 ? '' : 's'} de laboratorio sin recibir con fecha de entrega vencida</span>
+          <em>Revisar laboratorio</em>
+        </button>
+      )}
       <section className="patient-hub-head">
         <div className="patient-avatar">{initials}</div>
         <div className="patient-hub-identity">
           <span>Paciente</span>
           <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
           <em>H {paciente?.num_historial ?? '-'} - {paciente?.telefono || paciente?.telefono2 || 'sin telefono'} - {paciente?.dni_nie || 'sin DNI'}</em>
+          <PatientIdentityChips paciente={paciente} />
         </div>
         <div className="patient-hub-alert">
           <span>Alertas / obs.</span>
@@ -197,18 +244,12 @@ export function PatientForm({
         <button type="button" onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
         <button type="button" onClick={onOpenRealizados} disabled={!paciente}>Realizados <strong>{realizados.length}</strong></button>
         <button type="button" onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
-        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
       </section>
 
-      <PatientOdontogramFlow
-        paciente={paciente}
-        mode="reading"
-        title="Odontograma actual"
-        subtitle="Vista rapida de lectura del estado clinico del paciente."
-        readOnly
-        enableQuickTreatments={false}
-        className="patient-summary-odontogram odontogram-summary-flow"
-        userRole={userRole}
+      <PatientOdontogramSummary
+        presupuestos={presupuestos}
+        historial={historial}
+        onOpenDetail={onOpenOdontogramaDetail}
       />
 
       <section className="patient-next-card">
@@ -270,6 +311,48 @@ export function PatientForm({
         </div>
       </section>
 
+      <section className="patient-documents-summary-card">
+        <div className="patient-card-head">
+          <h3>Documentos y consentimientos</h3>
+          <div className="patient-card-head-right">
+            <span>{documentos.length} docs · {consentimientos.length} CI</span>
+            <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Ver todos</button>
+          </div>
+        </div>
+        <div className="patient-documents-summary-grid">
+          <div>
+            <strong>Ultimos documentos</strong>
+            {ultimosDocumentos.map((documento) => (
+              <button type="button" key={documento.id} onClick={onOpenDocumentos}>
+                <span>{documento.categoria}</span>
+                <b>{documento.nombre_original}</b>
+                <small>{formatDate(documento.fecha_documento || documento.created_at)}</small>
+              </button>
+            ))}
+            {!ultimosDocumentos.length && <p>Sin documentos archivados.</p>}
+          </div>
+          <div>
+            <strong>Consentimientos</strong>
+            <em className={consentimientosPendientes ? 'pending' : ''}>
+              {consentimientosPendientes ? `${consentimientosPendientes} pendientes de firma` : 'Sin pendientes importantes'}
+            </em>
+            {ultimosConsentimientos.map((consentimiento) => (
+              <button type="button" key={consentimiento.id} onClick={onOpenDocumentos}>
+                <span>{consentimiento.estado}</span>
+                <b>{consentimiento.tipo}</b>
+                <small>{formatDate(consentimiento.fecha_firma || consentimiento.created_at)}</small>
+              </button>
+            ))}
+            {!ultimosConsentimientos.length && <p>Sin consentimientos creados.</p>}
+          </div>
+        </div>
+        <footer className="patient-documents-summary-actions">
+          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Subir documento</button>
+          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo consentimiento</button>
+          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Ver todos</button>
+        </footer>
+      </section>
+
       <section className="patient-side-card patient-hub-side-card">
         <div>
           <h3>Datos</h3>
@@ -299,10 +382,12 @@ export function PatientForm({
 
 export function PatientEditModal({
   paciente,
+  doctores = [],
   onClose,
   onSave,
 }: {
   paciente: ApiPaciente;
+  doctores?: Doctor[];
   onClose: () => void;
   onSave: (data: Partial<ApiPaciente>) => void;
 }) {
@@ -320,9 +405,18 @@ export function PatientEditModal({
     provincia: paciente.provincia ?? '',
     observaciones: paciente.observaciones ?? '',
     alergias: typeof paciente.datos_salud?.alergias === 'string' ? paciente.datos_salud.alergias : '',
+    sexo: (paciente.sexo ?? '') as PacienteSexo | '',
+    profesion: paciente.profesion ?? '',
+    pais: paciente.pais ?? '',
+    doctor_habitual_id: paciente.doctor_habitual_id ?? '',
+    num_poliza: paciente.num_poliza ?? '',
+    pagador_distinto: Boolean(paciente.pagador_distinto),
+    pagador_nombre: paciente.pagador_nombre ?? '',
+    pagador_dni: paciente.pagador_dni ?? '',
+    pagador_direccion: paciente.pagador_direccion ?? '',
   });
 
-  function setField(field: keyof typeof form, value: string) {
+  function setField<K extends keyof typeof form>(field: K, value: typeof form[K]) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -342,6 +436,15 @@ export function PatientEditModal({
       provincia: form.provincia || null,
       observaciones: form.observaciones || null,
       datos_salud: { ...(paciente.datos_salud ?? {}), alergias: form.alergias },
+      sexo: form.sexo || null,
+      profesion: form.profesion.trim() || null,
+      pais: form.pais.trim() || null,
+      doctor_habitual_id: form.doctor_habitual_id || null,
+      num_poliza: form.num_poliza.trim() || null,
+      pagador_distinto: form.pagador_distinto,
+      pagador_nombre: form.pagador_distinto ? form.pagador_nombre.trim() || null : null,
+      pagador_dni: form.pagador_distinto ? form.pagador_dni.trim() || null : null,
+      pagador_direccion: form.pagador_distinto ? form.pagador_direccion.trim() || null : null,
     });
   }
 
@@ -367,6 +470,41 @@ export function PatientEditModal({
           <label className="wide">Alergias / contraindicaciones<textarea value={form.alergias} onChange={(event) => setField('alergias', event.target.value)} /></label>
           <label className="wide">Observaciones generales<textarea value={form.observaciones} onChange={(event) => setField('observaciones', event.target.value)} /></label>
         </div>
+        <details className="patient-edit-extras" data-testid="patient-edit-extras">
+          <summary>Datos adicionales</summary>
+          <div className="patient-edit-grid">
+            <label>Sexo
+              <select value={form.sexo} onChange={(event) => setField('sexo', event.target.value as PacienteSexo | '')}>
+                <option value="">—</option>
+                <option value="M">Hombre</option>
+                <option value="F">Mujer</option>
+                <option value="otro">Otro</option>
+              </select>
+            </label>
+            <label>Profesión<input value={form.profesion} onChange={(event) => setField('profesion', event.target.value)} /></label>
+            <label>País<input value={form.pais} onChange={(event) => setField('pais', event.target.value)} /></label>
+            <label>Doctor habitual
+              <select value={form.doctor_habitual_id} onChange={(event) => setField('doctor_habitual_id', event.target.value)}>
+                <option value="">—</option>
+                {doctores.map((doctor) => (
+                  <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
+                ))}
+              </select>
+            </label>
+            <label className="wide">Número de póliza<input value={form.num_poliza} onChange={(event) => setField('num_poliza', event.target.value)} /></label>
+            <label className="wide checkbox-line">
+              <input type="checkbox" checked={form.pagador_distinto} onChange={(event) => setField('pagador_distinto', event.target.checked)} />
+              <span>Pagador de factura distinto del paciente</span>
+            </label>
+            {form.pagador_distinto && (
+              <>
+                <label className="wide">Pagador — nombre<input value={form.pagador_nombre} onChange={(event) => setField('pagador_nombre', event.target.value)} /></label>
+                <label>Pagador — DNI/NIF<input value={form.pagador_dni} onChange={(event) => setField('pagador_dni', event.target.value)} /></label>
+                <label className="wide">Pagador — dirección<input value={form.pagador_direccion} onChange={(event) => setField('pagador_direccion', event.target.value)} /></label>
+              </>
+            )}
+          </div>
+        </details>
         <footer className="modal-actions">
           <button type="button" onClick={onClose}>Cancelar</button>
           <button type="submit">Guardar ficha</button>
