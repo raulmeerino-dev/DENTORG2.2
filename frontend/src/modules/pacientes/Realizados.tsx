@@ -28,6 +28,21 @@ const CATALOGO_TRATAMIENTOS = [
   'Perno de Cuazo',
 ];
 
+const TOOL_LABELS: Record<string, string> = {
+  X: 'Ausencia / exodoncia',
+  I: 'Implante',
+  C: 'Corona',
+  E: 'Endodoncia',
+  P: 'Protesis',
+  R: 'Reconstruccion',
+  F: 'Ferula',
+  O: 'Obturacion',
+  B: 'Blanqueamiento',
+  A: 'Atache',
+  T: 'Tratamiento',
+  M: 'Movilidad / mantenimiento',
+};
+
 function hasFinishedState(value?: string | null) {
   const estado = normalizeText(value);
   return estado.includes('realizado') || estado.includes('facturado') || estado.includes('cobrado') || estado.includes('atendido') || estado.includes('finalizado');
@@ -99,9 +114,18 @@ function TreatmentBoard({
         <div className="photo-placeholder">Fotografia</div>
         <div className="tooth-tools" aria-label="Tipos de trabajo">
           {['X', 'I', 'C', 'E', 'P', 'R', 'F', 'O', 'B', 'A', 'T', 'M'].map((item) => (
-            <button key={item} className={selectedTool === item ? 'active-tool' : ''} onClick={() => setSelectedTool(item)}>{item}</button>
+            <button
+              key={item}
+              className={selectedTool === item ? 'active-tool' : ''}
+              onClick={() => setSelectedTool(item)}
+              title={TOOL_LABELS[item]}
+              aria-label={`${item}: ${TOOL_LABELS[item]}`}
+            >
+              {item}
+            </button>
           ))}
         </div>
+        <p className="tool-legend">{selectedTool}: {TOOL_LABELS[selectedTool]}</p>
         <div className="catalog-panel">
           <strong>Tratamientos</strong>
           <ul>
@@ -188,21 +212,27 @@ export function TratamientosRealizadosPanel({
           </tbody>
         </table>
       </section>
-      <TreatmentBoard
-        presupuestos={presupuestos}
-        doctorName={doctorName}
-        doctorColor={doctorColor}
-        tratamientos={tratamientos}
-      />
-      <PatientOdontogramFlow
-        paciente={paciente}
-        mode="completed"
-        title="Odontograma actual"
-        subtitle="Estado real de la boca tras tratamientos realizados."
-        readOnly
-        enableQuickTreatments={false}
-        userRole={userRole}
-      />
+      <details className="secondary-clinic-panel">
+        <summary>Vista clinica detallada y herramientas</summary>
+        <TreatmentBoard
+          presupuestos={presupuestos}
+          doctorName={doctorName}
+          doctorColor={doctorColor}
+          tratamientos={tratamientos}
+        />
+      </details>
+      <details className="odontogram-support-panel">
+        <summary>Ver odontograma actual</summary>
+        <PatientOdontogramFlow
+          paciente={paciente}
+          mode="completed"
+          title="Odontograma actual"
+          subtitle="Estado real de la boca tras tratamientos realizados."
+          readOnly
+          enableQuickTreatments={false}
+          userRole={userRole}
+        />
+      </details>
     </div>
   );
 }

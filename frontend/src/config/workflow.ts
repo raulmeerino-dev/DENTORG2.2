@@ -65,14 +65,6 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     shortcut: 'CA',
   },
   {
-    id: 'dashboard',
-    label: 'Reportes',
-    description: 'Indicadores y listados de control para administracion.',
-    roles: ['admin'],
-    route: '/dashboard',
-    shortcut: 'RE',
-  },
-  {
     id: 'adminExtras',
     label: 'Admin',
     description: 'Clinicas, usuarios, inventario, catalogos, auditoria, seguridad y backups.',

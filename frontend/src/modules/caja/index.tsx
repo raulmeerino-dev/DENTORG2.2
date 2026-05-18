@@ -121,7 +121,7 @@ export default function CajaPage() {
   const rows = tab === 'pendientes' ? pendientes : tab === 'hoy' ? emitidashoy : facturas;
 
   return (
-    <section className="page fichero-screen">
+    <section className="page page-shell fichero-screen caja-screen">
       <div className="panel-caption" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
         <strong>Caja</strong>
         <span>Cobros, facturas y arqueo diario</span>

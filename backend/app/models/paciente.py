@@ -58,6 +58,19 @@ class Paciente(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     foto_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     observaciones: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Ficha ampliada (Fase 1 paridad Eurodent)
+    sexo: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    profesion: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    pais: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    doctor_habitual_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True
+    )
+    num_poliza: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    pagador_distinto: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    pagador_nombre: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    pagador_dni: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    pagador_direccion: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Datos de salud: estructura libre en JSONB
     # {"alergias": "...", "medicacion": "...", "operaciones": "...", "enfermedades": "...", "observaciones_medicas": "..."}
     datos_salud: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

@@ -11,7 +11,6 @@ import HoyPage from './modules/hoy';
 import ListadosPage from './modules/listados';
 import ConfiguracionPage from './modules/configuracion';
 import LoginPage from './modules/auth/LoginPage';
-import DashboardPage from './modules/dashboard';
 import AdminExtrasPage from './modules/adminExtras';
 import MisCitasPage from './modules/misCitas';
 
@@ -40,7 +39,7 @@ export default function App() {
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<Navigate to="/hoy" replace />} />
               <Route path="hoy" element={<HoyPage />} />
-              <Route path="dashboard" element={<RoleProtected roles={['admin']}><DashboardPage /></RoleProtected>} />
+              <Route path="dashboard" element={<RoleProtected roles={['admin']}><Navigate to="/admin-extras?tab=reportes" replace /></RoleProtected>} />
               <Route path="pacientes" element={<PacientesPage />} />
               <Route path="agenda" element={<AgendaPage />} />
               <Route path="caja" element={<RoleProtected roles={['admin', 'recepcion']}><CajaPage /></RoleProtected>} />

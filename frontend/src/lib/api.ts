@@ -32,6 +32,10 @@ import type {
   ProductionReadinessReport,
   Presupuesto,
   PresupuestoLinea,
+  RecetaClinica,
+  RecetaCreateInput,
+  TrabajoLaboratorioCreateInput,
+  TrabajoLaboratorioUpdateInput,
   ReportCitasDoctor,
   ReportDashboard,
   ReportKpis,
@@ -783,6 +787,36 @@ export async function openConsentimientoPdf(consentimientoId: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+export async function getRecetasPaciente(pacienteId: string) {
+  return withDemoFallback(
+    api.get<RecetaClinica[]>('/recetas', { params: { paciente_id: pacienteId } }),
+    [] as RecetaClinica[],
+  );
+}
+
+export async function createRecetaClinica(pacienteId: string, data: RecetaCreateInput) {
+  const { data: receta } = await api.post<RecetaClinica>(`/recetas/pacientes/${pacienteId}`, data);
+  return receta;
+}
+
+export async function firmarRecetaClinica(recetaId: string, firmaDataUrl: string) {
+  const { data } = await api.post<RecetaClinica>(`/recetas/${recetaId}/firma`, { firma_data_url: firmaDataUrl });
+  return data;
+}
+
+export async function openRecetaClinicaPdf(recetaId: string) {
+  const { data } = await api.get<Blob>(`/recetas/${recetaId}/pdf`, { responseType: 'blob' });
+  const url = URL.createObjectURL(data);
+  const opened = window.open(url, '_blank');
+  if (!opened) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `receta_${recetaId}.pdf`;
+    link.click();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export async function getFormasPago() {
   return withDemoFallback(api.get<FormaPago[]>('/facturas/formas-pago'), DEMO_FORMAS_PAGO);
 }
@@ -793,7 +827,18 @@ export async function createPresupuesto(pacienteId: string, doctorId: string) {
     doctor_id: doctorId,
     fecha: new Date().toISOString().slice(0, 10),
     lineas: [],
-  }), { ...DEMO_PRESUPUESTOS[0], id: `demo-pres-${Date.now()}`, paciente_id: pacienteId, doctor_id: doctorId });
+  }), {
+    ...DEMO_PRESUPUESTOS[0],
+    id: `demo-pres-${Date.now()}`,
+    paciente_id: pacienteId,
+    doctor_id: doctorId,
+    numero: Math.floor(Date.now() / 1000) % 100000,
+    fecha: new Date().toISOString().slice(0, 10),
+    estado: 'borrador',
+    lineas: [],
+    total: '0.00',
+    total_aceptado: '0.00',
+  });
 }
 
 export async function presentarPresupuesto(presupuestoId: string) {
@@ -1703,7 +1748,17 @@ export async function getLaboratorios(params: { solo_activos?: boolean } = {}) {
   return withDemoFallback(api.get<Laboratorio[]>('/laboratorios', { params }), labs);
 }
 
-export async function getTrabajosLaboratorio(params: { pendientes?: boolean; estado?: string; paciente_id?: string } = {}) {
+export async function createTrabajoLaboratorio(data: TrabajoLaboratorioCreateInput) {
+  const { data: trabajo } = await api.post<TrabajoLaboratorio>('/laboratorio/trabajos', data);
+  return trabajo;
+}
+
+export async function updateTrabajoLaboratorio(trabajoId: string, data: TrabajoLaboratorioUpdateInput) {
+  const { data: trabajo } = await api.patch<TrabajoLaboratorio>(`/laboratorio/trabajos/${trabajoId}`, data);
+  return trabajo;
+}
+
+export async function getTrabajosLaboratorio(params: { pendientes?: boolean; proximos?: boolean; vencidos?: boolean; estado?: string; paciente_id?: string } = {}) {
   const trabajos: TrabajoLaboratorio[] = [
     { id: 'demo-labtrab-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', laboratorio_id: 'demo-lab-1', historial_id: null, tratamiento_id: 't-impl', presupuesto_id: 'demo-pres-1', factura_id: null, referencia: 'LAB-24-ZIR', tipo_trabajo: 'Corona', descripcion: 'Corona zirconio 24', pieza_dental: 24, color: 'A2', observaciones: 'Probar estructura', fecha_salida: '2026-04-20', fecha_entrega_prevista: '2026-04-28', fecha_recepcion: null, fecha_entrega_paciente: null, estado: 'enviado', precio: 120, coste_laboratorio: 120, precio_paciente: 290, margen: 170, comision_doctor_pct: 0, estado_pago_laboratorio: 'pendiente', estado_cobro_paciente: 'pendiente', paciente: { id: 'demo-pac-1', nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', num_historial: 91312 }, doctor: { id: 'demo-doc-1', nombre: DEMO_DOCTORES[0].nombre }, laboratorio: { id: 'demo-lab-1', nombre: 'Laboratorio Norte', telefono: '942000001', whatsapp: '600100100', email: 'lab@example.test', contacto: 'Laura', notas: null, activo: true } },
   ];
@@ -1716,7 +1771,14 @@ export async function getTrabajosLaboratorio(params: { pendientes?: boolean; est
   return withDemoFallback(api.get<TrabajoLaboratorio[]>('/laboratorio/trabajos', { params }), filtered);
 }
 
-type ReportDateParams = { fecha_desde?: string; fecha_hasta?: string; limit?: number };
+type ReportDateParams = {
+  fecha_desde?: string;
+  fecha_hasta?: string;
+  limit?: number;
+  doctor_id?: string;
+  clinica_id?: string;
+  tratamiento_id?: string;
+};
 
 export function getReportKpis(): Promise<ReportKpis>;
 export function getReportKpis(params: ReportDateParams): Promise<ReportKpis>;

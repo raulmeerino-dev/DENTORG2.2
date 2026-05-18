@@ -4,12 +4,12 @@ Router de laboratorio dental.
 - CRUD de trabajos de laboratorio
 """
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -18,6 +18,7 @@ from app.database import get_db
 from app.models.laboratorio import Laboratorio, TrabajoLaboratorio
 from app.models.paciente import Paciente
 from app.models.doctor import Doctor
+from app.services.audit import write_audit_log
 
 router = APIRouter()
 
@@ -62,8 +63,11 @@ class TrabajoCreate(BaseModel):
     historial_id: uuid.UUID | None = None
     tratamiento_id: uuid.UUID | None = None
     presupuesto_id: uuid.UUID | None = None
+    presupuesto_linea_id: uuid.UUID | None = None
     factura_id: uuid.UUID | None = None
     referencia: str | None = None
+    referencia_interna: str | None = None
+    referencia_proveedor: str | None = None
     tipo_trabajo: str | None = None
     descripcion: str
     pieza_dental: int | None = None
@@ -78,6 +82,7 @@ class TrabajoCreate(BaseModel):
     comision_doctor_pct: float | None = None
     estado_pago_laboratorio: str = "pendiente"
     estado_cobro_paciente: str = "pendiente"
+    material_enviado: bool | None = None
 
 
 class TrabajoUpdate(BaseModel):
@@ -85,8 +90,11 @@ class TrabajoUpdate(BaseModel):
     historial_id: uuid.UUID | None = None
     tratamiento_id: uuid.UUID | None = None
     presupuesto_id: uuid.UUID | None = None
+    presupuesto_linea_id: uuid.UUID | None = None
     factura_id: uuid.UUID | None = None
     referencia: str | None = None
+    referencia_interna: str | None = None
+    referencia_proveedor: str | None = None
     tipo_trabajo: str | None = None
     descripcion: str | None = None
     pieza_dental: int | None = None
@@ -104,6 +112,9 @@ class TrabajoUpdate(BaseModel):
     comision_doctor_pct: float | None = None
     estado_pago_laboratorio: str | None = None
     estado_cobro_paciente: str | None = None
+    colocado: bool | None = None
+    material_enviado: bool | None = None
+    material_devuelto: bool | None = None
 
 
 class PacienteMin(BaseModel):
@@ -128,8 +139,12 @@ class TrabajoResponse(BaseModel):
     historial_id: uuid.UUID | None
     tratamiento_id: uuid.UUID | None
     presupuesto_id: uuid.UUID | None
+    presupuesto_linea_id: uuid.UUID | None
     factura_id: uuid.UUID | None
+    numero_orden: int | None
     referencia: str | None
+    referencia_interna: str | None
+    referencia_proveedor: str | None
     tipo_trabajo: str | None
     descripcion: str
     pieza_dental: int | None
@@ -147,6 +162,9 @@ class TrabajoResponse(BaseModel):
     comision_doctor_pct: float | None
     estado_pago_laboratorio: str
     estado_cobro_paciente: str
+    colocado: bool
+    material_enviado: bool
+    material_devuelto: bool
     paciente: PacienteMin | None = None
     doctor: DoctorMin | None = None
     laboratorio: LaboratorioResponse | None = None
@@ -235,6 +253,8 @@ async def listar_trabajos(
     doctor_id: uuid.UUID | None = Query(None),
     estado: str | None = Query(None),
     pendientes: bool = Query(False),  # solo estados activos (pendiente/enviado/en_proceso)
+    proximos: bool = Query(False),    # con entrega prevista en proximos 7 dias y aun no recibidos
+    vencidos: bool = Query(False),    # entrega prevista pasada y aun no recibidos
 ) -> list[TrabajoResponse]:
     q = _trabajo_query().order_by(TrabajoLaboratorio.created_at.desc())
     if current_user.rol != "admin" and current_user.clinica_id:
@@ -251,13 +271,37 @@ async def listar_trabajos(
         q = q.where(TrabajoLaboratorio.estado == estado)
     if pendientes:
         q = q.where(TrabajoLaboratorio.estado.in_(["pendiente", "enviado", "en_proceso"]))
+    if proximos:
+        hoy = date.today()
+        q = q.where(
+            TrabajoLaboratorio.fecha_entrega_prevista.isnot(None),
+            TrabajoLaboratorio.fecha_entrega_prevista >= hoy,
+            TrabajoLaboratorio.fecha_entrega_prevista <= hoy + timedelta(days=7),
+            TrabajoLaboratorio.fecha_recepcion.is_(None),
+        )
+    if vencidos:
+        q = q.where(
+            TrabajoLaboratorio.fecha_entrega_prevista.isnot(None),
+            TrabajoLaboratorio.fecha_entrega_prevista < date.today(),
+            TrabajoLaboratorio.fecha_recepcion.is_(None),
+        )
     result = await db.execute(q)
     return [TrabajoResponse.model_validate(t) for t in result.scalars().all()]
+
+
+async def _siguiente_numero_orden(db: AsyncSession, clinica_id: uuid.UUID | None) -> int:
+    """Calcula el siguiente numero de orden de laboratorio para la clinica."""
+    stmt = select(func.coalesce(func.max(TrabajoLaboratorio.numero_orden), 0))
+    if clinica_id is not None:
+        stmt = stmt.join(TrabajoLaboratorio.paciente).where(Paciente.clinica_id == clinica_id)
+    actual = await db.scalar(stmt) or 0
+    return int(actual) + 1
 
 
 @router.post("/laboratorio/trabajos", response_model=TrabajoResponse, status_code=status.HTTP_201_CREATED)
 async def crear_trabajo(
     data: TrabajoCreate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
 ) -> TrabajoResponse:
@@ -268,28 +312,101 @@ async def crear_trabajo(
     doctor = await db.get(Doctor, data.doctor_id)
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
-    ensure_clinic_access(current_user, doctor.clinica_id)
-    trabajo = TrabajoLaboratorio(**data.model_dump())
+    if doctor.clinica_id is not None and paciente.clinica_id is not None and doctor.clinica_id != paciente.clinica_id:
+        raise HTTPException(status_code=400, detail="Doctor de otra clínica")
+    if doctor.clinica_id is not None:
+        ensure_clinic_access(current_user, doctor.clinica_id)
+    laboratorio = await db.get(Laboratorio, data.laboratorio_id)
+    if not laboratorio:
+        raise HTTPException(status_code=404, detail="Laboratorio no encontrado")
+
+    payload = data.model_dump(exclude_none=True)
+    payload["numero_orden"] = await _siguiente_numero_orden(db, paciente.clinica_id)
+    trabajo = TrabajoLaboratorio(**payload)
     db.add(trabajo)
+    await db.flush()
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="laboratorio_trabajo_creado",
+        entity_type="trabajos_laboratorio",
+        entity_id=trabajo.id,
+        new_values={
+            "paciente_id": str(paciente.id),
+            "laboratorio_id": str(laboratorio.id),
+            "numero_orden": trabajo.numero_orden,
+            "descripcion": trabajo.descripcion[:120],
+            "estado": trabajo.estado,
+            "fecha_entrega_prevista": trabajo.fecha_entrega_prevista.isoformat() if trabajo.fecha_entrega_prevista else None,
+            "presupuesto_linea_id": str(trabajo.presupuesto_linea_id) if trabajo.presupuesto_linea_id else None,
+        },
+        clinica_id=paciente.clinica_id,
+        request=request,
+    )
     await db.commit()
-    await db.refresh(trabajo)
     result = await db.execute(_trabajo_query().where(TrabajoLaboratorio.id == trabajo.id))
     return TrabajoResponse.model_validate(result.scalar_one())
+
+
+_TRABAJO_CAMPOS_AUDITABLES = (
+    "estado",
+    "fecha_salida",
+    "fecha_entrega_prevista",
+    "fecha_recepcion",
+    "fecha_entrega_paciente",
+    "colocado",
+    "material_enviado",
+    "material_devuelto",
+    "estado_pago_laboratorio",
+    "estado_cobro_paciente",
+    "referencia",
+    "referencia_interna",
+    "referencia_proveedor",
+)
+
+
+def _snapshot_trabajo(trabajo: TrabajoLaboratorio) -> dict:
+    snap: dict = {}
+    for campo in _TRABAJO_CAMPOS_AUDITABLES:
+        valor = getattr(trabajo, campo, None)
+        if isinstance(valor, date):
+            snap[campo] = valor.isoformat()
+        else:
+            snap[campo] = valor
+    return snap
 
 
 @router.patch("/laboratorio/trabajos/{trabajo_id}", response_model=TrabajoResponse)
 async def actualizar_trabajo(
     trabajo_id: uuid.UUID,
     data: TrabajoUpdate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
 ) -> TrabajoResponse:
     trabajo = await _get_trabajo_or_404(db, trabajo_id, current_user)
-    cambios = data.model_dump(exclude_none=True)
-    if "estado" in cambios and cambios["estado"] not in ESTADOS_VALIDOS:
+    old_snapshot = _snapshot_trabajo(trabajo)
+    cambios = data.model_dump(exclude_unset=True)
+    if "estado" in cambios and cambios["estado"] is not None and cambios["estado"] not in ESTADOS_VALIDOS:
         raise HTTPException(status_code=422, detail=f"Estado inválido. Válidos: {', '.join(ESTADOS_VALIDOS)}")
     for field, value in cambios.items():
         setattr(trabajo, field, value)
+
+    new_snapshot = _snapshot_trabajo(trabajo)
+    diff_old = {k: old_snapshot[k] for k in _TRABAJO_CAMPOS_AUDITABLES if old_snapshot[k] != new_snapshot[k]}
+    diff_new = {k: new_snapshot[k] for k in _TRABAJO_CAMPOS_AUDITABLES if old_snapshot[k] != new_snapshot[k]}
+    if diff_old or diff_new:
+        await write_audit_log(
+            db,
+            user=current_user,
+            action="laboratorio_trabajo_actualizado",
+            entity_type="trabajos_laboratorio",
+            entity_id=trabajo.id,
+            old_values=diff_old or None,
+            new_values=diff_new or None,
+            clinica_id=trabajo.paciente.clinica_id if trabajo.paciente else None,
+            request=request,
+        )
     await db.commit()
     result = await db.execute(_trabajo_query().where(TrabajoLaboratorio.id == trabajo_id))
     return TrabajoResponse.model_validate(result.scalar_one())

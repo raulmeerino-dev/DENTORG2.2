@@ -21,10 +21,10 @@ describe('workflow permissions', () => {
   it('keeps the primary navigation focused on the daily workflow', () => {
     const routed = WORKFLOW_ITEMS.filter((item) => item.route);
     const primary = routed
-      .filter((item) => ['hoy', 'pacientes', 'agenda', 'caja', 'dashboard', 'adminExtras'].includes(item.id))
+      .filter((item) => ['hoy', 'pacientes', 'agenda', 'caja', 'adminExtras'].includes(item.id))
       .map((item) => item.label);
 
-    expect(primary).toEqual(['Hoy', 'Pacientes', 'Agenda', 'Caja', 'Reportes', 'Admin']);
-    expect(canAccess('recepcion', WORKFLOW_ITEMS.find((item) => item.id === 'dashboard')!)).toBe(false);
+    expect(primary).toEqual(['Hoy', 'Pacientes', 'Agenda', 'Caja', 'Admin']);
+    expect(WORKFLOW_ITEMS.find((item) => item.id === 'dashboard')).toBeUndefined();
   });
 });
