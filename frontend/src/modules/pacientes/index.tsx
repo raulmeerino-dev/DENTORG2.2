@@ -715,28 +715,6 @@ export default function PacientesPage() {
             setTab('pacientes');
           }}
         />
-        <div className="patient-selector-current" aria-label="Paciente activo">
-          {active ? (
-            <>
-              <strong title={fullName(active)}>{fullName(active)}</strong>
-              <small>
-                <b>H {active.num_historial}</b>
-                {active.telefono && <> · {active.telefono}</>}
-                {active.dni_nie && <> · {active.dni_nie}</>}
-              </small>
-              {(alergias || totalPendiente > 0) && (
-                <div className="patient-selector-chips">
-                  {alergias && <span className="patient-selector-chip patient-selector-chip-danger" title={`Alérgico: ${alergias}`}>Alergia</span>}
-                  {totalPendiente > 0 && (
-                    <span className="patient-selector-chip patient-selector-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <small className="patient-selector-empty">Sin paciente seleccionado</small>
-          )}
-        </div>
         <PatientActionsMenu
             paciente={active}
             busy={nuevoPresupuesto.isPending}
@@ -763,6 +741,27 @@ export default function PacientesPage() {
               onCopiarDatos: copiarDatosPaciente,
             }}
           />
+        <div className="patient-selector-current" aria-label="Paciente activo">
+          {active ? (
+            <>
+              <strong title={fullName(active)}>{fullName(active)}</strong>
+              <small>
+                <b>H {active.num_historial}</b>
+                {active.telefono && <> · {active.telefono}</>}
+              </small>
+              {(alergias || totalPendiente > 0) && (
+                <div className="patient-selector-chips">
+                  {alergias && <span className="patient-selector-chip patient-selector-chip-danger" title={`Alérgico: ${alergias}`}>Alergia</span>}
+                  {totalPendiente > 0 && (
+                    <span className="patient-selector-chip patient-selector-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <small className="patient-selector-empty">Sin paciente</small>
+          )}
+        </div>
         {hasPatientError && (
           <div className="inline-alert">
             Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
