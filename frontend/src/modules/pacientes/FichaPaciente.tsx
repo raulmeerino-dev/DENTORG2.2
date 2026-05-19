@@ -269,7 +269,13 @@ export function PatientForm({
         </div>
       </section>
 
-      {/* Flow strip compacto, justo bajo el hub-head */}
+      <PatientOdontogramSummary
+        presupuestos={presupuestos}
+        historial={historial}
+        onOpenDetail={onOpenOdontogramaDetail}
+      />
+
+      {/* Flow strip compacto, justo bajo el resumen clinico */}
       <section className="patient-flow-strip" aria-label="Flujo clinico del paciente">
         <button type="button" onClick={onOpenCitas} disabled={!paciente}>Citas <strong>{citas.length}</strong></button>
         <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}>Presupuestos <strong>{presupuestos.length}</strong></button>
@@ -338,13 +344,7 @@ export function PatientForm({
         </div>
       </section>
 
-      {/* Fila 3: Mini odontograma / Documentos+consentimientos / Datos rápidos */}
-      <PatientOdontogramSummary
-        presupuestos={presupuestos}
-        historial={historial}
-        onOpenDetail={onOpenOdontogramaDetail}
-      />
-
+      {/* Fila 3: Documentos+consentimientos / Datos rapidos */}
       <section className="patient-documents-summary-card">
         <CardHead
           icon={<FileText size={14} strokeWidth={2} />}

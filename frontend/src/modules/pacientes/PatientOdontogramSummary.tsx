@@ -1,5 +1,6 @@
 import type { HistorialClinico, Presupuesto, PresupuestoLinea } from '../../types/api';
 import { formatDate } from '../../lib/utils';
+import { ScanLine } from 'lucide-react';
 
 type MiniToothState = 'neutral' | 'realizado' | 'presupuestado' | 'pendiente';
 
@@ -78,7 +79,12 @@ export function PatientOdontogramSummary({
   return (
     <section className="patient-odontogram-summary-card" aria-label="Resumen odontograma">
       <div className="patient-card-head">
-        <h3>Resumen odontograma</h3>
+        <h3>
+          <span className="patient-card-head-icon" aria-hidden="true">
+            <ScanLine size={14} strokeWidth={2.2} />
+          </span>
+          Resumen odontograma
+        </h3>
         <div className="patient-card-head-right">
           <span>{teethWithClinicalData} piezas con datos</span>
           <button type="button" onClick={onOpenDetail}>Ver detalle en Tratamientos</button>

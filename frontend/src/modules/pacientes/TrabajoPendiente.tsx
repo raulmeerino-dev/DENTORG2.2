@@ -37,6 +37,7 @@ export function TrabajoPendientePanel({
       .filter((linea) => linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
       .map((linea) => ({ presupuesto, linea, cita: findCitaForTreatment(citas, linea) }))
   ));
+  const statusClass = (value: string) => normalizeText(value).replace(/\s+/g, '-');
 
   return (
     <section className="desk-panel">
@@ -48,6 +49,9 @@ export function TrabajoPendientePanel({
         <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Importe</th><th>Cita</th><th>Estado</th><th>Accion</th></tr></thead>
         <tbody>
           {rows.map(({ presupuesto, linea, cita }) => (
+            (() => {
+              const estado = cita ? cita.estado : (linea.pasado_trabajo_pendiente ? 'Pendiente' : linea.aceptado ? 'Aceptado' : 'Pendiente');
+              return (
             <tr
               key={linea.id}
               className="treatment-coded-row"
@@ -56,11 +60,11 @@ export function TrabajoPendientePanel({
             >
               <td>{presupuesto.numero}</td>
               <td><TreatmentBadge tratamiento={linea.tratamiento} /></td>
-              <td>{linea.tratamiento?.nombre ?? 'Tratamiento'}</td>
+              <td><strong>{linea.tratamiento?.nombre ?? 'Tratamiento'}</strong></td>
               <td>{linea.pieza_dental ?? ''}</td>
               <td className="num">{money(linea.importe_neto)}</td>
               <td>{cita ? `${formatDate(cita.fecha_hora)} ${cita.fecha_hora.slice(11, 16)}` : 'Sin cita'}</td>
-              <td>{cita ? cita.estado : (linea.aceptado ? 'Aceptado' : 'Pendiente')}</td>
+              <td><span className={`work-status-chip work-status-${statusClass(estado)}`}>{estado}</span></td>
               <td className="trabajo-pendiente-acciones">
                 <button onClick={() => onDarCita(linea)}>Dar cita</button>
                 {onCrearPedidoLab && (
@@ -70,6 +74,8 @@ export function TrabajoPendientePanel({
                 )}
               </td>
             </tr>
+              );
+            })()
           ))}
           {!rows.length && <tr><td colSpan={8}>Sin tratamientos pendientes aceptados.</td></tr>}
         </tbody>
