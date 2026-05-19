@@ -67,8 +67,10 @@ import { ComentarioModal } from './modals/ComentarioModal';
 import { PatientFinder, PatientForm, PatientEditModal, PatientFullViewModal, NuevoPacienteModal } from './FichaPaciente';
 import { PresupuestoPanel } from './Presupuestos';
 import { RecetaModal, HistorialRecetasDrawer } from './Recetas';
-import { LaboratorioPacientePanel, NuevoPedidoLaboratorioModal, contarLaboratorioVencidos } from './Laboratorio';
-import { PatientActionsMenu, buildWhatsAppUrl } from './PatientActionsMenu';
+import { LaboratorioPacientePanel, NuevoPedidoLaboratorioModal } from './Laboratorio';
+import { contarLaboratorioVencidos } from './laboratorioUtils';
+import { PatientActionsMenu } from './PatientActionsMenu';
+import { buildWhatsAppUrl } from './patientActionUtils';
 import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 
 export type WorkTab = 'pacientes' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
