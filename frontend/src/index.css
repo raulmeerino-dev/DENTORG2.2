@@ -4744,11 +4744,12 @@ html[data-theme="dark"] .history-billing-eurodent {
   overflow-x: hidden;
 }
 
-/* Dashboard responsive — auto-fit evita overflow horizontal y huecos */
+/* Bento dashboard — 12 columnas con áreas explícitas, sin huecos */
 .patient-dashboard-mode .patient-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, auto);
+  gap: 8px;
   min-width: 0;
 }
 
@@ -4756,10 +4757,69 @@ html[data-theme="dark"] .history-billing-eurodent {
   min-width: 0;
 }
 
+/* Full width: banners, cabecera, strip */
 .patient-dashboard-mode .patient-hub-head,
 .patient-dashboard-mode .patient-flow-strip,
 .patient-dashboard-mode .patient-banner {
   grid-column: 1 / -1;
+}
+
+/* COL IZQ — clínica (4/12) */
+.patient-dashboard-mode .patient-odontogram-summary-card,
+.patient-dashboard-mode .patient-clinical-notes-card {
+  grid-column: span 4;
+}
+
+/* COL CENTRAL — operativa (4/12) */
+.patient-dashboard-mode .patient-next-card,
+.patient-dashboard-mode .patient-last-card {
+  grid-column: span 4;
+}
+
+.patient-dashboard-mode .patient-billing-card {
+  grid-column: 5 / span 4;
+  grid-row: span 2;
+}
+
+/* COL DERECHA — administrativa (4/12) */
+.patient-dashboard-mode .patient-admin-card {
+  grid-column: span 4;
+  grid-row: span 2;
+}
+
+.patient-dashboard-mode .patient-documents-summary-card {
+  grid-column: 1 / span 8;
+}
+
+/* Breakpoints */
+@media (max-width: 1280px) {
+  .patient-dashboard-mode .patient-form-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .patient-dashboard-mode .patient-odontogram-summary-card,
+  .patient-dashboard-mode .patient-clinical-notes-card,
+  .patient-dashboard-mode .patient-next-card,
+  .patient-dashboard-mode .patient-last-card,
+  .patient-dashboard-mode .patient-billing-card,
+  .patient-dashboard-mode .patient-admin-card,
+  .patient-dashboard-mode .patient-documents-summary-card {
+    grid-column: span 3;
+    grid-row: auto;
+  }
+  .patient-dashboard-mode .patient-documents-summary-card,
+  .patient-dashboard-mode .patient-billing-card {
+    grid-column: span 6;
+  }
+}
+
+@media (max-width: 800px) {
+  .patient-dashboard-mode .patient-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .patient-dashboard-mode .patient-form-grid > * {
+    grid-column: 1 / -1 !important;
+    grid-row: auto !important;
+  }
 }
 
 .patient-dashboard-mode .patient-next-card,
@@ -4789,12 +4849,90 @@ html[data-theme="dark"] .history-billing-eurodent {
 .patient-next-card,
 .patient-last-card,
 .patient-billing-card,
-.patient-documents-summary-card {
+.patient-documents-summary-card,
+.patient-clinical-notes-card,
+.patient-admin-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
   min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.patient-dashboard-mode .patient-clinical-notes-card {
+  border-left: 3px solid var(--color-warning);
+}
+
+.patient-dashboard-mode .patient-admin-card {
+  border-left: 3px solid var(--color-primary);
+}
+
+/* Notas clínicas */
+.patient-clinical-notes-body {
+  display: grid;
+  gap: 8px;
+}
+
+.patient-clinical-notes-body > div {
+  display: grid;
+  gap: 2px;
+}
+
+.patient-clinical-notes-body b {
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.patient-clinical-notes-body p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--color-text);
+  white-space: pre-line;
+}
+
+/* Datos administrativos densos */
+.patient-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 2px 0 0;
+}
+
+.patient-admin-grid > div {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.patient-admin-grid > div.wide {
+  grid-column: 1 / -1;
+}
+
+.patient-admin-grid dt {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.patient-admin-grid dd {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .patient-next-card strong,
@@ -10203,16 +10341,6 @@ html[data-theme="dark"] .admin-report-alerts strong {
   min-width: 0;
   box-shadow: var(--shadow-sm);
   border-left: 3px solid var(--color-success);
-}
-
-.patient-dashboard-mode .patient-odontogram-summary-card {
-  grid-column: span 2;
-}
-
-@media (max-width: 1100px) {
-  .patient-dashboard-mode .patient-odontogram-summary-card {
-    grid-column: 1 / -1;
-  }
 }
 
 .mini-odontogram {
