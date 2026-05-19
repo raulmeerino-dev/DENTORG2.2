@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Clock, Users, Calendar, Wallet, Settings, Moon, Sun, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarDays, Wallet, Settings, Moon, Sun, LogOut } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
 import { ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
 import type { AppSection } from '../config/workflow';
@@ -9,9 +9,9 @@ import type { AppSection } from '../config/workflow';
 const ICON_SIZE = 18;
 
 const NAV_ICONS: Partial<Record<AppSection, ReactNode>> = {
-  hoy: <Clock size={ICON_SIZE} strokeWidth={1.8} />,
+  hoy: <LayoutDashboard size={ICON_SIZE} strokeWidth={1.8} />,
   pacientes: <Users size={ICON_SIZE} strokeWidth={1.8} />,
-  agenda: <Calendar size={ICON_SIZE} strokeWidth={1.8} />,
+  agenda: <CalendarDays size={ICON_SIZE} strokeWidth={1.8} />,
   caja: <Wallet size={ICON_SIZE} strokeWidth={1.8} />,
   adminExtras: <Settings size={ICON_SIZE} strokeWidth={1.8} />,
 };
