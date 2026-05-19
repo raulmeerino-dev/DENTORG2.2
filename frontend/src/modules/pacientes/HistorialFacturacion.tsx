@@ -154,6 +154,7 @@ export function EurodentHistoryBillingPanel({
   onOrtodoncia,
   onRecibos,
   onContextFactura,
+  onCrearReceta,
 }: {
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
@@ -168,6 +169,7 @@ export function EurodentHistoryBillingPanel({
   onOrtodoncia: () => void;
   onRecibos: () => void;
   onContextFactura: (event: MouseEvent, factura: Factura) => void;
+  onCrearReceta?: () => void;
 }) {
   const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, anticipos), [historial, facturas, anticipos]);
   const [hideZeros, setHideZeros] = useState(false);
@@ -337,7 +339,7 @@ export function EurodentHistoryBillingPanel({
               </span>
             )}
           </span>
-          <button onClick={() => selectedFactura && void emitirRecetaPdf(selectedFactura.id)} disabled={!selectedFactura}>Receta</button>
+          <button onClick={() => onCrearReceta ? onCrearReceta() : (selectedFactura && void emitirRecetaPdf(selectedFactura.id))} disabled={!onCrearReceta && !selectedFactura}>Receta</button>
           <button onClick={onRecibos}>Recibos</button>
         </div>
       </div>

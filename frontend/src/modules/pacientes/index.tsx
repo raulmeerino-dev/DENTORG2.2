@@ -718,18 +718,20 @@ export default function PacientesPage() {
         <div className="patient-selector-current" aria-label="Paciente activo">
           {active ? (
             <>
-              <div className="patient-selector-current-top">
-                <strong title={fullName(active)}>{fullName(active)}</strong>
-                {alergias && <span className="patient-selector-chip patient-selector-chip-danger" title={`Alérgico: ${alergias}`}>Alergia</span>}
-                {totalPendiente > 0 && (
-                  <span className="patient-selector-chip patient-selector-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
-                )}
-              </div>
+              <strong title={fullName(active)}>{fullName(active)}</strong>
               <small>
                 <b>H {active.num_historial}</b>
                 {active.telefono && <> · {active.telefono}</>}
                 {active.dni_nie && <> · {active.dni_nie}</>}
               </small>
+              {(alergias || totalPendiente > 0) && (
+                <div className="patient-selector-chips">
+                  {alergias && <span className="patient-selector-chip patient-selector-chip-danger" title={`Alérgico: ${alergias}`}>Alergia</span>}
+                  {totalPendiente > 0 && (
+                    <span className="patient-selector-chip patient-selector-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
+                  )}
+                </div>
+              )}
             </>
           ) : (
             <small className="patient-selector-empty">Sin paciente seleccionado</small>
@@ -1002,6 +1004,10 @@ export default function PacientesPage() {
               onOrtodoncia={() => openPatientArea('realizados')}
               onRecibos={abrirRecibos}
               onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
+              onCrearReceta={() => {
+                setRecetaError(null);
+                setRecetaModalOpen(true);
+              }}
             />
             <details
               className="history-ledger-details"
