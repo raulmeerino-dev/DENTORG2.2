@@ -776,9 +776,6 @@ export default function PacientesPage() {
         )}
       </div>
       <section className={`page page-shell patient-screen${activeMainTab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
-        <div className="patient-titlebar">
-          <strong>{active ? `${fullName(active)} // CLINICA DENTAL` : 'Pacientes // CLINICA DENTAL'}</strong>
-        </div>
         <nav className="patient-module-tabs">
           {WORK_TABS.map((item) => (
             <button
