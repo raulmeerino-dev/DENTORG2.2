@@ -715,14 +715,25 @@ export default function PacientesPage() {
             setTab('pacientes');
           }}
         />
-        <div className="patient-selector-current">
-          <span>Paciente activo</span>
-          <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
-          <small>
-            Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}
-            {alergias ? ' - ! Alergico' : ''}
-            {totalPendiente > 0 ? ` - ${money(totalPendiente)} pendiente` : ''}
-          </small>
+        <div className="patient-selector-current" aria-label="Paciente activo">
+          {active ? (
+            <>
+              <div className="patient-selector-current-top">
+                <strong title={fullName(active)}>{fullName(active)}</strong>
+                {alergias && <span className="patient-selector-chip patient-selector-chip-danger" title={`Alérgico: ${alergias}`}>Alergia</span>}
+                {totalPendiente > 0 && (
+                  <span className="patient-selector-chip patient-selector-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
+                )}
+              </div>
+              <small>
+                <b>H {active.num_historial}</b>
+                {active.telefono && <> · {active.telefono}</>}
+                {active.dni_nie && <> · {active.dni_nie}</>}
+              </small>
+            </>
+          ) : (
+            <small className="patient-selector-empty">Sin paciente seleccionado</small>
+          )}
         </div>
         <PatientActionsMenu
             paciente={active}
