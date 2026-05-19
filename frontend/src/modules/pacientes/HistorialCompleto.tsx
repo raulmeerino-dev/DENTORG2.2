@@ -17,6 +17,17 @@ type TimelineEvent = {
   action?: () => void;
 };
 
+type LedgerGroup = {
+  id: string;
+  date: string;
+  filter: HistoryFilter;
+  label: string;
+  title: string;
+  summary: string;
+  amount?: string;
+  events: TimelineEvent[];
+};
+
 const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: 'todo', label: 'Todo' },
   { id: 'clinico', label: 'Clinico' },
@@ -33,6 +44,85 @@ const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
 
 function sortDesc(a: TimelineEvent, b: TimelineEvent) {
   return b.date.localeCompare(a.date);
+}
+
+function dayKey(date: string) {
+  return date?.slice(0, 10) || 'sin-fecha';
+}
+
+function getLedgerIdentity(event: TimelineEvent) {
+  if (event.filter === 'facturacion' || event.filter === 'cobros') {
+    return {
+      id: `factura-${event.title}`,
+      label: 'Factura / cobros',
+      title: `Factura ${event.title}`,
+      summary: 'Tratamientos facturados y movimientos de cobro asociados.',
+    };
+  }
+  if (event.filter === 'clinico' || event.filter === 'odontograma') {
+    return {
+      id: `tratamiento-${dayKey(event.date)}-${event.title}-${event.meta ?? ''}`,
+      label: 'Tratamiento',
+      title: event.title,
+      summary: event.meta || event.detail,
+    };
+  }
+  if (event.filter === 'presupuestos') {
+    return {
+      id: `presupuesto-${event.title}`,
+      label: 'Presupuesto',
+      title: event.title,
+      summary: event.detail,
+    };
+  }
+  if (event.filter === 'documentos' || event.filter === 'consentimientos' || event.filter === 'recetas') {
+    return {
+      id: `documentacion-${dayKey(event.date)}-${event.title}`,
+      label: 'Documentacion',
+      title: event.title,
+      summary: event.detail,
+    };
+  }
+  if (event.filter === 'laboratorio') {
+    return {
+      id: `laboratorio-${dayKey(event.date)}-${event.title}`,
+      label: 'Laboratorio',
+      title: event.title,
+      summary: event.detail,
+    };
+  }
+  return {
+    id: `${event.filter}-${dayKey(event.date)}-${event.title}`,
+    label: event.label,
+    title: event.title,
+    summary: event.detail,
+  };
+}
+
+function buildLedgerGroups(events: TimelineEvent[]) {
+  const groups = new Map<string, LedgerGroup>();
+  events.forEach((event) => {
+    const identity = getLedgerIdentity(event);
+    const existing = groups.get(identity.id);
+    if (!existing) {
+      groups.set(identity.id, {
+        id: identity.id,
+        date: event.date,
+        filter: event.filter,
+        label: identity.label,
+        title: identity.title,
+        summary: identity.summary,
+        amount: event.amount,
+        events: [event],
+      });
+      return;
+    }
+    existing.events.push(event);
+    if (event.date.localeCompare(existing.date) > 0) existing.date = event.date;
+    if (!existing.amount && event.amount) existing.amount = event.amount;
+  });
+
+  return Array.from(groups.values()).sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export function HistorialCompletoPanel({
@@ -222,6 +312,7 @@ export function HistorialCompletoPanel({
   }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas]);
 
   const visibleEvents = filter === 'todo' ? events : events.filter((event) => event.filter === filter);
+  const ledgerGroups = buildLedgerGroups(visibleEvents);
 
   return (
     <section className="complete-history-panel">
@@ -242,26 +333,40 @@ export function HistorialCompletoPanel({
       </nav>
 
       <div className="complete-history-layout">
-        <ol className="complete-history-timeline">
-          {visibleEvents.map((event) => (
-            <li key={event.id} className={`history-event history-event-${event.filter}`}>
-              <time>{formatDate(event.date)}</time>
-              <span>{event.label}</span>
-              <div>
-                <strong>{event.title}</strong>
-                <p>{event.detail}</p>
-                {(event.meta || event.amount || event.action) && (
-                  <footer>
-                    {event.meta && <small>{event.meta}</small>}
-                    {event.amount && <b>{event.amount}</b>}
+        <div className="complete-history-timeline complete-history-ledger" role="list">
+          {ledgerGroups.map((group) => (
+            <article key={group.id} className={`history-ledger-group history-ledger-${group.filter}`} role="listitem">
+              <header>
+                <time>{formatDate(group.date)}</time>
+                <span>{group.label}</span>
+                <div>
+                  <strong>{group.title}</strong>
+                  <p>{group.summary}</p>
+                </div>
+                {group.amount && <b>{group.amount}</b>}
+              </header>
+              <div className="history-ledger-items">
+                {group.events.map((event) => (
+                  <div key={event.id} className={`history-ledger-item history-ledger-item-${event.filter}`}>
+                    <span>{event.label}</span>
+                    <div>
+                      <strong>{group.title === event.title ? event.label : event.title}</strong>
+                      <p>{event.detail}</p>
+                      {(event.meta || event.amount) && (
+                        <small>
+                          {event.meta && <em>{event.meta}</em>}
+                          {event.amount && <b>{event.amount}</b>}
+                        </small>
+                      )}
+                    </div>
                     {event.action && <button type="button" onClick={event.action}>Abrir</button>}
-                  </footer>
-                )}
+                  </div>
+                ))}
               </div>
-            </li>
+            </article>
           ))}
-          {!visibleEvents.length && <li className="history-event empty">No hay eventos para este filtro.</li>}
-        </ol>
+          {!ledgerGroups.length && <div className="history-ledger-empty">No hay eventos para este filtro.</div>}
+        </div>
 
         <details className="odontogram-support-panel history-odontogram-panel">
           <summary>Ver odontograma asociado al historial</summary>

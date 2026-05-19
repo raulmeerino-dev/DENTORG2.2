@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
+import { AlertCircle, Calendar, FileText, TrendingUp, Wallet, CheckCircle2 } from 'lucide-react';
 import { getFacturas, getFormasPago, getIngresosReporte, getReportKpis, registrarCobro } from '../../lib/api';
 import type { Factura, FormaPago } from '../../types/api';
 import { formatDate, money } from '../../lib/utils';
@@ -132,33 +133,33 @@ export default function CajaPage() {
       )}
 
       <div className="dashboard-metrics caja-metrics">
-        <div>
-          <span>Pendiente de cobro</span>
+        <div className={totalPendiente > 0 ? 'kpi-card kpi-card-danger' : 'kpi-card'}>
+          <span><AlertCircle size={12} strokeWidth={2.2} aria-hidden="true" /> Pendiente de cobro</span>
           <strong>{money(totalPendiente)}</strong>
           <small>{pendientes.length} facturas</small>
         </div>
-        <div>
-          <span>Cobrado hoy</span>
+        <div className="kpi-card kpi-card-success">
+          <span><CheckCircle2 size={12} strokeWidth={2.2} aria-hidden="true" /> Cobrado hoy</span>
           <strong>{money(totalCobradoHoy)}</strong>
           <small>{cobradashoy.length} cobros</small>
         </div>
-        <div>
-          <span>Facturado hoy</span>
+        <div className="kpi-card kpi-card-info">
+          <span><FileText size={12} strokeWidth={2.2} aria-hidden="true" /> Facturado hoy</span>
           <strong>{money(totalEmitidoHoy)}</strong>
           <small>{emitidashoy.length} facturas</small>
         </div>
-        <div>
-          <span>Facturado este mes</span>
+        <div className="kpi-card">
+          <span><Calendar size={12} strokeWidth={2.2} aria-hidden="true" /> Facturado este mes</span>
           <strong>{kpis ? money(kpis.facturacion.total_facturado) : '—'}</strong>
           <small>{kpis ? `${kpis.facturacion.num_facturas} facturas` : 'cargando...'}</small>
         </div>
-        <div>
-          <span>Cobrado este mes</span>
+        <div className="kpi-card">
+          <span><Wallet size={12} strokeWidth={2.2} aria-hidden="true" /> Cobrado este mes</span>
           <strong>{kpis ? money(kpis.facturacion.total_cobrado) : '—'}</strong>
           <small>{kpis ? `ticket medio ${money(kpis.facturacion.ticket_medio ?? 0)}` : ''}</small>
         </div>
-        <div>
-          <span>Ingresos mes (bruto)</span>
+        <div className="kpi-card">
+          <span><TrendingUp size={12} strokeWidth={2.2} aria-hidden="true" /> Ingresos mes (bruto)</span>
           <strong>{ingresosQuery.data ? money(ingresosQuery.data.total) : '—'}</strong>
           <small>{ingresosQuery.data ? `pac ${money(ingresosQuery.data.pac)} · seg ${money(ingresosQuery.data.seg)}` : ''}</small>
         </div>

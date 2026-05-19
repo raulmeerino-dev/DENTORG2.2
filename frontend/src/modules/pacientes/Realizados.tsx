@@ -174,6 +174,8 @@ export function TratamientosRealizadosPanel({
   userRole?: UserRole | null;
 }) {
   const realizados = historial.filter((entrada) => hasFinishedState(entrada.estado));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = realizados.find((entrada) => entrada.id === selectedId) ?? realizados[0] ?? null;
 
   function consentimientoFor(entrada: HistorialClinico) {
     const tratamiento = normalizeText(entrada.tratamiento?.nombre);
@@ -190,27 +192,55 @@ export function TratamientosRealizadosPanel({
           <strong>Tratamientos realizados</strong>
           <span>Trabajo terminado con fecha, precio, pieza y consentimiento cuando procede.</span>
         </div>
-        <table className="euro-table">
-          <thead><tr><th>Fecha</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Doctor</th><th>Precio</th><th>Factura</th><th>Consentimiento</th></tr></thead>
-          <tbody>
-            {realizados.map((entrada) => {
-              const consentimiento = consentimientoFor(entrada);
-              return (
-                <tr key={entrada.id} className="treatment-coded-row" style={{ '--treatment-color': colorForTreatment(entrada.tratamiento) } as CSSProperties}>
-                  <td>{formatDate(entrada.fecha)}</td>
-                  <td><TreatmentBadge tratamiento={entrada.tratamiento} /></td>
-                  <td>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</td>
-                  <td>{entrada.pieza_dental ?? ''}</td>
-                  <td>{entrada.doctor?.nombre ?? ''}</td>
-                  <td className="num">{entrada.importe ? money(entrada.importe) : ''}</td>
-                  <td>{entrada.factura_id ? 'Vinculada' : 'Pendiente'}</td>
-                  <td>{consentimiento ? consentimiento.estado : 'No adjunto'}</td>
-                </tr>
-              );
-            })}
-            {!realizados.length && <tr><td colSpan={8}>Sin tratamientos realizados en historial.</td></tr>}
-          </tbody>
-        </table>
+        <div className="realizados-main-grid">
+          <div className="realizados-table-wrap">
+            <table className="euro-table">
+              <thead><tr><th>Fecha</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Doctor</th><th>Precio</th><th>Factura</th><th>Consentimiento</th></tr></thead>
+              <tbody>
+                {realizados.map((entrada) => {
+                  const consentimiento = consentimientoFor(entrada);
+                  return (
+                    <tr
+                      key={entrada.id}
+                      className={`treatment-coded-row ${selected?.id === entrada.id ? 'selected-row' : ''}`}
+                      style={{ '--treatment-color': colorForTreatment(entrada.tratamiento) } as CSSProperties}
+                      onClick={() => setSelectedId(entrada.id)}
+                    >
+                      <td>{formatDate(entrada.fecha)}</td>
+                      <td><TreatmentBadge tratamiento={entrada.tratamiento} /></td>
+                      <td><strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong></td>
+                      <td>{entrada.pieza_dental ?? ''}</td>
+                      <td>{entrada.doctor?.nombre ?? ''}</td>
+                      <td className="num">{entrada.importe ? money(entrada.importe) : ''}</td>
+                      <td>{entrada.factura_id ? 'Vinculada' : 'Pendiente'}</td>
+                      <td>{consentimiento ? consentimiento.estado : 'No adjunto'}</td>
+                    </tr>
+                  );
+                })}
+                {!realizados.length && <tr><td colSpan={8}>Sin tratamientos realizados en historial.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <aside className="realizado-detail-panel">
+            <span>Detalle seleccionado</span>
+            {selected ? (
+              <>
+                <strong>{selected.procedimiento || selected.tratamiento?.nombre || 'Tratamiento dental'}</strong>
+                <dl>
+                  <div><dt>Fecha</dt><dd>{formatDate(selected.fecha)}</dd></div>
+                  <div><dt>Pieza</dt><dd>{selected.pieza_dental ?? 'No indicada'} {selected.caras ? `· ${selected.caras}` : ''}</dd></div>
+                  <div><dt>Doctor</dt><dd>{selected.doctor?.nombre ?? 'Sin doctor'}</dd></div>
+                  <div><dt>Importe</dt><dd>{selected.importe ? money(selected.importe) : 'Sin importe'}</dd></div>
+                  <div><dt>Factura</dt><dd>{selected.factura_id ? 'Vinculada' : 'Pendiente'}</dd></div>
+                  <div><dt>Consentimiento</dt><dd>{consentimientoFor(selected)?.estado ?? 'No adjunto'}</dd></div>
+                </dl>
+                <p>{selected.observaciones || selected.diagnostico || 'Sin observaciones clinicas asociadas.'}</p>
+              </>
+            ) : (
+              <p>Seleccione un tratamiento para ver factura, consentimiento y notas asociadas.</p>
+            )}
+          </aside>
+        </div>
       </section>
       <details className="secondary-clinic-panel">
         <summary>Vista clinica detallada y herramientas</summary>
