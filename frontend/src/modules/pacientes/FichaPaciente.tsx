@@ -191,7 +191,6 @@ export function PatientForm({
 }) {
   const totals = getBillingTotals(facturas);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
-  const address = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' - ');
   const initials = paciente ? `${paciente.nombre?.[0] ?? ''}${paciente.apellidos?.[0] ?? ''}`.toUpperCase() : '--';
   const healthText = readableHealthData(paciente?.datos_salud);
   const recentHistory = historial.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -229,6 +228,15 @@ export function PatientForm({
 
   const hasAlertasReales = Boolean(healthText) || (paciente?.observaciones?.trim()?.length ?? 0) > 0;
 
+  const edad = (() => {
+    if (!paciente?.fecha_nacimiento) return null;
+    const nac = new Date(paciente.fecha_nacimiento);
+    const diff = Date.now() - nac.getTime();
+    return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+  })();
+  const sexoLabel = paciente?.sexo === 'F' ? 'Mujer' : paciente?.sexo === 'M' ? 'Hombre' : paciente?.sexo === 'otro' ? 'Otro' : null;
+  const direccionCompleta = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
+
   return (
     <div className="patient-form-grid patient-hub-grid">
       {temporal && (
@@ -245,7 +253,7 @@ export function PatientForm({
         </button>
       )}
 
-      {/* Fila 1: Identidad + alertas + saldo + acciones (full width) */}
+      {/* CABECERA: identidad + alertas + saldo + acciones */}
       <section className="patient-hub-head">
         <div className="patient-avatar">{initials}</div>
         <div className="patient-hub-identity">
@@ -269,13 +277,7 @@ export function PatientForm({
         </div>
       </section>
 
-      <PatientOdontogramSummary
-        presupuestos={presupuestos}
-        historial={historial}
-        onOpenDetail={onOpenOdontogramaDetail}
-      />
-
-      {/* Flow strip compacto, justo bajo el resumen clinico */}
+      {/* FLOW STRIP: contadores rápidos */}
       <section className="patient-flow-strip" aria-label="Flujo clinico del paciente">
         <button type="button" onClick={onOpenCitas} disabled={!paciente}>Citas <strong>{citas.length}</strong></button>
         <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}>Presupuestos <strong>{presupuestos.length}</strong></button>
@@ -284,7 +286,34 @@ export function PatientForm({
         <button type="button" onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
       </section>
 
-      {/* Fila 2: Próxima cita / Última visita / Cobros */}
+      {/* COL IZQ — clínica: odontograma + observaciones */}
+      <PatientOdontogramSummary
+        presupuestos={presupuestos}
+        historial={historial}
+        onOpenDetail={onOpenOdontogramaDetail}
+      />
+
+      <section className="patient-clinical-notes-card">
+        <CardHead
+          icon={<ClipboardList size={14} strokeWidth={2} />}
+          title="Alertas y observaciones"
+          status={hasAlertasReales ? 'revisar' : 'sin alertas'}
+          statusTone={hasAlertasReales ? 'warning' : 'muted'}
+          action={<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>}
+        />
+        <div className="patient-clinical-notes-body">
+          <div>
+            <b>Salud</b>
+            <p>{healthText || 'Sin alergias ni contraindicaciones registradas.'}</p>
+          </div>
+          <div>
+            <b>Observaciones</b>
+            <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* COL CENTRAL — operativa: cita, visita, cobros */}
       <section className="patient-next-card">
         <CardHead
           icon={<CalendarClock size={14} strokeWidth={2} />}
@@ -344,12 +373,37 @@ export function PatientForm({
         </div>
       </section>
 
-      {/* Fila 3: Documentos+consentimientos / Datos rapidos */}
+      {/* COL DERECHA — administrativa: ficha rica + docs/CI */}
+      <section className="patient-admin-card">
+        <CardHead
+          icon={<User size={14} strokeWidth={2} />}
+          title="Datos administrativos"
+          status={paciente?.num_historial ? `H ${paciente.num_historial}` : undefined}
+          statusTone="info"
+          action={<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>}
+        />
+        <dl className="patient-admin-grid">
+          <div><dt>DNI / NIF</dt><dd>{paciente?.dni_nie || '—'}</dd></div>
+          <div><dt>Nacimiento</dt><dd>{paciente?.fecha_nacimiento ? `${formatDate(paciente.fecha_nacimiento)}${edad !== null ? ` · ${edad} años` : ''}` : '—'}</dd></div>
+          <div><dt>Sexo</dt><dd>{sexoLabel || '—'}</dd></div>
+          <div><dt>Profesion</dt><dd>{paciente?.profesion || '—'}</dd></div>
+          <div className="wide"><dt>Telefonos</dt><dd>{[paciente?.telefono, paciente?.telefono2].filter(Boolean).join(' / ') || '—'}</dd></div>
+          <div className="wide"><dt>Email</dt><dd>{paciente?.email || '—'}</dd></div>
+          <div className="wide"><dt>Direccion</dt><dd>{direccionCompleta || '—'}</dd></div>
+          <div><dt>Pais</dt><dd>{paciente?.pais || '—'}</dd></div>
+          <div><dt>Poliza</dt><dd>{paciente?.num_poliza || '—'}</dd></div>
+          {paciente?.pagador_distinto && (
+            <div className="wide"><dt>Pagador</dt><dd>{[paciente.pagador_nombre, paciente.pagador_dni].filter(Boolean).join(' · ') || 'Pagador distinto'}</dd></div>
+          )}
+          <div className="wide"><dt>1ª visita / Ultima</dt><dd>{paciente?.fecha_primera_visita ? formatDate(paciente.fecha_primera_visita) : '—'} · {paciente?.fecha_ultima_visita ? formatDate(paciente.fecha_ultima_visita) : '—'}</dd></div>
+        </dl>
+      </section>
+
       <section className="patient-documents-summary-card">
         <CardHead
           icon={<FileText size={14} strokeWidth={2} />}
           title="Documentos y consentimientos"
-          status={consentimientosPendientes ? `${consentimientosPendientes} CI pte.` : `${documentos.length} docs`}
+          status={consentimientosPendientes ? `${consentimientosPendientes} CI pte.` : `${documentos.length} docs · ${consentimientos.length} CI`}
           statusTone={consentimientosPendientes ? 'warning' : 'info'}
           action={<button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Ver todos</button>}
         />
@@ -378,37 +432,15 @@ export function PatientForm({
           </div>
         </div>
         <footer className="patient-documents-summary-actions">
-          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Subir documento</button>
+          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Subir doc.</button>
           <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo CI</button>
+          <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Lab. <span className="link-count">{laboratorio.length}</span></button>
         </footer>
-      </section>
-
-      <section className="patient-side-card patient-hub-side-card">
-        <div>
-          <h3><User size={14} strokeWidth={2} aria-hidden="true" /> Datos</h3>
-          <p><b>Tel.</b> {paciente?.telefono || paciente?.telefono2 || 'Sin telefono'}</p>
-          <p><b>Email</b> {paciente?.email || 'Sin email'}</p>
-          <p><b>Dir.</b> {address || 'Sin direccion'}</p>
-          <button type="button" onClick={onEdit} disabled={!paciente}>Editar datos</button>
-        </div>
-        <div>
-          <h3><ClipboardList size={14} strokeWidth={2} aria-hidden="true" /> Observaciones</h3>
-          <p>{healthText || 'Sin alertas de salud registradas.'}</p>
-          <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
-          <button type="button" onClick={onOpenFull} disabled={!paciente}>Ver ficha completa</button>
-        </div>
-        <details className="patient-secondary-links">
-          <summary>Mas secciones</summary>
-          <div className="patient-hub-mini-links">
-            <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Consentimientos <span>{consentimientos.length}</span></button>
-            <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Laboratorio <span>{laboratorio.length}</span></button>
-            <button type="button" onClick={onOpenHistorial} disabled={!paciente}>Historial / facturacion</button>
-          </div>
-        </details>
       </section>
     </div>
   );
 }
+
 
 
 export function PatientEditModal({
