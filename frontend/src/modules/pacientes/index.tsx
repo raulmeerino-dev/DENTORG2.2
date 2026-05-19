@@ -2,6 +2,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '../../auth/AuthContext';
 import {
   createConsentimientoPaciente,
@@ -180,13 +181,6 @@ export default function PacientesPage() {
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
   const [recetasDrawerOpen, setRecetasDrawerOpen] = useState(false);
   const [recetaError, setRecetaError] = useState<string | null>(null);
-  const [flashMessage, setFlashMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
-
-  useEffect(() => {
-    if (!flashMessage) return;
-    const t = window.setTimeout(() => setFlashMessage(null), 5000);
-    return () => window.clearTimeout(t);
-  }, [flashMessage]);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
@@ -563,11 +557,11 @@ export default function PacientesPage() {
       updateTrabajoLaboratorio(trabajoId, cambios),
     onSuccess: () => {
       void laboratorioPacienteQuery.refetch();
-      setFlashMessage({ kind: 'success', text: 'Trabajo de laboratorio actualizado.' });
+      toast.success('Trabajo de laboratorio actualizado');
     },
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'No se pudo actualizar el trabajo de laboratorio';
-      setFlashMessage({ kind: 'error', text: message });
+      toast.error(message);
     },
   });
 
@@ -580,9 +574,9 @@ export default function PacientesPage() {
       setRecetaModalOpen(false);
       setRecetaError(null);
       void recetasPacienteQuery.refetch();
-      setFlashMessage({ kind: 'success', text: 'Receta creada. Abriendo PDF...' });
+      toast.success('Receta creada. Abriendo PDF...');
       void openRecetaClinicaPdf(receta.id).catch(() => {
-        setFlashMessage({ kind: 'error', text: 'Receta creada pero el navegador bloqueó el PDF. Búscala en el historial.' });
+        toast.error('Receta creada pero el navegador bloqueó el PDF. Búscala en el historial.');
       });
     },
     onError: (error) => {
@@ -766,12 +760,6 @@ export default function PacientesPage() {
             <span />
             <span />
             <span />
-          </div>
-        )}
-        {flashMessage && (
-          <div className={`patient-flash patient-flash-${flashMessage.kind}`} role="status">
-            <span>{flashMessage.text}</span>
-            <button type="button" onClick={() => setFlashMessage(null)} aria-label="Cerrar mensaje">×</button>
           </div>
         )}
       </div>

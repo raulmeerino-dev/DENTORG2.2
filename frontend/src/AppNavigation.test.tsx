@@ -31,6 +31,10 @@ vi.mock('./modules/adminExtras', () => ({
     return <div>Admin extras {location.search}</div>;
   },
 }));
+vi.mock('sonner', () => ({
+  Toaster: () => null,
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
 
 describe('App navigation', () => {
   it('redirects dashboard to Admin reportes', async () => {

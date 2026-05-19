@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'sonner';
 import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import type { UserRole } from './types/api';
@@ -51,6 +52,16 @@ export default function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+        <Toaster
+          position="top-right"
+          richColors
+          closeButton
+          theme="system"
+          toastOptions={{
+            duration: 4500,
+            style: { fontFamily: 'inherit' },
+          }}
+        />
       </AuthProvider>
     </QueryClientProvider>
   );

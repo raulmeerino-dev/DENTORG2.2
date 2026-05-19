@@ -1,4 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  MoreHorizontal,
+  Pill,
+  FileSignature,
+  XCircle,
+  FileText,
+  ClipboardList,
+  ShieldCheck,
+  FlaskConical,
+  MessageCircle,
+  StickyNote,
+  Copy,
+  CalendarPlus,
+  Receipt,
+  CreditCard,
+  Upload,
+} from 'lucide-react';
 import type { ApiPaciente } from '../../types/api';
 
 export interface PatientActionsHandlers {
@@ -55,16 +72,26 @@ export function PatientActionsMenu({
   return (
     <div className="patient-actions" ref={containerRef}>
       <div className="patient-actions-primary" aria-label="Acciones rapidas del paciente">
-        <button type="button" onClick={handlers.onNuevaCita} disabled={noPatient}>Nueva cita</button>
+        <button type="button" onClick={handlers.onNuevaCita} disabled={noPatient}>
+          <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Nueva cita</span>
+        </button>
         <button
           type="button"
           onClick={handlers.onNuevoPresupuesto}
           disabled={noPatient || busy}
         >
-          Nuevo ppto.
+          <Receipt size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Nuevo ppto.</span>
         </button>
-        <button type="button" onClick={handlers.onCobrar} disabled={noPatient}>Cobrar</button>
-        <button type="button" onClick={handlers.onSubirDocumento} disabled={noPatient}>Subir doc.</button>
+        <button type="button" onClick={handlers.onCobrar} disabled={noPatient}>
+          <CreditCard size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Cobrar</span>
+        </button>
+        <button type="button" onClick={handlers.onSubirDocumento} disabled={noPatient}>
+          <Upload size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Subir doc.</span>
+        </button>
         <button
           type="button"
           className="patient-actions-more"
@@ -74,7 +101,7 @@ export function PatientActionsMenu({
           aria-expanded={open}
           aria-label="Mas acciones"
         >
-          <span aria-hidden="true">⋯</span>
+          <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
           <span className="sr-only">Mas acciones</span>
         </button>
       </div>
@@ -88,13 +115,29 @@ export function PatientActionsMenu({
             disabled={!recetaEnabled}
             title={recetaEnabled ? undefined : 'Disponible en proxima fase'}
           >
-            Crear receta
+            <Pill size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Crear receta</span>
           </button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onConsentimiento)}>Consentimiento informado</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onRevocarConsentimiento)}>Revocar consentimiento</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onCircular)}>Circular / justificante</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onCuestionarioMedico)}>Documento cuestionario medico</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onDocumentoLOPD)}>Documento LOPD</button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onConsentimiento)}>
+            <FileSignature size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Consentimiento informado</span>
+          </button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onRevocarConsentimiento)}>
+            <XCircle size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Revocar consentimiento</span>
+          </button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onCircular)}>
+            <FileText size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Circular / justificante</span>
+          </button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onCuestionarioMedico)}>
+            <ClipboardList size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Documento cuestionario medico</span>
+          </button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onDocumentoLOPD)}>
+            <ShieldCheck size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Documento LOPD</span>
+          </button>
           <button
             type="button"
             role="menuitem"
@@ -102,12 +145,22 @@ export function PatientActionsMenu({
             disabled={!laboratorioEnabled}
             title={laboratorioEnabled ? undefined : 'Disponible en proxima fase'}
           >
-            Pedido de laboratorio
+            <FlaskConical size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Pedido de laboratorio</span>
           </button>
           <span className="patient-actions-group">Comunicacion</span>
-          <button type="button" role="menuitem" onClick={fire(handlers.onWhatsApp)}>WhatsApp</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onComentario)}>Comentario / nota</button>
-          <button type="button" role="menuitem" onClick={fire(handlers.onCopiarDatos)}>Copiar datos</button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onWhatsApp)}>
+            <MessageCircle size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>WhatsApp</span>
+          </button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onComentario)}>
+            <StickyNote size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Comentario / nota</span>
+          </button>
+          <button type="button" role="menuitem" onClick={fire(handlers.onCopiarDatos)}>
+            <Copy size={14} strokeWidth={1.8} aria-hidden="true" />
+            <span>Copiar datos</span>
+          </button>
         </div>
       )}
     </div>
