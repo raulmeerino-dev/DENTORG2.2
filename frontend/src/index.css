@@ -416,10 +416,8 @@ a {
 }
 
 .patient-screen {
-  height: calc(100vh - 96px);
-  min-height: 620px;
   display: grid;
-  grid-template-rows: 34px auto auto minmax(0, 1fr) 58px;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   border: 1px solid var(--border-dark);
   background: var(--panel);
 }
@@ -2781,7 +2779,7 @@ body {
 }
 
 .patient-screen {
-  grid-template-rows: 34px auto auto auto minmax(0, 1fr) 58px;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .patient-module-tabs {
@@ -3057,7 +3055,7 @@ body {
 
 /* Compact organization pass: grouped tabs, lighter status, calmer panels. */
 .patient-screen {
-  grid-template-rows: 34px auto auto auto minmax(0, 1fr) 52px;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .patient-module-tabs {
@@ -3618,14 +3616,11 @@ body {
   height: 25px;
 }
 
-/* Eurodent-like patient window: top modules direct, patient-only bottom shortcuts. */
+/* Patient window: rows fluyen según el contenido real. */
 .patient-screen,
-.patient-screen.no-bottom-bar {
-  grid-template-rows: 34px 52px auto auto minmax(0, 1fr);
-}
-
+.patient-screen.no-bottom-bar,
 .patient-screen:not(.no-bottom-bar) {
-  grid-template-rows: 34px 52px auto auto minmax(0, 1fr) 52px;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .patient-module-tabs {
@@ -4485,14 +4480,11 @@ body {
 }
 
 .patient-screen,
-.patient-screen.no-bottom-bar {
-  height: calc(100vh - 94px);
-  min-height: 0;
-  grid-template-rows: 28px 42px 38px 30px minmax(0, 1fr);
-}
-
+.patient-screen.no-bottom-bar,
 .patient-screen:not(.no-bottom-bar) {
-  grid-template-rows: 28px 42px 38px 30px minmax(0, 1fr) 38px;
+  height: auto;
+  min-height: 0;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 .patient-titlebar {
@@ -4692,9 +4684,9 @@ body {
   min-height: 30px;
 }
 
-/* Patient dashboard: last visit and next appointment are the primary read. */
+/* Patient dashboard: rows fluyen sin altura forzada. */
 .patient-screen.patient-dashboard-mode {
-  grid-template-rows: 28px 42px 38px minmax(0, 1fr) 38px;
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .patient-dashboard-mode .patient-desk {
@@ -5006,17 +4998,31 @@ body {
 
 /* Patient selector lives outside the clinical record so changing patient is always fast. */
 .patient-selector-bar {
-  min-height: 52px;
   display: grid;
-  grid-template-columns: minmax(480px, 1fr) minmax(220px, .32fr);
-  gap: 8px;
+  grid-template-columns: minmax(280px, 360px) minmax(200px, 1fr) auto;
+  gap: 12px;
   align-items: center;
-  margin: 0 0 6px;
-  padding: 6px 8px;
-  border: 1px solid #c4d2dc;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgba(34, 63, 82, .07);
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (max-width: 1100px) {
+  .patient-selector-bar {
+    grid-template-columns: minmax(280px, 1fr) auto;
+  }
+  .patient-selector-bar .patient-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .patient-selector-bar {
+    grid-template-columns: 1fr;
+  }
 }
 
 .patient-selector-bar .patient-finder {
@@ -5080,24 +5086,18 @@ body {
 .patient-selector-current {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 38px;
-  gap: 8px;
-  align-items: center;
-  padding-left: 10px;
-  border-left: 1px solid #d8e3ea;
-}
-
-.patient-selector-current > div {
-  min-width: 0;
-  display: grid;
   gap: 1px;
+  align-items: center;
+  padding-left: 12px;
+  border-left: 1px solid var(--color-border);
 }
 
 .patient-selector-current span {
-  color: #60717f;
+  color: var(--color-text-muted);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .patient-selector-current strong,
@@ -5109,12 +5109,14 @@ body {
 }
 
 .patient-selector-current strong {
-  color: #0f3146;
+  color: var(--color-text);
   font-size: 14px;
+  font-weight: 700;
 }
 
 .patient-selector-current small {
-  color: #60717f;
+  color: var(--color-text-muted);
+  font-size: 11.5px;
 }
 
 .patient-agenda-shortcut,
