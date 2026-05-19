@@ -714,16 +714,15 @@ export default function PacientesPage() {
           }}
         />
         <div className="patient-selector-current">
-          <div>
-            <span>Paciente activo</span>
-            <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
-            <small>
-              Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}
-              {alergias ? ' - ! Alergico' : ''}
-              {totalPendiente > 0 ? ` - ${money(totalPendiente)} pendiente` : ''}
-            </small>
-          </div>
-          <PatientActionsMenu
+          <span>Paciente activo</span>
+          <strong>{active ? fullName(active) : 'Sin seleccionar'}</strong>
+          <small>
+            Historia {active?.num_historial ?? '-'} - {active?.telefono || 'sin telefono'}
+            {alergias ? ' - ! Alergico' : ''}
+            {totalPendiente > 0 ? ` - ${money(totalPendiente)} pendiente` : ''}
+          </small>
+        </div>
+        <PatientActionsMenu
             paciente={active}
             busy={nuevoPresupuesto.isPending}
             handlers={{
@@ -749,7 +748,6 @@ export default function PacientesPage() {
               onCopiarDatos: copiarDatosPaciente,
             }}
           />
-        </div>
         {hasPatientError && (
           <div className="inline-alert">
             Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
