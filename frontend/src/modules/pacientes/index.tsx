@@ -977,22 +977,20 @@ export default function PacientesPage() {
         )}
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
-            <HistorialCompletoPanel
+            <EurodentHistoryBillingPanel
               paciente={active}
               historial={historialQuery.data ?? []}
-              citas={citasPacienteQuery.data ?? []}
-              presupuestos={presupuestos}
               facturas={facturas}
               anticipos={pagosAnticipados}
-              documentos={documentosQuery.data ?? []}
-              consentimientos={consentimientosQuery.data ?? []}
-              recetas={recetasPacienteQuery.data ?? []}
-              laboratorio={laboratorioPacienteQuery.data ?? []}
-              onOpenDocumento={abrirDocumento}
-              onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
-              onOpenFactura={abrirPdfFactura}
-              onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
-              userRole={user?.rol}
+              onFacturar={() => setInvoiceCreatorOpen(true)}
+              onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
+              onCobrar={() => cobrarFactura.mutate()}
+              onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
+              onEditAnticipo={(pago) => setAnticipoModal({ kind: 'editar', pago })}
+              onCobrarImporte={(factura) => setCobroFactura(factura)}
+              onOrtodoncia={() => openPatientArea('realizados')}
+              onRecibos={abrirRecibos}
+              onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
             />
             <details
               className="history-ledger-details"
@@ -1010,21 +1008,23 @@ export default function PacientesPage() {
               />
             </details>
             <details className="history-ledger-details" open={billingLedgerOpen} onToggle={(event) => setBillingLedgerOpen(event.currentTarget.open)}>
-              <summary>Libro de historial y facturacion</summary>
-              <EurodentHistoryBillingPanel
+              <summary>Cronologia agrupada (clinico, citas, documentos, recetas, laboratorio)</summary>
+              <HistorialCompletoPanel
                 paciente={active}
                 historial={historialQuery.data ?? []}
+                citas={citasPacienteQuery.data ?? []}
+                presupuestos={presupuestos}
                 facturas={facturas}
                 anticipos={pagosAnticipados}
-                onFacturar={() => setInvoiceCreatorOpen(true)}
-                onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
-                onCobrar={() => cobrarFactura.mutate()}
-                onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
-                onEditAnticipo={(pago) => setAnticipoModal({ kind: 'editar', pago })}
-                onCobrarImporte={(factura) => setCobroFactura(factura)}
-                onOrtodoncia={() => openPatientArea('realizados')}
-                onRecibos={abrirRecibos}
-                onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
+                documentos={documentosQuery.data ?? []}
+                consentimientos={consentimientosQuery.data ?? []}
+                recetas={recetasPacienteQuery.data ?? []}
+                laboratorio={laboratorioPacienteQuery.data ?? []}
+                onOpenDocumento={abrirDocumento}
+                onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
+                onOpenFactura={abrirPdfFactura}
+                onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
+                userRole={user?.rol}
               />
             </details>
           </section>
