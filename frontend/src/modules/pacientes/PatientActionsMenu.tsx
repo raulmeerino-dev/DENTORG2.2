@@ -84,6 +84,15 @@ export function PatientActionsMenu({
           <Receipt size={14} strokeWidth={2} aria-hidden="true" />
           <span>Nuevo ppto.</span>
         </button>
+        <button
+          type="button"
+          onClick={recetaEnabled ? handlers.onCrearReceta : undefined}
+          disabled={noPatient || !recetaEnabled}
+          title={recetaEnabled ? undefined : 'Disponible cuando hay paciente'}
+        >
+          <Pill size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Recetas</span>
+        </button>
         <button type="button" onClick={handlers.onCobrar} disabled={noPatient}>
           <CreditCard size={14} strokeWidth={2} aria-hidden="true" />
           <span>Cobrar</span>
