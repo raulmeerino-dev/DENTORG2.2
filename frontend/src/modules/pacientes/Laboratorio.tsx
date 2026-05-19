@@ -10,6 +10,7 @@ import type {
   TrabajoLaboratorioUpdateInput,
 } from '../../types/api';
 import { formatDate, fullName, money } from '../../lib/utils';
+import { isLaboratorioVencido } from './laboratorioUtils';
 
 const ESTADO_BADGE: Record<string, string> = {
   pendiente: 'estado-pendiente',
@@ -25,17 +26,6 @@ const ESTADO_BADGE: Record<string, string> = {
   incidencia: 'estado-incidencia',
   cancelado: 'estado-cancelado',
 };
-
-function isVencido(trabajo: TrabajoLaboratorio): boolean {
-  if (!trabajo.fecha_entrega_prevista) return false;
-  if (trabajo.fecha_recepcion) return false;
-  if (['entregado', 'cancelado'].includes(trabajo.estado)) return false;
-  return trabajo.fecha_entrega_prevista < new Date().toISOString().slice(0, 10);
-}
-
-export function contarLaboratorioVencidos(trabajos: TrabajoLaboratorio[]): number {
-  return trabajos.filter(isVencido).length;
-}
 
 export function LaboratorioPacientePanel({
   trabajos,
@@ -74,7 +64,7 @@ export function LaboratorioPacientePanel({
         </thead>
         <tbody>
           {trabajos.map((trabajo) => {
-            const vencido = isVencido(trabajo);
+            const vencido = isLaboratorioVencido(trabajo);
             const badge = ESTADO_BADGE[trabajo.estado] ?? 'estado-pendiente';
             return (
               <tr key={trabajo.id} className={vencido ? 'trabajo-vencido' : ''}>

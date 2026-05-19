@@ -2,7 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiPaciente } from '../../types/api';
-import { PatientActionsMenu, buildWhatsAppUrl } from './PatientActionsMenu';
+import { PatientActionsMenu } from './PatientActionsMenu';
+import { buildWhatsAppUrl } from './patientActionUtils';
 
 const paciente: ApiPaciente = {
   id: 'pac-1',

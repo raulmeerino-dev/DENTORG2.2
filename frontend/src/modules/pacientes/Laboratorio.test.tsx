@@ -2,7 +2,8 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiPaciente, Doctor, Laboratorio, PresupuestoLinea, TrabajoLaboratorio } from '../../types/api';
-import { LaboratorioPacientePanel, NuevoPedidoLaboratorioModal, contarLaboratorioVencidos } from './Laboratorio';
+import { LaboratorioPacientePanel, NuevoPedidoLaboratorioModal } from './Laboratorio';
+import { contarLaboratorioVencidos } from './laboratorioUtils';
 
 const paciente: ApiPaciente = {
   id: 'pac-1',

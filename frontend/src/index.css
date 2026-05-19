@@ -11301,6 +11301,491 @@ html[data-theme="dark"] .page-shell .euro-table th {
   }
 }
 
+/* Final product polish: responsive clinical workspace, no horizontal page cuts. */
+html,
+body,
+#root,
+.app-shell {
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.main-content {
+  overflow-x: hidden;
+}
+
+.page,
+.page-shell,
+.patient-selector-bar,
+.patient-screen,
+.agenda-euro,
+.fichero-screen,
+.admin-extras {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.patient-screen,
+.agenda-euro,
+.fichero-screen {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52)),
+    var(--surface-soft);
+}
+
+.patient-screen {
+  overflow: hidden;
+}
+
+.patient-desk,
+.agenda-layout,
+.caja-table-wrap,
+.admin-extras {
+  min-width: 0;
+}
+
+.patient-selector-bar {
+  grid-template-columns: minmax(300px, 0.95fr) minmax(420px, 1.05fr);
+  padding: 8px;
+  gap: 10px;
+}
+
+.patient-selector-bar .patient-finder input {
+  min-height: 38px;
+  border-color: #d4e2e9;
+  background: #fbfdfe;
+  font-size: 0.9rem;
+}
+
+.patient-new-shortcut,
+.patient-agenda-shortcut {
+  border-color: #bfe3ea;
+  background: #effbfe;
+  color: #078096;
+  box-shadow: none;
+}
+
+.patient-selector-current {
+  min-height: 42px;
+  padding: 5px 8px 5px 12px;
+  border: 1px solid #e0ebf0;
+  border-left: 4px solid #0f9faf;
+  border-radius: 11px;
+}
+
+.patient-selector-current small {
+  display: block;
+}
+
+.patient-selector-actions button {
+  min-height: 32px;
+  padding-inline: 9px;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.patient-selector-actions button:nth-child(2) {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: #fff8ed;
+  color: #9a5b05;
+}
+
+.patient-selector-actions button:nth-child(3) {
+  border-color: rgba(22, 163, 74, 0.38);
+  background: #f0fdf4;
+  color: #14763a;
+}
+
+.patient-dashboard-mode .patient-desk {
+  padding: 12px;
+  overflow: auto;
+}
+
+.patient-dashboard-mode .patient-hub-grid {
+  grid-template-columns: minmax(330px, 1.1fr) minmax(330px, 1fr) minmax(300px, 0.9fr);
+  grid-auto-rows: min-content;
+  grid-template-rows: auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.patient-dashboard-mode .patient-hub-head,
+.patient-flow-strip {
+  grid-column: 1 / -1;
+  grid-row: auto;
+}
+
+.patient-dashboard-mode .patient-hub-head {
+  grid-template-columns: 54px minmax(230px, 1.2fr) minmax(240px, 1fr) minmax(128px, 0.55fr) auto;
+  min-height: unset;
+  border-left: 5px solid #0f9faf;
+}
+
+.patient-hub-identity strong {
+  font-size: 1.15rem;
+}
+
+.patient-hub-alert strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.patient-flow-strip {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  padding: 6px;
+}
+
+.patient-flow-strip button {
+  min-height: 38px;
+  border-color: transparent;
+  background: #f7fbfd;
+}
+
+.patient-dashboard-mode .patient-odontogram-summary-card {
+  grid-column: 1 / span 2;
+  grid-row: auto;
+}
+
+.patient-dashboard-mode .patient-next-card {
+  grid-column: 3;
+  grid-row: auto;
+}
+
+.patient-dashboard-mode .patient-last-card {
+  grid-column: 1;
+  grid-row: auto;
+}
+
+.patient-dashboard-mode .patient-billing-card {
+  grid-column: 2;
+  grid-row: auto;
+}
+
+.patient-dashboard-mode .patient-documents-summary-card {
+  grid-column: 1 / span 2;
+  grid-row: auto;
+}
+
+.patient-dashboard-mode .patient-hub-side-card {
+  grid-column: 3;
+  grid-row: auto / span 2;
+}
+
+.patient-next-card,
+.patient-last-card,
+.patient-billing-card,
+.patient-documents-summary-card,
+.patient-odontogram-summary-card,
+.patient-hub-side-card {
+  border-left: 0 !important;
+  overflow: hidden;
+}
+
+.patient-next-card::before,
+.patient-last-card::before,
+.patient-billing-card::before,
+.patient-documents-summary-card::before,
+.patient-odontogram-summary-card::before,
+.patient-hub-side-card::before {
+  content: "";
+  display: block;
+  height: 3px;
+  margin: -10px -10px 9px;
+  background: #cddde5;
+}
+
+.patient-next-card::before {
+  background: linear-gradient(90deg, #0f88a8, #72d5e0);
+}
+
+.patient-last-card::before,
+.patient-odontogram-summary-card::before {
+  background: linear-gradient(90deg, #16a34a, #9ee6b8);
+}
+
+.patient-billing-card::before {
+  background: linear-gradient(90deg, #dc2626, #f59e0b);
+}
+
+.patient-documents-summary-card::before {
+  background: linear-gradient(90deg, #64748b, #b6c4ce);
+}
+
+.mini-odontogram {
+  padding: 10px 4px;
+  border: 1px solid #eef3f6;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fbfdfe, #f5fafc);
+}
+
+.mini-odontogram-arch {
+  grid-template-columns: repeat(16, minmax(18px, 1fr));
+}
+
+.mini-tooth i {
+  width: clamp(13px, 1.4vw, 20px);
+  height: clamp(17px, 2vw, 27px);
+}
+
+.mini-tooth.mini-tooth-pendiente i {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.mini-tooth.mini-tooth-presupuestado i {
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
+.mini-tooth.mini-tooth-realizado i {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+}
+
+.patient-billing-totals {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.patient-billing-list button,
+.patient-documents-summary-grid button {
+  min-width: 0;
+}
+
+.treatments-workspace,
+.history-complete-workspace,
+.realizados-workspace {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.budget-panel,
+.budget-workflow-header,
+.budget-panel-header {
+  min-width: 0;
+}
+
+.budget-panel-header {
+  display: grid;
+  gap: 10px;
+}
+
+.budget-header-top {
+  align-items: start;
+}
+
+.budget-panel-actions {
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.budget-workbench {
+  grid-template-columns: minmax(280px, 0.9fr) minmax(280px, 1.1fr);
+}
+
+.budget-treatment-list {
+  max-height: min(360px, 42vh);
+}
+
+.budget-panel > .euro-table,
+.realizados-workspace .euro-table,
+.complete-history-timeline,
+.caja-table-wrap {
+  width: 100%;
+  max-width: 100%;
+}
+
+.complete-history-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.complete-history-timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.history-event {
+  grid-template-columns: 90px 108px minmax(0, 1fr);
+}
+
+.history-event p,
+.history-event strong {
+  overflow-wrap: anywhere;
+}
+
+.agenda-layout {
+  grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
+}
+
+.agenda-left-panel {
+  min-width: 0;
+}
+
+.agenda-slots {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.agenda-slot-row {
+  grid-template-columns: 58px minmax(0, 1fr);
+}
+
+.agenda-appointment {
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.agenda-appointment strong,
+.agenda-appointment span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-metrics.caja-metrics {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.caja-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-report-header {
+  align-items: start;
+}
+
+.admin-report-kpis {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.admin-report-layout {
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+}
+
+.admin-general-report-grid {
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+}
+
+.admin-report-chart-split {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 1320px) {
+  .patient-dashboard-mode .patient-hub-grid {
+    grid-template-columns: minmax(300px, 1fr) minmax(300px, 1fr);
+  }
+
+  .patient-dashboard-mode .patient-next-card,
+  .patient-dashboard-mode .patient-hub-side-card {
+    grid-column: auto;
+  }
+
+  .patient-dashboard-mode .patient-odontogram-summary-card,
+  .patient-dashboard-mode .patient-documents-summary-card {
+    grid-column: 1 / -1;
+  }
+
+  .patient-dashboard-mode .patient-hub-head {
+    grid-template-columns: 54px minmax(220px, 1fr) minmax(220px, 1fr);
+  }
+
+  .patient-hub-balance,
+  .patient-hub-head-actions {
+    grid-column: auto;
+  }
+
+  .agenda-layout {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1080px) {
+  .main-content {
+    padding: 8px;
+  }
+
+  .euro-main-nav {
+    overflow-x: auto;
+  }
+
+  .patient-selector-bar,
+  .patient-dashboard-mode .patient-hub-grid,
+  .budget-workbench,
+  .agenda-layout,
+  .admin-report-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-selector-current {
+    grid-template-columns: minmax(0, 1fr) 36px;
+  }
+
+  .patient-selector-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-top: 4px;
+  }
+
+  .patient-dashboard-mode .patient-hub-head,
+  .patient-dashboard-mode .patient-next-card,
+  .patient-dashboard-mode .patient-last-card,
+  .patient-dashboard-mode .patient-billing-card,
+  .patient-dashboard-mode .patient-documents-summary-card,
+  .patient-dashboard-mode .patient-odontogram-summary-card,
+  .patient-dashboard-mode .patient-hub-side-card {
+    grid-column: 1;
+  }
+
+  .patient-dashboard-mode .patient-hub-head {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .patient-hub-alert,
+  .patient-hub-balance,
+  .patient-hub-head-actions {
+    grid-column: 1 / -1;
+  }
+
+  .patient-flow-strip,
+  .admin-report-kpis,
+  .admin-general-report-grid,
+  .dashboard-metrics.caja-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .history-event {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .patient-flow-strip,
+  .admin-report-kpis,
+  .admin-general-report-grid,
+  .dashboard-metrics.caja-metrics,
+  .patient-billing-totals {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-module-tabs button {
+    min-width: 120px;
+  }
+
+  .patient-module-tabs {
+    overflow-x: auto;
+  }
+
+  .mini-tooth small {
+    display: none;
+  }
+}
+
 /* Ficha ampliada — Fase 1 */
 .patient-identity-chips {
   display: flex;
