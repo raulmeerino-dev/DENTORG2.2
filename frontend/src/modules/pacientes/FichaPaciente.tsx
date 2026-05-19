@@ -238,7 +238,7 @@ export function PatientForm({
   const direccionCompleta = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
 
   return (
-    <div className="patient-form-grid patient-hub-grid">
+    <div className="patient-form-grid patient-hub-grid patient-bento">
       {temporal && (
         <button type="button" className="patient-banner patient-banner-warning" onClick={onEdit}>
           <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
@@ -287,33 +287,36 @@ export function PatientForm({
       </section>
 
       {/* COL IZQ — clínica: odontograma + observaciones */}
-      <PatientOdontogramSummary
-        presupuestos={presupuestos}
-        historial={historial}
-        onOpenDetail={onOpenOdontogramaDetail}
-      />
-
-      <section className="patient-clinical-notes-card">
-        <CardHead
-          icon={<ClipboardList size={14} strokeWidth={2} />}
-          title="Alertas y observaciones"
-          status={hasAlertasReales ? 'revisar' : 'sin alertas'}
-          statusTone={hasAlertasReales ? 'warning' : 'muted'}
-          action={<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>}
+      <div className="patient-bento-col patient-bento-col-clinica">
+        <PatientOdontogramSummary
+          presupuestos={presupuestos}
+          historial={historial}
+          onOpenDetail={onOpenOdontogramaDetail}
         />
-        <div className="patient-clinical-notes-body">
-          <div>
-            <b>Salud</b>
-            <p>{healthText || 'Sin alergias ni contraindicaciones registradas.'}</p>
+
+        <section className="patient-clinical-notes-card">
+          <CardHead
+            icon={<ClipboardList size={14} strokeWidth={2} />}
+            title="Alertas y observaciones"
+            status={hasAlertasReales ? 'revisar' : 'sin alertas'}
+            statusTone={hasAlertasReales ? 'warning' : 'muted'}
+            action={<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>}
+          />
+          <div className="patient-clinical-notes-body">
+            <div>
+              <b>Salud</b>
+              <p>{healthText || 'Sin alergias ni contraindicaciones registradas.'}</p>
+            </div>
+            <div>
+              <b>Observaciones</b>
+              <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
+            </div>
           </div>
-          <div>
-            <b>Observaciones</b>
-            <p>{paciente?.observaciones || 'Sin observaciones generales.'}</p>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
       {/* COL CENTRAL — operativa: cita, visita, cobros */}
+      <div className="patient-bento-col patient-bento-col-operativa">
       <section className="patient-next-card">
         <CardHead
           icon={<CalendarClock size={14} strokeWidth={2} />}
@@ -372,8 +375,10 @@ export function PatientForm({
           {!ultimaFacturas.length && <p>Sin facturas previas.</p>}
         </div>
       </section>
+      </div>
 
       {/* COL DERECHA — administrativa: ficha rica + docs/CI */}
+      <div className="patient-bento-col patient-bento-col-admin">
       <section className="patient-admin-card">
         <CardHead
           icon={<User size={14} strokeWidth={2} />}
@@ -437,6 +442,7 @@ export function PatientForm({
           <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Lab. <span className="link-count">{laboratorio.length}</span></button>
         </footer>
       </section>
+      </div>
     </div>
   );
 }
