@@ -46,6 +46,8 @@ const HEALTH_LABELS: Record<string, string> = {
 };
 
 function healthLabel(key: string) {
+  if (key === 'observaciones_medicas' || key === 'observaciones') return 'Observaciones medicas';
+  if (key === 'medicacion' || key === 'medicacion_actual') return key === 'medicacion_actual' ? 'Medicacion actual' : 'Medicacion';
   if (HEALTH_LABELS[key]) return HEALTH_LABELS[key];
   const clean = key.replaceAll('_', ' ').trim();
   return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}` : key;
@@ -261,7 +263,7 @@ export function PatientForm({
   const edad = (() => {
     if (!paciente?.fecha_nacimiento) return null;
     const nac = new Date(paciente.fecha_nacimiento);
-    const diff = Date.now() - nac.getTime();
+    const diff = Date.parse(today) - nac.getTime();
     return Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
   })();
   const sexoLabel = paciente?.sexo === 'F' ? 'Mujer' : paciente?.sexo === 'M' ? 'Hombre' : paciente?.sexo === 'otro' ? 'Otro' : null;

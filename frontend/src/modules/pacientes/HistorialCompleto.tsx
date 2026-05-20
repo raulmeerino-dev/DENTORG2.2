@@ -15,6 +15,10 @@ type TimelineEvent = {
   meta?: string;
   amount?: string;
   action?: () => void;
+  ledgerId?: string;
+  ledgerLabel?: string;
+  ledgerTitle?: string;
+  ledgerSummary?: string;
 };
 
 type LedgerGroup = {
@@ -51,6 +55,14 @@ function dayKey(date: string) {
 }
 
 function getLedgerIdentity(event: TimelineEvent) {
+  if (event.ledgerId) {
+    return {
+      id: event.ledgerId,
+      label: event.ledgerLabel || event.label,
+      title: event.ledgerTitle || event.title,
+      summary: event.ledgerSummary || event.detail,
+    };
+  }
   if (event.filter === 'facturacion' || event.filter === 'cobros') {
     return {
       id: `factura-${event.title}`,
@@ -164,6 +176,8 @@ export function HistorialCompletoPanel({
 
     historial.forEach((entrada) => {
       const tratamiento = entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental';
+      const factura = entrada.factura_id ? facturas.find((item) => item.id === entrada.factura_id) : null;
+      const facturaLabel = factura ? `${factura.serie}/${factura.numero}` : null;
       next.push({
         id: `hist-${entrada.id}`,
         date: entrada.fecha,
@@ -173,6 +187,10 @@ export function HistorialCompletoPanel({
         detail: entrada.observaciones || entrada.diagnostico || entrada.estado,
         meta: [entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.doctor?.nombre].filter(Boolean).join(' · '),
         amount: entrada.importe ? money(entrada.importe) : undefined,
+        ledgerId: facturaLabel ? `factura-${facturaLabel}` : undefined,
+        ledgerLabel: facturaLabel ? 'Factura / tratamientos' : undefined,
+        ledgerTitle: facturaLabel ? `Factura ${facturaLabel}` : undefined,
+        ledgerSummary: facturaLabel ? 'Tratamientos, factura y cobros asociados.' : undefined,
       });
       if (entrada.pieza_dental) {
         next.push({
@@ -223,6 +241,9 @@ export function HistorialCompletoPanel({
         detail: `${factura.estado} · pendiente ${money(factura.pendiente)}`,
         amount: money(factura.total),
         action: () => onOpenFactura(factura),
+        ledgerId: `factura-${factura.serie}/${factura.numero}`,
+        ledgerTitle: `Factura ${factura.serie}/${factura.numero}`,
+        ledgerSummary: 'Tratamientos facturados y movimientos de cobro asociados.',
       });
       factura.cobros.forEach((cobro) => {
         next.push({
@@ -234,6 +255,9 @@ export function HistorialCompletoPanel({
           detail: cobro.motivo_anulacion || cobro.notas || 'Pago registrado',
           amount: cobro.anulado_at ? '0,00' : money(cobro.importe),
           action: () => onOpenFactura(factura),
+          ledgerId: `factura-${factura.serie}/${factura.numero}`,
+          ledgerTitle: `Factura ${factura.serie}/${factura.numero}`,
+          ledgerSummary: 'Tratamientos facturados y movimientos de cobro asociados.',
         });
       });
     });
@@ -247,6 +271,10 @@ export function HistorialCompletoPanel({
         title: anticipo.concepto || 'Pago anticipado',
         detail: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta',
         amount: anticipo.anulado_at ? '0,00' : money(anticipo.importe),
+        ledgerId: `anticipo-${anticipo.id}`,
+        ledgerLabel: 'Anticipo',
+        ledgerTitle: anticipo.concepto || 'Pago anticipado',
+        ledgerSummary: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta',
       });
     });
 
@@ -348,7 +376,7 @@ export function HistorialCompletoPanel({
               <div className="history-ledger-items">
                 {group.events.map((event) => (
                   <div key={event.id} className={`history-ledger-item history-ledger-item-${event.filter}`}>
-                    <span>{event.label}</span>
+                    <span>{group.events.length > 1 ? event.label : 'Detalle'}</span>
                     <div>
                       <strong>{group.title === event.title ? event.label : event.title}</strong>
                       <p>{event.detail}</p>

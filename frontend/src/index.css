@@ -15348,3 +15348,503 @@ html[data-theme="dark"] .fichero-screen .treatment-catalog-scroll thead th {
     min-height: 460px;
   }
 }
+
+/* Consolidacion visual 2026: una sola capa final para paciente, historial y dark mode. */
+html,
+body,
+#root,
+.app-shell,
+.main-content,
+.page-shell,
+.patient-screen,
+.patient-desk {
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+body {
+  min-width: 0 !important;
+}
+
+.main-content {
+  overflow-x: hidden !important;
+}
+
+.patient-screen {
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+.patient-dashboard-mode .patient-desk,
+.patient-screen.no-bottom-bar .patient-desk {
+  overflow-x: hidden !important;
+  scrollbar-gutter: stable;
+}
+
+.patient-selector-bar {
+  display: grid !important;
+  grid-template-columns: minmax(360px, 1fr) minmax(260px, 360px) max-content !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 6px 8px !important;
+  margin: 0 0 6px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.patient-selector-bar > * {
+  min-width: 0;
+}
+
+.patient-selector-bar .patient-finder {
+  grid-template-columns: 34px minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+
+.patient-selector-bar .patient-finder input,
+.patient-selector-current {
+  height: 38px !important;
+  min-height: 38px !important;
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 10px 24px rgba(18, 53, 72, 0.055) !important;
+}
+
+.patient-selector-current {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-rows: 15px 13px !important;
+  align-content: center !important;
+  column-gap: 8px !important;
+  padding: 5px 10px 5px 13px !important;
+  border-left: 3px solid #0f9faf !important;
+}
+
+.patient-selector-current strong {
+  grid-column: 1;
+  grid-row: 1;
+  overflow: hidden;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-selector-current small {
+  grid-column: 1;
+  grid-row: 2;
+  overflow: hidden;
+  color: #617788;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-selector-chips {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  align-self: center;
+  justify-self: end;
+  gap: 4px;
+  min-width: 0;
+  max-width: 118px;
+  overflow: hidden;
+}
+
+.patient-selector-chip {
+  flex: 0 1 auto;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 7px !important;
+  font-size: 0.68rem !important;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-actions {
+  min-width: 0;
+  justify-self: end;
+}
+
+.patient-actions-primary {
+  display: flex;
+  flex-wrap: nowrap !important;
+  justify-content: flex-end;
+  gap: 6px !important;
+  min-width: 0;
+}
+
+.patient-actions-primary button {
+  height: 38px !important;
+  min-height: 38px !important;
+  gap: 6px !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  border-radius: 11px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  color: #07364c !important;
+  box-shadow: 0 10px 24px rgba(18, 53, 72, 0.055) !important;
+  white-space: nowrap;
+}
+
+.patient-actions-primary button:not(.patient-actions-more):first-child,
+.patient-actions-primary button:not(.patient-actions-more):nth-child(2) {
+  color: #075e70 !important;
+}
+
+.patient-actions-primary button svg {
+  color: #0f8ea0;
+}
+
+.patient-actions-more {
+  width: 38px !important;
+  flex: 0 0 38px !important;
+  padding: 0 !important;
+  justify-content: center;
+}
+
+.patient-module-tabs {
+  min-height: 38px !important;
+  padding: 0 8px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(20, 67, 91, 0.08) !important;
+  background: transparent !important;
+}
+
+.patient-dashboard-mode .patient-module-tabs button {
+  min-height: 36px !important;
+  padding: 5px 12px !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.patient-dashboard-mode .patient-module-tabs button.active {
+  border-bottom-color: #0f9faf !important;
+  color: #082f43 !important;
+  background: rgba(255, 255, 255, 0.62) !important;
+}
+
+.patient-dashboard-mode .patient-desk {
+  padding: 8px 12px 12px !important;
+}
+
+.patient-dashboard-mode .patient-form-grid.patient-bento {
+  grid-template-columns: minmax(300px, 0.92fr) minmax(360px, 1.08fr) minmax(300px, 0.88fr) !important;
+  gap: 9px !important;
+  align-items: stretch !important;
+}
+
+.patient-bento-col {
+  gap: 9px !important;
+}
+
+.patient-dashboard-mode .patient-hub-head {
+  grid-template-columns: 52px minmax(240px, 1.08fr) minmax(260px, 0.9fr) minmax(150px, 0.44fr) auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 76px !important;
+  padding: 11px 14px !important;
+  border: 0 !important;
+  border-radius: 15px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 14px 32px rgba(18, 53, 72, 0.055) !important;
+}
+
+.patient-hub-identity,
+.patient-hub-alert,
+.patient-hub-balance,
+.patient-hub-head-actions {
+  min-width: 0;
+}
+
+.patient-hub-identity strong,
+.patient-hub-alert strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-hub-alert,
+.patient-hub-balance {
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: #f5f9fb !important;
+  box-shadow: none !important;
+}
+
+.patient-hub-alert.has-alerts {
+  background: #fff7e8 !important;
+  box-shadow: inset 3px 0 0 #f59e0b !important;
+}
+
+.patient-hub-balance.has-debt {
+  background: #fff2f0 !important;
+  box-shadow: inset 3px 0 0 #dc2626 !important;
+}
+
+.patient-hub-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.patient-flow-strip {
+  gap: 7px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.patient-flow-strip button {
+  min-height: 48px !important;
+  border: 0 !important;
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, 0.82) !important;
+  box-shadow: 0 10px 22px rgba(18, 53, 72, 0.04) !important;
+}
+
+.patient-odontogram-summary-card,
+.patient-clinical-notes-card,
+.patient-next-card,
+.patient-last-card,
+.patient-billing-card,
+.patient-admin-card,
+.patient-documents-summary-card,
+.patient-hub-side-card,
+.complete-history-head,
+.history-ledger-group,
+.odontogram-support-panel,
+.secondary-clinic-panel {
+  border: 0 !important;
+  border-radius: 15px !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 14px 32px rgba(18, 53, 72, 0.055) !important;
+}
+
+.patient-odontogram-summary-card {
+  padding: 12px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fcfd 100%) !important;
+}
+
+.mini-odontogram {
+  padding: 8px 6px !important;
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: #f3f8fa !important;
+}
+
+.mini-tooth i {
+  border-width: 2px !important;
+  box-shadow: inset 0 -4px 8px rgba(10, 54, 76, 0.05) !important;
+}
+
+.mini-odontogram-footer {
+  grid-template-columns: repeat(4, minmax(72px, 1fr)) !important;
+}
+
+.mini-odontogram-footer span {
+  border: 0 !important;
+  background: #f8fbfc !important;
+}
+
+.patient-card-head {
+  border: 0 !important;
+}
+
+.patient-billing-totals span,
+.patient-documents-summary-grid button,
+.patient-billing-list button,
+.patient-side-card > div,
+.realizado-detail-panel dl div {
+  border: 0 !important;
+  border-radius: 11px !important;
+  background: #f6fafb !important;
+}
+
+.complete-history-panel {
+  min-width: 0;
+}
+
+.complete-history-head {
+  margin-bottom: 8px;
+  padding: 12px 14px !important;
+}
+
+.complete-history-layout {
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 10px !important;
+  min-width: 0;
+}
+
+.complete-history-ledger {
+  display: grid;
+  gap: 9px !important;
+  min-width: 0;
+}
+
+.history-ledger-group {
+  gap: 8px !important;
+  padding: 11px 12px !important;
+}
+
+.history-ledger-group > header {
+  grid-template-columns: 76px 116px minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+}
+
+.history-ledger-group > header > span,
+.history-ledger-item > span {
+  border: 0 !important;
+  background: #edf7fa !important;
+}
+
+.history-ledger-items {
+  gap: 6px !important;
+  padding-left: 12px !important;
+  border-left: 2px solid rgba(15, 159, 175, 0.16) !important;
+}
+
+.history-ledger-item {
+  grid-template-columns: 96px minmax(0, 1fr) auto !important;
+  border: 0 !important;
+  background: #f7fbfc !important;
+}
+
+.history-ledger-item p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 1420px) {
+  .patient-selector-bar {
+    grid-template-columns: minmax(250px, 1fr) minmax(230px, 330px) max-content !important;
+  }
+
+  .patient-actions-primary button:not(.patient-actions-more) span {
+    display: none;
+  }
+
+  .patient-actions-primary button:not(.patient-actions-more) {
+    width: 38px !important;
+    padding: 0 !important;
+    justify-content: center;
+  }
+
+  .patient-dashboard-mode .patient-hub-head {
+    grid-template-columns: 50px minmax(220px, 1fr) minmax(220px, 0.85fr) minmax(130px, 0.45fr) auto !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .patient-selector-bar {
+    grid-template-columns: minmax(240px, 1fr) minmax(220px, 300px) auto !important;
+  }
+
+  .patient-dashboard-mode .patient-form-grid.patient-bento {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .patient-bento-col-admin {
+    grid-column: 1 / -1 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .patient-dashboard-mode .patient-hub-head {
+    grid-template-columns: 50px minmax(0, 1fr) minmax(220px, 0.8fr) minmax(130px, 0.4fr) !important;
+  }
+
+  .patient-hub-head-actions {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (max-width: 820px) {
+  .patient-selector-bar,
+  .patient-dashboard-mode .patient-form-grid.patient-bento,
+  .patient-dashboard-mode .patient-hub-head,
+  .patient-bento-col-admin,
+  .history-ledger-group > header,
+  .history-ledger-item {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .patient-actions {
+    justify-self: stretch;
+  }
+
+  .patient-actions-primary {
+    justify-content: flex-start;
+    flex-wrap: wrap !important;
+  }
+
+  .patient-actions-primary button:not(.patient-actions-more) span {
+    display: inline;
+  }
+
+  .patient-actions-primary button:not(.patient-actions-more) {
+    width: auto !important;
+    padding: 0 10px !important;
+  }
+
+  .patient-flow-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+html[data-theme="dark"] .patient-selector-bar .patient-finder input,
+html[data-theme="dark"] .patient-selector-current,
+html[data-theme="dark"] .patient-actions-primary button,
+html[data-theme="dark"] .patient-dashboard-mode .patient-hub-head,
+html[data-theme="dark"] .patient-odontogram-summary-card,
+html[data-theme="dark"] .patient-clinical-notes-card,
+html[data-theme="dark"] .patient-next-card,
+html[data-theme="dark"] .patient-last-card,
+html[data-theme="dark"] .patient-billing-card,
+html[data-theme="dark"] .patient-admin-card,
+html[data-theme="dark"] .patient-documents-summary-card,
+html[data-theme="dark"] .complete-history-head,
+html[data-theme="dark"] .history-ledger-group,
+html[data-theme="dark"] .odontogram-support-panel,
+html[data-theme="dark"] .secondary-clinic-panel {
+  border-color: transparent !important;
+  background: rgba(18, 30, 40, 0.94) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+html[data-theme="dark"] .patient-flow-strip button,
+html[data-theme="dark"] .patient-hub-alert,
+html[data-theme="dark"] .patient-hub-balance,
+html[data-theme="dark"] .mini-odontogram,
+html[data-theme="dark"] .mini-odontogram-footer span,
+html[data-theme="dark"] .patient-billing-totals span,
+html[data-theme="dark"] .patient-documents-summary-grid button,
+html[data-theme="dark"] .patient-billing-list button,
+html[data-theme="dark"] .history-ledger-item {
+  border-color: transparent !important;
+  background: rgba(24, 44, 57, 0.82) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .patient-module-tabs {
+  border-bottom-color: rgba(177, 206, 220, 0.08) !important;
+}
+
+html[data-theme="dark"] .patient-dashboard-mode .patient-module-tabs button.active {
+  background: rgba(24, 44, 57, 0.62) !important;
+  color: #e8f7fa !important;
+}
+
+html[data-theme="dark"] .history-ledger-items {
+  border-left-color: rgba(88, 200, 211, 0.18) !important;
+}
