@@ -15280,3 +15280,71 @@ html[data-theme="dark"] .caja-screen .caja-tabs button.active {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* Ajustes > Tratamientos: catalogo completo accesible sin que la pantalla corte la lista. */
+.fichero-screen .treatment-catalog-layout {
+  height: calc(100vh - 248px);
+  min-height: 390px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.fichero-screen .treatment-catalog-panel,
+.fichero-screen .treatment-editor-panel {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fichero-screen .treatment-catalog-panel .panel-caption {
+  flex: 0 0 auto;
+}
+
+.fichero-screen .treatment-catalog-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid rgba(35, 70, 90, 0.08);
+  scrollbar-gutter: stable;
+}
+
+.fichero-screen .treatment-catalog-scroll .euro-table {
+  min-width: 860px;
+}
+
+.fichero-screen .treatment-catalog-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #eaf3f7;
+  box-shadow: 0 1px 0 rgba(35, 70, 90, 0.12);
+}
+
+.fichero-screen .treatment-catalog-scroll tbody tr {
+  cursor: pointer;
+}
+
+.fichero-screen .treatment-editor-panel {
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+html[data-theme="dark"] .fichero-screen .treatment-catalog-scroll {
+  border-top-color: rgba(148, 178, 194, 0.16);
+}
+
+html[data-theme="dark"] .fichero-screen .treatment-catalog-scroll thead th {
+  background: #182f3d;
+}
+
+@media (max-width: 980px) {
+  .fichero-screen .treatment-catalog-layout {
+    height: auto;
+    overflow: visible;
+  }
+
+  .fichero-screen .treatment-catalog-panel {
+    min-height: 460px;
+  }
+}
