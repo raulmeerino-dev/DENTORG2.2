@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { CheckCircle2, ClipboardList, Clock3, FileText, FlaskConical, History, NotebookPen, Pill, Plus, Stethoscope, Trash2, Wallet } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ClipboardList, Clock3, FileText, FlaskConical, History, NotebookPen, Pill, Plus, Stethoscope, Trash2, Wallet } from 'lucide-react';
 import type {
   ApiPaciente,
   Cita,
@@ -10,6 +10,7 @@ import type {
   PlantillaConsentimiento,
   Presupuesto,
   PresupuestoLinea,
+  RecetaClinica,
   TrabajoLaboratorio,
   TrabajoLaboratorioUpdateInput,
   TratamientoCatalogo,
@@ -22,17 +23,16 @@ import { ConsentimientosPanel } from './Consentimientos';
 import { LaboratorioPacientePanel } from './Laboratorio';
 import { PrimeraVisitaPanel } from './PrimeraVisita';
 import type { PrimeraVisitaData } from './PrimeraVisita';
-import { TratamientosRealizadosPanel } from './Realizados';
 import { TrabajoPendientePanel } from './TrabajoPendiente';
 import { contarLaboratorioVencidos } from './laboratorioUtils';
 
-export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'realizados' | 'notas';
+export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas' | 'notas';
 
 const CLINICAL_TABS: Array<{ id: ClinicalTab; label: string }> = [
   { id: 'primera', label: 'Diagnostico' },
   { id: 'pendiente', label: 'Pendientes' },
   { id: 'sesion', label: 'Sesion actual' },
-  { id: 'realizados', label: 'Realizados' },
+  { id: 'visitas', label: 'Visitas' },
   { id: 'notas', label: 'Notas / docs' },
 ];
 
@@ -52,6 +52,28 @@ function recentClinicalHistory(historial: HistorialClinico[]) {
     .sort((a, b) => b.fecha.localeCompare(a.fecha))
     .slice(0, 5);
 }
+
+function getDateKey(value?: string | null) {
+  return value?.slice(0, 10) || 'sin-fecha';
+}
+
+function getTime(value?: string | null) {
+  return value && value.length >= 16 ? value.slice(11, 16) : null;
+}
+
+type VisitGroup = {
+  id: string;
+  date: string;
+  sortDate: string;
+  citas: Cita[];
+  realizados: HistorialClinico[];
+  previstos: Array<{ id: string; title: string; detail: string; status: string }>;
+  documentos: DocumentoPaciente[];
+  consentimientos: Consentimiento[];
+  recetas: RecetaClinica[];
+  laboratorio: TrabajoLaboratorio[];
+  comentarios: string[];
+};
 
 type SessionTreatmentStatus = 'planificado' | 'en_curso' | 'realizado' | 'pospuesto';
 
@@ -134,6 +156,107 @@ function buildSessionTreatments(citas: Cita[], presupuestos: Presupuesto[]): Ses
   });
 
   return items;
+}
+
+function buildVisitGroups({
+  citas,
+  historial,
+  presupuestos,
+  documentos,
+  consentimientos,
+  recetas,
+  laboratorio,
+}: {
+  citas: Cita[];
+  historial: HistorialClinico[];
+  presupuestos: Presupuesto[];
+  documentos: DocumentoPaciente[];
+  consentimientos: Consentimiento[];
+  recetas: RecetaClinica[];
+  laboratorio: TrabajoLaboratorio[];
+}) {
+  const groups = new Map<string, VisitGroup>();
+
+  function ensure(date: string, sortDate = date) {
+    const key = getDateKey(date);
+    const existing = groups.get(key);
+    if (existing) {
+      if (sortDate.localeCompare(existing.sortDate) > 0) existing.sortDate = sortDate;
+      return existing;
+    }
+    const group: VisitGroup = {
+      id: key,
+      date: key,
+      sortDate,
+      citas: [],
+      realizados: [],
+      previstos: [],
+      documentos: [],
+      consentimientos: [],
+      recetas: [],
+      laboratorio: [],
+      comentarios: [],
+    };
+    groups.set(key, group);
+    return group;
+  }
+
+  citas.forEach((cita) => {
+    const group = ensure(cita.fecha_hora, cita.fecha_hora);
+    group.citas.push(cita);
+    if (cita.observaciones) group.comentarios.push(cita.observaciones);
+  });
+
+  historial.forEach((entrada) => {
+    const group = ensure(entrada.fecha, entrada.fecha);
+    if (hasFinishedState(entrada.estado)) {
+      group.realizados.push(entrada);
+    } else {
+      group.previstos.push({
+        id: `hist-${entrada.id}`,
+        title: entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento clinico',
+        detail: [entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras].filter(Boolean).join(' - '),
+        status: entrada.estado,
+      });
+    }
+    if (entrada.observaciones || entrada.diagnostico) group.comentarios.push(entrada.observaciones || entrada.diagnostico || '');
+  });
+
+  presupuestos.forEach((presupuesto) => {
+    presupuesto.lineas
+      .filter((linea) => linea.aceptado || linea.pasado_trabajo_pendiente)
+      .forEach((linea) => {
+        const group = ensure(presupuesto.fecha, presupuesto.fecha);
+        group.previstos.push({
+          id: `linea-${linea.id}`,
+          title: linea.tratamiento?.nombre || 'Tratamiento pendiente',
+          detail: [
+            linea.pieza_dental ? `Pieza ${linea.pieza_dental}` : null,
+            linea.caras,
+            `Ppto. ${presupuesto.numero}`,
+          ].filter(Boolean).join(' - '),
+          status: linea.pasado_trabajo_pendiente ? 'pendiente' : 'aceptado',
+        });
+      });
+  });
+
+  documentos.forEach((documento) => {
+    const date = documento.fecha_documento || documento.created_at;
+    if (date) ensure(date, date).documentos.push(documento);
+  });
+  consentimientos.forEach((consentimiento) => {
+    const date = consentimiento.fecha_firma || consentimiento.created_at;
+    if (date) ensure(date, date).consentimientos.push(consentimiento);
+  });
+  recetas.forEach((receta) => {
+    ensure(receta.fecha_prescripcion, receta.fecha_prescripcion).recetas.push(receta);
+  });
+  laboratorio.forEach((trabajo) => {
+    const date = trabajo.fecha_recepcion || trabajo.fecha_salida || trabajo.fecha_entrega_prevista;
+    if (date) ensure(date, date).laboratorio.push(trabajo);
+  });
+
+  return Array.from(groups.values()).sort((a, b) => b.sortDate.localeCompare(a.sortDate));
 }
 
 function ClinicalOverview({
@@ -277,8 +400,9 @@ function SessionWorkspace({
   }
 
   return (
-    <div className="clinical-session-workbench">
-      <section className="desk-panel clinical-session-board">
+    <div className="clinical-session-stack">
+      <div className="clinical-session-workbench">
+        <section className="desk-panel clinical-session-board">
         <div className="panel-caption">
           <strong>Tratamientos de la sesion</strong>
           <span>Plan de trabajo editable para el doctor en gabinete. Los cambios se preparan aqui; la persistencia completa queda para Fase 3.</span>
@@ -325,8 +449,8 @@ function SessionWorkspace({
             </div>
           )}
         </div>
-      </section>
-      <section className="desk-panel clinical-session-detail">
+        </section>
+        <section className="desk-panel clinical-session-detail">
         <div className="panel-caption">
           <strong>Detalle clinico</strong>
           <span>Pieza, caras y observacion pertenecen al tratamiento seleccionado, no a la observacion general del paciente.</span>
@@ -420,9 +544,9 @@ function SessionWorkspace({
         ) : (
           <p className="session-empty-detail">Selecciona o anade un tratamiento para editar la sesion.</p>
         )}
-      </section>
-      <aside className="clinical-session-context">
-        <section className="desk-panel clinical-today-panel">
+        </section>
+        <aside className="clinical-session-context">
+          <section className="desk-panel clinical-today-panel">
           <div className="panel-caption">
             <strong>Tratamientos previstos hoy</strong>
             <span>Citas activas del paciente para esta fecha.</span>
@@ -438,20 +562,8 @@ function SessionWorkspace({
             ))}
             {!previstosHoy.length && <p>No hay tratamientos previstos hoy.</p>}
           </div>
-        </section>
-        <details className="secondary-clinic-panel">
-          <summary>Odontograma clinico de apoyo</summary>
-          <PatientOdontogramFlow
-            paciente={paciente}
-            mode="current"
-            title="Odontograma clinico de trabajo"
-            subtitle="Mapa compartido de apoyo. La seleccion directa de pieza queda para Fase 2."
-            readOnly
-            enableQuickTreatments={false}
-            userRole={userRole}
-          />
-        </details>
-        <section className="desk-panel clinical-today-panel">
+          </section>
+          <section className="desk-panel clinical-today-panel">
           <div className="panel-caption">
             <strong>Historial clinico reciente</strong>
             <span>Ultimas entradas utiles durante la consulta.</span>
@@ -467,9 +579,133 @@ function SessionWorkspace({
             ))}
             {!recientes.length && <p>Sin historial clinico reciente.</p>}
           </div>
-        </section>
-      </aside>
+          </section>
+        </aside>
+      </div>
+      <details className="secondary-clinic-panel session-odontogram-support">
+        <summary>Odontograma clinico de apoyo</summary>
+        <PatientOdontogramFlow
+          paciente={paciente}
+          mode="current"
+          title="Odontograma clinico de trabajo"
+          subtitle="Mapa compartido de apoyo. La seleccion directa de pieza queda para Fase 2."
+          readOnly
+          enableQuickTreatments={false}
+          userRole={userRole}
+        />
+      </details>
     </div>
+  );
+}
+
+function VisitsWorkspace({
+  citas,
+  historial,
+  presupuestos,
+  documentos,
+  consentimientos,
+  recetas,
+  laboratorio,
+  onOpenHistorial,
+}: {
+  citas: Cita[];
+  historial: HistorialClinico[];
+  presupuestos: Presupuesto[];
+  documentos: DocumentoPaciente[];
+  consentimientos: Consentimiento[];
+  recetas: RecetaClinica[];
+  laboratorio: TrabajoLaboratorio[];
+  onOpenHistorial: () => void;
+}) {
+  const visitas = useMemo(() => buildVisitGroups({
+    citas,
+    historial,
+    presupuestos,
+    documentos,
+    consentimientos,
+    recetas,
+    laboratorio,
+  }), [citas, consentimientos, documentos, historial, laboratorio, presupuestos, recetas]);
+  const citasOrdenadas = useMemo(() => citas.slice().sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora)), [citas]);
+
+  function nextAfter(date: string) {
+    return citasOrdenadas.find((cita) => cita.fecha_hora.slice(0, 10) > date);
+  }
+
+  return (
+    <section className="visits-workspace">
+      <header className="visits-head">
+        <div>
+          <span><CalendarDays size={15} aria-hidden="true" /> Visitas del paciente</span>
+          <strong>{visitas.length} dia{visitas.length === 1 ? '' : 's'} con actividad clinica</strong>
+        </div>
+        <button type="button" onClick={onOpenHistorial}>Abrir historial completo</button>
+      </header>
+      <div className="visits-list">
+        {visitas.map((visita) => {
+          const citaPrincipal = visita.citas[0];
+          const proxima = nextAfter(visita.date);
+          const doctor = citaPrincipal?.doctor?.nombre || visita.realizados.find((entrada) => entrada.doctor?.nombre)?.doctor?.nombre || visita.laboratorio.find((trabajo) => trabajo.doctor?.nombre)?.doctor?.nombre;
+          const gabinete = citaPrincipal?.gabinete_id;
+          const comments = Array.from(new Set(visita.comentarios.filter(Boolean))).slice(0, 3);
+          return (
+            <article key={visita.id} className="visit-card">
+              <header>
+                <time>{formatDate(visita.date)}{getTime(citaPrincipal?.fecha_hora) ? ` - ${getTime(citaPrincipal?.fecha_hora)}` : ''}</time>
+                <span>{citaPrincipal?.estado || (visita.realizados.length ? 'con tratamientos' : 'actividad clinica')}</span>
+                <div>
+                  <strong>{citaPrincipal?.motivo || visita.realizados[0]?.procedimiento || visita.realizados[0]?.tratamiento?.nombre || 'Visita clinica'}</strong>
+                  <p>{[doctor, gabinete ? `Gab. ${gabinete}` : null, citaPrincipal?.duracion_min ? `${citaPrincipal.duracion_min} min` : null].filter(Boolean).join(' - ') || 'Sin doctor o gabinete asignado'}</p>
+                </div>
+              </header>
+              <div className="visit-body">
+                <section>
+                  <span>Realizado</span>
+                  {visita.realizados.slice(0, 4).map((entrada) => (
+                    <p key={entrada.id}>
+                      <strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong>
+                      <small>{[entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.estado].filter(Boolean).join(' - ')}</small>
+                    </p>
+                  ))}
+                  {!visita.realizados.length && <em>Sin tratamientos realizados registrados ese dia.</em>}
+                </section>
+                <section>
+                  <span>Previsto / pospuesto</span>
+                  {visita.previstos.slice(0, 3).map((item) => (
+                    <p key={item.id}>
+                      <strong>{item.title}</strong>
+                      <small>{[item.detail, item.status].filter(Boolean).join(' - ')}</small>
+                    </p>
+                  ))}
+                  {!visita.previstos.length && <em>Sin pendientes asociados por fecha.</em>}
+                </section>
+                <section className="visit-comments">
+                  <span>Comentarios</span>
+                  {comments.map((comentario, index) => <p key={`${visita.id}-comment-${index}`}>{comentario}</p>)}
+                  {!comments.length && <em>Sin comentarios clinicos u observaciones de cita.</em>}
+                </section>
+                <section className="visit-links">
+                  <span>Asociado</span>
+                  <p>
+                    <small>{visita.documentos.length} docs</small>
+                    <small>{visita.recetas.length} recetas</small>
+                    <small>{visita.consentimientos.length} consent.</small>
+                    <small>{visita.laboratorio.length} lab.</small>
+                  </p>
+                  {proxima && <em>Proxima cita: {formatDate(proxima.fecha_hora)} {getTime(proxima.fecha_hora)} - {proxima.motivo || 'sin motivo'}</em>}
+                </section>
+              </div>
+            </article>
+          );
+        })}
+        {!visitas.length && (
+          <div className="visits-empty">
+            <strong>Sin visitas registradas</strong>
+            <span>Cuando haya citas, tratamientos o documentos con fecha se agruparan aqui.</span>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -482,11 +718,10 @@ export function ClinicalWorkspace({
   presupuestos,
   documentos,
   consentimientos,
+  recetas,
   plantillas,
   laboratorio,
   saldoPendiente,
-  doctorName,
-  doctorColor,
   tratamientos,
   savingPrimeraVisita,
   onSavePrimeraVisita,
@@ -500,6 +735,7 @@ export function ClinicalWorkspace({
   onOpenConsentimientoPdf,
   onRevocarConsentimiento,
   onOpenDocumentos,
+  onOpenHistorial,
   userRole,
 }: {
   activeTab: ClinicalTab;
@@ -510,11 +746,10 @@ export function ClinicalWorkspace({
   presupuestos: Presupuesto[];
   documentos: DocumentoPaciente[];
   consentimientos: Consentimiento[];
+  recetas: RecetaClinica[];
   plantillas: PlantillaConsentimiento[];
   laboratorio: TrabajoLaboratorio[];
   saldoPendiente: number;
-  doctorName: string;
-  doctorColor?: string | null;
   tratamientos: TratamientoCatalogo[];
   savingPrimeraVisita: boolean;
   onSavePrimeraVisita: (data: PrimeraVisitaData) => void;
@@ -528,6 +763,7 @@ export function ClinicalWorkspace({
   onOpenConsentimientoPdf: (consentimiento: Consentimiento) => void;
   onRevocarConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenDocumentos: () => void;
+  onOpenHistorial: () => void;
   userRole?: UserRole | null;
 }) {
   return (
@@ -588,16 +824,16 @@ export function ClinicalWorkspace({
           onOpenDocumentos={onOpenDocumentos}
         />
       )}
-      {activeTab === 'realizados' && (
-        <TratamientosRealizadosPanel
+      {activeTab === 'visitas' && (
+        <VisitsWorkspace
+          citas={citas}
           historial={historial}
-          consentimientos={consentimientos}
           presupuestos={presupuestos}
-          paciente={paciente}
-          doctorName={doctorName}
-          doctorColor={doctorColor}
-          tratamientos={tratamientos}
-          userRole={userRole}
+          documentos={documentos}
+          consentimientos={consentimientos}
+          recetas={recetas}
+          laboratorio={laboratorio}
+          onOpenHistorial={onOpenHistorial}
         />
       )}
       {activeTab === 'notas' && (
