@@ -16180,6 +16180,16 @@ html[data-theme="dark"] .history-ledger-items {
   color: #5b6d79;
 }
 
+.session-save-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 9px;
+  background: #fff1f1;
+  color: #a93434;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .session-secondary-actions {
   margin-top: 8px;
   border-radius: 12px;
@@ -16532,4 +16542,1572 @@ html[data-theme="dark"] .clinical-quick-actions button {
   .clinical-list article small {
     grid-column: 1;
   }
+}
+
+/* ============================================================
+   DARK MODE — FINAL POLISH LAYER
+   Capa final que unifica superficies, separadores y color.
+   Aditiva: no elimina reglas previas, solo gana por orden.
+   ============================================================ */
+
+html[data-theme="dark"] {
+  --dm-canvas: #08111a;
+  --dm-surface-0: #0d1925;
+  --dm-surface-1: #11212f;
+  --dm-surface-2: #16293a;
+  --dm-surface-3: #1d3447;
+  --dm-surface-raised: #1a2d3f;
+  --dm-line: rgba(125, 211, 252, 0.12);
+  --dm-line-strong: rgba(125, 211, 252, 0.20);
+  --dm-line-accent: rgba(56, 189, 248, 0.45);
+  --dm-ink: #e8f3f8;
+  --dm-ink-muted: #9fb7c6;
+  --dm-ink-dim: #6e8597;
+  --dm-accent: #38bdf8;
+  --dm-accent-2: #34d399;
+  --dm-warn: #fbbf24;
+  --dm-danger: #f87171;
+  --dm-purple: #a78bfa;
+  --dm-shadow-card: 0 10px 30px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(125, 211, 252, 0.06) inset;
+  --dm-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+
+/* Canvas y degradado de fondo más sutil, sin “neblina” pesada. */
+html[data-theme="dark"] body,
+html[data-theme="dark"] .app-shell {
+  background:
+    radial-gradient(1100px 520px at 0% -10%, rgba(56, 189, 248, 0.07), transparent 60%),
+    radial-gradient(900px 460px at 100% -10%, rgba(45, 212, 191, 0.06), transparent 60%),
+    var(--dm-canvas) !important;
+}
+
+html[data-theme="dark"] .main-content,
+html[data-theme="dark"] .patient-screen,
+html[data-theme="dark"] .agenda-euro,
+html[data-theme="dark"] .fichero-screen,
+html[data-theme="dark"] .listados-screen,
+html[data-theme="dark"] .admin-extras,
+html[data-theme="dark"] .dashboard-screen {
+  background: transparent !important;
+}
+
+/* Header global con gradiente cálido-oscuro y borde inferior sutil. */
+html[data-theme="dark"] .euro-shell-header {
+  background:
+    linear-gradient(180deg, rgba(20, 36, 50, 0.96), rgba(13, 25, 36, 0.96)) !important;
+  border-bottom: 1px solid var(--dm-line-strong) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+}
+
+html[data-theme="dark"] .euro-titlebar,
+html[data-theme="dark"] .euro-main-nav {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="dark"] .app-brand strong {
+  color: #f1fbff;
+  letter-spacing: 0.2px;
+}
+
+html[data-theme="dark"] .title-clock,
+html[data-theme="dark"] .app-brand span {
+  color: var(--dm-ink-muted) !important;
+}
+
+/* Chips de clínica / rol con tono más vivo. */
+html[data-theme="dark"] .clinic-chip {
+  color: #c9eafd !important;
+  background: rgba(56, 189, 248, 0.10) !important;
+  border-color: rgba(56, 189, 248, 0.28) !important;
+}
+
+html[data-theme="dark"] .role-chip {
+  color: #d8f4e7 !important;
+  background: rgba(52, 211, 153, 0.10) !important;
+  border-color: rgba(52, 211, 153, 0.28) !important;
+}
+
+html[data-theme="dark"] .theme-toggle {
+  color: #f4d36b !important;
+  background: rgba(251, 191, 36, 0.10) !important;
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+
+/* Botones de navegación principal con tipografía clara y estado activo en cian. */
+html[data-theme="dark"] .euro-nav-button {
+  color: var(--dm-ink-muted) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+html[data-theme="dark"] .euro-nav-button:hover {
+  color: #f1fbff !important;
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.active {
+  color: #f4fcff !important;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.18), rgba(56, 189, 248, 0.08)) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  box-shadow: inset 0 -2px 0 var(--dm-accent), 0 4px 14px rgba(56, 189, 248, 0.12) !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.nav-exit {
+  color: #fbb6b6 !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.nav-exit:hover {
+  color: #ffe1e1 !important;
+  background: rgba(248, 113, 113, 0.12) !important;
+}
+
+/* ─── Barra de estado “Sistema listo”: fusionada con el header, sin franja blanca. ─── */
+html[data-theme="dark"] .app-status {
+  background: linear-gradient(180deg, rgba(13, 25, 36, 0.96), rgba(11, 22, 33, 0.96)) !important;
+  color: var(--dm-ink-dim) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--dm-line) !important;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-size: 0.66rem !important;
+  height: 18px !important;
+}
+
+html[data-theme="dark"] .app-status.is-busy {
+  color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] .app-status i {
+  background: rgba(125, 211, 252, 0.18) !important;
+}
+
+html[data-theme="dark"] .app-status i::after {
+  background: linear-gradient(90deg, var(--dm-accent), var(--dm-accent-2)) !important;
+}
+
+/* ─── Toolbar de paciente: superficie elevada, borde inferior con acento ─── */
+html[data-theme="dark"] .patient-selector-bar {
+  background: linear-gradient(180deg, rgba(22, 41, 58, 0.95), rgba(17, 33, 47, 0.95)) !important;
+  border: 1px solid var(--dm-line) !important;
+  border-radius: 12px;
+  box-shadow: var(--dm-shadow-card);
+  padding: 8px 10px !important;
+}
+
+html[data-theme="dark"] .patient-selector-bar .patient-finder input {
+  background: rgba(8, 17, 26, 0.7) !important;
+  border-color: var(--dm-line-strong) !important;
+  color: var(--dm-ink) !important;
+  border-radius: 8px;
+}
+
+html[data-theme="dark"] .patient-selector-bar .patient-finder input:focus {
+  border-color: var(--dm-accent) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 252, 0.15) !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] .patient-selector-current {
+  background: rgba(56, 189, 248, 0.08) !important;
+  border: 1px solid rgba(56, 189, 248, 0.25) !important;
+  border-radius: 10px;
+  color: var(--dm-ink) !important;
+}
+
+html[data-theme="dark"] .patient-selector-current strong {
+  color: #f1fbff !important;
+}
+
+html[data-theme="dark"] .patient-selector-current span,
+html[data-theme="dark"] .patient-selector-current small {
+  color: #b8d4e2 !important;
+}
+
+/* ─── Tabs principales (Ficha / Presupuestos / Clínica / Historial) ─── */
+html[data-theme="dark"] .patient-module-tabs {
+  background: transparent !important;
+  border-bottom: 1px solid var(--dm-line) !important;
+  gap: 6px;
+  padding: 4px 0 0 !important;
+}
+
+html[data-theme="dark"] .patient-module-tabs button {
+  background: rgba(17, 33, 47, 0.6) !important;
+  border: 1px solid var(--dm-line) !important;
+  border-bottom: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  color: var(--dm-ink-muted) !important;
+  box-shadow: none !important;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+html[data-theme="dark"] .patient-module-tabs button:hover {
+  background: rgba(56, 189, 248, 0.08) !important;
+  color: #f1fbff !important;
+}
+
+html[data-theme="dark"] .patient-module-tabs button.active {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.20), rgba(22, 41, 58, 0.95)) !important;
+  color: #f4fcff !important;
+  border-color: rgba(56, 189, 248, 0.40) !important;
+  box-shadow: inset 0 3px 0 var(--dm-accent), 0 -2px 10px rgba(56, 189, 248, 0.10) !important;
+}
+
+/* ─── Tira de paciente (Paciente / Próxima / Realizados / Saldo / Docs) ─── */
+html[data-theme="dark"] .patient-summary-strip {
+  background: rgba(13, 25, 36, 0.92) !important;
+  border-bottom: 1px solid var(--dm-line) !important;
+  border-top: 1px solid var(--dm-line) !important;
+  padding: 6px 10px !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span {
+  background: rgba(22, 41, 58, 0.9) !important;
+  border: 1px solid var(--dm-line) !important;
+  color: var(--dm-ink) !important;
+  border-radius: 8px !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span b {
+  color: #7dd3fc !important;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+/* Acento de color por chip relevante en la tira de paciente. */
+html[data-theme="dark"] .patient-summary-strip span:nth-child(1) {
+  background: rgba(56, 189, 248, 0.10) !important;
+  border-color: rgba(56, 189, 248, 0.30) !important;
+}
+html[data-theme="dark"] .patient-summary-strip span:nth-child(1) b {
+  color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span:nth-child(2) {
+  background: rgba(167, 139, 250, 0.10) !important;
+  border-color: rgba(167, 139, 250, 0.28) !important;
+}
+html[data-theme="dark"] .patient-summary-strip span:nth-child(2) b {
+  color: #c4b5fd !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span:nth-child(3) {
+  background: rgba(52, 211, 153, 0.10) !important;
+  border-color: rgba(52, 211, 153, 0.28) !important;
+}
+html[data-theme="dark"] .patient-summary-strip span:nth-child(3) b {
+  color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span:nth-child(4) {
+  background: rgba(251, 191, 36, 0.10) !important;
+  border-color: rgba(251, 191, 36, 0.28) !important;
+}
+html[data-theme="dark"] .patient-summary-strip span:nth-child(4) b {
+  color: #fcd34d !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span:nth-child(5) {
+  background: rgba(148, 163, 184, 0.10) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+html[data-theme="dark"] .patient-summary-strip span:nth-child(5) b {
+  color: #cbd5e1 !important;
+}
+
+/* ─── Acciones rápidas del paciente (Nueva cita / Nuevo ppto. / Cobrar / Subir doc.) ─── */
+html[data-theme="dark"] .patient-selector-bar .patient-actions button,
+html[data-theme="dark"] .patient-actions-primary button {
+  background: rgba(22, 41, 58, 0.95) !important;
+  border: 1px solid var(--dm-line-strong) !important;
+  color: var(--dm-ink) !important;
+  border-radius: 8px;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+html[data-theme="dark"] .patient-selector-bar .patient-actions button:hover,
+html[data-theme="dark"] .patient-actions-primary button:hover {
+  background: rgba(56, 189, 248, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.40) !important;
+  transform: translateY(-1px);
+}
+
+/* ─── KPI clínicos (Pendientes / Hoy / Realizados / CI pte / Lab / Saldo / Docs) ─── */
+html[data-theme="dark"] .clinical-overview {
+  gap: 8px !important;
+}
+
+html[data-theme="dark"] .clinical-overview-item {
+  background: linear-gradient(180deg, rgba(22, 41, 58, 0.95), rgba(17, 33, 47, 0.95)) !important;
+  border: 1px solid var(--dm-line) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--dm-shadow-card) !important;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 12px !important;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+html[data-theme="dark"] .clinical-overview-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--dm-accent);
+  opacity: 0.85;
+}
+
+html[data-theme="dark"] .clinical-overview-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--dm-line-strong) !important;
+}
+
+html[data-theme="dark"] .clinical-overview-item span {
+  color: #9fb7c6 !important;
+  font-weight: 800;
+}
+
+html[data-theme="dark"] .clinical-overview-item strong {
+  color: #f1fbff !important;
+  font-size: 1.12rem !important;
+  font-weight: 800;
+}
+
+/* Color por KPI: izquierda con acento semántico y leve tinte de fondo. */
+html[data-theme="dark"] .clinical-overview-item:nth-child(1)::before { background: #fbbf24; }   /* Pendientes */
+html[data-theme="dark"] .clinical-overview-item:nth-child(1) span svg { color: #fbbf24; }
+
+html[data-theme="dark"] .clinical-overview-item:nth-child(2)::before { background: #38bdf8; }   /* Hoy */
+html[data-theme="dark"] .clinical-overview-item:nth-child(2) span svg { color: #38bdf8; }
+
+html[data-theme="dark"] .clinical-overview-item:nth-child(3)::before { background: #34d399; }   /* Realizados */
+html[data-theme="dark"] .clinical-overview-item:nth-child(3) span svg { color: #34d399; }
+
+html[data-theme="dark"] .clinical-overview-item:nth-child(4)::before { background: #f59e0b; }   /* CI pte */
+html[data-theme="dark"] .clinical-overview-item:nth-child(4) span svg { color: #f59e0b; }
+
+html[data-theme="dark"] .clinical-overview-item:nth-child(5)::before { background: #a78bfa; }   /* Lab */
+html[data-theme="dark"] .clinical-overview-item:nth-child(5) span svg { color: #a78bfa; }
+
+html[data-theme="dark"] .clinical-overview-item:nth-child(6)::before { background: #2dd4bf; }   /* Saldo */
+html[data-theme="dark"] .clinical-overview-item:nth-child(6) span svg { color: #2dd4bf; }
+
+html[data-theme="dark"] .clinical-overview-item:nth-child(7)::before { background: #94a3b8; }   /* Docs */
+html[data-theme="dark"] .clinical-overview-item:nth-child(7) span svg { color: #94a3b8; }
+
+/* Estados especiales del KPI: aviso y deuda visibles aunque haya color base. */
+html[data-theme="dark"] .clinical-overview-item.needs-attention {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.18), rgba(22, 41, 58, 0.95)) !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+}
+html[data-theme="dark"] .clinical-overview-item.needs-attention::before {
+  background: #f59e0b !important;
+  width: 4px;
+}
+
+html[data-theme="dark"] .clinical-overview-item.has-debt {
+  background: linear-gradient(180deg, rgba(248, 113, 113, 0.18), rgba(22, 41, 58, 0.95)) !important;
+  border-color: rgba(248, 113, 113, 0.45) !important;
+}
+html[data-theme="dark"] .clinical-overview-item.has-debt::before {
+  background: #ef4444 !important;
+  width: 4px;
+}
+html[data-theme="dark"] .clinical-overview-item.has-debt strong {
+  color: #fecaca !important;
+}
+
+/* ─── Sub-tabs clínicos (Diagnóstico / Pendientes / Sesión actual / Visitas / Notas) ─── */
+html[data-theme="dark"] .clinical-subtabs {
+  background: transparent !important;
+  box-shadow: none !important;
+  display: flex;
+  gap: 6px;
+}
+
+html[data-theme="dark"] .clinical-subtabs button {
+  background: rgba(22, 41, 58, 0.8) !important;
+  border: 1px solid var(--dm-line) !important;
+  color: var(--dm-ink-muted) !important;
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  font-weight: 700;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+html[data-theme="dark"] .clinical-subtabs button:hover {
+  background: rgba(56, 189, 248, 0.10) !important;
+  color: #f1fbff !important;
+  border-color: rgba(56, 189, 248, 0.30) !important;
+}
+
+html[data-theme="dark"] .clinical-subtabs button.active,
+html[data-theme="dark"] .clinical-subtabs button[aria-selected="true"] {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.25), rgba(56, 189, 248, 0.10)) !important;
+  color: #f4fcff !important;
+  border-color: rgba(56, 189, 248, 0.50) !important;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.12);
+}
+
+/* ─── Cards / paneles (Consentimientos, Laboratorio, Documentos, etc.) ─── */
+html[data-theme="dark"] :is(
+  .clinical-list article,
+  .consent-panel,
+  .patient-hub-side-card,
+  .desk-panel,
+  .workspace-section,
+  .billing-panel,
+  .first-visit-panel,
+  .budget-panel,
+  .realizados-workspace,
+  .historial-facturacion-workspace,
+  .clinical-quick-actions > div,
+  .patient-bento-col > *,
+  .patient-info-card,
+  .patient-hero-card,
+  .patient-next-card,
+  .patient-last-card,
+  .patient-money-card,
+  .patient-history-card,
+  .patient-side-card,
+  .session-add-panel
+) {
+  background: linear-gradient(180deg, rgba(22, 41, 58, 0.95), rgba(17, 33, 47, 0.95)) !important;
+  border: 1px solid var(--dm-line) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--dm-shadow-soft) !important;
+}
+
+/* Encabezados de panel con regla acentuada arriba. */
+html[data-theme="dark"] :is(
+  .panel-caption,
+  .clinical-list article > header,
+  .consent-panel > header,
+  .lista-header
+) {
+  background: transparent !important;
+  border-bottom: 1px solid var(--dm-line) !important;
+  color: var(--dm-ink) !important;
+}
+
+html[data-theme="dark"] :is(
+  .panel-caption strong,
+  .clinical-list article > header strong,
+  .lista-header strong,
+  h1, h2, h3, h4
+) {
+  color: #f1fbff !important;
+}
+
+html[data-theme="dark"] :is(
+  .panel-caption span,
+  .clinical-list article > header span,
+  .lista-header span,
+  .panel-caption small
+) {
+  color: var(--dm-ink-muted) !important;
+}
+
+/* ─── Tablas con tinte cian en la cabecera y mejor contraste de filas ─── */
+html[data-theme="dark"] :is(
+  .euro-table,
+  .data-table,
+  .billing-table,
+  .treatment-table,
+  .tabla-pacientes,
+  .horario-editor-table,
+  .backup-table
+) {
+  background: transparent !important;
+  border: 1px solid var(--dm-line) !important;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+html[data-theme="dark"] :is(
+  .euro-table th,
+  .data-table th,
+  .billing-table th,
+  .treatment-table th,
+  .tabla-pacientes th,
+  .horario-editor-table th,
+  .backup-table th,
+  .history-ledger-table thead th
+) {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.12), rgba(22, 41, 58, 0.85)) !important;
+  color: #c5e9fb !important;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  border-color: var(--dm-line) !important;
+}
+
+html[data-theme="dark"] :is(
+  .euro-table td,
+  .data-table td,
+  .billing-table td,
+  .treatment-table td,
+  .tabla-pacientes td,
+  .horario-editor-table td,
+  .backup-table td
+) {
+  background: transparent !important;
+  border-color: var(--dm-line) !important;
+  color: var(--dm-ink) !important;
+}
+
+html[data-theme="dark"] :is(
+  .euro-table tbody tr:nth-child(even) td,
+  .data-table tbody tr:nth-child(even) td,
+  .billing-table tbody tr:nth-child(even) td,
+  .treatment-table tbody tr:nth-child(even) td,
+  .tabla-pacientes tbody tr:nth-child(even) td
+) {
+  background: rgba(22, 41, 58, 0.45) !important;
+}
+
+html[data-theme="dark"] :is(
+  .euro-table tbody tr:hover td,
+  .data-table tbody tr:hover td,
+  .billing-table tbody tr:hover td,
+  .treatment-table tbody tr:hover td,
+  .tabla-pacientes tbody tr:hover td
+) {
+  background: rgba(56, 189, 248, 0.10) !important;
+  color: #f1fbff !important;
+}
+
+/* ─── Chips/badges de estado con paleta semántica unificada ─── */
+html[data-theme="dark"] :is(
+  .patient-card-chip-success,
+  .estado-realizado,
+  .estado-cobrado,
+  .estado-cobrado_completo,
+  .chip-success
+) {
+  background: rgba(52, 211, 153, 0.14) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(52, 211, 153, 0.32) !important;
+}
+
+html[data-theme="dark"] :is(
+  .patient-card-chip-danger,
+  .estado-anulada,
+  .estado-vencido,
+  .chip-danger,
+  .badge-deuda
+) {
+  background: rgba(248, 113, 113, 0.14) !important;
+  color: #fda4af !important;
+  border-color: rgba(248, 113, 113, 0.34) !important;
+}
+
+html[data-theme="dark"] :is(
+  .patient-card-chip-warning,
+  .estado-pendiente,
+  .estado-presupuestado,
+  .estado-enviado,
+  .chip-warning
+) {
+  background: rgba(251, 191, 36, 0.14) !important;
+  color: #fcd34d !important;
+  border-color: rgba(251, 191, 36, 0.34) !important;
+}
+
+html[data-theme="dark"] :is(
+  .patient-card-chip-info,
+  .estado-confirmada,
+  .chip-info
+) {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(56, 189, 248, 0.32) !important;
+}
+
+html[data-theme="dark"] :is(
+  .patient-card-chip-muted,
+  .chip-muted
+) {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+/* Etiqueta de alergia destacada con rojo translúcido. */
+html[data-theme="dark"] .patient-card-chip-danger,
+html[data-theme="dark"] [data-tone="danger"] {
+  background: rgba(248, 113, 113, 0.18) !important;
+  color: #fecaca !important;
+  border-color: rgba(248, 113, 113, 0.45) !important;
+}
+
+/* ─── Inputs y selects con focus cian ─── */
+html[data-theme="dark"] input:focus,
+html[data-theme="dark"] select:focus,
+html[data-theme="dark"] textarea:focus {
+  border-color: var(--dm-accent) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 252, 0.18) !important;
+  outline: none !important;
+}
+
+/* ─── Botones primarios y secundarios refinados ─── */
+html[data-theme="dark"] :is(
+  .primary-button,
+  .editor-actions button.primary,
+  button.primary
+) {
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
+  color: #042439 !important;
+  border-color: rgba(56, 189, 248, 0.6) !important;
+  box-shadow: 0 6px 18px rgba(14, 165, 233, 0.25) !important;
+  font-weight: 800;
+}
+
+html[data-theme="dark"] :is(
+  .primary-button:hover,
+  button.primary:hover
+) {
+  background: linear-gradient(180deg, #67e8f9, #38bdf8) !important;
+  transform: translateY(-1px);
+}
+
+html[data-theme="dark"] :is(
+  .secondary-button,
+  button.secondary
+) {
+  background: rgba(22, 41, 58, 0.95) !important;
+  border-color: var(--dm-line-strong) !important;
+  color: var(--dm-ink) !important;
+}
+
+html[data-theme="dark"] :is(
+  .danger-button,
+  button.danger
+) {
+  background: linear-gradient(180deg, #f87171, #ef4444) !important;
+  color: #fff !important;
+  border-color: rgba(248, 113, 113, 0.55) !important;
+}
+
+/* ─── Modales con backdrop más oscuro y card claramente elevada ─── */
+html[data-theme="dark"] .modal-backdrop {
+  background: rgba(3, 8, 14, 0.72) !important;
+  backdrop-filter: blur(4px);
+}
+
+html[data-theme="dark"] :is(
+  .appointment-modal,
+  .slot-search-modal,
+  .document-modal,
+  .patient-full-modal,
+  .patient-edit-modal,
+  .invoice-creation-shell
+) {
+  background: linear-gradient(180deg, #18293a, #122230) !important;
+  border: 1px solid var(--dm-line-strong) !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55) !important;
+  border-radius: 14px;
+}
+
+/* ─── Agenda: citas con borde acentuado por estado ─── */
+html[data-theme="dark"] .agenda-appointment {
+  background: rgba(22, 41, 58, 0.95) !important;
+  border: 1px solid var(--dm-line-strong) !important;
+  border-left: 3px solid var(--state-color, var(--dm-accent)) !important;
+  color: var(--dm-ink) !important;
+}
+
+html[data-theme="dark"] .agenda-appointment strong,
+html[data-theme="dark"] .agenda-appointment span,
+html[data-theme="dark"] .agenda-appointment em {
+  color: var(--dm-ink) !important;
+}
+
+html[data-theme="dark"] .agenda-slot-row time {
+  background: rgba(22, 41, 58, 0.85) !important;
+  color: #c5e9fb !important;
+  font-weight: 800;
+}
+
+/* ─── Caja: tarjetas financieras con tinte cromático ─── */
+html[data-theme="dark"] .caja-screen :is(.kpi-card, .billing-totals span, .patient-billing-totals span) {
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.10), rgba(22, 41, 58, 0.95)) !important;
+  border: 1px solid var(--dm-line) !important;
+  border-radius: 12px;
+  color: var(--dm-ink) !important;
+}
+
+/* ─── Scroll cómodo en oscuro ─── */
+html[data-theme="dark"] *::-webkit-scrollbar { width: 10px; height: 10px; }
+html[data-theme="dark"] *::-webkit-scrollbar-track { background: rgba(8, 17, 26, 0.4); }
+html[data-theme="dark"] *::-webkit-scrollbar-thumb {
+  background: rgba(125, 211, 252, 0.18);
+  border-radius: 999px;
+  border: 2px solid rgba(8, 17, 26, 0.4);
+}
+html[data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
+  background: rgba(125, 211, 252, 0.32);
+}
+
+/* ─── Selección de texto con cian translúcido ─── */
+html[data-theme="dark"] ::selection {
+  background: rgba(56, 189, 248, 0.35);
+  color: #f4fcff;
+}
+
+/* ─── Detalles finos: separar bloques sin líneas duras ─── */
+html[data-theme="dark"] hr {
+  border: 0;
+  border-top: 1px solid var(--dm-line);
+  margin: 10px 0;
+}
+
+/* Quitar borde fantasma que algunos componentes heredan en oscuro. */
+html[data-theme="dark"] *:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.55) !important;
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   LIGHT MODE — FINAL POLISH LAYER
+   Mismo trabajo que el dark, aplicado al modo claro por defecto.
+   Aditiva: no toca reglas legacy, solo gana por orden.
+   ============================================================ */
+
+html:not([data-theme="dark"]) {
+  --lm-canvas: #f3f7fa;
+  --lm-surface-0: #ffffff;
+  --lm-surface-1: #fbfdfe;
+  --lm-surface-2: #f4f8fb;
+  --lm-surface-3: #eaf1f6;
+  --lm-line: #dde7ee;
+  --lm-line-strong: #c7d4dd;
+  --lm-line-accent: rgba(14, 165, 233, 0.45);
+  --lm-ink: #0f2535;
+  --lm-ink-muted: #56708a;
+  --lm-ink-dim: #84a0b3;
+  --lm-accent: #0ea5e9;
+  --lm-accent-deep: #0369a1;
+  --lm-accent-2: #059669;
+  --lm-warn: #d97706;
+  --lm-danger: #dc2626;
+  --lm-purple: #7c3aed;
+  --lm-shadow-card: 0 10px 28px rgba(18, 53, 72, 0.07), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  --lm-shadow-soft: 0 6px 16px rgba(18, 53, 72, 0.05);
+}
+
+/* Canvas con tinte aire-cian, sin perder densidad. */
+html:not([data-theme="dark"]) body,
+html:not([data-theme="dark"]) .app-shell {
+  background:
+    radial-gradient(1100px 540px at 0% -10%, rgba(14, 165, 233, 0.06), transparent 60%),
+    radial-gradient(900px 460px at 100% -10%, rgba(16, 185, 129, 0.05), transparent 60%),
+    var(--lm-canvas) !important;
+}
+
+html:not([data-theme="dark"]) .main-content,
+html:not([data-theme="dark"]) .patient-screen,
+html:not([data-theme="dark"]) .agenda-euro,
+html:not([data-theme="dark"]) .fichero-screen,
+html:not([data-theme="dark"]) .listados-screen,
+html:not([data-theme="dark"]) .admin-extras,
+html:not([data-theme="dark"]) .dashboard-screen {
+  background: transparent !important;
+}
+
+/* Header con gradiente suave y borde inferior fino. */
+html:not([data-theme="dark"]) .euro-shell-header {
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f7fbfd 100%) !important;
+  border-bottom: 1px solid var(--lm-line-strong) !important;
+  box-shadow: 0 6px 18px rgba(18, 53, 72, 0.06);
+}
+
+html:not([data-theme="dark"]) .euro-titlebar,
+html:not([data-theme="dark"]) .euro-main-nav {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+html:not([data-theme="dark"]) .app-brand strong {
+  color: #0a2236;
+  letter-spacing: 0.2px;
+}
+
+html:not([data-theme="dark"]) .title-clock {
+  color: var(--lm-ink-muted) !important;
+}
+
+/* Chips de clínica / rol / tema con color propio. */
+html:not([data-theme="dark"]) .clinic-chip {
+  color: #075985 !important;
+  background: rgba(14, 165, 233, 0.10) !important;
+  border-color: rgba(14, 165, 233, 0.30) !important;
+}
+
+html:not([data-theme="dark"]) .role-chip {
+  color: #065f46 !important;
+  background: rgba(16, 185, 129, 0.10) !important;
+  border-color: rgba(16, 185, 129, 0.30) !important;
+}
+
+html:not([data-theme="dark"]) .theme-toggle {
+  color: #b45309 !important;
+  background: rgba(217, 119, 6, 0.10) !important;
+  border-color: rgba(217, 119, 6, 0.30) !important;
+}
+
+/* Navegación principal con activo cian. */
+html:not([data-theme="dark"]) .euro-nav-button {
+  color: var(--lm-ink-muted) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button:hover {
+  color: #042439 !important;
+  background: rgba(14, 165, 233, 0.08) !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.active {
+  color: #042439 !important;
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.16), rgba(14, 165, 233, 0.04)) !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  box-shadow: inset 0 -2px 0 var(--lm-accent), 0 4px 12px rgba(14, 165, 233, 0.10) !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.nav-exit {
+  color: #b91c1c !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.nav-exit:hover {
+  color: #7f1d1d !important;
+  background: rgba(220, 38, 38, 0.10) !important;
+}
+
+/* App status fusionada con el header. */
+html:not([data-theme="dark"]) .app-status {
+  background: linear-gradient(180deg, #f7fbfd, #eef5f9) !important;
+  color: #5b7587 !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-size: 0.66rem !important;
+  height: 18px !important;
+}
+
+html:not([data-theme="dark"]) .app-status.is-busy {
+  color: var(--lm-accent-deep) !important;
+}
+
+html:not([data-theme="dark"]) .app-status i {
+  background: rgba(14, 165, 233, 0.16) !important;
+}
+
+html:not([data-theme="dark"]) .app-status i::after {
+  background: linear-gradient(90deg, var(--lm-accent), var(--lm-accent-2)) !important;
+}
+
+/* Toolbar de paciente: superficie elevada con borde fino. */
+html:not([data-theme="dark"]) .patient-selector-bar {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  border-radius: 12px;
+  box-shadow: var(--lm-shadow-card);
+  padding: 8px 10px !important;
+}
+
+html:not([data-theme="dark"]) .patient-selector-bar .patient-finder input {
+  background: #f7fbfd !important;
+  border-color: var(--lm-line) !important;
+  color: var(--lm-ink) !important;
+  border-radius: 8px;
+}
+
+html:not([data-theme="dark"]) .patient-selector-bar .patient-finder input:focus {
+  border-color: var(--lm-accent) !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.18) !important;
+  outline: none !important;
+  background: #ffffff !important;
+}
+
+html:not([data-theme="dark"]) .patient-selector-current {
+  background: rgba(14, 165, 233, 0.07) !important;
+  border: 1px solid rgba(14, 165, 233, 0.25) !important;
+  border-radius: 10px;
+  color: var(--lm-ink) !important;
+}
+
+html:not([data-theme="dark"]) .patient-selector-current strong {
+  color: #042439 !important;
+}
+
+html:not([data-theme="dark"]) .patient-selector-current span,
+html:not([data-theme="dark"]) .patient-selector-current small {
+  color: var(--lm-ink-muted) !important;
+}
+
+/* Tabs principales (Ficha / Presupuestos / Clínica / Historial). */
+html:not([data-theme="dark"]) .patient-module-tabs {
+  background: transparent !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+  gap: 6px;
+  padding: 4px 0 0 !important;
+}
+
+html:not([data-theme="dark"]) .patient-module-tabs button {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  border-bottom: 0 !important;
+  border-radius: 10px 10px 0 0 !important;
+  color: var(--lm-ink-muted) !important;
+  box-shadow: none !important;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+html:not([data-theme="dark"]) .patient-module-tabs button:hover {
+  background: rgba(14, 165, 233, 0.06) !important;
+  color: #042439 !important;
+}
+
+html:not([data-theme="dark"]) .patient-module-tabs button.active {
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.14), #ffffff) !important;
+  color: #042439 !important;
+  border-color: rgba(14, 165, 233, 0.40) !important;
+  box-shadow: inset 0 3px 0 var(--lm-accent), 0 -2px 10px rgba(14, 165, 233, 0.08) !important;
+}
+
+/* Tira de paciente con chips coloreados semánticamente. */
+html:not([data-theme="dark"]) .patient-summary-strip {
+  background: linear-gradient(180deg, #eef5f9, #e6eff5) !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+  border-top: 1px solid var(--lm-line) !important;
+  padding: 6px 10px !important;
+}
+
+html:not([data-theme="dark"]) .patient-summary-strip span {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  color: var(--lm-ink) !important;
+  border-radius: 8px !important;
+}
+
+html:not([data-theme="dark"]) .patient-summary-strip span b {
+  color: var(--lm-accent-deep) !important;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(1) {
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: rgba(14, 165, 233, 0.28) !important;
+}
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(1) b { color: #0369a1 !important; }
+
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(2) {
+  background: rgba(124, 58, 237, 0.07) !important;
+  border-color: rgba(124, 58, 237, 0.25) !important;
+}
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(2) b { color: #6d28d9 !important; }
+
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(3) {
+  background: rgba(5, 150, 105, 0.08) !important;
+  border-color: rgba(5, 150, 105, 0.28) !important;
+}
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(3) b { color: #047857 !important; }
+
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(4) {
+  background: rgba(217, 119, 6, 0.08) !important;
+  border-color: rgba(217, 119, 6, 0.28) !important;
+}
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(4) b { color: #b45309 !important; }
+
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(5) {
+  background: rgba(100, 116, 139, 0.10) !important;
+  border-color: rgba(100, 116, 139, 0.28) !important;
+}
+html:not([data-theme="dark"]) .patient-summary-strip span:nth-child(5) b { color: #475569 !important; }
+
+/* Acciones rápidas en la toolbar de paciente. */
+html:not([data-theme="dark"]) .patient-selector-bar .patient-actions button,
+html:not([data-theme="dark"]) .patient-actions-primary button {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line-strong) !important;
+  color: var(--lm-ink) !important;
+  border-radius: 8px;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+html:not([data-theme="dark"]) .patient-selector-bar .patient-actions button:hover,
+html:not([data-theme="dark"]) .patient-actions-primary button:hover {
+  background: rgba(14, 165, 233, 0.08) !important;
+  border-color: rgba(14, 165, 233, 0.40) !important;
+  transform: translateY(-1px);
+}
+
+/* KPI clínicos con barra lateral semántica e iconos coloreados. */
+html:not([data-theme="dark"]) .clinical-overview {
+  gap: 8px !important;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--lm-shadow-card) !important;
+  position: relative;
+  overflow: hidden;
+  padding: 10px 12px !important;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--lm-accent);
+  opacity: 0.9;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item:hover {
+  transform: translateY(-1px);
+  border-color: var(--lm-line-strong) !important;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item span {
+  color: var(--lm-ink-muted) !important;
+  font-weight: 800;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item strong {
+  color: #042439 !important;
+  font-size: 1.12rem !important;
+  font-weight: 800;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(1)::before { background: #d97706; } /* Pendientes */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(1) span svg { color: #d97706; }
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(2)::before { background: #0ea5e9; } /* Hoy */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(2) span svg { color: #0ea5e9; }
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(3)::before { background: #059669; } /* Realizados */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(3) span svg { color: #059669; }
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(4)::before { background: #d97706; } /* CI pte */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(4) span svg { color: #d97706; }
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(5)::before { background: #7c3aed; } /* Lab */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(5) span svg { color: #7c3aed; }
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(6)::before { background: #0d9488; } /* Saldo */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(6) span svg { color: #0d9488; }
+
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(7)::before { background: #64748b; } /* Docs */
+html:not([data-theme="dark"]) .clinical-overview-item:nth-child(7) span svg { color: #64748b; }
+
+html:not([data-theme="dark"]) .clinical-overview-item.needs-attention {
+  background: linear-gradient(180deg, #fff7e6, #ffffff) !important;
+  border-color: rgba(217, 119, 6, 0.45) !important;
+}
+html:not([data-theme="dark"]) .clinical-overview-item.needs-attention::before {
+  background: #d97706 !important;
+  width: 4px;
+}
+
+html:not([data-theme="dark"]) .clinical-overview-item.has-debt {
+  background: linear-gradient(180deg, #fff1f0, #ffffff) !important;
+  border-color: rgba(220, 38, 38, 0.45) !important;
+}
+html:not([data-theme="dark"]) .clinical-overview-item.has-debt::before {
+  background: #dc2626 !important;
+  width: 4px;
+}
+html:not([data-theme="dark"]) .clinical-overview-item.has-debt strong {
+  color: #991b1b !important;
+}
+
+/* Sub-tabs clínicos (Diagnóstico / Pendientes / Sesión actual / Visitas / Notas). */
+html:not([data-theme="dark"]) .clinical-subtabs {
+  background: transparent !important;
+  box-shadow: none !important;
+  display: flex;
+  gap: 6px;
+}
+
+html:not([data-theme="dark"]) .clinical-subtabs button {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  color: var(--lm-ink-muted) !important;
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  font-weight: 700;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+html:not([data-theme="dark"]) .clinical-subtabs button:hover {
+  background: rgba(14, 165, 233, 0.08) !important;
+  color: #042439 !important;
+  border-color: rgba(14, 165, 233, 0.30) !important;
+}
+
+html:not([data-theme="dark"]) .clinical-subtabs button.active,
+html:not([data-theme="dark"]) .clinical-subtabs button[aria-selected="true"] {
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.18), rgba(14, 165, 233, 0.06)) !important;
+  color: #042439 !important;
+  border-color: rgba(14, 165, 233, 0.45) !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.10);
+}
+
+/* Cards / paneles del workspace clínico y administrativo. */
+html:not([data-theme="dark"]) :is(
+  .clinical-list article,
+  .consent-panel,
+  .patient-hub-side-card,
+  .desk-panel,
+  .workspace-section,
+  .billing-panel,
+  .first-visit-panel,
+  .budget-panel,
+  .realizados-workspace,
+  .historial-facturacion-workspace,
+  .clinical-quick-actions > div,
+  .patient-bento-col > *,
+  .patient-info-card,
+  .patient-hero-card,
+  .patient-next-card,
+  .patient-last-card,
+  .patient-money-card,
+  .patient-history-card,
+  .patient-side-card,
+  .session-add-panel
+) {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--lm-shadow-soft) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .panel-caption,
+  .clinical-list article > header,
+  .consent-panel > header,
+  .lista-header
+) {
+  background: transparent !important;
+  border-bottom: 1px solid var(--lm-line) !important;
+  color: var(--lm-ink) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .panel-caption strong,
+  .clinical-list article > header strong,
+  .lista-header strong
+) {
+  color: #042439 !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .panel-caption span,
+  .clinical-list article > header span,
+  .lista-header span,
+  .panel-caption small
+) {
+  color: var(--lm-ink-muted) !important;
+}
+
+/* Tablas con cabecera azulada y filas zebra. */
+html:not([data-theme="dark"]) :is(
+  .euro-table,
+  .data-table,
+  .billing-table,
+  .treatment-table,
+  .tabla-pacientes,
+  .horario-editor-table,
+  .backup-table
+) {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+html:not([data-theme="dark"]) :is(
+  .euro-table th,
+  .data-table th,
+  .billing-table th,
+  .treatment-table th,
+  .tabla-pacientes th,
+  .horario-editor-table th,
+  .backup-table th,
+  .history-ledger-table thead th
+) {
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.10), #f4f8fb) !important;
+  color: #075985 !important;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  border-color: var(--lm-line) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .euro-table td,
+  .data-table td,
+  .billing-table td,
+  .treatment-table td,
+  .tabla-pacientes td,
+  .horario-editor-table td,
+  .backup-table td
+) {
+  background: transparent !important;
+  border-color: var(--lm-line) !important;
+  color: var(--lm-ink) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .euro-table tbody tr:nth-child(even) td,
+  .data-table tbody tr:nth-child(even) td,
+  .billing-table tbody tr:nth-child(even) td,
+  .treatment-table tbody tr:nth-child(even) td,
+  .tabla-pacientes tbody tr:nth-child(even) td
+) {
+  background: #f7fbfd !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .euro-table tbody tr:hover td,
+  .data-table tbody tr:hover td,
+  .billing-table tbody tr:hover td,
+  .treatment-table tbody tr:hover td,
+  .tabla-pacientes tbody tr:hover td
+) {
+  background: rgba(14, 165, 233, 0.07) !important;
+  color: #042439 !important;
+}
+
+/* Chips de estado unificados. */
+html:not([data-theme="dark"]) :is(
+  .patient-card-chip-success,
+  .estado-realizado,
+  .estado-cobrado,
+  .estado-cobrado_completo,
+  .chip-success
+) {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: rgba(16, 185, 129, 0.40) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .patient-card-chip-danger,
+  .estado-anulada,
+  .estado-vencido,
+  .chip-danger,
+  .badge-deuda
+) {
+  background: #fef2f2 !important;
+  color: #b91c1c !important;
+  border-color: rgba(220, 38, 38, 0.40) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .patient-card-chip-warning,
+  .estado-pendiente,
+  .estado-presupuestado,
+  .estado-enviado,
+  .chip-warning
+) {
+  background: #fff7ed !important;
+  color: #b45309 !important;
+  border-color: rgba(217, 119, 6, 0.40) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .patient-card-chip-info,
+  .estado-confirmada,
+  .chip-info
+) {
+  background: #f0f9ff !important;
+  color: #0369a1 !important;
+  border-color: rgba(14, 165, 233, 0.40) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .patient-card-chip-muted,
+  .chip-muted
+) {
+  background: #f1f5f9 !important;
+  color: #475569 !important;
+  border-color: rgba(100, 116, 139, 0.30) !important;
+}
+
+html:not([data-theme="dark"]) .patient-card-chip-danger,
+html:not([data-theme="dark"]) [data-tone="danger"] {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: rgba(220, 38, 38, 0.45) !important;
+}
+
+/* Inputs con focus cian. */
+html:not([data-theme="dark"]) input:focus,
+html:not([data-theme="dark"]) select:focus,
+html:not([data-theme="dark"]) textarea:focus {
+  border-color: var(--lm-accent) !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.18) !important;
+  outline: none !important;
+}
+
+/* Botones primario / secundario / peligro. */
+html:not([data-theme="dark"]) :is(
+  .primary-button,
+  .editor-actions button.primary,
+  button.primary
+) {
+  background: linear-gradient(180deg, #0ea5e9, #0284c7) !important;
+  color: #ffffff !important;
+  border-color: rgba(2, 132, 199, 0.7) !important;
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.25) !important;
+  font-weight: 800;
+}
+
+html:not([data-theme="dark"]) :is(
+  .primary-button:hover,
+  button.primary:hover
+) {
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
+  transform: translateY(-1px);
+}
+
+html:not([data-theme="dark"]) :is(
+  .secondary-button,
+  button.secondary
+) {
+  background: #ffffff !important;
+  border-color: var(--lm-line-strong) !important;
+  color: var(--lm-ink) !important;
+}
+
+html:not([data-theme="dark"]) :is(
+  .danger-button,
+  button.danger
+) {
+  background: linear-gradient(180deg, #ef4444, #dc2626) !important;
+  color: #ffffff !important;
+  border-color: rgba(220, 38, 38, 0.6) !important;
+}
+
+/* Modales con backdrop tenue y elevación clara. */
+html:not([data-theme="dark"]) .modal-backdrop {
+  background: rgba(15, 37, 53, 0.32) !important;
+  backdrop-filter: blur(3px);
+}
+
+html:not([data-theme="dark"]) :is(
+  .appointment-modal,
+  .slot-search-modal,
+  .document-modal,
+  .patient-full-modal,
+  .patient-edit-modal,
+  .invoice-creation-shell
+) {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  box-shadow: 0 30px 80px rgba(15, 37, 53, 0.20) !important;
+  border-radius: 14px;
+}
+
+/* Agenda. */
+html:not([data-theme="dark"]) .agenda-appointment {
+  background: #ffffff !important;
+  border: 1px solid var(--lm-line) !important;
+  border-left: 3px solid var(--state-color, var(--lm-accent)) !important;
+  color: var(--lm-ink) !important;
+}
+
+html:not([data-theme="dark"]) .agenda-slot-row time {
+  background: rgba(14, 165, 233, 0.08) !important;
+  color: #075985 !important;
+  font-weight: 800;
+}
+
+/* Caja: tarjetas financieras tintadas. */
+html:not([data-theme="dark"]) .caja-screen :is(.kpi-card, .billing-totals span, .patient-billing-totals span) {
+  background: linear-gradient(180deg, rgba(14, 165, 233, 0.08), #ffffff) !important;
+  border: 1px solid var(--lm-line) !important;
+  border-radius: 12px;
+  color: var(--lm-ink) !important;
+}
+
+/* Scrollbars y selección. */
+html:not([data-theme="dark"]) *::-webkit-scrollbar { width: 10px; height: 10px; }
+html:not([data-theme="dark"]) *::-webkit-scrollbar-track { background: transparent; }
+html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb {
+  background: rgba(14, 165, 233, 0.22);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+html:not([data-theme="dark"]) *::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 165, 233, 0.38);
+  background-clip: padding-box;
+}
+
+html:not([data-theme="dark"]) ::selection {
+  background: rgba(14, 165, 233, 0.28);
+  color: #042439;
+}
+
+html:not([data-theme="dark"]) hr {
+  border: 0;
+  border-top: 1px solid var(--lm-line);
+  margin: 10px 0;
+}
+
+html:not([data-theme="dark"]) *:focus-visible {
+  outline: 2px solid rgba(14, 165, 233, 0.55) !important;
+  outline-offset: 2px;
+}
+
+/* Dark clinical polish: odontogram/presupuesto workspace */
+html[data-theme="dark"] {
+  --clinical-dark-canvas: #061821;
+  --clinical-dark-panel: #0d2534;
+  --clinical-dark-line: #2b5b72;
+  --clinical-dark-cyan: #5bdcf0;
+  --clinical-dark-teal: #45e0c6;
+  --clinical-dark-amber: #f7c948;
+}
+
+html[data-theme="dark"] .patient-screen,
+html[data-theme="dark"] .patient-desk {
+  background:
+    linear-gradient(135deg, rgba(91, 220, 240, 0.06), rgba(69, 224, 198, 0.04)),
+    var(--clinical-dark-canvas) !important;
+}
+
+html[data-theme="dark"] .patient-selector-bar {
+  background:
+    linear-gradient(180deg, rgba(18, 46, 63, 0.96), rgba(9, 27, 38, 0.98)) !important;
+  border-color: #2d6077 !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip {
+  background:
+    linear-gradient(90deg, rgba(8, 24, 34, 0.98), rgba(11, 33, 46, 0.98)) !important;
+  border-top: 1px solid #2d6077 !important;
+  border-bottom: 1px solid #2d6077 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+}
+
+html[data-theme="dark"] .patient-summary-strip span {
+  background: rgba(15, 42, 58, 0.92) !important;
+  border-color: rgba(91, 220, 240, 0.24) !important;
+  color: #edfaff !important;
+}
+
+html[data-theme="dark"] .patient-module-tabs {
+  background: #071b26 !important;
+  border-color: #2d6077 !important;
+}
+
+html[data-theme="dark"] .patient-module-tabs button {
+  background: rgba(14, 38, 53, 0.9) !important;
+  border-color: #294f63 !important;
+  color: #c5dce7 !important;
+}
+
+html[data-theme="dark"] .patient-module-tabs button.active {
+  background: linear-gradient(180deg, rgba(33, 86, 112, 0.9), rgba(10, 34, 48, 0.98)) !important;
+  border-color: #48c9eb !important;
+  color: #f3fdff !important;
+  box-shadow:
+    inset 0 3px 0 var(--clinical-dark-cyan),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+html[data-theme="dark"] .budget-panel,
+html[data-theme="dark"] .budget-workbench,
+html[data-theme="dark"] .budget-treatment-picker,
+html[data-theme="dark"] .budget-line-editor,
+html[data-theme="dark"] .budget-step-panel {
+  background: linear-gradient(180deg, #0d2534, #091f2c) !important;
+  border-color: var(--clinical-dark-line) !important;
+  color: #edfaff !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list {
+  background: #071a25 !important;
+  border-color: #315d73 !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list button {
+  background: #112e40 !important;
+  border-color: #365f75 !important;
+  color: #edfaff !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list button:hover,
+html[data-theme="dark"] .budget-treatment-list button.active {
+  background: linear-gradient(90deg, rgba(91, 220, 240, 0.18), rgba(69, 224, 198, 0.12)) !important;
+  border-color: var(--clinical-dark-teal) !important;
+  box-shadow: inset 4px 0 0 var(--clinical-dark-teal) !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list button strong {
+  color: #f6fdff !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list button > span:first-child,
+html[data-theme="dark"] .treatment-badge {
+  background: rgba(247, 201, 72, 0.16) !important;
+  border-color: rgba(247, 201, 72, 0.38) !important;
+  color: #ffe7a1 !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list button > span:last-child {
+  color: #5bdcf0 !important;
+}
+
+html[data-theme="dark"] .budget-treatment-list p {
+  color: #a9c3d1 !important;
+}
+
+html[data-theme="dark"] .budget-workbench input,
+html[data-theme="dark"] .budget-workbench select,
+html[data-theme="dark"] .budget-line-editor input,
+html[data-theme="dark"] .budget-line-editor select {
+  background: #071a25 !important;
+  border-color: #3a667c !important;
+  color: #eefaff !important;
+}
+
+html[data-theme="dark"] .budget-line-editor input:focus,
+html[data-theme="dark"] .budget-line-editor select:focus,
+html[data-theme="dark"] .budget-workbench input:focus,
+html[data-theme="dark"] .budget-workbench select:focus {
+  border-color: var(--clinical-dark-cyan) !important;
+  box-shadow: 0 0 0 3px rgba(91, 220, 240, 0.14) !important;
+  outline: none !important;
+}
+
+html[data-theme="dark"] .budget-secondary-menu summary,
+html[data-theme="dark"] .secondary-clinic-panel summary,
+html[data-theme="dark"] .odontogram-support-panel summary,
+html[data-theme="dark"] .history-ledger-details summary {
+  color: #72e8f8 !important;
+}
+
+html[data-theme="dark"] .secondary-clinic-panel,
+html[data-theme="dark"] .odontogram-support-panel {
+  background: linear-gradient(180deg, #0d2534, #0a1f2c) !important;
+  border-color: #2b5b72 !important;
 }

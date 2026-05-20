@@ -79,6 +79,7 @@ vi.mock('../../lib/api', () => ({
   createTrabajoLaboratorio: vi.fn(),
   emitirRecetaPdf: vi.fn(),
   facturaPdfUrl: (id: string) => `http://facturas/${id}.pdf`,
+  finalizarTratamientoSesion: vi.fn(),
   firmarConsentimiento: vi.fn(),
   firmarRecetaClinica: vi.fn(),
   generarDocumentoPdfPaciente: vi.fn(),

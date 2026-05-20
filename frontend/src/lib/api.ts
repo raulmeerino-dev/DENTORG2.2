@@ -34,6 +34,7 @@ import type {
   PresupuestoLinea,
   RecetaClinica,
   RecetaCreateInput,
+  SesionTratamientoRealizadoInput,
   TrabajoLaboratorioCreateInput,
   TrabajoLaboratorioUpdateInput,
   ReportCitasDoctor,
@@ -600,6 +601,32 @@ export async function getHistorialSinFacturar(pacienteId: string) {
       doctor_nombre: item.doctor?.nombre ?? 'Doctor',
     }));
   return withDemoFallback(api.get<HistorialSinFacturar[]>('/facturas/historial-sin-facturar', { params: { paciente_id: pacienteId } }), fallback);
+}
+
+export async function finalizarTratamientoSesion(data: SesionTratamientoRealizadoInput) {
+  const tratamiento = DEMO_TRATAMIENTO_BY_ID[data.tratamiento_id] ?? DEMO_TRATAMIENTOS.find((item) => item.id === data.tratamiento_id) ?? null;
+  const fallback: HistorialClinico = {
+    id: `demo-hist-${Date.now()}`,
+    paciente_id: data.paciente_id,
+    tratamiento_id: data.tratamiento_id,
+    doctor_id: data.doctor_id ?? 'demo-doc-1',
+    gabinete_id: data.gabinete_id ?? null,
+    pieza_dental: data.pieza_dental ?? null,
+    caras: data.caras ?? null,
+    fecha: data.fecha ?? new Date().toISOString().slice(0, 10),
+    diagnostico: 'Tratamiento realizado en sesion clinica',
+    procedimiento: data.procedimiento ?? tratamiento?.nombre ?? 'Tratamiento dental',
+    observaciones: data.observaciones ?? null,
+    estado: 'realizado',
+    importe: data.importe != null ? String(data.importe) : tratamiento?.precio ?? null,
+    factura_id: null,
+    origen: data.origen,
+    presupuesto_linea_id: data.presupuesto_linea_id ?? null,
+    cita_id: data.cita_id ?? null,
+    tratamiento,
+    doctor: { id: data.doctor_id ?? 'demo-doc-1', nombre: 'Doctor' },
+  };
+  return withDemoFallback(api.post<HistorialClinico>('/tratamientos/historial/sesion-realizada', data), fallback);
 }
 
 export async function getDocumentosPaciente(pacienteId: string, categoria?: string) {

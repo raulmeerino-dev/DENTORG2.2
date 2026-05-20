@@ -1179,6 +1179,208 @@
   text-align: center;
 }
 
+html[data-theme="dark"] .od-page {
+  --od-bg: #061822;
+  --od-card: #0d2432;
+  --od-border: #2b5870;
+  --od-text: #e8f7fb;
+  --od-muted: #9fb9c8;
+  --od-primary: #5bdcf0;
+  --od-action: #45e0c6;
+  --od-soft-blue: #123547;
+  --od-danger: #ff817a;
+  --od-success: #60e39c;
+  --od-shadow: none;
+  background: transparent;
+}
+
+html[data-theme="dark"] .odontogram-flow-panel .od-workspace-card,
+html[data-theme="dark"] .od-workspace-card {
+  background: linear-gradient(180deg, #102a3a 0%, #0a1f2b 100%);
+  border-color: #2d627a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+html[data-theme="dark"] .od-card-heading p,
+html[data-theme="dark"] .od-arch-caption,
+html[data-theme="dark"] .od-tooth-number-button,
+html[data-theme="dark"] .od-legend-chip,
+html[data-theme="dark"] .od-treatment-card span,
+html[data-theme="dark"] .od-muted {
+  color: #a9c3d1;
+}
+
+html[data-theme="dark"] .od-clinical-context span,
+html[data-theme="dark"] .od-demo-meta div {
+  background: rgba(14, 39, 54, 0.92);
+  border-color: #315f74;
+  color: #cde8f0;
+}
+
+html[data-theme="dark"] .od-clinical-context strong {
+  background: rgba(91, 220, 240, 0.14);
+  border-color: rgba(91, 220, 240, 0.36);
+  color: #7ee7f6;
+}
+
+html[data-theme="dark"] .od-chart-area {
+  background:
+    linear-gradient(180deg, rgba(16, 45, 62, 0.9), rgba(8, 27, 38, 0.95)),
+    #081b26;
+  border-color: #285971;
+  box-shadow: inset 0 0 0 1px rgba(125, 211, 252, 0.03);
+}
+
+html[data-theme="dark"] .od-tooth:hover,
+html[data-theme="dark"] .od-occlusal-cell:hover,
+html[data-theme="dark"] .od-tooth-number-button:hover,
+html[data-theme="dark"] .od-tooth-number-button.is-selected {
+  background: rgba(91, 220, 240, 0.12);
+  border-color: rgba(91, 220, 240, 0.38);
+  color: #eaffff;
+}
+
+html[data-theme="dark"] .od-tooth.is-selected,
+html[data-theme="dark"] .od-occlusal-cell.is-selected {
+  background: rgba(69, 224, 198, 0.10);
+  border-color: rgba(69, 224, 198, 0.45);
+}
+
+html[data-theme="dark"] .od-midline span {
+  background: linear-gradient(90deg, transparent, #315f74 18%, #315f74 82%, transparent);
+}
+
+html[data-theme="dark"] .od-legend {
+  border-top-color: #27495b;
+}
+
+html[data-theme="dark"] .od-legend-chip,
+html[data-theme="dark"] .od-history-item,
+html[data-theme="dark"] .od-history-empty,
+html[data-theme="dark"] .od-quick-empty {
+  background: #0b2230;
+  border-color: #294d60;
+}
+
+html[data-theme="dark"] .od-side-panel {
+  background: linear-gradient(180deg, #102d3e 0%, #0a2230 100%);
+  border-color: #2e647b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+html[data-theme="dark"] .od-panel-heading,
+html[data-theme="dark"] .od-tooth-facts {
+  border-bottom-color: #2b5062;
+}
+
+html[data-theme="dark"] .od-panel-mode {
+  background: rgba(69, 224, 198, 0.14);
+  border-color: rgba(69, 224, 198, 0.42);
+  color: #81f2df;
+}
+
+html[data-theme="dark"] .od-surface-button {
+  background: rgba(12, 31, 43, 0.94);
+  border-color: #315a70;
+  color: #e8f7fb;
+}
+
+html[data-theme="dark"] .od-surface-button:hover,
+html[data-theme="dark"] .od-surface-button.is-selected {
+  background: rgba(69, 224, 198, 0.12);
+  border-color: #45e0c6;
+  box-shadow: 0 0 0 3px rgba(69, 224, 198, 0.10);
+}
+
+html[data-theme="dark"] .od-status-box {
+  background: #0b2230;
+  border-color: #2b5267;
+}
+
+html[data-theme="dark"] .od-current-status {
+  background: rgba(96, 227, 156, 0.12);
+  color: #c8ffe2;
+}
+
+html[data-theme="dark"] .od-treatment-card {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.36);
+}
+
+html[data-theme="dark"] .od-action-button,
+html[data-theme="dark"] .odontogram-context-actions button {
+  background: #102b3b;
+  border-color: #315d73;
+  color: #e8f7fb;
+}
+
+html[data-theme="dark"] .od-action-button:hover,
+html[data-theme="dark"] .odontogram-context-actions button:hover {
+  background: rgba(91, 220, 240, 0.13);
+  border-color: #5bdcf0;
+  color: #f0fdff;
+}
+
+html[data-theme="dark"] .od-action-button.is-primary {
+  background: rgba(91, 220, 240, 0.16);
+  border-color: rgba(91, 220, 240, 0.48);
+  color: #aef4ff;
+}
+
+html[data-theme="dark"] .od-action-button.is-danger {
+  background: rgba(255, 129, 122, 0.13);
+  border-color: rgba(255, 129, 122, 0.42);
+  color: #ffc2bd;
+}
+
+html[data-theme="dark"] .od-action-button.is-success {
+  background: rgba(96, 227, 156, 0.13);
+  border-color: rgba(96, 227, 156, 0.42);
+  color: #c2ffdd;
+}
+
+html[data-theme="dark"] .od-action-button.is-ghost {
+  background: #0a1d29;
+  color: #a9c3d1;
+}
+
+html[data-theme="dark"] .od-context-menu,
+html[data-theme="dark"] .od-quick-modal,
+html[data-theme="dark"] .od-history-modal {
+  background: #0d2534;
+  border-color: #315d73;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+}
+
+html[data-theme="dark"] .od-context-menu-heading,
+html[data-theme="dark"] .od-quick-modal-heading {
+  border-bottom-color: #2b5062;
+}
+
+html[data-theme="dark"] .od-context-menu button:hover,
+html[data-theme="dark"] .od-quick-result:hover {
+  background: rgba(91, 220, 240, 0.12);
+  border-color: rgba(91, 220, 240, 0.38);
+  color: #eaffff;
+}
+
+html[data-theme="dark"] .od-modal-backdrop {
+  background: rgba(3, 10, 15, 0.72);
+}
+
+html[data-theme="dark"] .od-modal-close,
+html[data-theme="dark"] .od-quick-search,
+html[data-theme="dark"] .od-quick-result {
+  background: #081b26;
+  border-color: #2d5266;
+  color: #e8f7fb;
+}
+
+html[data-theme="dark"] .od-quick-search:focus {
+  border-color: #45e0c6;
+  box-shadow: 0 0 0 3px rgba(69, 224, 198, 0.14);
+}
+
 @media (max-width: 1280px) {
   .od-page {
     padding-inline: 18px;

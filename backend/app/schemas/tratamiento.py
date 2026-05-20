@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -81,6 +82,9 @@ class HistorialCreate(BaseModel):
     estado: str = Field("realizado", max_length=30)
     importe: Decimal | None = Field(None, ge=0)
     factura_id: UUID | None = None
+    origen: str | None = Field(None, max_length=30)
+    presupuesto_linea_id: UUID | None = None
+    cita_id: UUID | None = None
 
 
 class HistorialUpdate(BaseModel):
@@ -93,6 +97,25 @@ class HistorialUpdate(BaseModel):
     estado: str | None = Field(None, max_length=30)
     importe: Decimal | None = Field(None, ge=0)
     factura_id: UUID | None = None
+    origen: str | None = Field(None, max_length=30)
+    presupuesto_linea_id: UUID | None = None
+    cita_id: UUID | None = None
+
+
+class SesionTratamientoRealizadoCreate(BaseModel):
+    paciente_id: UUID
+    tratamiento_id: UUID
+    doctor_id: UUID | None = None
+    gabinete_id: UUID | None = None
+    cita_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
+    pieza_dental: int | None = Field(None, ge=11, le=85)
+    caras: str | None = Field(None, max_length=10, pattern=r"^[MODVLP]*$")
+    fecha: date | None = None
+    procedimiento: str | None = Field(None, max_length=300)
+    observaciones: str | None = None
+    origen: Literal["manual", "cita", "presupuesto_linea"] = "manual"
+    importe: Decimal | None = Field(None, ge=0)
 
 
 class TratamientoResumen(BaseModel):
@@ -125,6 +148,9 @@ class HistorialResponse(BaseModel):
     estado: str
     importe: Decimal | None
     factura_id: UUID | None
+    origen: str | None = None
+    presupuesto_linea_id: UUID | None = None
+    cita_id: UUID | None = None
     tratamiento: TratamientoResumen | None = None
     doctor: DoctorResumen | None = None
 

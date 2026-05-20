@@ -397,8 +397,27 @@ export interface HistorialClinico {
   estado: string;
   importe: string | null;
   factura_id: string | null;
+  origen?: string | null;
+  presupuesto_linea_id?: string | null;
+  cita_id?: string | null;
   tratamiento: TratamientoResumen | null;
   doctor: { id: string; nombre: string } | null;
+}
+
+export interface SesionTratamientoRealizadoInput {
+  paciente_id: string;
+  tratamiento_id: string;
+  doctor_id?: string | null;
+  gabinete_id?: string | null;
+  cita_id?: string | null;
+  presupuesto_linea_id?: string | null;
+  pieza_dental?: number | null;
+  caras?: string | null;
+  fecha?: string | null;
+  procedimiento?: string | null;
+  observaciones?: string | null;
+  origen: 'manual' | 'cita' | 'presupuesto_linea';
+  importe?: string | number | null;
 }
 
 export interface HistorialSinFacturar {

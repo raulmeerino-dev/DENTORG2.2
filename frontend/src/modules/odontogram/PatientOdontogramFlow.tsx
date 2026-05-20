@@ -9,7 +9,7 @@ import type { ApiPaciente, OdontogramaSurfaceName, UserRole } from '../../types/
 import { odontogramaBackendToVisual, odontogramChangeToBackendPatch } from './adapters/backendAdapter';
 import { OdontogramaTool } from './OdontogramaTool';
 import { odontogramModeConfig } from './data/modeConfig';
-import type { OdontogramChange, OdontogramMode, OdontogramaToolMode } from './types/odontogram.types';
+import type { OdontogramChange, OdontogramMode, OdontogramaToolMode, ToothData, ToothSelection } from './types/odontogram.types';
 
 type PatientOdontogramFlowProps = {
   paciente: ApiPaciente | null;
@@ -20,6 +20,7 @@ type PatientOdontogramFlowProps = {
   enableQuickTreatments?: boolean;
   className?: string;
   userRole?: UserRole | null;
+  onSelectDentalTarget?: (selection: ToothSelection, tooth: ToothData) => void;
 };
 
 const modeToToolMode: Record<OdontogramMode, OdontogramaToolMode> = {
@@ -44,6 +45,7 @@ export function PatientOdontogramFlow({
   enableQuickTreatments,
   className,
   userRole,
+  onSelectDentalTarget,
 }: PatientOdontogramFlowProps) {
   const modeConfig = odontogramModeConfig[mode];
   const toolMode = modeToToolMode[mode];
@@ -111,6 +113,12 @@ export function PatientOdontogramFlow({
         userRole={userRole}
         onChange={(_, change) => {
           if (!effectiveReadOnly && usesDirectBaseData) updateMutation.mutate(change);
+        }}
+        onAction={(action, payload) => {
+          if (action !== 'filtrar_pieza') return;
+          const selection = payload.selection as ToothSelection | undefined;
+          const tooth = payload.tooth as ToothData | undefined;
+          if (selection && tooth) onSelectDentalTarget?.(selection, tooth);
         }}
       />
       {usesDirectBaseData && odontogramaQuery.isLoading && <div className="odontogram-flow-status">Cargando odontograma...</div>}

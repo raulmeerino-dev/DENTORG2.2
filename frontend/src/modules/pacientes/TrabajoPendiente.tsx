@@ -1,5 +1,5 @@
 import type { CSSProperties, MouseEvent } from 'react';
-import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, UserRole } from '../../types/api';
+import type { ApiPaciente, Cita, HistorialClinico, Presupuesto, PresupuestoLinea, UserRole } from '../../types/api';
 import { colorForTreatment, formatDate, money, normalizeText } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { PatientOdontogramFlow } from '../odontogram';
@@ -18,6 +18,7 @@ function findCitaForTreatment(citas: Cita[], linea: PresupuestoLinea) {
 export function TrabajoPendientePanel({
   presupuestos,
   citas,
+  historial = [],
   paciente,
   onDarCita,
   onContextLinea,
@@ -26,6 +27,7 @@ export function TrabajoPendientePanel({
 }: {
   presupuestos: Presupuesto[];
   citas: Cita[];
+  historial?: HistorialClinico[];
   paciente?: ApiPaciente | null;
   onDarCita: (linea: PresupuestoLinea) => void;
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
@@ -34,7 +36,10 @@ export function TrabajoPendientePanel({
 }) {
   const rows = presupuestos.flatMap((presupuesto) => (
     presupuesto.lineas
-      .filter((linea) => linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
+      .filter((linea) => (
+        !historial.some((entrada) => entrada.presupuesto_linea_id === linea.id && ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(entrada.estado))
+        && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
+      ))
       .map((linea) => ({ presupuesto, linea, cita: findCitaForTreatment(citas, linea) }))
   ));
   const statusClass = (value: string) => normalizeText(value).replace(/\s+/g, '-');
