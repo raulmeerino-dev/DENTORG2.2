@@ -54,6 +54,7 @@ import type { DocumentDesignerMode } from './Consentimientos';
 import { DocumentosPanel } from './Documentos';
 import { EurodentHistoryBillingPanel, InvoiceHistoryModal } from './HistorialFacturacion';
 import { HistorialCompletoPanel } from './HistorialCompleto';
+import { TratamientosRealizadosPanel } from './Realizados';
 import { CobroModal } from './modals/CobroModal';
 import { AnticipoModal } from './modals/AnticipoModal';
 import type { AnticipoModalMode } from './modals/AnticipoModal';
@@ -72,7 +73,7 @@ import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 import { ClinicalWorkspace } from './ClinicalWorkspace';
 import type { ClinicalTab } from './ClinicalWorkspace';
 
-export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'notas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
+export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'notas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type MainPatientTab = 'pacientes' | 'presupuestos' | 'clinica' | 'historial';
 type TreatmentTab = ClinicalTab;
 type PatientContextMenu =
@@ -120,6 +121,9 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
   citas: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="3" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.6"/><line x1="2" y1="7.5" x2="16" y2="7.5" stroke="currentColor" strokeWidth="1.4"/><line x1="6" y1="1.5" x2="6" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="1.5" x2="12" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
   ),
+  visitas: (
+    <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="3" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.6"/><line x1="2" y1="7.5" x2="16" y2="7.5" stroke="currentColor" strokeWidth="1.4"/><path d="M5.5 11h7M5.5 14h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="6" y1="1.5" x2="6" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="1.5" x2="12" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+  ),
   historial: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2a7 7 0 1 0 0 14A7 7 0 0 0 9 2z" stroke="currentColor" strokeWidth="1.6"/><path d="M9 5v4l3 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
   ),
@@ -142,7 +146,7 @@ const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
 ];
 
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
-  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'realizados' || tab === 'notas';
+  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas' || tab === 'notas';
 }
 
 function isPresupuestoCerrado(estado?: string | null) {
@@ -193,7 +197,7 @@ export default function PacientesPage() {
     ? 'presupuestos'
     : isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
       ? 'clinica'
-      : tab === 'historial' || tab === 'facturacion'
+      : tab === 'historial' || tab === 'facturacion' || tab === 'realizados'
       ? 'historial'
       : 'pacientes';
   const activeTreatmentTab = isTreatmentTab(tab) ? tab : treatmentTab;
@@ -305,7 +309,7 @@ export default function PacientesPage() {
       setTab('presupuestos');
       return;
     }
-    if (targetTab === 'facturacion' || targetTab === 'historial') {
+    if (targetTab === 'realizados' || targetTab === 'facturacion' || targetTab === 'historial') {
       setTab('historial');
       return;
     }
@@ -946,11 +950,10 @@ export default function PacientesPage() {
             presupuestos={presupuestos}
             documentos={documentosQuery.data ?? []}
             consentimientos={consentimientosQuery.data ?? []}
+            recetas={recetasPacienteQuery.data ?? []}
             plantillas={plantillasQuery.data ?? []}
             laboratorio={laboratorioPacienteQuery.data ?? []}
             saldoPendiente={totalPendiente}
-            doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
-            doctorColor={doctoresQuery.data?.[0]?.color_agenda}
             tratamientos={tratamientosQuery.data ?? []}
             savingPrimeraVisita={guardarPrimeraVisita.isPending}
             onSavePrimeraVisita={(data) => guardarPrimeraVisita.mutate(data)}
@@ -973,6 +976,7 @@ export default function PacientesPage() {
             onOpenConsentimientoPdf={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
             onRevocarConsentimiento={revocarConsentimientoPaciente}
             onOpenDocumentos={() => openDocumentsDrawer()}
+            onOpenHistorial={() => openPatientArea('historial')}
             userRole={user?.rol}
           />
         )}
@@ -989,7 +993,7 @@ export default function PacientesPage() {
               onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
               onEditAnticipo={(pago) => setAnticipoModal({ kind: 'editar', pago })}
               onCobrarImporte={(factura) => setCobroFactura(factura)}
-              onOrtodoncia={() => openPatientArea('realizados')}
+              onOrtodoncia={() => openPatientArea('historial')}
               onRecibos={abrirRecibos}
               onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
               onCrearReceta={() => {
@@ -1029,6 +1033,19 @@ export default function PacientesPage() {
                 onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
                 onOpenFactura={abrirPdfFactura}
                 onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
+                userRole={user?.rol}
+              />
+            </details>
+            <details className="history-ledger-details">
+              <summary>Tratamientos realizados en historial</summary>
+              <TratamientosRealizadosPanel
+                historial={historialQuery.data ?? []}
+                consentimientos={consentimientosQuery.data ?? []}
+                presupuestos={presupuestos}
+                paciente={active}
+                doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
+                doctorColor={doctoresQuery.data?.[0]?.color_agenda}
+                tratamientos={tratamientosQuery.data ?? []}
                 userRole={user?.rol}
               />
             </details>

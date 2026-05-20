@@ -249,12 +249,14 @@ describe('PacientesPage structure', () => {
     expect(screen.getByRole('button', { name: /^Diagnostico$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Pendientes$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Sesion actual$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Realizados$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Visitas$/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Realizados$/i })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
     await waitFor(() => expect(screen.getByText(/Historial completo/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Clinico/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Facturacion/i })).toBeInTheDocument();
+    expect(screen.getByText(/Tratamientos realizados en historial/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
   });
 

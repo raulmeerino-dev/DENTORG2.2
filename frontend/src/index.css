@@ -15930,6 +15930,12 @@ html[data-theme="dark"] .history-ledger-items {
   min-width: 0;
 }
 
+.clinical-session-stack {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .clinical-session-main,
 .clinical-session-board,
 .clinical-session-detail,
@@ -16188,6 +16194,194 @@ html[data-theme="dark"] .history-ledger-items {
   font-weight: 850;
 }
 
+.session-odontogram-support {
+  min-width: 0;
+}
+
+.session-odontogram-support summary {
+  color: #385567;
+  font-weight: 850;
+}
+
+.session-odontogram-support .odontogram-workspace,
+.session-odontogram-support .odontogram-flow {
+  margin-top: 8px;
+}
+
+.visits-workspace {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.visits-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f7fbfc;
+}
+
+.visits-head div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.visits-head span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: #60788b;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.visits-head strong {
+  color: #082f43;
+  font-size: 1.05rem;
+}
+
+.visits-head button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: #0f8ea0;
+  color: #fff;
+  font-weight: 850;
+}
+
+.visits-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.visit-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgba(18, 53, 72, 0.05);
+}
+
+.visit-card > header {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.28fr) auto minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.visit-card time {
+  color: #075e70;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.visit-card > header > span {
+  justify-self: start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eaf5f8;
+  color: #075e70;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.visit-card > header div {
+  min-width: 0;
+}
+
+.visit-card strong,
+.visit-card p,
+.visit-card small,
+.visit-card em {
+  min-width: 0;
+}
+
+.visit-card > header strong {
+  display: block;
+  color: #082f43;
+}
+
+.visit-card > header p {
+  margin: 2px 0 0;
+  color: #60788b;
+  font-size: 0.78rem;
+}
+
+.visit-body {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.visit-body section {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid #e6eef2;
+}
+
+.visit-body section > span {
+  color: #60788b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.visit-body p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  color: #15384b;
+  font-size: 0.82rem;
+}
+
+.visit-body small,
+.visit-body em {
+  color: #60788b;
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+.visit-links p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.visit-links small {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #f2f7f9;
+  color: #385567;
+  font-weight: 800;
+}
+
+.visits-empty {
+  display: grid;
+  gap: 4px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #f7fbfc;
+  color: #60788b;
+}
+
+.visits-empty strong {
+  color: #082f43;
+}
+
 .clinical-list {
   display: grid;
   gap: 7px;
@@ -16294,6 +16488,10 @@ html[data-theme="dark"] .clinical-quick-actions button {
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .visit-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .session-add-panel {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -16309,6 +16507,17 @@ html[data-theme="dark"] .clinical-quick-actions button {
 
   .session-treatment-row {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visits-head,
+  .visit-card > header,
+  .visit-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visits-head {
+    display: grid;
+    align-items: stretch;
   }
 
   .session-treatment-source,
