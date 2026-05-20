@@ -4,13 +4,13 @@ import { canAccess, canRoleAccess, ROLE_LABELS, WORKFLOW_ITEMS } from './workflo
 describe('workflow permissions', () => {
   it('keeps admin-only sections out of clinical roles', () => {
     const listados = WORKFLOW_ITEMS.find((item) => item.id === 'listados');
-    const ajustes = WORKFLOW_ITEMS.find((item) => item.id === 'ficheros');
+    const admin = WORKFLOW_ITEMS.find((item) => item.id === 'adminExtras');
 
     expect(listados).toBeDefined();
-    expect(ajustes).toBeDefined();
+    expect(admin).toBeDefined();
     expect(canAccess('doctor', listados!)).toBe(false);
-    expect(canAccess('recepcion', ajustes!)).toBe(false);
-    expect(canAccess('admin', ajustes!)).toBe(true);
+    expect(canAccess('recepcion', admin!)).toBe(false);
+    expect(canAccess('admin', admin!)).toBe(true);
   });
 
   it('exposes every supported role label and clinical access for auxiliar', () => {

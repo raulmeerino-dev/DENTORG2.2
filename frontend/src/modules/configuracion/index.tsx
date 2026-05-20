@@ -26,8 +26,17 @@ import {
 import type { Doctor, HorarioDoctor, TratamientoCatalogo } from '../../types/api';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-const FICHEROS = ['general', 'doctores', 'tratamientos', 'agenda', 'roles', 'caja', 'laboratorio', 'documentos', 'seguridad'] as const;
-type FicheroTab = typeof FICHEROS[number];
+export const FICHEROS = ['general', 'doctores', 'tratamientos', 'agenda', 'roles', 'caja', 'laboratorio', 'documentos', 'seguridad'] as const;
+export type FicheroTab = typeof FICHEROS[number];
+
+type ConfiguracionWorkspaceProps = {
+  activeTab?: FicheroTab;
+  defaultTab?: FicheroTab;
+  embedded?: boolean;
+  onTabChange?: (tab: FicheroTab) => void;
+  showTabs?: boolean;
+  showToolbar?: boolean;
+};
 
 const FAMILY_COLORS: Record<string, string> = {
   diagnostico: '#2a7de1',
@@ -192,13 +201,22 @@ function horarioResumen(form: HorarioForm) {
   return parts.length ? parts.join(' / ') : 'Sin bloques';
 }
 
-export default function ConfiguracionPage() {
+export function ConfiguracionWorkspace({
+  activeTab,
+  defaultTab = 'general',
+  embedded = false,
+  onTabChange,
+  showTabs = true,
+  showToolbar = true,
+}: ConfiguracionWorkspaceProps = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialTab = FICHEROS.includes(searchParams.get('tab') as FicheroTab) ? searchParams.get('tab') as FicheroTab : 'general';
-  const [tab, setTab] = useState<FicheroTab>(initialTab);
+  const requestedTab = searchParams.get('tab') as FicheroTab | null;
+  const initialTab = activeTab ?? (FICHEROS.includes(requestedTab as FicheroTab) ? requestedTab as FicheroTab : defaultTab);
+  const [internalTab, setInternalTab] = useState<FicheroTab>(initialTab);
+  const tab = activeTab ?? internalTab;
   const [doctorId, setDoctorId] = useState(searchParams.get('doctor_id') ?? '');
   const [doctorForm, setDoctorForm] = useState<DoctorForm>(EMPTY_DOCTOR_FORM);
   const [horarioForms, setHorarioForms] = useState<Record<number, HorarioForm>>({});
@@ -244,12 +262,13 @@ export default function ConfiguracionPage() {
   }, [activeDoctorRecord?.id, activeDoctorRecord?.nombre, activeDoctorRecord?.color_agenda, activeDoctorRecord?.porcentaje]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (embedded) return;
     const nextTab = searchParams.get('tab') as FicheroTab | null;
     const nextDoctorId = searchParams.get('doctor_id');
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (nextTab && FICHEROS.includes(nextTab)) setTab(nextTab);
+    if (nextTab && FICHEROS.includes(nextTab)) setInternalTab(nextTab);
     if (nextDoctorId) setDoctorId(nextDoctorId);
-  }, [searchParams]);
+  }, [embedded, searchParams]);
 
   useEffect(() => {
     const next: Record<number, HorarioForm> = {};
@@ -405,9 +424,17 @@ export default function ConfiguracionPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['backups'] }),
   });
 
+  function selectTab(nextTab: FicheroTab) {
+    if (onTabChange) {
+      onTabChange(nextTab);
+      return;
+    }
+    setInternalTab(nextTab);
+  }
+
   return (
-    <section className="page fichero-screen">
-      <div className="toolbar">
+    <section className={`page fichero-screen${embedded ? ' admin-config-embedded' : ''}`}>
+      {showToolbar && <div className="toolbar">
         <div>
           <p className="eyebrow">Admin</p>
           <h1>Ajustes generales de la clínica</h1>
@@ -416,11 +443,11 @@ export default function ConfiguracionPage() {
           <span>Rol activo</span>
           <strong>{user?.rol ? ROLE_LABELS[user.rol] : 'Sin sesion'}</strong>
         </div>
-      </div>
+      </div>}
 
-      <nav className="file-tabs">
+      {showTabs && <nav className="file-tabs">
         {FICHEROS.map((item) => (
-          <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
+          <button key={item} className={tab === item ? 'active' : ''} onClick={() => selectTab(item)}>
             {item === 'general' && 'General'}
             {item === 'doctores' && 'Doctores'}
             {item === 'tratamientos' && 'Tratamientos'}
@@ -432,17 +459,17 @@ export default function ConfiguracionPage() {
             {item === 'roles' && 'Usuarios/Roles'}
           </button>
         ))}
-      </nav>
+      </nav>}
 
       {tab === 'general' && (
         <div className="settings-overview-grid">
           <section className="desk-panel">
             <div className="panel-caption"><strong>Resumen de ajustes</strong><AccessPill allowed={isAdmin} /></div>
             <div className="settings-kpis">
-              <button onClick={() => setTab('doctores')}><strong>{doctores.length}</strong><span>Doctores/auxiliares</span></button>
-              <button onClick={() => setTab('tratamientos')}><strong>{tratamientos.length}</strong><span>Tratamientos activos</span></button>
-              <button onClick={() => setTab('agenda')}><strong>{horariosQuery.data?.length ?? 0}</strong><span>Horarios del doctor</span></button>
-              <button onClick={() => setTab('roles')}><strong>{WORKFLOW_ITEMS.length}</strong><span>Secciones con permisos</span></button>
+              <button onClick={() => selectTab('doctores')}><strong>{doctores.length}</strong><span>Doctores/auxiliares</span></button>
+              <button onClick={() => selectTab('tratamientos')}><strong>{tratamientos.length}</strong><span>Tratamientos activos</span></button>
+              <button onClick={() => selectTab('agenda')}><strong>{horariosQuery.data?.length ?? 0}</strong><span>Horarios del doctor</span></button>
+              <button onClick={() => selectTab('roles')}><strong>{WORKFLOW_ITEMS.length}</strong><span>Secciones con permisos</span></button>
             </div>
           </section>
           <section className="desk-panel">
@@ -872,4 +899,8 @@ export default function ConfiguracionPage() {
       )}
     </section>
   );
+}
+
+export default function ConfiguracionPage() {
+  return <ConfiguracionWorkspace />;
 }

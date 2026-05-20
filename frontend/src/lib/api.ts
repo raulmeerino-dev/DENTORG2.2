@@ -46,6 +46,8 @@ import type {
   SaldoPaciente,
   IngresosReporte,
   MovimientoInventario,
+  NotaDental,
+  NotaDentalCreateInput,
   PedidoProveedorInventario,
   PortalMe,
   ProductoInventario,
@@ -604,29 +606,20 @@ export async function getHistorialSinFacturar(pacienteId: string) {
 }
 
 export async function finalizarTratamientoSesion(data: SesionTratamientoRealizadoInput) {
-  const tratamiento = DEMO_TRATAMIENTO_BY_ID[data.tratamiento_id] ?? DEMO_TRATAMIENTOS.find((item) => item.id === data.tratamiento_id) ?? null;
-  const fallback: HistorialClinico = {
-    id: `demo-hist-${Date.now()}`,
-    paciente_id: data.paciente_id,
-    tratamiento_id: data.tratamiento_id,
-    doctor_id: data.doctor_id ?? 'demo-doc-1',
-    gabinete_id: data.gabinete_id ?? null,
-    pieza_dental: data.pieza_dental ?? null,
-    caras: data.caras ?? null,
-    fecha: data.fecha ?? new Date().toISOString().slice(0, 10),
-    diagnostico: 'Tratamiento realizado en sesion clinica',
-    procedimiento: data.procedimiento ?? tratamiento?.nombre ?? 'Tratamiento dental',
-    observaciones: data.observaciones ?? null,
-    estado: 'realizado',
-    importe: data.importe != null ? String(data.importe) : tratamiento?.precio ?? null,
-    factura_id: null,
-    origen: data.origen,
-    presupuesto_linea_id: data.presupuesto_linea_id ?? null,
-    cita_id: data.cita_id ?? null,
-    tratamiento,
-    doctor: { id: data.doctor_id ?? 'demo-doc-1', nombre: 'Doctor' },
-  };
-  return withDemoFallback(api.post<HistorialClinico>('/tratamientos/historial/sesion-realizada', data), fallback);
+  const { data: saved } = await api.post<HistorialClinico>('/tratamientos/historial/sesion-realizada', data);
+  return saved;
+}
+
+export async function getNotasDentalesPaciente(pacienteId: string, pieza?: number) {
+  const { data } = await api.get<NotaDental[]>(`/tratamientos/notas-dentales/${pacienteId}`, {
+    params: pieza ? { pieza } : undefined,
+  });
+  return data;
+}
+
+export async function createNotaDental(data: NotaDentalCreateInput) {
+  const { data: saved } = await api.post<NotaDental>('/tratamientos/notas-dentales', data);
+  return saved;
 }
 
 export async function getDocumentosPaciente(pacienteId: string, categoria?: string) {
@@ -1210,28 +1203,8 @@ export async function createCita(data: {
   recordatorio_estado?: string | null;
   motivo_cancelacion?: string | null;
 }) {
-  const paciente = DEMO_PACIENTES.find((item) => item.id === data.paciente_id) ?? DEMO_PACIENTES[0];
-  const doctor = DEMO_DOCTORES.find((item) => item.id === data.doctor_id) ?? DEMO_DOCTORES[0];
-  return withDemoFallback(api.post<Cita>('/citas', data), {
-    id: `demo-cita-${Date.now()}`,
-    paciente_id: data.paciente_id,
-    doctor_id: data.doctor_id,
-    gabinete_id: data.gabinete_id ?? null,
-    fecha_hora: data.fecha_hora,
-    duracion_min: data.duracion_min,
-    estado: 'programada',
-    es_urgencia: false,
-    motivo: data.motivo ?? null,
-    observaciones: data.observaciones ?? null,
-    recordatorio_enviado: Boolean(data.recordatorio_enviado),
-    recordatorio_canal: data.recordatorio_canal ?? null,
-    recordatorio_estado: data.recordatorio_estado ?? null,
-    recordatorio_at: null,
-    confirmado_at: null,
-    motivo_cancelacion: data.motivo_cancelacion ?? null,
-    paciente: { nombre: paciente.nombre, apellidos: paciente.apellidos, telefono: paciente.telefono },
-    doctor: { nombre: doctor.nombre, color_agenda: doctor.color_agenda },
-  });
+  const { data: created } = await api.post<Cita>('/citas', data);
+  return created;
 }
 
 export async function updateCita(citaId: string, data: Partial<{
@@ -1376,9 +1349,16 @@ export async function getCambiosCita(citaId: string) {
 
 export async function getTelefonear() {
   return withDemoFallback(api.get<TelefonearPendiente[]>('/citas/panel/telefonear/pendientes'), [
-    { id: 'demo-tel-1', paciente: { nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', telefono: '942503186' }, doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda }, motivo: 'Confirmar cita', notas: 'Prefiere tarde', estado_contacto: 'pendiente', ultimo_intento_at: null, proximo_intento_at: new Date().toISOString(), reubicada: false },
-    { id: 'demo-tel-2', paciente: { nombre: 'PILAR', apellidos: 'OJEDA CALVO', telefono: '600000001' }, doctor: { nombre: DEMO_DOCTORES[1].nombre, color_agenda: DEMO_DOCTORES[1].color_agenda }, motivo: 'Buscar hueco', notas: 'No responde a primera hora', estado_contacto: 'no_responde', ultimo_intento_at: new Date().toISOString(), proximo_intento_at: null, reubicada: false },
+    { id: 'demo-tel-1', cita_original_id: 'demo-cita-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', nueva_cita_id: null, paciente: { nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', telefono: '942503186' }, doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda }, motivo: 'Confirmar cita', notas: 'Prefiere tarde', estado_contacto: 'pendiente', ultimo_intento_at: null, proximo_intento_at: new Date().toISOString(), reubicada: false },
+    { id: 'demo-tel-2', cita_original_id: 'demo-cita-2', paciente_id: 'demo-pac-2', doctor_id: 'demo-doc-2', nueva_cita_id: null, paciente: { nombre: 'PILAR', apellidos: 'OJEDA CALVO', telefono: '600000001' }, doctor: { nombre: DEMO_DOCTORES[1].nombre, color_agenda: DEMO_DOCTORES[1].color_agenda }, motivo: 'Buscar hueco', notas: 'No responde a primera hora', estado_contacto: 'no_responde', ultimo_intento_at: new Date().toISOString(), proximo_intento_at: null, reubicada: false },
   ]);
+}
+
+export async function marcarTelefonearReubicada(entradaId: string, nuevaCitaId: string) {
+  const { data } = await api.patch<TelefonearPendiente>(`/citas/telefonear/${entradaId}/reubicar`, null, {
+    params: { nueva_cita_id: nuevaCitaId },
+  });
+  return data;
 }
 
 export async function getDoctores() {

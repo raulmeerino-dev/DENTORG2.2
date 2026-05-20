@@ -70,7 +70,7 @@
 }
 
 .odontogram-flow-panel .od-chart-area {
-  min-height: 360px;
+  min-height: 410px;
   padding: 8px;
 }
 
@@ -161,11 +161,11 @@
 }
 
 .odontogram-summary-flow .od-occlusal-cell {
-  height: 28px;
+  height: 40px;
 }
 
 .odontogram-summary-flow .od-occlusal-svg {
-  height: 28px;
+  height: 38px;
 }
 
 .od-demo-debug {
@@ -343,7 +343,7 @@
 }
 
 .od-chart-area {
-  min-height: 424px;
+  min-height: 470px;
   padding: 10px 12px 10px;
   border: 1px solid rgba(220, 232, 239, 0.75);
   border-radius: 8px;
@@ -393,7 +393,7 @@
   gap: 3px;
   align-items: center;
   min-width: var(--od-chart-grid-width);
-  padding: 1px 0 3px;
+  padding: 4px 0 6px;
 }
 
 .od-number-row {
@@ -428,17 +428,17 @@
 }
 
 .od-occlusal-row-lower {
-  padding: 3px 0 1px;
+  padding: 6px 0 4px;
 }
 
 .od-occlusal-cell {
   display: grid;
   place-items: center;
   min-width: 0;
-  height: 38px;
+  height: 56px;
   padding: 0;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
   transition:
     background 160ms ease,
@@ -459,29 +459,29 @@
 .od-occlusal-svg {
   display: block;
   width: 100%;
-  max-width: 58px;
-  height: 36px;
+  max-width: 70px;
+  height: 54px;
   overflow: visible;
 }
 
 .od-occlusal-cell.od-tooth-type-incisor .od-occlusal-svg {
-  max-width: 46px;
+  max-width: 56px;
 }
 
 .od-occlusal-cell.od-tooth-type-canine .od-occlusal-svg {
-  max-width: 50px;
+  max-width: 60px;
 }
 
 .od-occlusal-cell.od-tooth-type-premolar .od-occlusal-svg {
-  max-width: 54px;
+  max-width: 64px;
 }
 
 .od-occlusal-cell.od-tooth-type-molar .od-occlusal-svg {
-  max-width: 66px;
+  max-width: 78px;
 }
 
 .od-occlusal-svg path {
-  stroke-width: 1.05;
+  stroke-width: 1.1;
   transition:
     fill 140ms ease,
     stroke 140ms ease,
@@ -489,14 +489,19 @@
     filter 140ms ease;
 }
 
+.od-occlusal-svg .od-surface {
+  cursor: pointer;
+}
+
 .od-occlusal-svg .od-surface:hover {
-  filter: drop-shadow(0 2px 4px rgba(0, 126, 167, 0.22));
+  filter: drop-shadow(0 2px 5px rgba(0, 126, 167, 0.28));
   stroke: var(--od-action);
+  stroke-width: 1.6;
 }
 
 .od-occlusal-svg .od-surface.is-active {
   stroke: var(--od-action);
-  stroke-width: 2;
+  stroke-width: 2.2;
 }
 
 .od-occlusal-svg.is-missing {
@@ -601,6 +606,7 @@
 
 .od-tooth-svg .od-surface {
   pointer-events: all;
+  cursor: pointer;
 }
 
 .od-tooth-svg .od-surface:hover {
@@ -611,6 +617,11 @@
 .od-tooth-svg .od-surface.is-active {
   stroke: var(--od-action);
   stroke-width: 2.15;
+}
+
+.od-tooth-svg .od-tooth-body {
+  pointer-events: all;
+  cursor: pointer;
 }
 
 .od-tooth-svg.is-missing {

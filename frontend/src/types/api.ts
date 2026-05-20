@@ -372,6 +372,10 @@ export interface CitaCambio {
 
 export interface TelefonearPendiente {
   id: string;
+  cita_original_id: string;
+  paciente_id: string;
+  doctor_id: string;
+  nueva_cita_id: string | null;
   paciente: { nombre: string; apellidos: string; telefono: string | null } | null;
   doctor: { nombre: string; color_agenda: string | null } | null;
   motivo: string | null;
@@ -527,6 +531,30 @@ export interface RecetaClinica {
   pdf_generado_at: string | null;
   created_at: string;
   doctor?: { id: string; nombre: string } | null;
+}
+
+export interface NotaDental {
+  id: string;
+  paciente_id: string;
+  pieza_dental: number;
+  caras: string | null;
+  texto: string;
+  fecha: string;
+  doctor_id: string | null;
+  cita_id: string | null;
+  historial_id: string | null;
+  doctor?: { id: string; nombre: string } | null;
+}
+
+export interface NotaDentalCreateInput {
+  paciente_id: string;
+  pieza_dental: number;
+  caras?: string | null;
+  texto: string;
+  fecha?: string | null;
+  doctor_id?: string | null;
+  cita_id?: string | null;
+  historial_id?: string | null;
 }
 
 export interface RecetaCreateInput {

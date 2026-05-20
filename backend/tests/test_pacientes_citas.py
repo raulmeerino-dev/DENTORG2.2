@@ -560,6 +560,112 @@ async def test_tratamiento_historial_y_presupuesto(client: AsyncClient, db_sessi
     assert presupuesto.status_code == 201
     assert float(presupuesto.json()["total"]) == 50.0
 
+    nota = await client.post(
+        "/api/tratamientos/notas-dentales",
+        headers=headers,
+        json={
+            "paciente_id": paciente_id,
+            "doctor_id": str(doctor.id),
+            "pieza_dental": 24,
+            "caras": "MO",
+            "texto": "Sensibilidad al frio en mesial",
+        },
+    )
+    assert nota.status_code == 201
+    assert nota.json()["texto"] == "Sensibilidad al frio en mesial"
+    assert nota.json()["pieza_dental"] == 24
+
+    notas = await client.get(f"/api/tratamientos/notas-dentales/{paciente_id}?pieza=24", headers=headers)
+    assert notas.status_code == 200
+    assert notas.json()[0]["texto"] == "Sensibilidad al frio en mesial"
+
+
+@pytest.mark.asyncio
+async def test_sesion_realizada_desde_presupuesto_cierra_pendiente(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers(client, db_session)
+    doctor = Doctor(nombre="Dra. Sesion", color_agenda="#0891b2", activo=True)
+    familia = FamiliaTratamiento(nombre="Endodoncia", icono="EN", orden=3, activo=True)
+    db_session.add_all([doctor, familia])
+    await db_session.flush()
+    tratamiento = TratamientoCatalogo(
+        familia_id=familia.id,
+        codigo=f"END-{uuid4().hex[:6]}",
+        nombre="Endodoncia test",
+        precio=120,
+        iva_porcentaje=0,
+        requiere_pieza=True,
+        requiere_caras=True,
+        activo=True,
+    )
+    db_session.add(tratamiento)
+    await db_session.commit()
+
+    paciente_res = await client.post(
+        "/api/pacientes",
+        headers=headers,
+        json={"nombre": "Nora", "apellidos": "Sesion", "telefono": "600000003"},
+    )
+    assert paciente_res.status_code == 201
+    paciente_id = paciente_res.json()["id"]
+
+    presupuesto = await client.post(
+        "/api/presupuestos",
+        headers=headers,
+        json={
+            "paciente_id": paciente_id,
+            "doctor_id": str(doctor.id),
+            "fecha": datetime.now(timezone.utc).date().isoformat(),
+            "lineas": [{
+                "tratamiento_id": str(tratamiento.id),
+                "pieza_dental": 36,
+                "caras": "O",
+                "precio_unitario": "120.00",
+                "descuento_porcentaje": "0.00",
+            }],
+        },
+    )
+    assert presupuesto.status_code == 201
+    presupuesto_id = presupuesto.json()["id"]
+    linea_id = presupuesto.json()["lineas"][0]["id"]
+
+    aceptado = await client.post(
+        f"/api/presupuestos/{presupuesto_id}/aceptar",
+        headers=headers,
+        json={"pasar_a_trabajo_pendiente": True},
+    )
+    assert aceptado.status_code == 200
+
+    pendientes = await client.get(f"/api/presupuestos/trabajo-pendiente/{paciente_id}", headers=headers)
+    assert pendientes.status_code == 200
+    assert any(item["presupuesto_linea_id"] == linea_id for item in pendientes.json())
+
+    realizado = await client.post(
+        "/api/tratamientos/historial/sesion-realizada",
+        headers=headers,
+        json={
+            "paciente_id": paciente_id,
+            "tratamiento_id": str(tratamiento.id),
+            "doctor_id": str(doctor.id),
+            "presupuesto_linea_id": linea_id,
+            "pieza_dental": 36,
+            "caras": "O",
+            "procedimiento": "Endodoncia pieza 36",
+            "observaciones": "Conductometria y obturacion realizadas",
+            "origen": "presupuesto_linea",
+        },
+    )
+    assert realizado.status_code == 201
+    assert realizado.json()["presupuesto_linea_id"] == linea_id
+    assert realizado.json()["observaciones"] == "Conductometria y obturacion realizadas"
+
+    pendientes_cerrados = await client.get(f"/api/presupuestos/trabajo-pendiente/{paciente_id}", headers=headers)
+    assert pendientes_cerrados.status_code == 200
+    assert all(item["presupuesto_linea_id"] != linea_id for item in pendientes_cerrados.json())
+
+    historial = await client.get(f"/api/tratamientos/historial/{paciente_id}?pieza=36", headers=headers)
+    assert historial.status_code == 200
+    assert historial.json()[0]["presupuesto_linea_id"] == linea_id
+
 
 @pytest.mark.asyncio
 async def test_presupuesto_aceptado_se_factura_y_se_paga(client: AsyncClient, db_session: AsyncSession):

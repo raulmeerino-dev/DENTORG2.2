@@ -6,7 +6,6 @@ export type AppSection =
   | 'pacientes'
   | 'agenda'
   | 'listados'
-  | 'ficheros'
   | 'clinica'
   | 'caja'
   | 'documentos'
@@ -79,14 +78,6 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     roles: ['admin'],
     route: '/listados',
     shortcut: 'LI',
-  },
-  {
-    id: 'ficheros',
-    label: 'Configuracion',
-    description: 'Doctores, horarios, tratamientos, laboratorios, documentos y usuarios.',
-    roles: ['admin'],
-    route: '/configuracion',
-    shortcut: 'CO',
   },
   {
     id: 'clinica',

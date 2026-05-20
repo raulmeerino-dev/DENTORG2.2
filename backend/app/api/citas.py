@@ -907,6 +907,8 @@ async def marcar_reubicada(
     ensure_clinic_access(current_user, nueva_cita.clinica_id)
     entrada.reubicada = True
     entrada.nueva_cita_id = nueva_cita_id
+    entrada.estado_contacto = "cita_dada"
+    entrada.ultimo_intento_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(entrada)
     result2 = await db.execute(
