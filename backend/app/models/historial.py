@@ -53,3 +53,30 @@ class HistorialClinico(UUIDMixin, TimestampMixin, Base):
     factura: Mapped["Factura | None"] = relationship("Factura")  # noqa: F821
     presupuesto_linea: Mapped["PresupuestoLinea | None"] = relationship("PresupuestoLinea")  # noqa: F821
     cita: Mapped["Cita | None"] = relationship("Cita")  # noqa: F821
+
+
+class NotaDental(UUIDMixin, TimestampMixin, Base):
+    """Nota clínica puntual asociada a una pieza o superficie dental."""
+    __tablename__ = "notas_dentales"
+
+    paciente_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
+    )
+    doctor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True, index=True
+    )
+    cita_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("citas.id"), nullable=True, index=True
+    )
+    historial_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("historial_clinico.id"), nullable=True, index=True
+    )
+    pieza_dental: Mapped[int] = mapped_column(SmallInteger, nullable=False, index=True)
+    caras: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    texto: Mapped[str] = mapped_column(Text, nullable=False)
+    fecha: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+
+    paciente: Mapped["Paciente"] = relationship("Paciente")  # noqa: F821
+    doctor: Mapped["Doctor | None"] = relationship("Doctor")  # noqa: F821
+    cita: Mapped["Cita | None"] = relationship("Cita")  # noqa: F821
+    historial: Mapped["HistorialClinico | None"] = relationship("HistorialClinico")  # noqa: F821

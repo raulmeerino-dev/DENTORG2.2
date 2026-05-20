@@ -1,15 +1,35 @@
-type AdminTab = 'clinicas' | 'usuarios' | 'inventario' | 'catalogo' | 'reportes' | 'auditoria' | 'importacion' | 'seguridad' | 'backups';
+type AdminTab =
+  | 'general'
+  | 'clinicas'
+  | 'usuarios'
+  | 'doctores'
+  | 'tratamientos'
+  | 'agenda'
+  | 'caja'
+  | 'laboratorio'
+  | 'inventario'
+  | 'documentos'
+  | 'reportes'
+  | 'auditoria'
+  | 'importacion'
+  | 'seguridad'
+  | 'backups';
 
 export const ADMIN_TABS: Array<{ id: AdminTab; label: string }> = [
+  { id: 'general', label: 'General' },
   { id: 'clinicas', label: 'Clinicas' },
-  { id: 'usuarios', label: 'Usuarios' },
+  { id: 'usuarios', label: 'Usuarios/Roles' },
+  { id: 'doctores', label: 'Doctores' },
+  { id: 'agenda', label: 'Agenda/Horarios' },
+  { id: 'tratamientos', label: 'Tratamientos' },
+  { id: 'caja', label: 'Caja' },
+  { id: 'laboratorio', label: 'Protesicos/Lab.' },
   { id: 'inventario', label: 'Inventario' },
-  { id: 'catalogo', label: 'Catalogo tratamientos' },
+  { id: 'documentos', label: 'Documentos' },
   { id: 'reportes', label: 'Reportes' },
   { id: 'auditoria', label: 'Auditoria' },
   { id: 'importacion', label: 'Importacion' },
-  { id: 'seguridad', label: 'Seguridad' },
-  { id: 'backups', label: 'Backups' },
+  { id: 'seguridad', label: 'Seguridad/Backups' },
 ];
 
 export type AdminTabId = AdminTab;

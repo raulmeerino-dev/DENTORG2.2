@@ -4356,6 +4356,17 @@ html[data-theme="dark"] .history-billing-eurodent {
   gap: 10px;
 }
 
+.admin-config-embedded {
+  min-height: 0;
+  padding: 0 !important;
+  background: transparent !important;
+}
+
+.admin-security-stack {
+  display: grid;
+  gap: 10px;
+}
+
 .admin-extras .settings-form label {
   display: grid;
   gap: 4px;

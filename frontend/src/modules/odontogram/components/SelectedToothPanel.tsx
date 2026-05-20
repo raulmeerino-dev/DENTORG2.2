@@ -1,6 +1,5 @@
 import type { OdontogramMode, SurfaceKey, ToothData, ToothStatus } from '../types/odontogram.types';
 import { statusConfig } from '../data/statusConfig';
-import { getPrimarySurface } from '../data/toothMap';
 import { ToothSurfaceSelector } from './ToothSurfaceSelector';
 
 type SelectedToothPanelProps = {
@@ -114,8 +113,9 @@ export function SelectedToothPanel({
 }: SelectedToothPanelProps) {
   const copy = modeCopy[mode];
   const canEditStatus = !readOnly && statusEditingModes.has(mode);
-  const effectiveSurface = selectedSurface ?? getPrimarySurface(tooth.type);
-  const currentStatus = tooth.surfaces[selectedSurface ?? effectiveSurface] ?? tooth.status ?? 'healthy';
+  const currentStatus = selectedSurface
+    ? tooth.surfaces[selectedSurface] ?? tooth.status ?? 'healthy'
+    : tooth.status ?? tooth.surfaces.crown ?? 'healthy';
   const plannedTreatment =
     tooth.plannedTreatments?.find((treatment) => treatment.surface === selectedSurface) ?? tooth.plannedTreatments?.[0];
   const completedTreatment =

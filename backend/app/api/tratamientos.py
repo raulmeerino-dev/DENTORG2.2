@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
 from app.database import get_db
 from app.models.cita import Cita
-from app.models.historial import HistorialClinico
+from app.models.historial import HistorialClinico, NotaDental
 from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
 from app.models.paciente import Paciente
 from app.models.presupuesto import PresupuestoLinea, TrabajoPendiente
@@ -29,6 +29,8 @@ from app.schemas.tratamiento import (
     HistorialCreate,
     HistorialResponse,
     HistorialUpdate,
+    NotaDentalCreate,
+    NotaDentalResponse,
     SesionTratamientoRealizadoCreate,
     TratamientoCreate,
     TratamientoResponse,
@@ -329,6 +331,81 @@ async def registrar_tratamiento(
         .where(HistorialClinico.id == entrada.id)
     )
     return HistorialResponse.model_validate(result.scalar_one())
+
+
+@router.get("/notas-dentales/{paciente_id}", response_model=list[NotaDentalResponse])
+async def notas_dentales_paciente(
+    paciente_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    pieza: int | None = Query(None, description="Filtrar por pieza FDI"),
+) -> list[NotaDentalResponse]:
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    stmt = (
+        select(NotaDental)
+        .options(selectinload(NotaDental.doctor))
+        .where(NotaDental.paciente_id == paciente_id)
+        .order_by(NotaDental.fecha.desc(), NotaDental.created_at.desc())
+    )
+    if pieza:
+        stmt = stmt.where(NotaDental.pieza_dental == pieza)
+    result = await db.execute(stmt)
+    return [NotaDentalResponse.model_validate(item) for item in result.scalars().all()]
+
+
+@router.post("/notas-dentales", response_model=NotaDentalResponse, status_code=201)
+async def crear_nota_dental(
+    data: NotaDentalCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> NotaDentalResponse:
+    if current_user.rol not in {"admin", "doctor", "auxiliar"}:
+        raise HTTPException(status_code=403, detail="No puede crear notas clinicas.")
+
+    paciente = await db.get(Paciente, data.paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
+    doctor_id = data.doctor_id
+    if data.cita_id:
+        cita = await db.get(Cita, data.cita_id)
+        if not cita or cita.paciente_id != data.paciente_id:
+            raise HTTPException(status_code=404, detail="Cita no encontrada para el paciente")
+        ensure_clinic_access(current_user, cita.clinica_id)
+        doctor_id = doctor_id or cita.doctor_id
+
+    if data.historial_id:
+        historial = await db.get(HistorialClinico, data.historial_id)
+        if not historial or historial.paciente_id != data.paciente_id:
+            raise HTTPException(status_code=404, detail="Entrada de historial no encontrada para el paciente")
+        doctor_id = doctor_id or historial.doctor_id
+
+    doctor_id = doctor_id or await _current_user_doctor_id(db, current_user)
+    texto = data.texto.strip()
+    if not texto:
+        raise HTTPException(status_code=422, detail="La nota no puede estar vacia")
+    nota = NotaDental(
+        paciente_id=data.paciente_id,
+        doctor_id=doctor_id,
+        cita_id=data.cita_id,
+        historial_id=data.historial_id,
+        pieza_dental=data.pieza_dental,
+        caras=_normalize_caras(data.caras),
+        texto=texto,
+        fecha=data.fecha or date_type.today(),
+    )
+    db.add(nota)
+    await db.commit()
+    result = await db.execute(
+        select(NotaDental)
+        .options(selectinload(NotaDental.doctor))
+        .where(NotaDental.id == nota.id)
+    )
+    return NotaDentalResponse.model_validate(result.scalar_one())
 
 
 @router.post("/historial/sesion-realizada", response_model=HistorialResponse, status_code=201)

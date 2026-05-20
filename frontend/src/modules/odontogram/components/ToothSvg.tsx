@@ -1,7 +1,6 @@
 import type { Arch, Side, SurfaceKey, ToothStatus, ToothType } from '../types/odontogram.types';
 import { getToothAnatomy, type ToothAnatomy } from '../data/toothAnatomy';
 import { statusConfig } from '../data/statusConfig';
-import { getPrimarySurface } from '../data/toothMap';
 
 type ToothSvgProps = {
   toothNumber: string;
@@ -150,25 +149,34 @@ export function ToothSvg({
   onOpenContextMenu,
 }: ToothSvgProps) {
   const anatomy = getToothAnatomy(toothNumber, arch, toothType);
-  const primarySurface = getPrimarySurface(toothType);
   const innerSurface: SurfaceKey = arch === 'upper' ? 'palatal' : 'lingual';
   const isMissing = status === 'missing';
   const archTransform = arch === 'upper' ? 'translate(0 160) scale(1 -1)' : '';
   const assetBox = getAssetBox(toothNumber, toothType, arch);
 
-  const selectSurface = (event: React.MouseEvent<SVGElement>, surface: SurfaceKey) => {
+  const selectRoot = (event: React.MouseEvent<SVGElement>) => {
     event.stopPropagation();
-    onSelectSurface(toothNumber, surface);
+    onSelectSurface(toothNumber, 'root');
   };
-  const openTreatment = (event: React.MouseEvent<SVGElement>, surface?: SurfaceKey) => {
+  const openTreatmentTooth = (event: React.MouseEvent<SVGElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    onOpenQuickTreatment(toothNumber, surface);
+    onOpenQuickTreatment(toothNumber, undefined);
   };
-  const openContextMenu = (event: React.MouseEvent<SVGElement>, surface?: SurfaceKey) => {
+  const openContextMenuTooth = (event: React.MouseEvent<SVGElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    onOpenContextMenu(toothNumber, surface, event.clientX, event.clientY);
+    onOpenContextMenu(toothNumber, undefined, event.clientX, event.clientY);
+  };
+  const openTreatmentRoot = (event: React.MouseEvent<SVGElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenQuickTreatment(toothNumber, 'root');
+  };
+  const openContextMenuRoot = (event: React.MouseEvent<SVGElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenContextMenu(toothNumber, 'root', event.clientX, event.clientY);
   };
 
   const surfaceClass = (surface: SurfaceKey) => (selectedSurface === surface ? 'od-surface is-active' : 'od-surface');
@@ -187,6 +195,9 @@ export function ToothSvg({
     if (!surfaceStatus || surfaceStatus === 'healthy') return 'transparent';
     return statusConfig[surfaceStatus].softColor;
   };
+  const hasSurfaceState = (surface: SurfaceKey) =>
+    Boolean(surfaces[surface] && surfaces[surface] !== 'healthy');
+  const overlayOpacity = (surface: SurfaceKey) => (hasSurfaceState(surface) ? 0.72 : 0);
 
   return (
     <svg
@@ -195,8 +206,8 @@ export function ToothSvg({
       role="img"
       aria-label={`Pieza ${toothNumber}`}
       onClick={() => onSelectTooth(toothNumber)}
-      onDoubleClick={(event) => openTreatment(event, undefined)}
-      onContextMenu={(event) => openContextMenu(event, undefined)}
+      onDoubleClick={openTreatmentTooth}
+      onContextMenu={openContextMenuTooth}
       overflow="visible"
     >
       <defs>
@@ -235,9 +246,9 @@ export function ToothSvg({
             rootPaint={rootPaint}
             rootStroke={line('root')}
             rootClassName={surfaceClass('root')}
-            onSelectRoot={(event) => selectSurface(event, 'root')}
-            onOpenQuickTreatment={(event) => openTreatment(event, 'root')}
-            onOpenContextMenu={(event) => openContextMenu(event, 'root')}
+            onSelectRoot={selectRoot}
+            onOpenQuickTreatment={openTreatmentRoot}
+            onOpenContextMenu={openContextMenuRoot}
           />
         </g>
         {assetUrl ? (
@@ -248,75 +259,51 @@ export function ToothSvg({
             rootStroke={selectedSurface === 'root' || hasRootState ? line('root') : 'transparent'}
             rootClassName={surfaceClass('root')}
             opacity={rootOverlayOpacity}
-            onSelectRoot={(event) => selectSurface(event, 'root')}
-            onOpenQuickTreatment={(event) => openTreatment(event, 'root')}
-            onOpenContextMenu={(event) => openContextMenu(event, 'root')}
+            onSelectRoot={selectRoot}
+            onOpenQuickTreatment={openTreatmentRoot}
+            onOpenContextMenu={openContextMenuRoot}
           />
         ) : null}
         <path
           id={`tooth-${toothNumber}-crown`}
-          className={surfaceClass('crown')}
+          className="od-tooth-body"
           d={anatomy.crown}
           fill={assetUrl ? 'transparent' : crownPaint}
           stroke={assetUrl ? 'transparent' : viewStroke('vestibular')}
-          onClick={(event) => selectSurface(event, 'crown')}
-          onDoubleClick={(event) => openTreatment(event, 'crown')}
-          onContextMenu={(event) => openContextMenu(event, 'crown')}
         />
         <path
           id={`tooth-${toothNumber}-mesial`}
-          className={surfaceClass('mesial')}
           d="M22 46 C22 37 29 31 39 29 L39 68 C30 67 24 60 22 50 Z"
           fill={overlayFill('mesial')}
           stroke={line('mesial')}
-          opacity={surfaces.mesial || selectedSurface === 'mesial' ? 0.72 : 0}
-          onClick={(event) => selectSurface(event, 'mesial')}
-          onDoubleClick={(event) => openTreatment(event, 'mesial')}
-          onContextMenu={(event) => openContextMenu(event, 'mesial')}
+          opacity={overlayOpacity('mesial')}
+          pointerEvents="none"
         />
         <path
           id={`tooth-${toothNumber}-distal`}
-          className={surfaceClass('distal')}
           d="M51 29 C61 31 68 37 68 46 L66 50 C66 60 60 67 51 68 Z"
           fill={overlayFill('distal')}
           stroke={line('distal')}
-          opacity={surfaces.distal || selectedSurface === 'distal' ? 0.72 : 0}
-          onClick={(event) => selectSurface(event, 'distal')}
-          onDoubleClick={(event) => openTreatment(event, 'distal')}
-          onContextMenu={(event) => openContextMenu(event, 'distal')}
+          opacity={overlayOpacity('distal')}
+          pointerEvents="none"
         />
         <path
           id={`tooth-${toothNumber}-inner`}
-          className={surfaceClass(innerSurface)}
           d="M29 55 C39 61 51 61 61 55 L58 66 C50 72 40 72 32 66 Z"
           fill={overlayFill(innerSurface)}
           stroke={line(innerSurface)}
-          opacity={surfaces[innerSurface] || selectedSurface === innerSurface ? 0.72 : 0}
-          onClick={(event) => selectSurface(event, innerSurface)}
-          onDoubleClick={(event) => openTreatment(event, innerSurface)}
-          onContextMenu={(event) => openContextMenu(event, innerSurface)}
-        />
-        <path
-          id={`tooth-${toothNumber}-primary-surface`}
-          className={surfaceClass(primarySurface)}
-          d="M34 38 C41 34 49 34 56 38 L54 53 C49 58 41 58 36 53 Z"
-          fill={overlayFill(primarySurface)}
-          stroke={line(primarySurface)}
-          opacity={surfaces[primarySurface] || selectedSurface === primarySurface ? 0.76 : 0}
-          onClick={(event) => selectSurface(event, primarySurface)}
-          onDoubleClick={(event) => openTreatment(event, primarySurface)}
-          onContextMenu={(event) => openContextMenu(event, primarySurface)}
+          opacity={overlayOpacity(innerSurface)}
+          pointerEvents="none"
         />
         {!assetUrl ? (
           <>
             <path
-              id={`tooth-${toothNumber}-vestibular`}
-              className={surfaceClass('vestibular')}
+              id={`tooth-${toothNumber}-grooves`}
               d={anatomy.grooves}
               fill="none"
               stroke={groove}
               opacity="0.42"
-              onClick={(event) => selectSurface(event, 'vestibular')}
+              pointerEvents="none"
             />
             <path d={anatomy.highlightPrimary} fill="#FFFFFF" opacity="0.74" pointerEvents="none" />
             <path d={anatomy.highlightSecondary} fill="#FFFFFF" opacity="0.5" pointerEvents="none" />

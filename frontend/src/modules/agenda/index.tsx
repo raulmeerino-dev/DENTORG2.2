@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, marcarFaltaCita, updateCita } from '../../lib/api';
+import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, marcarFaltaCita, marcarTelefonearReubicada, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
 import { CancelCitaModal } from './modals/CancelCitaModal';
 
@@ -11,6 +11,8 @@ type SlotDraft = {
   slot: string;
   doctorId: string;
   pacienteId?: string;
+  motivo?: string;
+  telefonearId?: string;
 };
 
 type HuecoResultado = HuecoLibre & {
@@ -317,6 +319,7 @@ function CitaModal({
     motivo: string;
     observaciones: string;
     gabinete_id: string | null;
+    telefonearId?: string;
   }) => void;
   onCreateTemporaryPaciente: (data: { nombreCompleto: string; telefono: string }) => Promise<ApiPaciente>;
   onStartVideo: (cita: Cita) => Promise<string>;
@@ -330,7 +333,8 @@ function CitaModal({
   const [hora, setHora] = useState((cita?.fecha_hora ?? (draft ? slotIso(draft.day, draft.slot) : `${todayIso()}T09:00:00`)).slice(11, 16));
   const [duracion, setDuracion] = useState(cita?.duracion_min ?? 30);
   const [estado, setEstado] = useState(cita?.estado ?? 'programada');
-  const [motivo, setMotivo] = useState(cita?.motivo ?? '');
+  const storedTreatment = !cita ? sessionStorage.getItem('dentorg_selected_treatment') : null;
+  const [motivo, setMotivo] = useState(cita?.motivo ?? draft?.motivo ?? storedTreatment ?? '');
   const [observaciones, setObservaciones] = useState(cita?.observaciones ?? '');
   const [gabinete, setGabinete] = useState(cita?.gabinete_id ?? '');
   const [tempName, setTempName] = useState('');
@@ -364,6 +368,7 @@ function CitaModal({
       motivo,
       observaciones,
       gabinete_id: gabinete || null,
+      telefonearId: draft?.telefonearId,
     });
   }
 
@@ -782,20 +787,36 @@ export default function AgendaPage() {
       motivo: string;
       observaciones: string;
       gabinete_id: string | null;
+      telefonearId?: string;
     }) => {
-      if (data.citaId) {
-        return updateCita(data.citaId, data);
+      const { telefonearId, citaId, ...citaData } = data;
+      if (citaId) {
+        return updateCita(citaId, citaData);
       }
-      const created = await createCita(data);
-      if (data.estado !== 'programada') {
-        return updateCita(created.id, { estado: data.estado });
+      const { estado, ...createPayload } = citaData;
+      const created = await createCita(createPayload);
+      const saved = estado !== 'programada'
+        ? await updateCita(created.id, { estado })
+        : created;
+      if (telefonearId) {
+        await marcarTelefonearReubicada(telefonearId, saved.id);
       }
-      return created;
+      return saved;
     },
-    onSuccess: () => {
+    onSuccess: (cita) => {
       setModalCita(null);
       setSlotDraft(null);
       void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      void queryClient.invalidateQueries({ queryKey: ['citas-paciente', cita.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', cita.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['pacientes'] });
+      void queryClient.invalidateQueries({ queryKey: ['telefonear'] });
+      sessionStorage.removeItem('dentorg_selected_treatment');
+      sessionStorage.removeItem('dentorg_selected_presupuesto_linea_id');
+      setToastMessage(null);
+    },
+    onError: (error) => {
+      setToastMessage(error instanceof Error ? error.message : 'No se pudo guardar la cita.');
     },
   });
 
@@ -916,10 +937,16 @@ export default function AgendaPage() {
       ?? '';
   }, [day, doctorId, doctores, horariosByDoctor]);
 
-  const openNew = useCallback((slot: string, pacienteId?: string, targetDay = day, targetDoctorId = doctorForSlot(slot, targetDay)) => {
+  const openNew = useCallback((
+    slot: string,
+    pacienteId?: string,
+    targetDay = day,
+    targetDoctorId = doctorForSlot(slot, targetDay),
+    meta: Pick<SlotDraft, 'motivo' | 'telefonearId'> = {},
+  ) => {
     setContextMenu(null);
     setModalCita(null);
-    setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId });
+    setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId, ...meta });
   }, [day, doctorForSlot]);
 
   useEffect(() => {
@@ -1059,7 +1086,7 @@ export default function AgendaPage() {
         }}
         onSearchCita={buscarCita}
         onSearchSlot={buscarHuecoLibre}
-        onOpenHorario={() => navigate(`/configuracion?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`)}
+        onOpenHorario={() => navigate(`/admin-extras?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`)}
       />
       {hasAgendaError && (
         <div className="inline-alert">
@@ -1111,7 +1138,12 @@ export default function AgendaPage() {
                     key={item.id}
                     draggable
                     onDragStart={(event) => {
-                      event.dataTransfer.setData('application/dentorg-patient', item.paciente ? JSON.stringify({ pacienteId: pacientes.find((p) => p.telefono === item.paciente?.telefono)?.id, name: `${item.paciente.apellidos}, ${item.paciente.nombre}` }) : '');
+                      event.dataTransfer.setData('application/dentorg-patient', JSON.stringify({
+                        pacienteId: item.paciente_id,
+                        telefonearId: item.id,
+                        motivo: item.motivo ?? item.notas ?? 'Reprogramar cita',
+                        name: item.paciente ? `${item.paciente.apellidos}, ${item.paciente.nombre}` : 'Paciente',
+                      }));
                     }}
                   >
                     <td>{item.paciente ? `${item.paciente.apellidos}, ${item.paciente.nombre}` : 'Paciente'}</td>
@@ -1183,8 +1215,16 @@ export default function AgendaPage() {
                   onDrop={(event) => {
                     event.preventDefault();
                     const raw = event.dataTransfer.getData('application/dentorg-patient');
-                    const parsed = raw ? JSON.parse(raw) as { pacienteId?: string } : {};
-                    openNew(slot, parsed.pacienteId);
+                    let parsed: { pacienteId?: string; telefonearId?: string; motivo?: string } = {};
+                    try {
+                      parsed = raw ? JSON.parse(raw) as typeof parsed : {};
+                    } catch {
+                      parsed = {};
+                    }
+                    openNew(slot, parsed.pacienteId, day, doctorForSlot(slot, day), {
+                      telefonearId: parsed.telefonearId,
+                      motivo: parsed.motivo,
+                    });
                   }}
                 >
                   {showNowLine && nowSlot === slot && (

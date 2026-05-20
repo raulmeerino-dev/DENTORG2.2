@@ -22,7 +22,6 @@ vi.mock('./modules/pacientes', () => ({ default: () => <div>Pacientes page</div>
 vi.mock('./modules/agenda', () => ({ default: () => <div>Agenda page</div> }));
 vi.mock('./modules/caja', () => ({ default: () => <div>Caja page</div> }));
 vi.mock('./modules/listados', () => ({ default: () => <div>Listados page</div> }));
-vi.mock('./modules/configuracion', () => ({ default: () => <div>Configuracion page</div> }));
 vi.mock('./modules/auth/LoginPage', () => ({ default: () => <div>Login page</div> }));
 vi.mock('./modules/misCitas', () => ({ default: () => <div>Mis citas page</div> }));
 vi.mock('./modules/adminExtras', () => ({
@@ -42,5 +41,12 @@ describe('App navigation', () => {
     render(<App />);
 
     await waitFor(() => expect(screen.getByText(/Admin extras \?tab=reportes/i)).toBeInTheDocument());
+  });
+
+  it('redirects legacy configuracion tabs to unified Admin', async () => {
+    window.history.pushState({}, '', '/configuracion?tab=tratamientos');
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/Admin extras \?tab=tratamientos/i)).toBeInTheDocument());
   });
 });

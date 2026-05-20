@@ -7,6 +7,8 @@ import type {
   Consentimiento,
   DocumentoPaciente,
   HistorialClinico,
+  NotaDental,
+  NotaDentalCreateInput,
   PlantillaConsentimiento,
   Presupuesto,
   PresupuestoLinea,
@@ -74,6 +76,7 @@ type VisitGroup = {
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
   laboratorio: TrabajoLaboratorio[];
+  notasDentales: NotaDental[];
   comentarios: string[];
 };
 
@@ -176,6 +179,7 @@ function buildVisitGroups({
   consentimientos,
   recetas,
   laboratorio,
+  notasDentales,
 }: {
   citas: Cita[];
   historial: HistorialClinico[];
@@ -184,6 +188,7 @@ function buildVisitGroups({
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
   laboratorio: TrabajoLaboratorio[];
+  notasDentales: NotaDental[];
 }) {
   const groups = new Map<string, VisitGroup>();
 
@@ -205,6 +210,7 @@ function buildVisitGroups({
       consentimientos: [],
       recetas: [],
       laboratorio: [],
+      notasDentales: [],
       comentarios: [],
     };
     groups.set(key, group);
@@ -260,6 +266,11 @@ function buildVisitGroups({
   });
   recetas.forEach((receta) => {
     ensure(receta.fecha_prescripcion, receta.fecha_prescripcion).recetas.push(receta);
+  });
+  notasDentales.forEach((nota) => {
+    const group = ensure(nota.fecha, nota.fecha);
+    group.notasDentales.push(nota);
+    group.comentarios.push(`Pieza ${nota.pieza_dental}${nota.caras ? ` - ${nota.caras}` : ''}: ${nota.texto}`);
   });
   laboratorio.forEach((trabajo) => {
     const date = trabajo.fecha_recepcion || trabajo.fecha_salida || trabajo.fecha_entrega_prevista;
@@ -336,6 +347,7 @@ function SessionWorkspace({
   historial,
   presupuestos,
   tratamientos,
+  notasDentales,
   doctorId,
   userRole,
   onCrearReceta,
@@ -344,12 +356,14 @@ function SessionWorkspace({
   onCrearPedidoLabForLine,
   onOpenDocumentos,
   onFinalizarTratamientoSesion,
+  onCreateNotaDental,
 }: {
   paciente: ApiPaciente | null;
   citas: Cita[];
   historial: HistorialClinico[];
   presupuestos: Presupuesto[];
   tratamientos: TratamientoCatalogo[];
+  notasDentales: NotaDental[];
   doctorId?: string | null;
   userRole?: UserRole | null;
   onCrearReceta: () => void;
@@ -358,6 +372,7 @@ function SessionWorkspace({
   onCrearPedidoLabForLine: (linea: PresupuestoLinea) => void;
   onOpenDocumentos: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
+  onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
 }) {
   const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta'].includes(cita.estado));
   const recientes = recentClinicalHistory(historial);
@@ -369,17 +384,27 @@ function SessionWorkspace({
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [quickNote, setQuickNote] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const selected = sessionItems.find((item) => item.id === selectedId) ?? sessionItems[0] ?? null;
   const filteredCatalog = tratamientos.filter((tratamiento) => {
     const q = normalizeSessionText(catalogSearch);
     if (!q) return true;
     return normalizeSessionText(`${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`).includes(q);
   }).slice(0, 80);
+  const selectedPieceNumber = selected?.piezaDental ? Number(selected.piezaDental) : null;
+  const selectedPieceNotes = selectedPieceNumber
+    ? notasDentales.filter((nota) => nota.pieza_dental === selectedPieceNumber).slice(0, 3)
+    : [];
 
   useEffect(() => {
     setSessionItems(baseSessionItems);
     setSelectedId(baseSessionItems[0]?.id ?? null);
   }, [baseSessionItems]);
+
+  useEffect(() => {
+    setQuickNote('');
+  }, [selectedId]);
 
   function updateSelected(patch: Partial<SessionTreatment>) {
     if (!selected) return;
@@ -457,6 +482,27 @@ function SessionWorkspace({
       setSessionError(error instanceof Error ? error.message : 'No se pudo guardar el tratamiento en historial.');
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function saveQuickDentalNote() {
+    if (!paciente || !selected || !selectedPieceNumber || !quickNote.trim()) return;
+    setSavingNote(true);
+    setSessionError(null);
+    try {
+      await onCreateNotaDental({
+        paciente_id: paciente.id,
+        pieza_dental: selectedPieceNumber,
+        caras: selected.caras || null,
+        texto: quickNote.trim(),
+        doctor_id: doctorId ?? null,
+        cita_id: selected.citaId ?? null,
+      });
+      setQuickNote('');
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : 'No se pudo guardar la nota de pieza.');
+    } finally {
+      setSavingNote(false);
     }
   }
 
@@ -580,6 +626,30 @@ function SessionWorkspace({
                   placeholder="Material, anestesia, evolucion, incidencias, indicaciones..."
                 />
               </label>
+              <div className="wide session-tooth-note">
+                <label>Nota rapida de pieza
+                  <textarea
+                    value={quickNote}
+                    onChange={(event) => setQuickNote(event.target.value)}
+                    placeholder={selectedPieceNumber ? `Nota para pieza ${selectedPieceNumber}${selected.caras ? ` - ${selected.caras}` : ''}` : 'Seleccione una pieza antes de guardar nota'}
+                    disabled={!selectedPieceNumber}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void saveQuickDentalNote()}
+                  disabled={!selectedPieceNumber || !quickNote.trim() || savingNote}
+                >
+                  {savingNote ? 'Guardando nota...' : 'Guardar nota de pieza'}
+                </button>
+                {selectedPieceNotes.length > 0 && (
+                  <div className="session-tooth-note-history">
+                    {selectedPieceNotes.map((nota) => (
+                      <span key={nota.id}>{formatDate(nota.fecha)}: {nota.texto}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <div className="session-treatment-actions">
               <button type="button" onClick={finishSelectedTreatment} disabled={savingId === selected.id || Boolean(selected.historialId) || !selected.tratamientoId}>
@@ -671,6 +741,7 @@ function VisitsWorkspace({
   consentimientos,
   recetas,
   laboratorio,
+  notasDentales,
   onOpenHistorial,
 }: {
   citas: Cita[];
@@ -680,6 +751,7 @@ function VisitsWorkspace({
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
   laboratorio: TrabajoLaboratorio[];
+  notasDentales: NotaDental[];
   onOpenHistorial: () => void;
 }) {
   const visitas = useMemo(() => buildVisitGroups({
@@ -690,7 +762,8 @@ function VisitsWorkspace({
     consentimientos,
     recetas,
     laboratorio,
-  }), [citas, consentimientos, documentos, historial, laboratorio, presupuestos, recetas]);
+    notasDentales,
+  }), [citas, consentimientos, documentos, historial, laboratorio, notasDentales, presupuestos, recetas]);
   const citasOrdenadas = useMemo(() => citas.slice().sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora)), [citas]);
 
   function nextAfter(date: string) {
@@ -784,6 +857,7 @@ export function ClinicalWorkspace({
   documentos,
   consentimientos,
   recetas,
+  notasDentales,
   plantillas,
   laboratorio,
   saldoPendiente,
@@ -803,6 +877,7 @@ export function ClinicalWorkspace({
   onOpenDocumentos,
   onOpenHistorial,
   onFinalizarTratamientoSesion,
+  onCreateNotaDental,
   userRole,
 }: {
   activeTab: ClinicalTab;
@@ -814,6 +889,7 @@ export function ClinicalWorkspace({
   documentos: DocumentoPaciente[];
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
+  notasDentales: NotaDental[];
   plantillas: PlantillaConsentimiento[];
   laboratorio: TrabajoLaboratorio[];
   saldoPendiente: number;
@@ -833,6 +909,7 @@ export function ClinicalWorkspace({
   onOpenDocumentos: () => void;
   onOpenHistorial: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
+  onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
   userRole?: UserRole | null;
 }) {
   return (
@@ -886,6 +963,7 @@ export function ClinicalWorkspace({
           historial={historial}
           presupuestos={presupuestos}
           tratamientos={tratamientos}
+          notasDentales={notasDentales}
           doctorId={doctorId}
           userRole={userRole}
           onCrearReceta={onCrearReceta}
@@ -894,6 +972,7 @@ export function ClinicalWorkspace({
           onCrearPedidoLabForLine={onCrearPedidoLab}
           onOpenDocumentos={onOpenDocumentos}
           onFinalizarTratamientoSesion={onFinalizarTratamientoSesion}
+          onCreateNotaDental={onCreateNotaDental}
         />
       )}
       {activeTab === 'visitas' && (
@@ -905,6 +984,7 @@ export function ClinicalWorkspace({
           consentimientos={consentimientos}
           recetas={recetas}
           laboratorio={laboratorio}
+          notasDentales={notasDentales}
           onOpenHistorial={onOpenHistorial}
         />
       )}

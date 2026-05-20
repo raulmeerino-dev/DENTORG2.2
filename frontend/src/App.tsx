@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import type { ReactNode } from 'react';
@@ -10,7 +10,6 @@ import AgendaPage from './modules/agenda';
 import CajaPage from './modules/caja';
 import HoyPage from './modules/hoy';
 import ListadosPage from './modules/listados';
-import ConfiguracionPage from './modules/configuracion';
 import LoginPage from './modules/auth/LoginPage';
 import AdminExtrasPage from './modules/adminExtras';
 import MisCitasPage from './modules/misCitas';
@@ -30,6 +29,11 @@ function RoleProtected({ roles, children }: { roles: UserRole[]; children: React
   return children;
 }
 
+function ConfiguracionRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/admin-extras${location.search}`} replace />;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -45,7 +49,7 @@ export default function App() {
               <Route path="agenda" element={<AgendaPage />} />
               <Route path="caja" element={<RoleProtected roles={['admin', 'recepcion']}><CajaPage /></RoleProtected>} />
               <Route path="listados" element={<RoleProtected roles={['admin']}><ListadosPage /></RoleProtected>} />
-              <Route path="configuracion" element={<RoleProtected roles={['admin']}><ConfiguracionPage /></RoleProtected>} />
+              <Route path="configuracion" element={<RoleProtected roles={['admin']}><ConfiguracionRedirect /></RoleProtected>} />
               <Route path="admin-extras" element={<RoleProtected roles={['admin']}><AdminExtrasPage /></RoleProtected>} />
               <Route path="mis-citas" element={<MisCitasPage />} />
               <Route path="portal" element={<MisCitasPage />} />

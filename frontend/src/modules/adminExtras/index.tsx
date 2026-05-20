@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,15 +25,44 @@ import { addOfflinePending, clearOfflinePending, getOfflinePending } from '../..
 import { ADMIN_TABS } from './tabs';
 import type { AdminTabId } from './tabs';
 import { AdminReportes } from './AdminReportes';
+import { ConfiguracionWorkspace } from '../configuracion';
+import type { FicheroTab } from '../configuracion';
 
 type Tab = AdminTabId;
 type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
 
+const ADMIN_TAB_ALIASES: Record<string, Tab> = {
+  catalogo: 'tratamientos',
+  tratamientos: 'tratamientos',
+  usuarios: 'usuarios',
+  roles: 'usuarios',
+  doctores: 'doctores',
+  agenda: 'agenda',
+  caja: 'caja',
+  laboratorio: 'laboratorio',
+  documentos: 'documentos',
+  backups: 'seguridad',
+  seguridad: 'seguridad',
+};
+
+const CONFIG_TAB_BY_ADMIN: Partial<Record<Tab, FicheroTab>> = {
+  general: 'general',
+  usuarios: 'roles',
+  doctores: 'doctores',
+  tratamientos: 'tratamientos',
+  agenda: 'agenda',
+  caja: 'caja',
+  laboratorio: 'laboratorio',
+  documentos: 'documentos',
+  seguridad: 'seguridad',
+};
+
 export default function AdminExtrasPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = (searchParams.get('tab') ?? 'clinicas') as Tab;
-  const tab = ADMIN_TABS.some((item) => item.id === requestedTab) ? requestedTab : 'clinicas';
+  const requestedTab = searchParams.get('tab') ?? 'general';
+  const normalizedTab = (ADMIN_TAB_ALIASES[requestedTab] ?? requestedTab) as Tab;
+  const tab = ADMIN_TABS.some((item) => item.id === normalizedTab) ? normalizedTab : 'general';
   const [clinicaForm, setClinicaForm] = useState({ nombre: '', direccion: '' });
   const [productoForm, setProductoForm] = useState({
     nombre: '',
@@ -184,7 +213,20 @@ export default function AdminExtrasPage() {
   }, []);
 
   function selectTab(nextTab: Tab) {
-    setSearchParams(nextTab === 'clinicas' ? {} : { tab: nextTab }, { replace: true });
+    setSearchParams(nextTab === 'general' ? {} : { tab: nextTab }, { replace: true });
+  }
+
+  function renderConfigTab(nextTab: Tab) {
+    const configTab = CONFIG_TAB_BY_ADMIN[nextTab];
+    if (!configTab) return null;
+    return (
+      <ConfiguracionWorkspace
+        activeTab={configTab}
+        embedded
+        showTabs={false}
+        showToolbar={false}
+      />
+    );
   }
 
   function submitClinica(event: FormEvent) {
@@ -243,21 +285,7 @@ export default function AdminExtrasPage() {
         </div>
       )}
 
-      {tab === 'usuarios' && (
-        <section className="desk-panel admin-gateway-panel">
-          <div className="panel-caption"><strong>Usuarios y roles</strong><span>Gestion centralizada</span></div>
-          <p>Alta de usuarios, roles, doctores y permisos se gestiona desde Configuracion para evitar duplicidades.</p>
-          <Link to="/configuracion?tab=usuarios" className="euro-action-button">Abrir usuarios</Link>
-        </section>
-      )}
-
-      {tab === 'catalogo' && (
-        <section className="desk-panel admin-gateway-panel">
-          <div className="panel-caption"><strong>Catalogo de tratamientos</strong><span>Precios, familias, colores e iconos</span></div>
-          <p>El catalogo sigue siendo el punto unico de verdad para tratamientos y tarifas.</p>
-          <Link to="/configuracion?tab=tratamientos" className="euro-action-button">Abrir catalogo</Link>
-        </section>
-      )}
+      {['general', 'usuarios', 'doctores', 'tratamientos', 'agenda', 'caja', 'laboratorio', 'documentos'].includes(tab) && renderConfigTab(tab)}
 
       {tab === 'inventario' && (
         <div className="fichero-grid inventory-layout">
@@ -455,12 +483,34 @@ export default function AdminExtrasPage() {
       )}
 
       {tab === 'seguridad' && (
-        <section className="desk-panel settings-form">
-          <div className="panel-caption"><strong>Doble factor</strong></div>
-          <button onClick={async () => setTwoFactor(await enableTwoFactor())}>Activar/mostrar QR 2FA</button>
-          {twoFactor?.qrDataUrl && <img className="qr-preview" src={twoFactor.qrDataUrl} alt="QR 2FA" />}
-          {twoFactor && <p>Secret: {twoFactor.secret}</p>}
-        </section>
+        <div className="admin-security-stack">
+          {renderConfigTab(tab)}
+          <section className="desk-panel settings-form">
+            <div className="panel-caption"><strong>Doble factor</strong><span>Cuenta administradora</span></div>
+            <button onClick={async () => setTwoFactor(await enableTwoFactor())}>Activar/mostrar QR 2FA</button>
+            {twoFactor?.qrDataUrl && <img className="qr-preview" src={twoFactor.qrDataUrl} alt="QR 2FA" />}
+            {twoFactor && <p>Secret: {twoFactor.secret}</p>}
+          </section>
+          <section className="desk-panel">
+            <div className="panel-caption"><strong>Modo offline y sincronizacion</strong><span>Cola local del navegador</span></div>
+            <p>La app marca "Sin conexion" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
+            <div className="editor-actions">
+              <button onClick={async () => {
+                await addOfflinePending({ type: 'paciente', payload: { idTemp: `tmp-${Date.now()}`, nombre: 'Paciente offline' } });
+                setPendingCount((await getOfflinePending()).length);
+              }}>Crear pendiente demo</button>
+              <button onClick={async () => {
+                const pending = await getOfflinePending();
+                const pacientes = pending.filter((item) => item.type === 'paciente').map((item) => item.payload);
+                const citas = pending.filter((item) => item.type === 'cita').map((item) => item.payload);
+                await syncOffline({ pacientes, citas });
+                await clearOfflinePending();
+                setPendingCount(0);
+              }}>Sincronizar ahora</button>
+            </div>
+            <p>Pendientes locales: {pendingCount}</p>
+          </section>
+        </div>
       )}
     </section>
   );

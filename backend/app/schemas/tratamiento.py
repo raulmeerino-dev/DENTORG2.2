@@ -155,3 +155,29 @@ class HistorialResponse(BaseModel):
     doctor: DoctorResumen | None = None
 
     model_config = {"from_attributes": True}
+
+
+class NotaDentalCreate(BaseModel):
+    paciente_id: UUID
+    pieza_dental: int = Field(..., ge=11, le=85)
+    caras: str | None = Field(None, max_length=10, pattern=r"^[MODVLP]*$")
+    texto: str = Field(..., min_length=1, max_length=2000)
+    fecha: date | None = None
+    doctor_id: UUID | None = None
+    cita_id: UUID | None = None
+    historial_id: UUID | None = None
+
+
+class NotaDentalResponse(BaseModel):
+    id: UUID
+    paciente_id: UUID
+    pieza_dental: int
+    caras: str | None
+    texto: str
+    fecha: date
+    doctor_id: UUID | None
+    cita_id: UUID | None
+    historial_id: UUID | None
+    doctor: DoctorResumen | None = None
+
+    model_config = {"from_attributes": True}

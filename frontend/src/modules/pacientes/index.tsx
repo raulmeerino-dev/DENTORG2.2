@@ -9,6 +9,7 @@ import {
   createFacturaDesdeHistorial,
   createFacturaManual,
   createPaciente,
+  createNotaDental,
   createPagoAnticipadoPaciente,
   createPresupuesto,
   createRecetaClinica,
@@ -27,6 +28,7 @@ import {
   getHistorialPaciente,
   getHistorialSinFacturar,
   getLaboratorios,
+  getNotasDentalesPaciente,
   getPaciente,
   getPagosAnticipadosPaciente,
   getPacientes,
@@ -47,7 +49,7 @@ import {
   updateTrabajoLaboratorio,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
+import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
@@ -270,6 +272,11 @@ export default function PacientesPage() {
   const recetasPacienteQuery = useQuery({
     queryKey: ['recetas-paciente', active?.id],
     queryFn: () => getRecetasPaciente(active!.id),
+    enabled: Boolean(active),
+  });
+  const notasDentalesQuery = useQuery({
+    queryKey: ['notas-dentales', active?.id],
+    queryFn: () => getNotasDentalesPaciente(active!.id),
     enabled: Boolean(active),
   });
   const laboratoriosCatalogoQuery = useQuery({
@@ -614,6 +621,10 @@ export default function PacientesPage() {
         entrada,
         ...current.filter((item) => item.id !== entrada.id),
       ]);
+      void queryClient.invalidateQueries({ queryKey: ['historial-paciente', entrada.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['historial-sin-facturar', entrada.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['presupuestos', entrada.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['citas-paciente', entrada.paciente_id] });
       void historialQuery.refetch();
       void historialSinFacturarQuery.refetch();
       void presupuestosQuery.refetch();
@@ -622,6 +633,17 @@ export default function PacientesPage() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar el tratamiento en historial.');
+    },
+  });
+
+  const crearNotaDental = useMutation({
+    mutationFn: (data: NotaDentalCreateInput) => createNotaDental(data),
+    onSuccess: (nota) => {
+      void queryClient.invalidateQueries({ queryKey: ['notas-dentales', nota.paciente_id] });
+      toast.success('Nota de pieza guardada.');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo guardar la nota de pieza.');
     },
   });
 
@@ -683,6 +705,9 @@ export default function PacientesPage() {
     if (!active) return;
     sessionStorage.setItem('dentorg_selected_patient_id', active.id);
     sessionStorage.setItem('dentorg_selected_patient_name', fullName(active));
+    sessionStorage.setItem('dentorg_agenda_action', 'new');
+    sessionStorage.removeItem('dentorg_selected_treatment');
+    sessionStorage.removeItem('dentorg_selected_presupuesto_linea_id');
     setContextMenu(null);
     navigate('/agenda');
   }
@@ -736,6 +761,8 @@ export default function PacientesPage() {
     sessionStorage.setItem('dentorg_selected_patient_id', active.id);
     sessionStorage.setItem('dentorg_selected_patient_name', fullName(active));
     sessionStorage.setItem('dentorg_selected_treatment', linea.tratamiento?.nombre ?? 'Tratamiento dental');
+    sessionStorage.setItem('dentorg_selected_presupuesto_linea_id', linea.id);
+    sessionStorage.setItem('dentorg_agenda_action', 'new');
     setContextMenu(null);
     navigate('/agenda');
   }
@@ -970,6 +997,7 @@ export default function PacientesPage() {
             documentos={documentosQuery.data ?? []}
             consentimientos={consentimientosQuery.data ?? []}
             recetas={recetasPacienteQuery.data ?? []}
+            notasDentales={notasDentalesQuery.data ?? []}
             plantillas={plantillasQuery.data ?? []}
             laboratorio={laboratorioPacienteQuery.data ?? []}
             saldoPendiente={totalPendiente}
@@ -998,6 +1026,7 @@ export default function PacientesPage() {
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenHistorial={() => openPatientArea('historial')}
             onFinalizarTratamientoSesion={(data) => finalizarSesionClinica.mutateAsync(data)}
+            onCreateNotaDental={(data) => crearNotaDental.mutateAsync(data)}
             userRole={user?.rol}
           />
         )}
