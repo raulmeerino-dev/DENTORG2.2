@@ -15922,16 +15922,270 @@ html[data-theme="dark"] .history-ledger-items {
   min-width: 0;
 }
 
+.clinical-session-workbench {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.42fr) minmax(360px, 0.58fr) minmax(280px, 0.34fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
 .clinical-session-main,
+.clinical-session-board,
+.clinical-session-detail,
+.clinical-session-context,
 .clinical-side-stack,
 .clinical-notes-grid {
   min-width: 0;
 }
 
 .clinical-side-stack,
+.clinical-session-context,
 .clinical-notes-grid {
   display: grid;
   gap: 10px;
+}
+
+.session-add-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.8fr) auto;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 12px;
+  background: #f2f8fa;
+}
+
+.session-add-panel input,
+.session-add-panel select,
+.session-detail-grid input,
+.session-detail-grid select,
+.session-detail-grid textarea,
+.session-detail-head select {
+  min-width: 0;
+  border: 1px solid #d6e4ea;
+  border-radius: 9px;
+  background: #fff;
+  color: #15384b;
+  font: inherit;
+}
+
+.session-add-panel input,
+.session-add-panel select,
+.session-detail-grid input,
+.session-detail-grid select,
+.session-detail-head select {
+  min-height: 36px;
+  padding: 0 9px;
+}
+
+.session-add-panel button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: #0f8ea0;
+  color: #fff;
+  font-weight: 850;
+}
+
+.session-treatment-list {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.session-treatment-row {
+  display: grid;
+  grid-template-columns: minmax(74px, 0.32fr) minmax(0, 1fr) minmax(72px, 0.36fr);
+  gap: 3px 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: #f7fbfc;
+  color: #15384b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-treatment-row.active {
+  box-shadow: inset 4px 0 0 #0f9faf, 0 10px 22px rgba(18, 53, 72, 0.05);
+  background: #ffffff;
+}
+
+.session-treatment-row strong,
+.session-treatment-row em,
+.session-treatment-row small,
+.session-treatment-source {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-treatment-row strong {
+  grid-column: 2;
+  color: #082f43;
+}
+
+.session-treatment-row em {
+  grid-column: 2;
+  color: #60788b;
+  font-size: 0.75rem;
+  font-style: normal;
+}
+
+.session-treatment-source {
+  grid-row: 1 / span 2;
+  color: #60788b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.session-treatment-row small {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #eaf5f8;
+  color: #075e70;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.session-treatment-row.session-status-realizado small {
+  background: #e8f8ef;
+  color: #13733b;
+}
+
+.session-treatment-row.session-status-pospuesto small {
+  background: #fff4df;
+  color: #9a5b05;
+}
+
+.session-treatment-row.session-status-en_curso small {
+  background: #eaf3ff;
+  color: #115aa1;
+}
+
+.session-empty-state,
+.session-empty-detail {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f7fbfc;
+  color: #647887;
+}
+
+.session-detail-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 12px;
+  background: #f6fafb;
+}
+
+.session-detail-head > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.session-detail-head span {
+  color: #60788b;
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.session-detail-head strong {
+  color: #082f43;
+  font-size: 1rem;
+}
+
+.session-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 9px;
+  min-width: 0;
+}
+
+.session-detail-grid label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: #60788b;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.session-detail-grid label.wide {
+  grid-column: 1 / -1;
+}
+
+.session-detail-grid textarea {
+  min-height: 98px;
+  padding: 8px 9px;
+  resize: vertical;
+}
+
+.session-treatment-actions,
+.session-secondary-actions > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.session-treatment-actions button,
+.session-secondary-actions button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: #edf8fb;
+  color: #075e70;
+  font-weight: 850;
+}
+
+.session-treatment-actions button:first-child {
+  background: #e8f8ef;
+  color: #13733b;
+}
+
+.session-treatment-actions button:nth-child(2) {
+  background: #fff4df;
+  color: #9a5b05;
+}
+
+.session-treatment-actions button:nth-child(3) {
+  background: #f3f6f8;
+  color: #5b6d79;
+}
+
+.session-secondary-actions {
+  margin-top: 8px;
+  border-radius: 12px;
+  background: #f7fbfc;
+  padding: 8px 10px;
+}
+
+.session-secondary-actions summary {
+  color: #60788b;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 850;
 }
 
 .clinical-list {
@@ -16035,13 +16289,35 @@ html[data-theme="dark"] .clinical-quick-actions button {
   .clinical-session-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+
+  .clinical-session-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .session-add-panel {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 760px) {
   .clinical-overview,
   .clinical-quick-actions > div:not(.panel-caption),
+  .session-detail-grid,
   .clinical-list article {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .session-treatment-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .session-treatment-source,
+  .session-treatment-row strong,
+  .session-treatment-row em,
+  .session-treatment-row small {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
   }
 
   .clinical-list article small {
