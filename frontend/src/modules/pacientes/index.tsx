@@ -48,13 +48,10 @@ import {
 } from '../../lib/api';
 import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialSinFacturar, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
-import { PrimeraVisitaPanel } from './PrimeraVisita';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
 import type { DocumentDesignerMode } from './Consentimientos';
 import { DocumentosPanel } from './Documentos';
-import { TrabajoPendientePanel } from './TrabajoPendiente';
-import { TratamientosRealizadosPanel } from './Realizados';
 import { EurodentHistoryBillingPanel, InvoiceHistoryModal } from './HistorialFacturacion';
 import { HistorialCompletoPanel } from './HistorialCompleto';
 import { CobroModal } from './modals/CobroModal';
@@ -72,10 +69,12 @@ import { contarLaboratorioVencidos } from './laboratorioUtils';
 import { PatientActionsMenu } from './PatientActionsMenu';
 import { buildWhatsAppUrl } from './patientActionUtils';
 import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
+import { ClinicalWorkspace } from './ClinicalWorkspace';
+import type { ClinicalTab } from './ClinicalWorkspace';
 
-export type WorkTab = 'pacientes' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
-type MainPatientTab = 'pacientes' | 'tratamientos' | 'historial';
-type TreatmentTab = 'primera' | 'presupuestos' | 'pendiente' | 'realizados';
+export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'notas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
+type MainPatientTab = 'pacientes' | 'presupuestos' | 'clinica' | 'historial';
+type TreatmentTab = ClinicalTab;
 type PatientContextMenu =
   | { x: number; y: number; kind: 'paciente' }
   | { x: number; y: number; kind: 'linea'; linea: PresupuestoLinea }
@@ -94,8 +93,17 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
   tratamientos: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M5 2.5c1.7 0 2.2 1.2 4 1.2s2.3-1.2 4-1.2c1.9 0 3 1.7 2.3 4.7l-1.1 5.2c-.5 2.3-1.7 3.6-3 3.6-.9 0-1.2-.7-2.2-.7s-1.3.7-2.2.7c-1.3 0-2.5-1.3-3-3.6L2.7 7.2C2 4.2 3.1 2.5 5 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/></svg>
   ),
+  clinica: (
+    <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M5 2.5c1.7 0 2.2 1.2 4 1.2s2.3-1.2 4-1.2c1.9 0 3 1.7 2.3 4.7l-1.1 5.2c-.5 2.3-1.7 3.6-3 3.6-.9 0-1.2-.7-2.2-.7s-1.3.7-2.2.7c-1.3 0-2.5-1.3-3-3.6L2.7 7.2C2 4.2 3.1 2.5 5 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/><path d="M6.5 9h5M9 6.5v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
+  ),
   primera: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="3" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.6"/><line x1="5" y1="8" x2="13" y2="8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="5" y1="11" x2="10" y2="11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="9" y1="1" x2="9" y2="5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+  ),
+  sesion: (
+    <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M6 9h6M9 6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+  ),
+  notas: (
+    <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4 2.5h8l2 2V15a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 3 15V4A1.5 1.5 0 0 1 4.5 2.5z" stroke="currentColor" strokeWidth="1.6"/><path d="M6 8h6M6 11h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
   ),
   presupuestos: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.6"/><line x1="5" y1="6" x2="13" y2="6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="5" y1="9" x2="13" y2="9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="5" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
@@ -128,19 +136,13 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
 
 const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'pacientes', label: 'Ficha' },
-  { id: 'tratamientos', label: 'Tratamientos' },
+  { id: 'presupuestos', label: 'Presupuestos' },
+  { id: 'clinica', label: 'Clinica' },
   { id: 'historial', label: 'Historial' },
 ];
 
-const TREATMENT_TABS: Array<{ id: TreatmentTab; label: string }> = [
-  { id: 'primera', label: 'Primera visita' },
-  { id: 'presupuestos', label: 'Presupuestos' },
-  { id: 'pendiente', label: 'Pendientes' },
-  { id: 'realizados', label: 'Realizados' },
-];
-
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
-  return tab === 'primera' || tab === 'presupuestos' || tab === 'pendiente' || tab === 'realizados';
+  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'realizados' || tab === 'notas';
 }
 
 function isPresupuestoCerrado(estado?: string | null) {
@@ -187,9 +189,11 @@ export default function PacientesPage() {
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
-  const activeMainTab: MainPatientTab = isTreatmentTab(tab) || tab === 'tratamientos'
-    ? 'tratamientos'
-    : tab === 'historial' || tab === 'facturacion'
+  const activeMainTab: MainPatientTab = tab === 'presupuestos'
+    ? 'presupuestos'
+    : isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
+      ? 'clinica'
+      : tab === 'historial' || tab === 'facturacion'
       ? 'historial'
       : 'pacientes';
   const activeTreatmentTab = isTreatmentTab(tab) ? tab : treatmentTab;
@@ -290,11 +294,15 @@ export default function PacientesPage() {
   function openPatientArea(targetTab: WorkTab) {
     if (isTreatmentTab(targetTab)) {
       setTreatmentTab(targetTab);
-      setTab(targetTab);
+      setTab('clinica');
       return;
     }
-    if (targetTab === 'tratamientos') {
-      setTab(treatmentTab);
+    if (targetTab === 'tratamientos' || targetTab === 'clinica') {
+      setTab('clinica');
+      return;
+    }
+    if (targetTab === 'presupuestos') {
+      setTab('presupuestos');
       return;
     }
     if (targetTab === 'facturacion' || targetTab === 'historial') {
@@ -829,7 +837,7 @@ export default function PacientesPage() {
               onOpenConsentimientos={() => setDesigner(active ? { mode: 'consentimiento' } : null)}
               onOpenLaboratorio={() => {
                 setLaboratorioDetailsOpen(true);
-                openPatientArea('historial');
+                openPatientArea('notas');
               }}
               onEmitirFactura={() => setInvoiceCreatorOpen(true)}
               onRegistrarCobro={abrirCobroDesdeFicha}
@@ -838,145 +846,135 @@ export default function PacientesPage() {
             />
           </div>
         )}
-        {activeMainTab === 'tratamientos' && (
-          <section className="treatments-workspace">
-            <nav className="treatment-subtabs" aria-label="Secciones de tratamientos">
-              {TREATMENT_TABS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={activeTreatmentTab === item.id ? 'active' : ''}
-                  onClick={() => openPatientArea(item.id)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </nav>
-            {activeTreatmentTab === 'primera' && (
-              <PrimeraVisitaPanel
-                paciente={active}
-                onSave={(data) => guardarPrimeraVisita.mutate(data)}
-                saving={guardarPrimeraVisita.isPending}
-                userRole={user?.rol}
-              />
-            )}
-            {activeTreatmentTab === 'presupuestos' && (
-              <>
-                {(() => {
-                  const activeId = selectedPresupuestoId ?? presupuestos[0]?.id;
-                  const presupuesto = presupuestos.find((p) => p.id === activeId);
-                  const noDoctorsConfigured = doctoresQuery.isFetched && !doctoresQuery.data?.length;
-                  const createDisabled = !active || doctoresQuery.isLoading || !doctoresQuery.data?.length || nuevoPresupuesto.isPending;
-                  const createError = nuevoPresupuesto.error instanceof Error ? nuevoPresupuesto.error.message : null;
-                  const createLabel = nuevoPresupuesto.isPending ? 'Creando...' : 'Crear nuevo presupuesto';
-                  const activeBudgetClosed = isPresupuestoCerrado(presupuesto?.estado);
-                  const selector = (
-                    <>
-                      {(!active || noDoctorsConfigured || createError) && (
-                        <div className="inline-alert budget-create-alert" role="alert">
-                          {!active && 'Selecciona un paciente antes de crear un presupuesto.'}
-                          {active && noDoctorsConfigured && 'No hay doctores configurados. Crea o activa un doctor para poder crear presupuestos.'}
-                          {active && doctoresQuery.data?.length && createError}
-                        </div>
-                      )}
-                      <div className="presupuesto-selector" aria-label="Presupuestos del paciente">
-                        {presupuestos.map((p) => {
-                          const totalAceptadoPresupuesto = Number(p.total_aceptado ?? 0);
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              className={`presupuesto-pill${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''} presupuesto-pill-${p.estado}`}
-                              onClick={() => setSelectedPresupuestoId(p.id)}
-                            >
-                              <span className="pp-num">#{p.numero}</span>
-                              <span className="pp-estado">{presupuestoEstadoLabel(p.estado)}</span>
-                              <span className="pp-date">{formatDate(p.fecha).slice(0, 5)}</span>
-                              <span className="pp-total">Total {money(Number(p.total ?? 0))}</span>
-                              {totalAceptadoPresupuesto > 0 && <span className="pp-accepted">Aceptado {money(totalAceptadoPresupuesto)}</span>}
-                            </button>
-                          );
-                        })}
+        {activeMainTab === 'presupuestos' && (
+          <section className="budget-main-workspace">
+            {(() => {
+              const activeId = selectedPresupuestoId ?? presupuestos[0]?.id;
+              const presupuesto = presupuestos.find((p) => p.id === activeId);
+              const noDoctorsConfigured = doctoresQuery.isFetched && !doctoresQuery.data?.length;
+              const createDisabled = !active || doctoresQuery.isLoading || !doctoresQuery.data?.length || nuevoPresupuesto.isPending;
+              const createError = nuevoPresupuesto.error instanceof Error ? nuevoPresupuesto.error.message : null;
+              const createLabel = nuevoPresupuesto.isPending ? 'Creando...' : 'Crear nuevo presupuesto';
+              const activeBudgetClosed = isPresupuestoCerrado(presupuesto?.estado);
+              const selector = (
+                <>
+                  {(!active || noDoctorsConfigured || createError) && (
+                    <div className="inline-alert budget-create-alert" role="alert">
+                      {!active && 'Selecciona un paciente antes de crear un presupuesto.'}
+                      {active && noDoctorsConfigured && 'No hay doctores configurados. Crea o activa un doctor para poder crear presupuestos.'}
+                      {active && doctoresQuery.data?.length && createError}
+                    </div>
+                  )}
+                  <div className="presupuesto-selector" aria-label="Presupuestos del paciente">
+                    {presupuestos.map((p) => {
+                      const totalAceptadoPresupuesto = Number(p.total_aceptado ?? 0);
+                      return (
                         <button
+                          key={p.id}
                           type="button"
-                          className="presupuesto-pill presupuesto-pill-nuevo"
-                          aria-label={createLabel}
-                          title={createLabel}
-                          onClick={() => nuevoPresupuesto.mutate()}
-                          disabled={createDisabled}
+                          className={`presupuesto-pill${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''} presupuesto-pill-${p.estado}`}
+                          onClick={() => setSelectedPresupuestoId(p.id)}
                         >
-                          {nuevoPresupuesto.isPending ? 'Creando...' : '+ Nuevo'}
+                          <span className="pp-num">#{p.numero}</span>
+                          <span className="pp-estado">{presupuestoEstadoLabel(p.estado)}</span>
+                          <span className="pp-date">{formatDate(p.fecha).slice(0, 5)}</span>
+                          <span className="pp-total">Total {money(Number(p.total ?? 0))}</span>
+                          {totalAceptadoPresupuesto > 0 && <span className="pp-accepted">Aceptado {money(totalAceptadoPresupuesto)}</span>}
                         </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      className="presupuesto-pill presupuesto-pill-nuevo"
+                      aria-label={createLabel}
+                      title={createLabel}
+                      onClick={() => nuevoPresupuesto.mutate()}
+                      disabled={createDisabled}
+                    >
+                      {nuevoPresupuesto.isPending ? 'Creando...' : '+ Nuevo'}
+                    </button>
+                  </div>
+                  {activeBudgetClosed && presupuesto && (
+                    <div className={`budget-closed-notice budget-closed-${presupuesto.estado}`} role="note">
+                      <div>
+                        <strong>Este presupuesto ya esta {presupuestoEstadoLabel(presupuesto.estado).toLowerCase()}.</strong>
+                        <span>Para nuevos tratamientos crea un nuevo presupuesto.</span>
                       </div>
-                      {activeBudgetClosed && presupuesto && (
-                        <div className={`budget-closed-notice budget-closed-${presupuesto.estado}`} role="note">
-                          <div>
-                            <strong>Este presupuesto ya esta {presupuestoEstadoLabel(presupuesto.estado).toLowerCase()}.</strong>
-                            <span>Para nuevos tratamientos crea un nuevo presupuesto.</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => nuevoPresupuesto.mutate()}
-                            disabled={createDisabled}
-                          >
-                            {createLabel}
-                          </button>
-                        </div>
-                      )}
-                    </>
-                  );
-                  if (!presupuesto) {
-                    return (
-                      <>
-                        {selector}
-                        {!presupuestosQuery.isLoading && (
-                          <div className="desk-panel empty-state">No hay presupuestos para este paciente.</div>
-                        )}
-                      </>
-                    );
-                  }
-                  return (
-                    <>
-                      {selector}
-                      <PresupuestoPanel
-                        key={presupuesto.id}
-                        presupuesto={presupuesto}
-                        paciente={active!}
-                        tratamientos={tratamientosQuery.data ?? []}
-                        userRole={user?.rol}
-                      />
-                    </>
-                  );
-                })()}
-              </>
-            )}
-            {activeTreatmentTab === 'pendiente' && (
-              <TrabajoPendientePanel
-                presupuestos={presupuestos}
-                citas={citasPacienteQuery.data ?? []}
-                paciente={active}
-                onDarCita={darCitaParaTratamiento}
-                onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
-                onCrearPedidoLab={(linea) => {
-                  setPedidoLabError(null);
-                  setPedidoLabContext({ open: true, linea });
-                }}
-                userRole={user?.rol}
-              />
-            )}
-            {activeTreatmentTab === 'realizados' && (
-              <TratamientosRealizadosPanel
-                historial={historialQuery.data ?? []}
-                consentimientos={consentimientosQuery.data ?? []}
-                presupuestos={presupuestos}
-                paciente={active}
-                doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
-                doctorColor={doctoresQuery.data?.[0]?.color_agenda}
-                tratamientos={tratamientosQuery.data ?? []}
-                userRole={user?.rol}
-              />
-            )}
+                      <button
+                        type="button"
+                        onClick={() => nuevoPresupuesto.mutate()}
+                        disabled={createDisabled}
+                      >
+                        {createLabel}
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+              if (!presupuesto) {
+                return (
+                  <>
+                    {selector}
+                    {!presupuestosQuery.isLoading && (
+                      <div className="desk-panel empty-state">No hay presupuestos para este paciente.</div>
+                    )}
+                  </>
+                );
+              }
+              return (
+                <>
+                  {selector}
+                  <PresupuestoPanel
+                    key={presupuesto.id}
+                    presupuesto={presupuesto}
+                    paciente={active!}
+                    tratamientos={tratamientosQuery.data ?? []}
+                    userRole={user?.rol}
+                  />
+                </>
+              );
+            })()}
           </section>
+        )}
+        {activeMainTab === 'clinica' && (
+          <ClinicalWorkspace
+            activeTab={activeTreatmentTab}
+            onTabChange={(nextTab) => openPatientArea(nextTab)}
+            paciente={active}
+            citas={citasPacienteQuery.data ?? []}
+            historial={historialQuery.data ?? []}
+            presupuestos={presupuestos}
+            documentos={documentosQuery.data ?? []}
+            consentimientos={consentimientosQuery.data ?? []}
+            plantillas={plantillasQuery.data ?? []}
+            laboratorio={laboratorioPacienteQuery.data ?? []}
+            saldoPendiente={totalPendiente}
+            doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
+            doctorColor={doctoresQuery.data?.[0]?.color_agenda}
+            tratamientos={tratamientosQuery.data ?? []}
+            savingPrimeraVisita={guardarPrimeraVisita.isPending}
+            onSavePrimeraVisita={(data) => guardarPrimeraVisita.mutate(data)}
+            onDarCita={darCitaParaTratamiento}
+            onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
+            onCrearPedidoLab={(linea) => {
+              setPedidoLabError(null);
+              setPedidoLabContext({ open: true, linea });
+            }}
+            onCrearPedidoLabGeneral={() => {
+              setPedidoLabError(null);
+              setPedidoLabContext({ open: true, linea: null });
+            }}
+            onActualizarTrabajoLab={(trabajoId, cambios) => actualizarTrabajoLab.mutate({ trabajoId, cambios })}
+            onCrearReceta={() => {
+              setRecetaError(null);
+              setRecetaModalOpen(true);
+            }}
+            onOpenConsentimiento={(tipo) => setDesigner(active ? { mode: 'consentimiento', tipo } : null)}
+            onOpenConsentimientoPdf={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
+            onRevocarConsentimiento={revocarConsentimientoPaciente}
+            onOpenDocumentos={() => openDocumentsDrawer()}
+            userRole={user?.rol}
+          />
         )}
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">

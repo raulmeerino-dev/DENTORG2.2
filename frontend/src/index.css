@@ -15848,3 +15848,203 @@ html[data-theme="dark"] .patient-dashboard-mode .patient-module-tabs button.acti
 html[data-theme="dark"] .history-ledger-items {
   border-left-color: rgba(88, 200, 211, 0.18) !important;
 }
+
+/* Pacientes 2026: cuatro areas principales y gabinete clinico ordenado. */
+.budget-main-workspace,
+.clinical-workspace {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.clinical-overview {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(96px, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+.clinical-overview-item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 22px rgba(18, 53, 72, 0.045);
+}
+
+.clinical-overview-item span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  color: #587185;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.clinical-overview-item strong {
+  color: #082f43;
+  font-size: 1.04rem;
+  line-height: 1.1;
+}
+
+.clinical-overview-item.needs-attention {
+  background: #fff7e8;
+  box-shadow: inset 3px 0 0 #f59e0b, 0 10px 22px rgba(18, 53, 72, 0.035);
+}
+
+.clinical-overview-item.has-debt {
+  background: #fff2f0;
+  box-shadow: inset 3px 0 0 #dc2626, 0 10px 22px rgba(18, 53, 72, 0.035);
+}
+
+.clinical-subtabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border: 0 !important;
+  border-radius: 13px !important;
+  background: rgba(255, 255, 255, 0.86) !important;
+  box-shadow: 0 10px 22px rgba(18, 53, 72, 0.04) !important;
+}
+
+.clinical-session-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr);
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+}
+
+.clinical-session-main,
+.clinical-side-stack,
+.clinical-notes-grid {
+  min-width: 0;
+}
+
+.clinical-side-stack,
+.clinical-notes-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.clinical-list {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.clinical-list article {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  align-items: start;
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 11px;
+  background: #f6fafb;
+}
+
+.clinical-list article time,
+.clinical-list article span,
+.clinical-list article small {
+  color: #60788b;
+  font-size: 0.75rem;
+}
+
+.clinical-list article strong,
+.clinical-list article small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clinical-list article small {
+  grid-column: 2 / -1;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.clinical-list p {
+  margin: 0;
+  color: #647887;
+  font-size: 0.84rem;
+}
+
+.clinical-quick-actions > div:not(.panel-caption) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.clinical-quick-actions button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: #edf8fb;
+  color: #075e70;
+  font-weight: 800;
+}
+
+.clinical-notes-grid .secondary-clinic-panel,
+.clinical-documents-panel {
+  min-width: 0;
+}
+
+.clinical-notes-grid .consent-panel,
+.clinical-notes-grid .laboratorio-panel {
+  box-shadow: none !important;
+}
+
+.clinical-documents-panel .panel-caption {
+  align-items: center;
+}
+
+html[data-theme="dark"] .clinical-overview-item,
+html[data-theme="dark"] .clinical-subtabs {
+  background: rgba(18, 30, 40, 0.94) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2) !important;
+}
+
+html[data-theme="dark"] .clinical-overview-item strong {
+  color: #e8f7fa;
+}
+
+html[data-theme="dark"] .clinical-list article,
+html[data-theme="dark"] .clinical-quick-actions button {
+  background: rgba(24, 44, 57, 0.82);
+}
+
+@media (max-width: 1180px) {
+  .clinical-overview {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .clinical-session-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .clinical-overview,
+  .clinical-quick-actions > div:not(.panel-caption),
+  .clinical-list article {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .clinical-list article small {
+    grid-column: 1;
+  }
+}
