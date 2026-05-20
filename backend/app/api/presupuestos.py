@@ -396,6 +396,8 @@ async def _ensure_historial_for_trabajo_pendiente(
         observaciones=f"Realizado desde trabajo pendiente del presupuesto {linea.presupuesto.numero}",
         estado="realizado",
         importe=linea.precio_unitario,
+        origen="presupuesto_linea",
+        presupuesto_linea_id=linea.id,
     )
     db.add(entrada)
     await db.flush()

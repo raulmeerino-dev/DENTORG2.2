@@ -15,6 +15,7 @@ import {
   createTrabajoLaboratorio,
   emitirRecetaPdf,
   facturaPdfUrl,
+  finalizarTratamientoSesion,
   firmarConsentimiento,
   generarDocumentoPdfPaciente,
   getCitas,
@@ -46,7 +47,7 @@ import {
   updateTrabajoLaboratorio,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialSinFacturar, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
+import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
@@ -606,6 +607,24 @@ export default function PacientesPage() {
     },
   });
 
+  const finalizarSesionClinica = useMutation({
+    mutationFn: (data: SesionTratamientoRealizadoInput) => finalizarTratamientoSesion(data),
+    onSuccess: (entrada: HistorialClinico) => {
+      queryClient.setQueryData<HistorialClinico[]>(['historial-paciente', entrada.paciente_id], (current = []) => [
+        entrada,
+        ...current.filter((item) => item.id !== entrada.id),
+      ]);
+      void historialQuery.refetch();
+      void historialSinFacturarQuery.refetch();
+      void presupuestosQuery.refetch();
+      if (active?.id) void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', active.id] });
+      toast.success('Tratamiento guardado en historial.');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo guardar el tratamiento en historial.');
+    },
+  });
+
   const guardarPrimeraVisita = useMutation({
     mutationFn: async (data: PrimeraVisitaData) => {
       if (!active) throw new Error('Sin paciente');
@@ -954,6 +973,7 @@ export default function PacientesPage() {
             plantillas={plantillasQuery.data ?? []}
             laboratorio={laboratorioPacienteQuery.data ?? []}
             saldoPendiente={totalPendiente}
+            doctorId={doctoresQuery.data?.[0]?.id ?? null}
             tratamientos={tratamientosQuery.data ?? []}
             savingPrimeraVisita={guardarPrimeraVisita.isPending}
             onSavePrimeraVisita={(data) => guardarPrimeraVisita.mutate(data)}
@@ -977,6 +997,7 @@ export default function PacientesPage() {
             onRevocarConsentimiento={revocarConsentimientoPaciente}
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenHistorial={() => openPatientArea('historial')}
+            onFinalizarTratamientoSesion={(data) => finalizarSesionClinica.mutateAsync(data)}
             userRole={user?.rol}
           />
         )}

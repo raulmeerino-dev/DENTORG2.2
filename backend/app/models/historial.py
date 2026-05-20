@@ -38,9 +38,18 @@ class HistorialClinico(UUIDMixin, TimestampMixin, Base):
     factura_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("facturas.id"), nullable=True, index=True
     )
+    origen: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    presupuesto_linea_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("presupuesto_lineas.id"), nullable=True, index=True
+    )
+    cita_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("citas.id"), nullable=True, index=True
+    )
 
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="historial")  # noqa: F821
     tratamiento: Mapped["TratamientoCatalogo"] = relationship("TratamientoCatalogo")  # noqa: F821
     doctor: Mapped["Doctor"] = relationship("Doctor")  # noqa: F821
     gabinete: Mapped["Gabinete"] = relationship("Gabinete")  # noqa: F821
     factura: Mapped["Factura | None"] = relationship("Factura")  # noqa: F821
+    presupuesto_linea: Mapped["PresupuestoLinea | None"] = relationship("PresupuestoLinea")  # noqa: F821
+    cita: Mapped["Cita | None"] = relationship("Cita")  # noqa: F821
