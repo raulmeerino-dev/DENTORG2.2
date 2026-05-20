@@ -214,20 +214,21 @@ describe('PacientesPage structure', () => {
     getPresupuestosMock.mockClear();
   });
 
-  it('uses three main tabs and keeps documents inside ficha', async () => {
+  it('uses four main tabs and keeps documents inside ficha', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByRole('button', { name: /^Ficha$/i });
     expect(screen.getAllByRole('button', { name: /^Ficha$/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /^Tratamientos$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Presupuestos$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Clinica$/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Historial$/i }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: /^Documentos$/i })).not.toBeInTheDocument();
     expect(await screen.findByText(/Resumen odontograma/i)).toBeInTheDocument();
     expect(screen.getByTestId('mini-odontogram')).toBeInTheDocument();
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Ver detalle en Tratamientos/i }));
+    await user.click(screen.getByRole('button', { name: /Ver detalle en Clinica/i }));
     expect(await screen.findByText(/Odontograma base/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Ficha$/i }));
     expect(await screen.findByText(/Documentos y consentimientos/i)).toBeInTheDocument();
@@ -239,16 +240,16 @@ describe('PacientesPage structure', () => {
     expect(screen.getAllByText('rx-control.pdf').length).toBeGreaterThan(0);
   });
 
-  it('shows treatment subtabs and complete history filters', async () => {
+  it('shows clinical subtabs and complete history filters', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByRole('button', { name: /^Tratamientos$/i });
-    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
-    expect(screen.getByRole('button', { name: /Primera visita/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Presupuestos/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Pendientes/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Realizados/i })).toBeInTheDocument();
+    await screen.findByRole('button', { name: /^Clinica$/i });
+    await user.click(screen.getByRole('button', { name: /^Clinica$/i }));
+    expect(screen.getByRole('button', { name: /^Diagnostico$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Pendientes$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Sesion actual$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Realizados$/i })).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
     await waitFor(() => expect(screen.getByText(/Historial completo/i)).toBeInTheDocument());
@@ -261,8 +262,6 @@ describe('PacientesPage structure', () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByRole('button', { name: /^Tratamientos$/i });
-    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
     await user.click(screen.getByRole('button', { name: /^Presupuestos$/i }));
 
     const createButton = await screen.findByRole('button', { name: /Crear nuevo presupuesto/i });
@@ -290,8 +289,6 @@ describe('PacientesPage structure', () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByRole('button', { name: /^Tratamientos$/i });
-    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
     await user.click(screen.getByRole('button', { name: /^Presupuestos$/i }));
 
     expect(await screen.findByText(/Este presupuesto ya esta aceptado/i)).toBeInTheDocument();

@@ -169,7 +169,7 @@ describe('PatientForm', () => {
     expect(screen.getByTestId('mini-odontogram-pendientes')).toHaveTextContent('Pendientes: 1');
     expect(screen.getByTestId('mini-odontogram-realizados')).toHaveTextContent('Realizados: 1');
     expect(screen.getByTestId('mini-odontogram-presupuestados')).toHaveTextContent('Presupuestados: 1');
-    await user.click(screen.getByRole('button', { name: /Ver detalle en Tratamientos/i }));
+    await user.click(screen.getByRole('button', { name: /Ver detalle en Clinica/i }));
     expect(noop).toHaveBeenCalled();
     expect(screen.getByText(/Documentos y consentimientos/i)).toBeInTheDocument();
     expect(screen.getByText('rx-control.pdf')).toBeInTheDocument();

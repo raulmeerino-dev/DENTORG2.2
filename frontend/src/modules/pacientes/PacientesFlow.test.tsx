@@ -256,9 +256,9 @@ describe('Flujo integración cross-módulo', () => {
     const user = userEvent.setup();
     renderPage();
 
-    // Voy a tab Tratamientos → Pendientes
-    await screen.findByRole('button', { name: /^Tratamientos$/i });
-    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
+    // Voy a tab Clinica -> Pendientes
+    await screen.findByRole('button', { name: /^Clinica$/i });
+    await user.click(screen.getByRole('button', { name: /^Clinica$/i }));
     await user.click(screen.getByRole('button', { name: /^Pendientes$/i }));
 
     // Botón "+ Lab" en la fila del tratamiento
@@ -300,9 +300,9 @@ describe('Flujo integración cross-módulo', () => {
     const banner = await screen.findByRole('button', { name: /pedido.*sin recibir.*vencida/i });
     expect(banner).toBeInTheDocument();
     await user.click(banner);
-    // Click navega a historial (donde vive el bloque laboratorio)
+    // Click navega a Clinica, donde laboratorio queda disponible para el doctor.
     await waitFor(() => {
-      expect(screen.getByText(/Historial completo/i)).toBeInTheDocument();
+      expect(screen.getByText(/Laboratorio y protesicos/i)).toBeInTheDocument();
     });
   });
 
