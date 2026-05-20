@@ -87,7 +87,7 @@ export function PatientOdontogramSummary({
         </h3>
         <div className="patient-card-head-right">
           <span>{teethWithClinicalData} piezas con datos</span>
-          <button type="button" onClick={onOpenDetail}>Ver detalle en Tratamientos</button>
+          <button type="button" onClick={onOpenDetail} aria-label="Ver detalle en Tratamientos">Detalle</button>
         </div>
       </div>
       <div className="mini-odontogram" data-testid="mini-odontogram" role="img" aria-label="Mini odontograma resumen">
@@ -98,7 +98,7 @@ export function PatientOdontogramSummary({
         <span data-testid="mini-odontogram-pendientes"><b>Pendientes:</b> {pendingLines.length}</span>
         <span data-testid="mini-odontogram-realizados"><b>Realizados:</b> {realizedEntries.length}</span>
         <span data-testid="mini-odontogram-presupuestados"><b>Presupuestados:</b> {plannedLines.length}</span>
-        <span><b>Ultima actualizacion:</b> {lastUpdate}</span>
+        <span className="mini-odontogram-update"><b>Actualizado</b> {lastUpdate}</span>
       </div>
       <div className="mini-odontogram-legend" aria-label="Leyenda odontograma resumen">
         <span><i className="mini-tooth-pendiente" />Pendiente</span>

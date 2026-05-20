@@ -233,7 +233,9 @@ describe('PacientesPage structure', () => {
     expect(await screen.findByText(/Documentos y consentimientos/i)).toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /Ver todos/i })[0]);
-    expect(await screen.findByText(/Enlaces y archivos medicos/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Documentos del paciente/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Pieza seleccionada/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Documentos por pieza/i)).not.toBeInTheDocument();
     expect(screen.getAllByText('rx-control.pdf').length).toBeGreaterThan(0);
   });
 

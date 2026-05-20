@@ -37,6 +37,9 @@ coverage/
 htmlcov/
 test-results/
 playwright-report/
+visual-checks/
+frontend/visual-checks/
+frontend/frontend/
 
 # Editor / OS
 .DS_Store

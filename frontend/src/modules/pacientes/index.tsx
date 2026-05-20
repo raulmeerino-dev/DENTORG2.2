@@ -165,6 +165,7 @@ export default function PacientesPage() {
   const [tab, setTab] = useState<WorkTab>('pacientes');
   const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>('primera');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
+  const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
   const [billingLedgerOpen, setBillingLedgerOpen] = useState(false);
   const [laboratorioDetailsOpen, setLaboratorioDetailsOpen] = useState(false);
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
@@ -302,7 +303,7 @@ export default function PacientesPage() {
     }
     if (targetTab === 'documentos' || targetTab === 'consentimientos') {
       setTab('pacientes');
-      setDocumentsDrawerOpen(true);
+      openDocumentsDrawer();
       return;
     }
     if (targetTab === 'citas') {
@@ -310,6 +311,11 @@ export default function PacientesPage() {
       return;
     }
     setTab('pacientes');
+  }
+
+  function openDocumentsDrawer(options: { upload?: boolean } = {}) {
+    setDocumentsDrawerOpen(true);
+    setDocumentsUploadOpen(Boolean(options.upload));
   }
 
   const nuevoPresupuesto = useMutation({
@@ -469,6 +475,7 @@ export default function PacientesPage() {
     onSuccess: () => {
       void documentosQuery.refetch();
       setDocumentsDrawerOpen(true);
+      setDocumentsUploadOpen(false);
       setTab('pacientes');
     },
   });
@@ -715,32 +722,6 @@ export default function PacientesPage() {
             setTab('pacientes');
           }}
         />
-        <PatientActionsMenu
-            paciente={active}
-            busy={nuevoPresupuesto.isPending}
-            handlers={{
-              onNuevaCita: abrirAgendaPaciente,
-              onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
-              onCobrar: () => abrirCobroDesdeFicha(),
-              onSubirDocumento: () => setDocumentsDrawerOpen(true),
-              onCrearReceta: () => {
-                setRecetaError(null);
-                setRecetaModalOpen(true);
-              },
-              onPedidoLaboratorio: () => {
-                setPedidoLabError(null);
-                setPedidoLabContext({ open: true, linea: null });
-              },
-              onConsentimiento: () => setDesigner(active ? { mode: 'consentimiento' } : null),
-              onRevocarConsentimiento: abrirRevocarConsentimientoMenu,
-              onCircular: () => setDesigner(active ? { mode: 'circular' } : null),
-              onCuestionarioMedico: () => setDesigner(active ? { mode: 'circular', tipo: 'Cuestionario medico' } : null),
-              onDocumentoLOPD: () => setDesigner(active ? { mode: 'circular', tipo: 'Documento LOPD / proteccion de datos' } : null),
-              onWhatsApp: abrirWhatsAppPaciente,
-              onComentario: () => setComentarioOpen(true),
-              onCopiarDatos: copiarDatosPaciente,
-            }}
-          />
         <div className="patient-selector-current" aria-label="Paciente activo">
           {active ? (
             <>
@@ -762,6 +743,32 @@ export default function PacientesPage() {
             <small className="patient-selector-empty">Sin paciente</small>
           )}
         </div>
+        <PatientActionsMenu
+          paciente={active}
+          busy={nuevoPresupuesto.isPending}
+          handlers={{
+            onNuevaCita: abrirAgendaPaciente,
+            onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
+            onCobrar: () => abrirCobroDesdeFicha(),
+            onSubirDocumento: () => openDocumentsDrawer({ upload: true }),
+            onCrearReceta: () => {
+              setRecetaError(null);
+              setRecetaModalOpen(true);
+            },
+            onPedidoLaboratorio: () => {
+              setPedidoLabError(null);
+              setPedidoLabContext({ open: true, linea: null });
+            },
+            onConsentimiento: () => setDesigner(active ? { mode: 'consentimiento' } : null),
+            onRevocarConsentimiento: abrirRevocarConsentimientoMenu,
+            onCircular: () => setDesigner(active ? { mode: 'circular' } : null),
+            onCuestionarioMedico: () => setDesigner(active ? { mode: 'circular', tipo: 'Cuestionario medico' } : null),
+            onDocumentoLOPD: () => setDesigner(active ? { mode: 'circular', tipo: 'Documento LOPD / proteccion de datos' } : null),
+            onWhatsApp: abrirWhatsAppPaciente,
+            onComentario: () => setComentarioOpen(true),
+            onCopiarDatos: copiarDatosPaciente,
+          }}
+        />
         {hasPatientError && (
           <div className="inline-alert">
             Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
@@ -776,9 +783,6 @@ export default function PacientesPage() {
         )}
       </div>
       <section className={`page page-shell patient-screen${activeMainTab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
-        <div className="patient-titlebar">
-          <strong>{active ? `${fullName(active)} // CLINICA DENTAL` : 'Pacientes // CLINICA DENTAL'}</strong>
-        </div>
         <nav className="patient-module-tabs">
           {WORK_TABS.map((item) => (
             <button
@@ -820,7 +824,8 @@ export default function PacientesPage() {
               onOpenRealizados={() => openPatientArea('realizados')}
               onOpenFacturacion={() => openPatientArea('historial')}
               onOpenHistorial={() => openPatientArea('historial')}
-              onOpenDocumentos={() => setDocumentsDrawerOpen(true)}
+              onOpenDocumentos={() => openDocumentsDrawer()}
+              onSubirDocumento={() => openDocumentsDrawer({ upload: true })}
               onOpenConsentimientos={() => setDesigner(active ? { mode: 'consentimiento' } : null)}
               onOpenLaboratorio={() => {
                 setLaboratorioDetailsOpen(true);
@@ -867,22 +872,6 @@ export default function PacientesPage() {
                   const activeBudgetClosed = isPresupuestoCerrado(presupuesto?.estado);
                   const selector = (
                     <>
-                      <div className="budget-workflow-header">
-                        <div>
-                          <strong>Presupuestos del paciente</strong>
-                          <span>
-                            Crea un presupuesto nuevo para tratamientos nuevos y conserva el anterior como registro clinico/economico.
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          className="primary-action budget-create-button"
-                          onClick={() => nuevoPresupuesto.mutate()}
-                          disabled={createDisabled}
-                        >
-                          {createLabel}
-                        </button>
-                      </div>
                       {(!active || noDoctorsConfigured || createError) && (
                         <div className="inline-alert budget-create-alert" role="alert">
                           {!active && 'Selecciona un paciente antes de crear un presupuesto.'}
@@ -911,6 +900,8 @@ export default function PacientesPage() {
                         <button
                           type="button"
                           className="presupuesto-pill presupuesto-pill-nuevo"
+                          aria-label={createLabel}
+                          title={createLabel}
                           onClick={() => nuevoPresupuesto.mutate()}
                           disabled={createDisabled}
                         >
@@ -1059,7 +1050,7 @@ export default function PacientesPage() {
               <button onClick={() => { openPatientArea('primera'); setContextMenu(null); }}>Primera visita</button>
               <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Consentimiento informado</button>
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Circular / justificante</button>
-              <button onClick={() => { setDocumentsDrawerOpen(true); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
+              <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
               <span />
               <button onClick={() => { setInvoiceCreatorOpen(true); setContextMenu(null); }} disabled={!active}>Emitir factura</button>
               <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={!active}>Registrar cobro</button>
@@ -1083,14 +1074,14 @@ export default function PacientesPage() {
               <button onClick={() => abrirPdfFactura(contextMenu.factura)}>Ver / imprimir PDF</button>
               <button onClick={() => { cobrarFactura.mutate(); setContextMenu(null); }} disabled={cobrarFactura.isPending || Number(contextMenu.factura.pendiente) <= 0}>Registrar cobro pendiente</button>
               <button onClick={() => emitirRecetaFactura(contextMenu.factura)}>Emitir receta</button>
-              <button onClick={() => { setDocumentsDrawerOpen(true); setContextMenu(null); }}>Ver documentos del paciente</button>
+              <button onClick={() => { openDocumentsDrawer(); setContextMenu(null); }}>Ver documentos del paciente</button>
             </>
           )}
           {contextMenu.kind === 'documento' && (
             <>
               <strong>Documento</strong>
               <button onClick={() => abrirDocumento(contextMenu.documento)}>Abrir documento</button>
-              <button onClick={() => { setDocumentsDrawerOpen(true); setContextMenu(null); }}>Adjuntar otro archivo</button>
+              <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar otro archivo</button>
               <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Crear consentimiento</button>
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Crear circular</button>
             </>
@@ -1200,19 +1191,25 @@ export default function PacientesPage() {
         />
       )}
       {documentsDrawerOpen && active && (
-        <div className="modal-backdrop" onMouseDown={() => setDocumentsDrawerOpen(false)}>
+        <div className="modal-backdrop" onMouseDown={() => {
+          setDocumentsDrawerOpen(false);
+          setDocumentsUploadOpen(false);
+        }}>
           <section className="patient-documents-drawer" onMouseDown={(event) => event.stopPropagation()}>
             <header className="modal-titlebar">
               <strong>Documentos y consentimientos</strong>
-              <button type="button" onClick={() => setDocumentsDrawerOpen(false)}>Cerrar</button>
+              <button type="button" onClick={() => {
+                setDocumentsDrawerOpen(false);
+                setDocumentsUploadOpen(false);
+              }}>Cerrar</button>
             </header>
             <DocumentosPanel
-              paciente={active}
               pacienteId={active.id}
               documentos={documentosQuery.data ?? []}
+              uploadOpen={documentsUploadOpen}
+              onUploadOpenChange={setDocumentsUploadOpen}
               onSubir={(data) => subirDocumento.mutate(data)}
               onContextDocumento={(event, documento) => openContext(event, { kind: 'documento', documento })}
-              userRole={user?.rol}
             />
             <ConsentimientosPanel
               consentimientos={consentimientosQuery.data ?? []}

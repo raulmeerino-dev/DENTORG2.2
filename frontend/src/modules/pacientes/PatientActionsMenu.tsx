@@ -117,16 +117,6 @@ export function PatientActionsMenu({
       {open && !noPatient && (
         <div className="patient-actions-menu" role="menu" aria-label="Mas acciones del paciente">
           <span className="patient-actions-group">Clinico</span>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={recetaEnabled ? fire(handlers.onCrearReceta!) : undefined}
-            disabled={!recetaEnabled}
-            title={recetaEnabled ? undefined : 'Disponible en proxima fase'}
-          >
-            <Pill size={14} strokeWidth={1.8} aria-hidden="true" />
-            <span>Crear receta</span>
-          </button>
           <button type="button" role="menuitem" onClick={fire(handlers.onConsentimiento)}>
             <FileSignature size={14} strokeWidth={1.8} aria-hidden="true" />
             <span>Consentimiento informado</span>
