@@ -165,7 +165,7 @@ export default function CajaPage() {
         </div>
       </div>
 
-      <div className="desk-tabs" style={{ marginBottom: '0.5rem' }}>
+      <div className="caja-tabs" aria-label="Filtros de facturas de caja">
         <button className={tab === 'pendientes' ? 'active' : ''} onClick={() => setTab('pendientes')}>
           Pendientes de cobro ({pendientes.length})
         </button>

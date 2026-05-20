@@ -31,11 +31,37 @@ function CardHead({ icon, title, status, statusTone, action }: { icon: ReactNode
   );
 }
 
+const HEALTH_LABELS: Record<string, string> = {
+  alergias: 'Alergias',
+  contraindicaciones: 'Contraindicaciones',
+  observaciones_medicas: 'Observaciones médicas',
+  observaciones: 'Observaciones médicas',
+  medicacion: 'Medicación',
+  medicacion_actual: 'Medicación actual',
+  anticoagulantes: 'Anticoagulantes',
+  ansiedad: 'Ansiedad',
+  antecedentes: 'Antecedentes',
+  enfermedades: 'Enfermedades',
+  embarazo: 'Embarazo',
+};
+
+function healthLabel(key: string) {
+  if (HEALTH_LABELS[key]) return HEALTH_LABELS[key];
+  const clean = key.replaceAll('_', ' ').trim();
+  return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}` : key;
+}
+
+function readableHealthItems(datos?: Record<string, unknown> | null) {
+  if (!datos) return [];
+  return Object.entries(datos)
+    .filter(([key, value]) => !['temporal', 'pendiente_completar'].includes(key) && value !== null && value !== undefined && String(value).trim() !== '')
+    .map(([key, value]) => ({ key, label: healthLabel(key), value: String(value).trim() }));
+}
+
 function readableHealthData(datos?: Record<string, unknown> | null) {
   if (!datos) return '';
-  return Object.entries(datos)
-    .filter(([key]) => !['temporal', 'pendiente_completar'].includes(key))
-    .map(([key, value]) => `${key}: ${String(value)}`)
+  return readableHealthItems(datos)
+    .map((item) => `${item.label}: ${item.value}`)
     .join('\n');
 }
 
@@ -159,6 +185,7 @@ export function PatientForm({
   onOpenFacturacion,
   onOpenHistorial,
   onOpenDocumentos,
+  onSubirDocumento,
   onOpenConsentimientos,
   onOpenLaboratorio,
   onEmitirFactura,
@@ -183,6 +210,7 @@ export function PatientForm({
   onOpenFacturacion: () => void;
   onOpenHistorial: () => void;
   onOpenDocumentos: () => void;
+  onSubirDocumento: () => void;
   onOpenConsentimientos: () => void;
   onOpenLaboratorio: () => void;
   onEmitirFactura: () => void;
@@ -192,7 +220,9 @@ export function PatientForm({
   const totals = getBillingTotals(facturas);
   const temporal = paciente?.observaciones?.toLowerCase().includes('temporal');
   const initials = paciente ? `${paciente.nombre?.[0] ?? ''}${paciente.apellidos?.[0] ?? ''}`.toUpperCase() : '--';
-  const healthText = readableHealthData(paciente?.datos_salud);
+  const healthItems = readableHealthItems(paciente?.datos_salud);
+  const healthText = healthItems.map((item) => `${item.label}: ${item.value}`).join('\n');
+  const healthAlertText = healthItems.map((item) => `${item.label}: ${item.value}`).join(' · ');
   const recentHistory = historial.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
   const lastVisit = recentHistory[0] ?? null;
   const nowIso = new Date().toISOString();
@@ -205,7 +235,7 @@ export function PatientForm({
   const nextComment = nextCita?.observaciones || 'Sin observaciones para la cita.';
   const pendientes = presupuestos.flatMap((presupuesto) => presupuesto.lineas).filter((linea) => linea.aceptado && !linea.pasado_trabajo_pendiente);
   const realizados = historial.filter((item) => ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(item.estado));
-  const alertText = healthText || paciente?.observaciones || 'Sin alertas ni observaciones generales.';
+  const alertText = healthAlertText || paciente?.observaciones || 'Sin alertas ni observaciones generales.';
   const facturasPendientes = getFacturasPendientes(facturas);
   const ultimaFacturas = getFacturasRecientes(facturas);
   const pagosParciales = getPagosParciales(facturas);
@@ -264,7 +294,7 @@ export function PatientForm({
         </div>
         <div className={`patient-hub-alert ${hasAlertasReales ? 'has-alerts' : ''}`}>
           <span><AlertTriangle size={11} strokeWidth={2.2} aria-hidden="true" /> Alertas</span>
-          <strong>{alertText}</strong>
+          <strong title={alertText}>{alertText}</strong>
         </div>
         <div className={`patient-hub-balance ${totals.pendiente > 0 ? 'has-debt' : ''}`}>
           <span><Wallet size={11} strokeWidth={2.2} aria-hidden="true" /> Saldo</span>
@@ -305,7 +335,18 @@ export function PatientForm({
           <div className="patient-clinical-notes-body">
             <div>
               <b>Salud</b>
-              <p>{healthText || 'Sin alergias ni contraindicaciones registradas.'}</p>
+              {healthItems.length > 0 ? (
+                <dl className="patient-health-list">
+                  {healthItems.map((item) => (
+                    <div key={item.key}>
+                      <dt>{item.label}</dt>
+                      <dd>{item.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p>Sin alergias ni contraindicaciones registradas.</p>
+              )}
             </div>
             <div>
               <b>Observaciones</b>
@@ -437,7 +478,7 @@ export function PatientForm({
           </div>
         </div>
         <footer className="patient-documents-summary-actions">
-          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Subir doc.</button>
+          <button type="button" onClick={onSubirDocumento} disabled={!paciente}>Subir doc.</button>
           <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo CI</button>
           <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Lab. <span className="link-count">{laboratorio.length}</span></button>
         </footer>

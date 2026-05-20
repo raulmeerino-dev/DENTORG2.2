@@ -76,30 +76,32 @@ describe('PatientActionsMenu', () => {
     expect(menu).not.toBeInTheDocument();
   });
 
-  it('receta y laboratorio aparecen disabled cuando no se proporcionan handlers (Fase 3/4)', async () => {
+  it('receta principal y laboratorio aparecen disabled cuando no se proporcionan handlers', async () => {
     const user = userEvent.setup();
     const handlers = makeHandlers();
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
+    expect(screen.getByRole('button', { name: 'Recetas' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    expect(screen.getByRole('menuitem', { name: 'Crear receta' })).toBeDisabled();
+    expect(screen.queryByRole('menuitem', { name: 'Crear receta' })).not.toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Pedido de laboratorio' })).toBeDisabled();
     // Label cambiado en F1
     expect(screen.getByRole('menuitem', { name: 'Documento cuestionario medico' })).toBeInTheDocument();
   });
 
-  it('si se proporcionan onCrearReceta y onPedidoLaboratorio, se habilitan', async () => {
+  it('si se proporcionan onCrearReceta y onPedidoLaboratorio, se habilitan sin duplicar receta en el menu', async () => {
     const user = userEvent.setup();
     const onCrearReceta = vi.fn();
     const onPedidoLaboratorio = vi.fn();
     const handlers = makeHandlers({ onCrearReceta, onPedidoLaboratorio });
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
-    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    const recetaBtn = screen.getByRole('menuitem', { name: 'Crear receta' });
-    const labBtn = screen.getByRole('menuitem', { name: 'Pedido de laboratorio' });
-    expect(recetaBtn).not.toBeDisabled();
-    expect(labBtn).not.toBeDisabled();
-    await user.click(recetaBtn);
+    await user.click(screen.getByRole('button', { name: 'Recetas' }));
     expect(onCrearReceta).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    expect(screen.queryByRole('menuitem', { name: 'Crear receta' })).not.toBeInTheDocument();
+    const labBtn = screen.getByRole('menuitem', { name: 'Pedido de laboratorio' });
+    expect(labBtn).not.toBeDisabled();
+    await user.click(labBtn);
+    expect(onPedidoLaboratorio).toHaveBeenCalledTimes(1);
   });
 
   it('WhatsApp, Comentario y Copiar datos llaman a sus handlers', async () => {
