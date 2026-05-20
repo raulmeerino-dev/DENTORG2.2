@@ -511,8 +511,8 @@ export default function ConfiguracionPage() {
       )}
 
       {tab === 'tratamientos' && (
-        <div className="fichero-grid wide-left">
-          <section className="desk-panel">
+        <div className="fichero-grid wide-left treatment-catalog-layout">
+          <section className="desk-panel treatment-catalog-panel">
             <div className="panel-caption">
               <strong>Catalogo de tratamientos</strong>
               <AccessPill allowed={isAdmin || canEditClinical} />
@@ -523,33 +523,35 @@ export default function ConfiguracionPage() {
                 placeholder="Buscar tratamiento..."
               />
             </div>
-            <table className="euro-table">
-              <thead><tr><th>Codigo</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th>IVA</th><th>Precio</th></tr></thead>
-              <tbody>
-                {filteredTratamientos.map((tratamiento) => (
-                  <tr
-                    key={tratamiento.id}
-                    className={`treatment-coded-row ${tratamientoForm.id === tratamiento.id ? 'selected-row' : ''}`}
-                    style={{ '--treatment-color': treatmentColor(tratamiento.familia?.nombre, tratamiento.nombre) } as CSSProperties}
-                    onClick={() => setTratamientoForm(formFromTreatment(tratamiento))}
-                  >
-                    <td>
-                      <span className="treatment-badge">
-                        <span>{tratamiento.familia?.icono ?? tratamiento.codigo?.slice(0, 2) ?? 'TR'}</span>
-                        {tratamiento.codigo ?? 'TR'}
-                      </span>
-                    </td>
-                    <td>{tratamiento.nombre}</td>
-                    <td>{tratamiento.familia?.nombre ?? ''}</td>
-                    <td>{tratamiento.requiere_pieza ? 'Si' : 'No'}</td>
-                    <td>{tratamiento.requiere_caras ? 'Si' : 'No'}</td>
-                    <td className="num">{money(tratamiento.iva_porcentaje)}</td>
-                    <td className="num">{money(tratamiento.precio)}</td>
-                  </tr>
-                ))}
-                {!filteredTratamientos.length && <tr><td colSpan={7}>No hay tratamientos con ese filtro.</td></tr>}
-              </tbody>
-            </table>
+            <div className="treatment-catalog-scroll">
+              <table className="euro-table">
+                <thead><tr><th>Codigo</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th>IVA</th><th>Precio</th></tr></thead>
+                <tbody>
+                  {filteredTratamientos.map((tratamiento) => (
+                    <tr
+                      key={tratamiento.id}
+                      className={`treatment-coded-row ${tratamientoForm.id === tratamiento.id ? 'selected-row' : ''}`}
+                      style={{ '--treatment-color': treatmentColor(tratamiento.familia?.nombre, tratamiento.nombre) } as CSSProperties}
+                      onClick={() => setTratamientoForm(formFromTreatment(tratamiento))}
+                    >
+                      <td>
+                        <span className="treatment-badge">
+                          <span>{tratamiento.familia?.icono ?? tratamiento.codigo?.slice(0, 2) ?? 'TR'}</span>
+                          {tratamiento.codigo ?? 'TR'}
+                        </span>
+                      </td>
+                      <td>{tratamiento.nombre}</td>
+                      <td>{tratamiento.familia?.nombre ?? ''}</td>
+                      <td>{tratamiento.requiere_pieza ? 'Si' : 'No'}</td>
+                      <td>{tratamiento.requiere_caras ? 'Si' : 'No'}</td>
+                      <td className="num">{money(tratamiento.iva_porcentaje)}</td>
+                      <td className="num">{money(tratamiento.precio)}</td>
+                    </tr>
+                  ))}
+                  {!filteredTratamientos.length && <tr><td colSpan={7}>No hay tratamientos con ese filtro.</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </section>
           <section className="desk-panel treatment-editor-panel">
             <div className="panel-caption"><strong>{tratamientoForm.id ? 'Editar tratamiento' : 'Nuevo tratamiento'}</strong><AccessPill allowed={canEditTreatments} /></div>
