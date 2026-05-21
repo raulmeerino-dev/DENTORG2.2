@@ -510,35 +510,13 @@ export async function getPaciente(pacienteId: string) {
 }
 
 export async function createPaciente(data: Partial<ApiPaciente> & { nombre: string; apellidos: string }) {
-  const fallback: ApiPaciente = {
-    id: `demo-pac-${Date.now()}`,
-    codigo: null,
-    num_historial: Math.floor(Date.now() / 1000),
-    nombre: data.nombre,
-    apellidos: data.apellidos,
-    fecha_nacimiento: data.fecha_nacimiento ?? null,
-    dni_nie: data.dni_nie ?? null,
-    telefono: data.telefono ?? null,
-    telefono2: data.telefono2 ?? null,
-    email: data.email ?? null,
-    direccion: data.direccion ?? null,
-    codigo_postal: data.codigo_postal ?? null,
-    ciudad: data.ciudad ?? null,
-    provincia: data.provincia ?? null,
-    observaciones: data.observaciones ?? null,
-    datos_salud: data.datos_salud ?? null,
-    activo: true,
-  };
-  return withDemoFallback(api.post<ApiPaciente>('/pacientes', data), fallback);
+  const { data: created } = await api.post<ApiPaciente>('/pacientes', data);
+  return created;
 }
 
 export async function updatePaciente(pacienteId: string, data: Partial<ApiPaciente>) {
-  const fallback = DEMO_PACIENTES.find((item) => item.id === pacienteId);
-  return withDemoFallback(api.patch<ApiPaciente>(`/pacientes/${pacienteId}`, data), {
-    ...(fallback ?? DEMO_PACIENTES[0]),
-    ...data,
-    id: pacienteId,
-  } as ApiPaciente);
+  const { data: updated } = await api.patch<ApiPaciente>(`/pacientes/${pacienteId}`, data);
+  return updated;
 }
 
 export async function getPresupuestos(pacienteId: string) {
@@ -578,21 +556,8 @@ export async function createPagoAnticipadoPaciente(pacienteId: string, data: {
   concepto?: string;
   notas?: string | null;
 }) {
-  return withDemoFallback(api.post<PagoAnticipadoPaciente>(`/pacientes/${pacienteId}/pagos-anticipados`, data), {
-    id: `demo-anticipo-${Date.now()}`,
-    paciente_id: pacienteId,
-    clinica_id: null,
-    fecha: new Date().toISOString(),
-    importe: String(data.importe),
-    forma_pago_id: data.forma_pago_id,
-    forma_pago: DEMO_FORMAS_PAGO.find((item) => item.id === data.forma_pago_id) ?? null,
-    usuario_id: 'demo-user',
-    concepto: data.concepto ?? 'Pago anticipado',
-    notas: data.notas ?? null,
-    anulado_at: null,
-    anulado_por_id: null,
-    motivo_anulacion: null,
-  });
+  const { data: created } = await api.post<PagoAnticipadoPaciente>(`/pacientes/${pacienteId}/pagos-anticipados`, data);
+  return created;
 }
 
 export async function updatePagoAnticipadoPaciente(pacienteId: string, pagoId: string, data: Partial<{
@@ -601,21 +566,8 @@ export async function updatePagoAnticipadoPaciente(pacienteId: string, pagoId: s
   concepto: string;
   notas: string | null;
 }>) {
-  return withDemoFallback(api.patch<PagoAnticipadoPaciente>(`/pacientes/${pacienteId}/pagos-anticipados/${pagoId}`, data), {
-    id: pagoId,
-    paciente_id: pacienteId,
-    clinica_id: null,
-    fecha: new Date().toISOString(),
-    importe: String(data.importe ?? 0),
-    forma_pago_id: data.forma_pago_id ?? DEMO_FORMAS_PAGO[0].id,
-    forma_pago: DEMO_FORMAS_PAGO.find((item) => item.id === data.forma_pago_id) ?? DEMO_FORMAS_PAGO[0],
-    usuario_id: 'demo-user',
-    concepto: data.concepto ?? 'Pago anticipado',
-    notas: data.notas ?? null,
-    anulado_at: null,
-    anulado_por_id: null,
-    motivo_anulacion: null,
-  });
+  const { data: updated } = await api.patch<PagoAnticipadoPaciente>(`/pacientes/${pacienteId}/pagos-anticipados/${pagoId}`, data);
+  return updated;
 }
 
 export async function getHistorialPaciente(pacienteId: string) {
@@ -705,23 +657,8 @@ export async function uploadDocumentoPaciente(pacienteId: string, data: {
   if (data.historial_id) form.append('historial_id', data.historial_id);
   if (data.doctor_id) form.append('doctor_id', data.doctor_id);
   if (data.etiquetas) form.append('etiquetas', data.etiquetas);
-  const fallback: DocumentoPaciente = {
-    id: `demo-doc-${Date.now()}`,
-    paciente_id: pacienteId,
-    nombre_original: data.archivo.name,
-    ruta: null,
-    mime_type: data.archivo.type || 'application/octet-stream',
-    tamano_bytes: data.archivo.size,
-    categoria: data.categoria,
-    descripcion: data.descripcion ?? null,
-    fecha_documento: data.fecha_documento ?? new Date().toISOString().slice(0, 10),
-    tratamiento_id: data.tratamiento_id ?? null,
-    historial_id: data.historial_id ?? null,
-    doctor_id: data.doctor_id ?? null,
-    etiquetas: data.etiquetas ?? null,
-    created_at: new Date().toISOString(),
-  };
-  return withDemoFallback(api.post<DocumentoPaciente>(`/pacientes/${pacienteId}/documentos`, form), fallback);
+  const { data: created } = await api.post<DocumentoPaciente>(`/pacientes/${pacienteId}/documentos`, form);
+  return created;
 }
 
 export async function generarDocumentoPdfPaciente(pacienteId: string, data: {
@@ -736,23 +673,8 @@ export async function generarDocumentoPdfPaciente(pacienteId: string, data: {
   doctor_id?: string | null;
   firma_data_url?: string | null;
 }) {
-  const fallback: DocumentoPaciente = {
-    id: `demo-pdf-${Date.now()}`,
-    paciente_id: pacienteId,
-    nombre_original: `${data.titulo.replace(/\s+/g, '_').toLowerCase()}.pdf`,
-    ruta: null,
-    mime_type: 'application/pdf',
-    tamano_bytes: data.contenido.length,
-    categoria: data.categoria,
-    descripcion: data.descripcion ?? data.titulo,
-    fecha_documento: data.fecha_documento ?? new Date().toISOString().slice(0, 10),
-    tratamiento_id: data.tratamiento_id ?? null,
-    historial_id: data.historial_id ?? null,
-    doctor_id: data.doctor_id ?? null,
-    etiquetas: data.etiquetas ?? null,
-    created_at: new Date().toISOString(),
-  };
-  return withDemoFallback(api.post<DocumentoPaciente>(`/pacientes/${pacienteId}/documentos/generar-pdf`, data), fallback);
+  const { data: created } = await api.post<DocumentoPaciente>(`/pacientes/${pacienteId}/documentos/generar-pdf`, data);
+  return created;
 }
 
 export async function getPlantillasConsentimiento() {
@@ -777,60 +699,27 @@ export async function createConsentimientoPaciente(pacienteId: string, tipo: str
   plantilla_version: string | null;
   contenido: string | null;
 }>) {
-  const now = new Date().toISOString();
-  return withDemoFallback(api.post<Consentimiento>(`/pacientes/${pacienteId}/consentimientos`, {
+  const { data: created } = await api.post<Consentimiento>(`/pacientes/${pacienteId}/consentimientos`, {
     tipo,
     doctor_id: doctorId,
     estado: extra?.estado ?? 'pendiente_firma',
     plantilla_version: extra?.plantilla_version ?? '2026.04',
     ...extra,
-  }), {
-    id: `demo-cons-${Date.now()}`,
-    paciente_id: pacienteId,
-    clinica_id: null,
-    plantilla_id: extra?.plantilla_id ?? null,
-    tratamiento_id: null,
-    doctor_id: doctorId ?? null,
-    historial_id: null,
-    documento_id: null,
-    tipo,
-    estado: extra?.estado ?? 'pendiente_firma',
-    fecha_firma: now.slice(0, 10),
-    firmado_at: extra?.estado === 'firmado' ? now : null,
-    documento_path: extra?.documento_path ?? null,
-    plantilla_version: extra?.plantilla_version ?? '2026.04',
-    version_plantilla: null,
-    contenido: extra?.contenido ?? null,
-    hash_documento: null,
-    revocado: false,
-    fecha_revocacion: null,
-    motivo_revocacion: null,
-    created_at: now,
   });
+  return created;
 }
 
 export async function firmarConsentimiento(consentimientoId: string, firmaPacienteBase64: string, firmaDoctorBase64?: string | null) {
-  return withDemoFallback(api.post<Consentimiento>(`/consentimientos/${consentimientoId}/firmar`, {
+  const { data: signed } = await api.post<Consentimiento>(`/consentimientos/${consentimientoId}/firmar`, {
     firma_paciente_base64: firmaPacienteBase64,
     firma_doctor_base64: firmaDoctorBase64 ?? null,
-  }), {
-    ...DEMO_CONSENTIMIENTOS[0],
-    id: consentimientoId,
-    estado: 'firmado',
-    firmado_at: new Date().toISOString(),
-    hash_documento: 'demo',
   });
+  return signed;
 }
 
 export async function revocarConsentimiento(consentimientoId: string, motivo: string) {
-  return withDemoFallback(api.post<Consentimiento>(`/consentimientos/${consentimientoId}/revocar`, { motivo }), {
-    ...DEMO_CONSENTIMIENTOS[0],
-    id: consentimientoId,
-    estado: 'revocado',
-    revocado: true,
-    fecha_revocacion: new Date().toISOString().slice(0, 10),
-    motivo_revocacion: motivo,
-  });
+  const { data: revoked } = await api.post<Consentimiento>(`/consentimientos/${consentimientoId}/revocar`, { motivo });
+  return revoked;
 }
 
 export async function openConsentimientoPdf(consentimientoId: string) {
@@ -881,63 +770,41 @@ export async function getFormasPago() {
 }
 
 export async function createPresupuesto(pacienteId: string, doctorId: string) {
-  return withDemoFallback(api.post<Presupuesto>('/presupuestos', {
+  const { data: created } = await api.post<Presupuesto>('/presupuestos', {
     paciente_id: pacienteId,
     doctor_id: doctorId,
     fecha: new Date().toISOString().slice(0, 10),
     lineas: [],
-  }), {
-    ...DEMO_PRESUPUESTOS[0],
-    id: `demo-pres-${Date.now()}`,
-    paciente_id: pacienteId,
-    doctor_id: doctorId,
-    numero: Math.floor(Date.now() / 1000) % 100000,
-    fecha: new Date().toISOString().slice(0, 10),
-    estado: 'borrador',
-    lineas: [],
-    total: '0.00',
-    total_aceptado: '0.00',
   });
+  return created;
 }
 
 export async function presentarPresupuesto(presupuestoId: string) {
-  return withDemoFallback(api.post<Presupuesto>(`/presupuestos/${presupuestoId}/presentar`), {
-    ...DEMO_PRESUPUESTOS[0],
-    id: presupuestoId,
-    estado: 'presentado',
-  });
+  const { data: presented } = await api.post<Presupuesto>(`/presupuestos/${presupuestoId}/presentar`);
+  return presented;
 }
 
 export async function aceptarPresupuesto(presupuestoId: string, lineaIds?: string[]) {
-  return withDemoFallback(api.post<Presupuesto>(`/presupuestos/${presupuestoId}/aceptar`, {
+  const { data: accepted } = await api.post<Presupuesto>(`/presupuestos/${presupuestoId}/aceptar`, {
     linea_ids: lineaIds ?? null,
     pasar_a_trabajo_pendiente: true,
-  }), {
-    ...DEMO_PRESUPUESTOS[0],
-    id: presupuestoId,
-    estado: 'aceptado',
   });
+  return accepted;
 }
 
 export async function rechazarPresupuesto(presupuestoId: string, motivo?: string | null) {
-  return withDemoFallback(api.post<Presupuesto>(`/presupuestos/${presupuestoId}/rechazar`, { motivo }), {
-    ...DEMO_PRESUPUESTOS[0],
-    id: presupuestoId,
-    estado: 'rechazado',
-  });
+  const { data: rejected } = await api.post<Presupuesto>(`/presupuestos/${presupuestoId}/rechazar`, { motivo });
+  return rejected;
 }
 
 export async function convertirPresupuestoFactura(presupuestoId: string, data?: { serie?: string; fecha?: string; forma_pago_id?: string | null }) {
-  return withDemoFallback(api.post<Factura>(`/presupuestos/${presupuestoId}/convertir-a-factura`, {
+  const { data: factura } = await api.post<Factura>(`/presupuestos/${presupuestoId}/convertir-a-factura`, {
     serie: data?.serie ?? 'A',
     fecha: data?.fecha ?? new Date().toISOString().slice(0, 10),
     forma_pago_id: data?.forma_pago_id ?? null,
     solo_aceptadas: true,
-  }), {
-    ...DEMO_FACTURAS[0],
-    id: `demo-fact-${Date.now()}`,
-    estado: 'emitida',
   });
+  return factura;
 }
 
 export async function addPresupuestoLinea(presupuestoId: string, data: {
@@ -947,26 +814,14 @@ export async function addPresupuestoLinea(presupuestoId: string, data: {
   precio_unitario: string | number;
   descuento_porcentaje?: string | number;
 }) {
-  const tratamiento = DEMO_TRATAMIENTOS.find((item) => item.id === data.tratamiento_id) ?? null;
-  return withDemoFallback(api.post<PresupuestoLinea>(`/presupuestos/${presupuestoId}/lineas`, {
+  const { data: created } = await api.post<PresupuestoLinea>(`/presupuestos/${presupuestoId}/lineas`, {
     tratamiento_id: data.tratamiento_id,
     pieza_dental: data.pieza_dental ?? null,
     caras: data.caras || null,
     precio_unitario: Number(data.precio_unitario),
     descuento_porcentaje: Number(data.descuento_porcentaje ?? 0),
-  }), {
-    id: `demo-line-${Date.now()}`,
-    presupuesto_id: presupuestoId,
-    tratamiento_id: data.tratamiento_id,
-    tratamiento,
-    pieza_dental: data.pieza_dental ?? null,
-    caras: data.caras || null,
-    precio_unitario: String(data.precio_unitario),
-    descuento_porcentaje: String(data.descuento_porcentaje ?? 0),
-    aceptado: false,
-    pasado_trabajo_pendiente: false,
-    importe_neto: String(Number(data.precio_unitario) * (1 - Number(data.descuento_porcentaje ?? 0) / 100)),
   });
+  return created;
 }
 
 export async function updatePresupuestoLinea(presupuestoId: string, lineaId: string, data: Partial<{
@@ -976,28 +831,21 @@ export async function updatePresupuestoLinea(presupuestoId: string, lineaId: str
   descuento_porcentaje: string | number;
   aceptado: boolean;
 }>) {
-  return withDemoFallback(api.patch<PresupuestoLinea>(`/presupuestos/${presupuestoId}/lineas/${lineaId}`, data), {
-    ...DEMO_PRESUPUESTOS[0].lineas[0],
-    id: lineaId,
-    presupuesto_id: presupuestoId,
-    pieza_dental: data.pieza_dental ?? null,
-    caras: data.caras ?? null,
-    precio_unitario: String(data.precio_unitario ?? DEMO_PRESUPUESTOS[0].lineas[0].precio_unitario),
-    descuento_porcentaje: String(data.descuento_porcentaje ?? DEMO_PRESUPUESTOS[0].lineas[0].descuento_porcentaje),
-    aceptado: data.aceptado ?? false,
-  });
+  const { data: updated } = await api.patch<PresupuestoLinea>(`/presupuestos/${presupuestoId}/lineas/${lineaId}`, data);
+  return updated;
 }
 
 export async function deletePresupuestoLinea(presupuestoId: string, lineaId: string) {
-  return withDemoFallback(api.delete<void>(`/presupuestos/${presupuestoId}/lineas/${lineaId}`), undefined);
+  await api.delete<void>(`/presupuestos/${presupuestoId}/lineas/${lineaId}`);
 }
 
 export async function pasarPresupuestoTrabajoPendiente(presupuestoId: string) {
-  return withDemoFallback(api.post<unknown[]>(`/presupuestos/${presupuestoId}/pasar-trabajo-pendiente`), []);
+  const { data } = await api.post<unknown[]>(`/presupuestos/${presupuestoId}/pasar-trabajo-pendiente`);
+  return data;
 }
 
 export async function createFacturaManual(pacienteId: string, concepto: string, importe: number) {
-  return withDemoFallback(api.post<Factura>('/facturas', {
+  const { data: factura } = await api.post<Factura>('/facturas', {
     paciente_id: pacienteId,
     serie: 'A',
     fecha: new Date().toISOString().slice(0, 10),
@@ -1008,16 +856,8 @@ export async function createFacturaManual(pacienteId: string, concepto: string, 
       precio_unitario: importe,
       iva_porcentaje: 0,
     }],
-  }), {
-    ...DEMO_FACTURAS[0],
-    id: `demo-fac-${Date.now()}`,
-    paciente_id: pacienteId,
-    lineas: [{ ...DEMO_FACTURAS[0].lineas[0], concepto, precio_unitario: String(importe), subtotal: String(importe) }],
-    subtotal: String(importe),
-    total: String(importe),
-    pendiente: String(importe),
-    total_cobrado: '0.00',
   });
+  return factura;
 }
 
 export async function createFacturaDesdeHistorial(pacienteId: string, data: {
@@ -1029,7 +869,7 @@ export async function createFacturaDesdeHistorial(pacienteId: string, data: {
   lineas: HistorialSinFacturar[];
 }) {
   const descuento = Math.max(0, Math.min(100, Number(data.descuento_porcentaje ?? 0)));
-  return withDemoFallback(api.post<Factura>('/facturas', {
+  const { data: factura } = await api.post<Factura>('/facturas', {
     paciente_id: pacienteId,
     serie: data.serie || 'A',
     fecha: data.fecha,
@@ -1043,33 +883,16 @@ export async function createFacturaDesdeHistorial(pacienteId: string, data: {
       precio_unitario: Number(linea.tratamiento_precio) * (1 - descuento / 100),
       iva_porcentaje: Number(linea.tratamiento_iva ?? 0),
     })),
-  }), {
-    ...DEMO_FACTURAS[0],
-    id: `demo-fac-${Date.now()}`,
-    paciente_id: pacienteId,
-    fecha: data.fecha,
-    serie: data.serie || 'A',
-    numero: DEMO_FACTURAS.length + 1,
-    lineas: data.lineas.map((linea, index) => ({
-      id: `demo-fl-${Date.now()}-${index}`,
-      concepto: linea.tratamiento_nombre,
-      concepto_ficticio: null,
-      cantidad: 1,
-      precio_unitario: String(Number(linea.tratamiento_precio) * (1 - descuento / 100)),
-      iva_porcentaje: String(linea.tratamiento_iva ?? '0'),
-      subtotal: String(Number(linea.tratamiento_precio) * (1 - descuento / 100)),
-    })),
-    subtotal: String(data.lineas.reduce((sum, linea) => sum + Number(linea.tratamiento_precio) * (1 - descuento / 100), 0)),
-    iva_total: '0',
-    total: String(data.lineas.reduce((sum, linea) => sum + Number(linea.tratamiento_precio) * (1 - descuento / 100), 0)),
   });
+  return factura;
 }
 
 export async function registrarCobro(facturaId: string, formaPagoId: string, importe: number) {
-  return withDemoFallback(api.post<Factura>(`/facturas/${facturaId}/pagos`, {
+  const { data: factura } = await api.post<Factura>(`/facturas/${facturaId}/pagos`, {
     forma_pago_id: formaPagoId,
     importe,
-  }), { ...DEMO_FACTURAS[0], id: facturaId, estado: 'pagada', total_cobrado: String(importe), pendiente: '0.00' });
+  });
+  return factura;
 }
 
 export async function getCitas(params: Record<string, string>) {
@@ -1259,27 +1082,8 @@ export async function updateCita(citaId: string, data: Partial<{
   recordatorio_estado: string | null;
   motivo_cancelacion: string | null;
 }>) {
-  const doctor = data.doctor_id ? DEMO_DOCTORES.find((item) => item.id === data.doctor_id) : DEMO_DOCTORES[0];
-  return withDemoFallback(api.patch<Cita>(`/citas/${citaId}`, data), {
-    id: citaId,
-    paciente_id: DEMO_PACIENTES[0].id,
-    doctor_id: data.doctor_id ?? DEMO_DOCTORES[0].id,
-    gabinete_id: data.gabinete_id ?? null,
-    fecha_hora: data.fecha_hora ?? new Date().toISOString(),
-    duracion_min: data.duracion_min ?? 30,
-    estado: data.estado ?? 'programada',
-    es_urgencia: false,
-    motivo: data.motivo ?? 'Revision',
-    observaciones: data.observaciones ?? null,
-    recordatorio_enviado: data.recordatorio_enviado ?? false,
-    recordatorio_canal: data.recordatorio_canal ?? null,
-    recordatorio_estado: data.recordatorio_estado ?? null,
-    recordatorio_at: null,
-    confirmado_at: data.estado === 'confirmada' ? new Date().toISOString() : null,
-    motivo_cancelacion: data.motivo_cancelacion ?? null,
-    paciente: { nombre: DEMO_PACIENTES[0].nombre, apellidos: DEMO_PACIENTES[0].apellidos, telefono: DEMO_PACIENTES[0].telefono },
-    doctor: { nombre: doctor?.nombre ?? DEMO_DOCTORES[0].nombre, color_agenda: doctor?.color_agenda ?? DEMO_DOCTORES[0].color_agenda },
-  });
+  const { data: updated } = await api.patch<Cita>(`/citas/${citaId}`, data);
+  return updated;
 }
 
 export async function reprogramarCita(citaId: string, data: {
@@ -1290,47 +1094,13 @@ export async function reprogramarCita(citaId: string, data: {
   forzar_fuera_horario?: boolean;
   motivo?: string | null;
 }) {
-  return withDemoFallback(api.patch<Cita>(`/citas/${citaId}/reprogramar`, data), {
-    id: citaId,
-    paciente_id: DEMO_PACIENTES[0].id,
-    doctor_id: data.doctor_id ?? DEMO_DOCTORES[0].id,
-    gabinete_id: data.gabinete_id ?? null,
-    fecha_hora: data.fecha_hora,
-    duracion_min: data.duracion_min ?? 30,
-    estado: 'programada',
-    es_urgencia: false,
-    motivo: data.motivo ?? 'Reprogramada',
-    observaciones: null,
-    recordatorio_enviado: false,
-    recordatorio_canal: null,
-    recordatorio_estado: null,
-    recordatorio_at: null,
-    confirmado_at: null,
-    motivo_cancelacion: null,
-    paciente: { nombre: DEMO_PACIENTES[0].nombre, apellidos: DEMO_PACIENTES[0].apellidos, telefono: DEMO_PACIENTES[0].telefono },
-    doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda },
-  });
+  const { data: updated } = await api.patch<Cita>(`/citas/${citaId}/reprogramar`, data);
+  return updated;
 }
 
 export async function confirmarCita(citaId: string) {
-  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/confirmar`), {
-    estado: 'confirmada',
-    id: citaId,
-    paciente_id: DEMO_PACIENTES[0].id,
-    doctor_id: DEMO_DOCTORES[0].id,
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString(),
-    duracion_min: 30,
-    es_urgencia: false,
-    motivo: 'Confirmada',
-    observaciones: null,
-    recordatorio_enviado: false,
-    recordatorio_canal: null,
-    recordatorio_estado: null,
-    recordatorio_at: null,
-    confirmado_at: new Date().toISOString(),
-    motivo_cancelacion: null,
-  });
+  const { data: confirmed } = await api.post<Cita>(`/citas/${citaId}/confirmar`);
+  return confirmed;
 }
 
 export async function cancelarCitaAvanzada(citaId: string, data: {
@@ -1338,48 +1108,16 @@ export async function cancelarCitaAvanzada(citaId: string, data: {
   tipo?: 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro';
   crear_telefonear?: boolean;
 }) {
-  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/cancelar`, data), {
-    id: citaId,
-    paciente_id: DEMO_PACIENTES[0].id,
-    doctor_id: DEMO_DOCTORES[0].id,
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString(),
-    duracion_min: 30,
-    estado: 'anulada',
-    es_urgencia: false,
-    motivo: 'Cancelada',
-    observaciones: null,
-    recordatorio_enviado: false,
-    recordatorio_canal: null,
-    recordatorio_estado: null,
-    recordatorio_at: null,
-    confirmado_at: null,
-    motivo_cancelacion: data.motivo_cancelacion,
-  });
+  const { data: cancelled } = await api.post<Cita>(`/citas/${citaId}/cancelar`, data);
+  return cancelled;
 }
 
 export async function marcarFaltaCita(citaId: string, motivo: string) {
-  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
+  const { data: marked } = await api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
     motivo_cancelacion: motivo,
     tipo: 'no_vino',
-  }), {
-    id: citaId,
-    paciente_id: DEMO_PACIENTES[0].id,
-    doctor_id: DEMO_DOCTORES[0].id,
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString(),
-    duracion_min: 30,
-    estado: 'falta',
-    es_urgencia: false,
-    motivo: 'No asistio',
-    observaciones: null,
-    recordatorio_enviado: false,
-    recordatorio_canal: null,
-    recordatorio_estado: null,
-    recordatorio_at: null,
-    confirmado_at: null,
-    motivo_cancelacion: motivo,
   });
+  return marked;
 }
 
 export async function getCambiosCita(citaId: string) {
@@ -1411,15 +1149,8 @@ export async function createDoctor(data: {
   es_auxiliar?: boolean;
   porcentaje?: string | number | null;
 }) {
-  return withDemoFallback(api.post<Doctor>('/doctores', data), {
-    id: `demo-doc-${Date.now()}`,
-    nombre: data.nombre,
-    especialidad: data.especialidad ?? null,
-    color_agenda: data.color_agenda ?? '#2563eb',
-    es_auxiliar: Boolean(data.es_auxiliar),
-    porcentaje: data.porcentaje ?? null,
-    activo: true,
-  });
+  const { data: created } = await api.post<Doctor>('/doctores', data);
+  return created;
 }
 
 export async function updateDoctor(doctorId: string, data: Partial<{
@@ -1430,12 +1161,8 @@ export async function updateDoctor(doctorId: string, data: Partial<{
   porcentaje: string | number | null;
   activo: boolean;
 }>) {
-  const fallback = DEMO_DOCTORES.find((doctor) => doctor.id === doctorId) ?? DEMO_DOCTORES[0];
-  return withDemoFallback(api.patch<Doctor>(`/doctores/${doctorId}`, data), {
-    ...fallback,
-    ...data,
-    id: doctorId,
-  });
+  const { data: updated } = await api.patch<Doctor>(`/doctores/${doctorId}`, data);
+  return updated;
 }
 
 export async function getHorarios(doctorId: string) {
