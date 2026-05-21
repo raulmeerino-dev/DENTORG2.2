@@ -94,7 +94,11 @@ async def _get_or_create_odontograma_surface(
 ) -> OdontogramaSuperficie:
     piece = next((item for item in odontograma.piezas if item.pieza_fdi == pieza_fdi), None)
     if not piece:
-        piece = OdontogramaPieza(odontograma_id=odontograma.id, pieza_fdi=pieza_fdi)
+        piece = OdontogramaPieza(
+            odontograma_id=odontograma.id,
+            pieza_fdi=pieza_fdi,
+            superficies=[],
+        )
         db.add(piece)
         await db.flush()
         odontograma.piezas.append(piece)

@@ -668,6 +668,68 @@ async def test_sesion_realizada_desde_presupuesto_cierra_pendiente(client: Async
 
 
 @pytest.mark.asyncio
+async def test_sesion_realizada_crea_pieza_nueva_en_odontograma_existente(client: AsyncClient, db_session: AsyncSession):
+    """Regresion: si el paciente ya tiene un odontograma activo pero la pieza no existe,
+    finalizar la sesion creaba MissingGreenlet al acceder a piece.superficies sobre la
+    nueva OdontogramaPieza (relacion lazy en contexto async)."""
+    from app.models.odontograma import Odontograma, OdontogramaPieza, OdontogramaSuperficie
+
+    headers = await auth_headers(client, db_session)
+    doctor = Doctor(nombre="Dra. Greenlet", color_agenda="#0f766e", activo=True)
+    familia = FamiliaTratamiento(nombre="Operatoria", icono="OP", orden=4, activo=True)
+    db_session.add_all([doctor, familia])
+    await db_session.flush()
+    tratamiento = TratamientoCatalogo(
+        familia_id=familia.id,
+        codigo=f"OP-{uuid4().hex[:6]}",
+        nombre="Obturacion compuesta",
+        precio=60,
+        iva_porcentaje=0,
+        requiere_pieza=True,
+        requiere_caras=True,
+        activo=True,
+    )
+    db_session.add(tratamiento)
+    await db_session.commit()
+
+    paciente_res = await client.post(
+        "/api/pacientes",
+        headers=headers,
+        json={"nombre": "Greta", "apellidos": "Greenlet", "telefono": "600000010"},
+    )
+    assert paciente_res.status_code == 201
+    paciente_id = paciente_res.json()["id"]
+
+    # Odontograma activo con pieza 24 pero SIN pieza 15 (la pieza objetivo del test).
+    odo = Odontograma(paciente_id=UUID(paciente_id), activo=True, version=1)
+    db_session.add(odo)
+    await db_session.flush()
+    pieza_existente = OdontogramaPieza(odontograma_id=odo.id, pieza_fdi=24, superficies=[])
+    db_session.add(pieza_existente)
+    await db_session.flush()
+    db_session.add(OdontogramaSuperficie(pieza_id=pieza_existente.id, superficie="oclusal_incisal", condicion="sano"))
+    await db_session.commit()
+
+    realizado = await client.post(
+        "/api/tratamientos/historial/sesion-realizada",
+        headers=headers,
+        json={
+            "paciente_id": paciente_id,
+            "tratamiento_id": str(tratamiento.id),
+            "doctor_id": str(doctor.id),
+            "pieza_dental": 15,
+            "caras": "OD",
+            "procedimiento": "Obturacion en pieza nueva",
+            "observaciones": "Regression test",
+            "origen": "manual",
+        },
+    )
+    assert realizado.status_code == 201, realizado.text
+    assert realizado.json()["pieza_dental"] == 15
+    assert realizado.json()["caras"] == "OD"
+
+
+@pytest.mark.asyncio
 async def test_presupuesto_aceptado_se_factura_y_se_paga(client: AsyncClient, db_session: AsyncSession):
     headers = await auth_headers(client, db_session)
     doctor = Doctor(nombre="Dra. Factura", color_agenda="#0f766e", activo=True)
