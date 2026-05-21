@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AgendaPage from './index';
+import type { Cita } from '../../types/api';
 
 vi.mock('../../auth/AuthContext', () => ({
   useAuth: () => ({
@@ -118,13 +119,14 @@ vi.mock('../../lib/api', () => ({
 
 function renderAgenda() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <AgendaPage />
       </MemoryRouter>
     </QueryClientProvider>,
   );
+  return { ...view, queryClient };
 }
 
 describe('AgendaPage flujos de cita', () => {
@@ -186,5 +188,43 @@ describe('AgendaPage flujos de cita', () => {
 
     await waitFor(() => expect(mocks.createCita).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mocks.marcarTelefonearReubicada).toHaveBeenCalledWith('tel-1', 'cita-new'));
+  });
+
+  it('permite dar cita desde el boton de Telefonear y persiste la cita', async () => {
+    const user = userEvent.setup();
+    renderAgenda();
+
+    await user.click(await screen.findByRole('button', { name: /Dar cita/i }));
+
+    expect(await screen.findByText('Nueva cita')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Tratamiento previsto/i)).toHaveValue('Reprogramar cirugía');
+
+    await user.click(screen.getByRole('button', { name: /Guardar cita/i }));
+
+    await waitFor(() => expect(mocks.createCita).toHaveBeenCalledWith(expect.objectContaining({
+      paciente_id: mocks.paciente.id,
+      doctor_id: mocks.doctor.id,
+      motivo: 'Reprogramar cirugía',
+    })));
+    await waitFor(() => expect(mocks.marcarTelefonearReubicada).toHaveBeenCalledWith('tel-1', 'cita-new'));
+  });
+
+  it('tras crear cita invalida citas-paciente para que Ficha vea la nueva cita', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem('dentcore_agenda_action', 'new');
+    sessionStorage.setItem('dentcore_selected_patient_id', mocks.paciente.id);
+
+    const { queryClient } = renderAgenda();
+    // Simula que Ficha ya cargo la lista de citas del paciente.
+    queryClient.setQueryData<Cita[]>(['citas-paciente', mocks.paciente.id], []);
+    expect(queryClient.getQueryState(['citas-paciente', mocks.paciente.id])?.isInvalidated).toBe(false);
+
+    expect(await screen.findByText('Nueva cita')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Guardar cita/i }));
+
+    await waitFor(() => expect(mocks.createCita).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(queryClient.getQueryState(['citas-paciente', mocks.paciente.id])?.isInvalidated).toBe(true),
+    );
   });
 });

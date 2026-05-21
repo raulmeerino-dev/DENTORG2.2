@@ -820,37 +820,46 @@ export default function AgendaPage() {
     },
   });
 
+  const invalidatePatientCitas = useCallback((pacienteId?: string | null) => {
+    void queryClient.invalidateQueries({ queryKey: ['citas'] });
+    if (pacienteId) {
+      void queryClient.invalidateQueries({ queryKey: ['citas-paciente', pacienteId] });
+      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', pacienteId] });
+    }
+  }, [queryClient]);
+
   const quickUpdate = useMutation({
     mutationFn: ({ cita, patch }: { cita: Cita; patch: Parameters<typeof updateCita>[1] }) => updateCita(cita.id, patch),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setContextMenu(null);
-      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      invalidatePatientCitas(updated.paciente_id);
     },
   });
 
   const confirmMutation = useMutation({
     mutationFn: (cita: Cita) => confirmarCita(cita.id),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setContextMenu(null);
-      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      invalidatePatientCitas(updated.paciente_id);
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: ({ cita, motivo, tipo }: { cita: Cita; motivo: string; tipo: 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro' }) =>
       cancelarCitaAvanzada(cita.id, { motivo_cancelacion: motivo, tipo, crear_telefonear: tipo === 'reprogramada' }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setContextMenu(null);
-      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      invalidatePatientCitas(updated.paciente_id);
       void telefonearQuery.refetch();
     },
   });
 
   const faltaMutation = useMutation({
     mutationFn: ({ cita, motivo }: { cita: Cita; motivo: string }) => marcarFaltaCita(cita.id, motivo),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       setContextMenu(null);
-      void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      invalidatePatientCitas(updated.paciente_id);
+      void queryClient.invalidateQueries({ queryKey: ['historial-paciente', updated.paciente_id] });
     },
   });
 
@@ -1046,6 +1055,18 @@ export default function AgendaPage() {
     setShowBuscarHueco(true);
   }
 
+  function darCitaDesdeTelefonear(item: TelefonearPendiente) {
+    const slot = slots.find((candidate) => minutesFromTime(candidate) >= 9 * 60) ?? slots[0];
+    if (!slot) {
+      setToastMessage('No hay huecos visibles para crear la cita. Cambia de dia o revisa el horario.');
+      return;
+    }
+    openNew(slot, item.paciente_id, day, item.doctor_id || doctorForSlot(slot, day), {
+      telefonearId: item.id,
+      motivo: item.motivo ?? item.notas ?? 'Reprogramar cita',
+    });
+  }
+
   function verOcupacion() {
     const total = slots.length;
     const ocupadas = citas.length;
@@ -1131,7 +1152,7 @@ export default function AgendaPage() {
           <div className="pending-call-panel">
             <div className="panel-caption"><strong>Telefonear</strong><span>Arrastre a un hueco</span></div>
             <table className="euro-table">
-              <thead><tr><th>Nombre</th><th>Telefono</th><th>Motivo</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Telefono</th><th>Motivo</th><th></th></tr></thead>
               <tbody>
                 {(telefonearQuery.data ?? []).map((item: TelefonearPendiente) => (
                   <tr
@@ -1149,10 +1170,15 @@ export default function AgendaPage() {
                     <td>{item.paciente ? `${item.paciente.apellidos}, ${item.paciente.nombre}` : 'Paciente'}</td>
                     <td>{item.paciente?.telefono ?? ''}</td>
                     <td>{item.motivo ?? 'Llamar'}</td>
+                    <td>
+                      <button type="button" onClick={() => darCitaDesdeTelefonear(item)}>
+                        Dar cita
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {!telefonearQuery.isLoading && (telefonearQuery.data ?? []).length === 0 && (
-                  <tr><td colSpan={3}>No hay llamadas pendientes.</td></tr>
+                  <tr><td colSpan={4}>No hay llamadas pendientes.</td></tr>
                 )}
               </tbody>
             </table>
