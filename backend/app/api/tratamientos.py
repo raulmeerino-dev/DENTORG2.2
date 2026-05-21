@@ -3,12 +3,11 @@ Router de tratamientos — Fase 4.
 - Catálogo: familias + tratamientos (CRUD, admin)
 - Historial clínico: registro de tratamientos por paciente
 """
+from datetime import date as date_type
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from datetime import date as date_type
-
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,7 +16,12 @@ from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
 from app.database import get_db
 from app.models.cita import Cita
 from app.models.historial import HistorialClinico, NotaDental
-from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
+from app.models.odontograma import (
+    Odontograma,
+    OdontogramaEvento,
+    OdontogramaPieza,
+    OdontogramaSuperficie,
+)
 from app.models.paciente import Paciente
 from app.models.presupuesto import PresupuestoLinea, TrabajoPendiente
 from app.models.sesion_clinica import SesionClinicaItem
