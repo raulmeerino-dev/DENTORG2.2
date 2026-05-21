@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, TratamientoCatalogo, UserRole } from '../../types/api';
 import {
   addPresupuestoLinea,
@@ -82,12 +83,16 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
     onSuccess: () => {
       void invalidate();
       void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', presupuesto.paciente_id] });
+      toast.success('Trabajo pasado a pendiente.');
     },
   });
 
   const presentBudget = useMutation({
     mutationFn: () => presentarPresupuesto(presupuesto.id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate();
+      toast.success('Presupuesto presentado.');
+    },
   });
 
   const acceptBudget = useMutation({
@@ -96,6 +101,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
       void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['trabajo-pendiente', presupuesto.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', presupuesto.paciente_id] });
+      toast.success('Presupuesto aceptado.');
     },
   });
 
@@ -105,6 +111,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
       setRechazarOpen(false);
       setMotivoRechazo('');
       void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
+      toast.success('Presupuesto rechazado.');
     },
   });
 
@@ -114,6 +121,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
       void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['facturas', presupuesto.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['saldo-paciente', presupuesto.paciente_id] });
+      toast.success('Presupuesto convertido en factura.');
     },
   });
 

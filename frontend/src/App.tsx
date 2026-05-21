@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'sonner';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { toast, Toaster } from 'sonner';
 import type { ReactNode } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthContext';
+import { getApiErrorMessage } from './lib/api';
 import type { UserRole } from './types/api';
 import Layout from './components/Layout';
 import PacientesPage from './modules/pacientes';
@@ -14,7 +15,14 @@ import LoginPage from './modules/auth/LoginPage';
 import AdminExtrasPage from './modules/adminExtras';
 import MisCitasPage from './modules/misCitas';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      if (mutation.options.onError) return;
+      toast.error(getApiErrorMessage(error, 'No se pudo completar la operación.'));
+    },
+  }),
+});
 
 function Protected({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
