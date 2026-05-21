@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { ApiPaciente, HistorialClinico, NotaDental, NotaDentalCreateInput, Presupuesto, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, HistorialClinico, NotaDental, NotaDentalCreateInput, Presupuesto, RecetaClinica, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
 import { ClinicalWorkspace } from './ClinicalWorkspace';
 
 vi.mock('../odontogram', () => ({
@@ -131,6 +131,88 @@ function renderClinical(
   return { onFinalizar, onCreateNotaDental };
 }
 
+const visitaCita: Cita = {
+  id: 'cita-visita-1',
+  paciente_id: paciente.id,
+  doctor_id: 'doc-1',
+  gabinete_id: 'Gabinete 2',
+  fecha_hora: '2026-05-20T10:30:00',
+  duracion_min: 45,
+  estado: 'atendida',
+  motivo: 'Revision endodoncia',
+  observaciones: 'Paciente acude con molestias controladas',
+  doctor: { nombre: 'Dra. Ruiz', color_agenda: '#0891a4' },
+};
+
+const historialVisita: HistorialClinico = {
+  id: 'hist-visita-1',
+  paciente_id: paciente.id,
+  tratamiento_id: tratamiento.id,
+  doctor_id: 'doc-1',
+  gabinete_id: null,
+  pieza_dental: 16,
+  caras: 'O',
+  fecha: '2026-05-20',
+  diagnostico: null,
+  procedimiento: 'Obturacion pieza 16',
+  observaciones: 'Aislamiento absoluto y control oclusal',
+  estado: 'realizado',
+  importe: '90.00',
+  factura_id: null,
+  origen: 'manual',
+  presupuesto_linea_id: null,
+  cita_id: visitaCita.id,
+  tratamiento: { id: tratamiento.id, nombre: tratamiento.nombre, codigo: tratamiento.codigo },
+  doctor: { id: 'doc-1', nombre: 'Dra. Ruiz' },
+};
+
+function renderVisits(overrides: Partial<{
+  citas: Cita[];
+  historial: HistorialClinico[];
+  documentos: DocumentoPaciente[];
+  consentimientos: Consentimiento[];
+  recetas: RecetaClinica[];
+  laboratorio: TrabajoLaboratorio[];
+}> = {}) {
+  const onOpenHistorial = vi.fn();
+  render(
+    <ClinicalWorkspace
+      activeTab="visitas"
+      onTabChange={vi.fn()}
+      paciente={paciente}
+      citas={overrides.citas ?? []}
+      historial={overrides.historial ?? []}
+      presupuestos={[]}
+      documentos={overrides.documentos ?? []}
+      consentimientos={overrides.consentimientos ?? []}
+      recetas={overrides.recetas ?? []}
+      notasDentales={[]}
+      plantillas={[]}
+      laboratorio={overrides.laboratorio ?? []}
+      saldoPendiente={0}
+      doctorId="doc-1"
+      tratamientos={[tratamiento]}
+      savingPrimeraVisita={false}
+      onSavePrimeraVisita={vi.fn()}
+      onDarCita={vi.fn()}
+      onContextLinea={vi.fn()}
+      onCrearPedidoLab={vi.fn()}
+      onCrearPedidoLabGeneral={vi.fn()}
+      onActualizarTrabajoLab={vi.fn()}
+      onCrearReceta={vi.fn()}
+      onOpenConsentimiento={vi.fn()}
+      onOpenConsentimientoPdf={vi.fn()}
+      onRevocarConsentimiento={vi.fn()}
+      onOpenDocumentos={vi.fn()}
+      onOpenHistorial={onOpenHistorial}
+      onFinalizarTratamientoSesion={vi.fn()}
+      onCreateNotaDental={vi.fn()}
+      userRole="admin"
+    />,
+  );
+  return { onOpenHistorial };
+}
+
 describe('ClinicalWorkspace sesion actual', () => {
   it('finaliza un pendiente aceptado guardando observacion, pieza/caras y vinculo a presupuesto_linea', async () => {
     const user = userEvent.setup();
@@ -187,5 +269,108 @@ describe('ClinicalWorkspace sesion actual', () => {
       texto: 'Sangrado leve en distal',
       doctor_id: 'doc-1',
     }));
+  });
+});
+
+describe('ClinicalWorkspace visitas', () => {
+  it('visita con tratamiento muestra motivo, doctor, gabinete y tratamiento realizado', () => {
+    renderVisits({ citas: [visitaCita], historial: [historialVisita] });
+
+    expect(screen.getByText(/Motivo: Revision endodoncia/i)).toBeInTheDocument();
+    expect(screen.getByText(/Dra\. Ruiz - Gab\. Gabinete 2 - 45 min/i)).toBeInTheDocument();
+    expect(screen.getByText('Obturacion pieza 16')).toBeInTheDocument();
+    expect(screen.getByText(/Pieza 16 - O - realizado/i)).toBeInTheDocument();
+  });
+
+  it('visita con comentario muestra observaciones clinicas y de cita', () => {
+    renderVisits({ citas: [visitaCita], historial: [historialVisita] });
+
+    expect(screen.getByText('Paciente acude con molestias controladas')).toBeInTheDocument();
+    expect(screen.getByText('Aislamiento absoluto y control oclusal')).toBeInTheDocument();
+  });
+
+  it('visita con receta, documento y laboratorio muestra contadores asociados por fecha', () => {
+    const receta: RecetaClinica = {
+      id: 'rec-1',
+      paciente_id: paciente.id,
+      doctor_id: 'doc-1',
+      clinica_id: null,
+      medicamento: 'Ibuprofeno',
+      principio_activo: null,
+      forma_farmaceutica: null,
+      via_administracion: null,
+      unidades: null,
+      duracion: null,
+      posologia: '1 cada 8h',
+      pauta: null,
+      diagnostico: null,
+      instrucciones_paciente: null,
+      instrucciones_farmacia: null,
+      fecha_prescripcion: '2026-05-20',
+      fecha_dispensacion: null,
+      firma_data_url: null,
+      pdf_generado_at: null,
+      created_at: '2026-05-20T11:00:00',
+    };
+    const documento: DocumentoPaciente = {
+      id: 'doc-1',
+      paciente_id: paciente.id,
+      nombre_original: 'rx-control.pdf',
+      mime_type: 'application/pdf',
+      tamano_bytes: 200,
+      categoria: 'radiografia',
+      descripcion: 'Radiografia control',
+      fecha_documento: '2026-05-20',
+      tratamiento_id: null,
+      historial_id: null,
+      doctor_id: null,
+      etiquetas: null,
+      created_at: '2026-05-20T11:05:00',
+    };
+    const trabajoLab: TrabajoLaboratorio = {
+      id: 'lab-1',
+      paciente_id: paciente.id,
+      doctor_id: 'doc-1',
+      laboratorio_id: 'lab-1',
+      historial_id: null,
+      descripcion: 'Corona provisional',
+      pieza_dental: 16,
+      color: null,
+      observaciones: null,
+      fecha_salida: '2026-05-20',
+      fecha_entrega_prevista: '2026-05-24',
+      fecha_recepcion: null,
+      fecha_entrega_paciente: null,
+      estado: 'enviado',
+      precio: null,
+      paciente: null,
+      doctor: null,
+      laboratorio: null,
+    };
+
+    renderVisits({ citas: [visitaCita], historial: [historialVisita], recetas: [receta], documentos: [documento], laboratorio: [trabajoLab] });
+
+    expect(screen.getByText('1 docs')).toBeInTheDocument();
+    expect(screen.getByText('1 recetas')).toBeInTheDocument();
+    expect(screen.getByText('0 consent.')).toBeInTheDocument();
+    expect(screen.getByText('1 lab.')).toBeInTheDocument();
+    expect(screen.getByText('Ibuprofeno')).toBeInTheDocument();
+    expect(screen.getByText('Radiografia control')).toBeInTheDocument();
+    expect(screen.getByText('Corona provisional')).toBeInTheDocument();
+  });
+
+  it('sin visitas muestra empty state util', () => {
+    renderVisits();
+
+    expect(screen.getByText(/Sin visitas registradas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cuando haya citas, tratamientos o documentos con fecha/i)).toBeInTheDocument();
+  });
+
+  it('boton de visita abre detalle en Historial', async () => {
+    const user = userEvent.setup();
+    const { onOpenHistorial } = renderVisits({ citas: [visitaCita], historial: [historialVisita] });
+
+    await user.click(screen.getByRole('button', { name: /Abrir detalle en Historial/i }));
+    expect(onOpenHistorial).toHaveBeenCalledTimes(1);
   });
 });

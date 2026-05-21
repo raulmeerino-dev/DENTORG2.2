@@ -16317,6 +16317,125 @@ html[data-theme="dark"] .history-ledger-items {
   font-weight: 850;
 }
 
+.patient-exit-checklist {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.patient-exit-head strong {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.patient-exit-checklist.is-ready .patient-exit-head strong {
+  color: #13733b;
+}
+
+.patient-exit-checklist.needs-review .patient-exit-head strong {
+  color: #9a5b05;
+}
+
+.patient-exit-items {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.patient-exit-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 10px;
+  background: #f7fbfc;
+}
+
+.patient-exit-item > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.patient-exit-item strong,
+.patient-exit-item small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-exit-item strong {
+  color: #15384b;
+  font-size: 0.82rem;
+}
+
+.patient-exit-item small {
+  color: #60788b;
+  font-size: 0.72rem;
+}
+
+.patient-exit-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #e8f8ef;
+  color: #13733b;
+}
+
+.patient-exit-item.status-info .patient-exit-status-icon {
+  background: #eaf3ff;
+  color: #115aa1;
+}
+
+.patient-exit-item.status-warning .patient-exit-status-icon {
+  background: #fff4df;
+  color: #9a5b05;
+}
+
+.patient-exit-item.status-critical .patient-exit-status-icon {
+  background: #fff1f1;
+  color: #a93434;
+}
+
+.patient-exit-item button {
+  min-height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: #edf8fb;
+  color: #075e70;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.patient-exit-item.status-critical button {
+  background: #fff1f1;
+  color: #a93434;
+}
+
+.patient-exit-item.status-warning button {
+  background: #fff4df;
+  color: #9a5b05;
+}
+
+html[data-theme="dark"] .patient-exit-item {
+  background: rgba(18, 38, 54, 0.86);
+}
+
+html[data-theme="dark"] .patient-exit-item strong {
+  color: #e6f5ff;
+}
+
+html[data-theme="dark"] .patient-exit-item small {
+  color: #9cb8c9;
+}
+
 .session-odontogram-support {
   min-width: 0;
 }
@@ -16396,7 +16515,7 @@ html[data-theme="dark"] .history-ledger-items {
 
 .visit-card > header {
   display: grid;
-  grid-template-columns: minmax(120px, 0.28fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 0.25fr) auto minmax(0, 1fr) auto;
   gap: 8px 10px;
   align-items: start;
   min-width: 0;
@@ -16438,6 +16557,17 @@ html[data-theme="dark"] .history-ledger-items {
   margin: 2px 0 0;
   color: #60788b;
   font-size: 0.78rem;
+}
+
+.visit-card > header button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 9px;
+  background: #edf8fb;
+  color: #075e70;
+  font-size: 0.74rem;
+  font-weight: 850;
+  white-space: nowrap;
 }
 
 .visit-body {

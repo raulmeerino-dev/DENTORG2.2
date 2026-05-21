@@ -1025,6 +1025,8 @@ export default function PacientesPage() {
             onRevocarConsentimiento={revocarConsentimientoPaciente}
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenHistorial={() => openPatientArea('historial')}
+            onSchedulePatient={abrirAgendaPaciente}
+            onOpenCobro={() => abrirCobroDesdeFicha()}
             onFinalizarTratamientoSesion={(data) => finalizarSesionClinica.mutateAsync(data)}
             onCreateNotaDental={(data) => crearNotaDental.mutateAsync(data)}
             userRole={user?.rol}
