@@ -36,7 +36,7 @@ function MutationProbe({ withLocalHandler }: { withLocalHandler: boolean }) {
   });
   return (
     <div>
-      <button type="button" onClick={() => mutation.mutate()}>fire</button>
+      <button type="button" onClick={() => mutation.mutate(undefined)}>fire</button>
       {mutation.isError && <span data-testid="status">errored</span>}
     </div>
   );

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { CalendarDays, CheckCircle2, ClipboardList, Clock3, FileText, FlaskConical, History, NotebookPen, Pill, Plus, Stethoscope, Trash2, Wallet } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Clock3, FileText, FlaskConical, History, Info, NotebookPen, Pill, Plus, Stethoscope, Trash2, Wallet } from 'lucide-react';
 import type {
   ApiPaciente,
   Cita,
@@ -29,6 +29,8 @@ import { PrimeraVisitaPanel } from './PrimeraVisita';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { TrabajoPendientePanel } from './TrabajoPendiente';
 import { contarLaboratorioVencidos } from './laboratorioUtils';
+import { buildPatientExitChecklist } from './patientExitChecklist';
+import type { PatientExitActionTarget, PatientExitChecklistItem } from './patientExitChecklist';
 
 export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas' | 'notas';
 
@@ -256,6 +258,8 @@ function buildVisitGroups({
       });
   });
 
+  // Documentos, recetas, consentimientos y laboratorio no siempre traen visita_id/cita_id;
+  // se agrupan por fecha para no inventar relaciones clínicas que aún no existen en backend.
   documentos.forEach((documento) => {
     const date = documento.fecha_documento || documento.created_at;
     if (date) ensure(date, date).documentos.push(documento);
@@ -273,11 +277,26 @@ function buildVisitGroups({
     group.comentarios.push(`Pieza ${nota.pieza_dental}${nota.caras ? ` - ${nota.caras}` : ''}: ${nota.texto}`);
   });
   laboratorio.forEach((trabajo) => {
+    // Sin relacion directa de visita/sesion para laboratorio: se agrupa por fecha operativa disponible.
     const date = trabajo.fecha_recepcion || trabajo.fecha_salida || trabajo.fecha_entrega_prevista;
     if (date) ensure(date, date).laboratorio.push(trabajo);
   });
 
-  return Array.from(groups.values()).sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+  gruposPorFecha(groups).forEach((group) => {
+    group.citas.sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora));
+    group.realizados.sort((a, b) => a.fecha.localeCompare(b.fecha));
+    group.previstos.sort((a, b) => a.title.localeCompare(b.title));
+    group.documentos.sort((a, b) => (a.fecha_documento || a.created_at || '').localeCompare(b.fecha_documento || b.created_at || ''));
+    group.consentimientos.sort((a, b) => (a.fecha_firma || a.created_at || '').localeCompare(b.fecha_firma || b.created_at || ''));
+    group.recetas.sort((a, b) => a.fecha_prescripcion.localeCompare(b.fecha_prescripcion));
+    group.laboratorio.sort((a, b) => (a.fecha_recepcion || a.fecha_salida || a.fecha_entrega_prevista || '').localeCompare(b.fecha_recepcion || b.fecha_salida || b.fecha_entrega_prevista || ''));
+  });
+
+  return gruposPorFecha(groups).sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+}
+
+function gruposPorFecha(groups: Map<string, VisitGroup>) {
+  return Array.from(groups.values());
 }
 
 function ClinicalOverview({
@@ -341,11 +360,60 @@ function ClinicalOverview({
   );
 }
 
+function PatientExitChecklistPanel({
+  title,
+  ready,
+  items,
+  onAction,
+}: {
+  title: string;
+  ready: boolean;
+  items: PatientExitChecklistItem[];
+  onAction: (target: PatientExitActionTarget) => void;
+}) {
+  const visibleItems = items.filter((item) => (
+    item.status !== 'ok' || ['tratamientos-hoy', 'caja', 'proxima-cita'].includes(item.id)
+  ));
+
+  return (
+    <section className={`desk-panel patient-exit-checklist ${ready ? 'is-ready' : 'needs-review'}`} aria-label="Checklist de salida del paciente">
+      <div className="panel-caption patient-exit-head">
+        <strong>
+          {ready ? <CheckCircle2 size={15} aria-hidden="true" /> : <AlertTriangle size={15} aria-hidden="true" />}
+          Checklist de salida
+        </strong>
+        <span>{title}</span>
+      </div>
+      <div className="patient-exit-items">
+        {visibleItems.map((item) => (
+          <article key={item.id} className={`patient-exit-item status-${item.status}`}>
+            <span className="patient-exit-status-icon" aria-hidden="true">
+              {item.status === 'critical' || item.status === 'warning' ? <AlertTriangle size={14} /> : item.status === 'info' ? <Info size={14} /> : <CheckCircle2 size={14} />}
+            </span>
+            <div>
+              <strong>{item.label}</strong>
+              <small>{item.description}</small>
+            </div>
+            {item.actionLabel && item.actionTarget && (
+              <button type="button" onClick={() => item.actionTarget && onAction(item.actionTarget)}>{item.actionLabel}</button>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SessionWorkspace({
   paciente,
   citas,
   historial,
   presupuestos,
+  documentos,
+  consentimientos,
+  recetas,
+  laboratorio,
+  saldoPendiente,
   tratamientos,
   notasDentales,
   doctorId,
@@ -355,6 +423,9 @@ function SessionWorkspace({
   onCrearPedidoLab,
   onCrearPedidoLabForLine,
   onOpenDocumentos,
+  onOpenHistorial,
+  onSchedulePatient,
+  onOpenCobro,
   onFinalizarTratamientoSesion,
   onCreateNotaDental,
 }: {
@@ -362,6 +433,11 @@ function SessionWorkspace({
   citas: Cita[];
   historial: HistorialClinico[];
   presupuestos: Presupuesto[];
+  documentos: DocumentoPaciente[];
+  consentimientos: Consentimiento[];
+  recetas: RecetaClinica[];
+  laboratorio: TrabajoLaboratorio[];
+  saldoPendiente: number;
   tratamientos: TratamientoCatalogo[];
   notasDentales: NotaDental[];
   doctorId?: string | null;
@@ -371,6 +447,9 @@ function SessionWorkspace({
   onCrearPedidoLab: () => void;
   onCrearPedidoLabForLine: (linea: PresupuestoLinea) => void;
   onOpenDocumentos: () => void;
+  onOpenHistorial: () => void;
+  onSchedulePatient?: () => void;
+  onOpenCobro?: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
   onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
 }) {
@@ -396,6 +475,17 @@ function SessionWorkspace({
   const selectedPieceNotes = selectedPieceNumber
     ? notasDentales.filter((nota) => nota.pieza_dental === selectedPieceNumber).slice(0, 3)
     : [];
+  const exitChecklist = useMemo(() => buildPatientExitChecklist({
+    paciente,
+    citas,
+    historial,
+    presupuestos,
+    consentimientos,
+    recetas,
+    laboratorio,
+    documentos,
+    saldoPendiente,
+  }), [citas, consentimientos, documentos, historial, laboratorio, paciente, presupuestos, recetas, saldoPendiente]);
 
   useEffect(() => {
     setSessionItems(baseSessionItems);
@@ -504,6 +594,16 @@ function SessionWorkspace({
     } finally {
       setSavingNote(false);
     }
+  }
+
+  function handleExitChecklistAction(target: PatientExitActionTarget) {
+    if (target === 'agenda') onSchedulePatient?.();
+    if (target === 'caja') onOpenCobro?.();
+    if (target === 'consentimiento') onOpenConsentimiento();
+    if (target === 'historial') onOpenHistorial();
+    if (target === 'receta') onCrearReceta();
+    if (target === 'laboratorio') onCrearPedidoLab();
+    if (target === 'documentos') onOpenDocumentos();
   }
 
   return (
@@ -680,6 +780,12 @@ function SessionWorkspace({
         )}
         </section>
         <aside className="clinical-session-context">
+          <PatientExitChecklistPanel
+            title={exitChecklist.title}
+            ready={exitChecklist.ready}
+            items={exitChecklist.items}
+            onAction={handleExitChecklistAction}
+          />
           <section className="desk-panel clinical-today-panel">
           <div className="panel-caption">
             <strong>Tratamientos previstos hoy</strong>
@@ -784,16 +890,22 @@ function VisitsWorkspace({
           const proxima = nextAfter(visita.date);
           const doctor = citaPrincipal?.doctor?.nombre || visita.realizados.find((entrada) => entrada.doctor?.nombre)?.doctor?.nombre || visita.laboratorio.find((trabajo) => trabajo.doctor?.nombre)?.doctor?.nombre;
           const gabinete = citaPrincipal?.gabinete_id;
+          const motivoCita = visita.citas.map((cita) => cita.motivo).filter(Boolean).join(' - ');
+          const estadoVisita = visita.citas.length
+            ? `${visita.citas.length} cita${visita.citas.length === 1 ? '' : 's'}`
+            : visita.realizados.length ? 'con tratamientos' : 'actividad clinica';
+          const tituloVisita = motivoCita || visita.realizados[0]?.procedimiento || visita.realizados[0]?.tratamiento?.nombre || 'Visita clinica';
           const comments = Array.from(new Set(visita.comentarios.filter(Boolean))).slice(0, 3);
           return (
             <article key={visita.id} className="visit-card">
               <header>
                 <time>{formatDate(visita.date)}{getTime(citaPrincipal?.fecha_hora) ? ` - ${getTime(citaPrincipal?.fecha_hora)}` : ''}</time>
-                <span>{citaPrincipal?.estado || (visita.realizados.length ? 'con tratamientos' : 'actividad clinica')}</span>
+                <span>{citaPrincipal?.estado || estadoVisita}</span>
                 <div>
-                  <strong>{citaPrincipal?.motivo || visita.realizados[0]?.procedimiento || visita.realizados[0]?.tratamiento?.nombre || 'Visita clinica'}</strong>
+                  <strong>Motivo: {tituloVisita}</strong>
                   <p>{[doctor, gabinete ? `Gab. ${gabinete}` : null, citaPrincipal?.duracion_min ? `${citaPrincipal.duracion_min} min` : null].filter(Boolean).join(' - ') || 'Sin doctor o gabinete asignado'}</p>
                 </div>
+                <button type="button" onClick={onOpenHistorial}>Abrir detalle en Historial</button>
               </header>
               <div className="visit-body">
                 <section>
@@ -822,13 +934,16 @@ function VisitsWorkspace({
                   {!comments.length && <em>Sin comentarios clinicos u observaciones de cita.</em>}
                 </section>
                 <section className="visit-links">
-                  <span>Asociado</span>
+                  <span>Asociado por fecha</span>
                   <p>
                     <small>{visita.documentos.length} docs</small>
                     <small>{visita.recetas.length} recetas</small>
                     <small>{visita.consentimientos.length} consent.</small>
                     <small>{visita.laboratorio.length} lab.</small>
                   </p>
+                  {[...visita.recetas.slice(0, 1).map((receta) => receta.medicamento), ...visita.documentos.slice(0, 1).map((documento) => documento.descripcion || documento.nombre_original), ...visita.laboratorio.slice(0, 1).map((trabajo) => trabajo.descripcion)].map((item, index) => (
+                    <em key={`${visita.id}-assoc-${index}`}>{item}</em>
+                  ))}
                   {proxima && <em>Proxima cita: {formatDate(proxima.fecha_hora)} {getTime(proxima.fecha_hora)} - {proxima.motivo || 'sin motivo'}</em>}
                 </section>
               </div>
@@ -875,6 +990,8 @@ export function ClinicalWorkspace({
   onRevocarConsentimiento,
   onOpenDocumentos,
   onOpenHistorial,
+  onSchedulePatient,
+  onOpenCobro,
   onFinalizarTratamientoSesion,
   onCreateNotaDental,
   userRole,
@@ -907,6 +1024,8 @@ export function ClinicalWorkspace({
   onRevocarConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenDocumentos: () => void;
   onOpenHistorial: () => void;
+  onSchedulePatient?: () => void;
+  onOpenCobro?: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
   onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
   userRole?: UserRole | null;
@@ -961,6 +1080,11 @@ export function ClinicalWorkspace({
           citas={citas}
           historial={historial}
           presupuestos={presupuestos}
+          documentos={documentos}
+          consentimientos={consentimientos}
+          recetas={recetas}
+          laboratorio={laboratorio}
+          saldoPendiente={saldoPendiente}
           tratamientos={tratamientos}
           notasDentales={notasDentales}
           doctorId={doctorId}
@@ -970,6 +1094,9 @@ export function ClinicalWorkspace({
           onCrearPedidoLab={onCrearPedidoLabGeneral}
           onCrearPedidoLabForLine={onCrearPedidoLab}
           onOpenDocumentos={onOpenDocumentos}
+          onOpenHistorial={onOpenHistorial}
+          onSchedulePatient={onSchedulePatient}
+          onOpenCobro={onOpenCobro}
           onFinalizarTratamientoSesion={onFinalizarTratamientoSesion}
           onCreateNotaDental={onCreateNotaDental}
         />
