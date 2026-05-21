@@ -13,7 +13,9 @@ import {
   createPagoAnticipadoPaciente,
   createPresupuesto,
   createRecetaClinica,
+  createSesionItem,
   createTrabajoLaboratorio,
+  deleteSesionItem,
   emitirRecetaPdf,
   facturaPdfUrl,
   finalizarTratamientoSesion,
@@ -36,6 +38,7 @@ import {
   getPresupuestos,
   getRecetasPaciente,
   getSaldoPaciente,
+  getSesionItemsPaciente,
   getTratamientosCatalogo,
   getTrabajosLaboratorio,
   openConsentimientoPdf,
@@ -46,10 +49,11 @@ import {
   updatePagoAnticipadoPaciente,
   updatePaciente,
   updatePresupuestoLinea,
+  updateSesionItem,
   updateTrabajoLaboratorio,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
+import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
@@ -277,6 +281,11 @@ export default function PacientesPage() {
   const notasDentalesQuery = useQuery({
     queryKey: ['notas-dentales', active?.id],
     queryFn: () => getNotasDentalesPaciente(active!.id),
+    enabled: Boolean(active),
+  });
+  const sesionItemsQuery = useQuery({
+    queryKey: ['sesion-items', active?.id],
+    queryFn: () => getSesionItemsPaciente(active!.id),
     enabled: Boolean(active),
   });
   const laboratoriosCatalogoQuery = useQuery({
@@ -625,6 +634,7 @@ export default function PacientesPage() {
       void queryClient.invalidateQueries({ queryKey: ['historial-sin-facturar', entrada.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['presupuestos', entrada.paciente_id] });
       void queryClient.invalidateQueries({ queryKey: ['citas-paciente', entrada.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['sesion-items', entrada.paciente_id] });
       void historialQuery.refetch();
       void historialSinFacturarQuery.refetch();
       void presupuestosQuery.refetch();
@@ -633,6 +643,46 @@ export default function PacientesPage() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'No se pudo guardar el tratamiento en historial.');
+    },
+  });
+
+  const crearSesionItem = useMutation({
+    mutationFn: async (input: SesionClinicaItemCreateInput) => {
+      if (!active) throw new Error('Sin paciente');
+      return createSesionItem(active.id, input);
+    },
+    onSuccess: (item: SesionClinicaItem) => {
+      void queryClient.invalidateQueries({ queryKey: ['sesion-items', item.paciente_id] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo guardar el item de la sesion.');
+    },
+  });
+
+  const actualizarSesionItem = useMutation({
+    mutationFn: async ({ itemId, cambios }: { itemId: string; cambios: SesionClinicaItemUpdateInput }) => {
+      if (!active) throw new Error('Sin paciente');
+      return updateSesionItem(active.id, itemId, cambios);
+    },
+    onSuccess: (item: SesionClinicaItem) => {
+      void queryClient.invalidateQueries({ queryKey: ['sesion-items', item.paciente_id] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el item de la sesion.');
+    },
+  });
+
+  const eliminarSesionItem = useMutation({
+    mutationFn: async (itemId: string) => {
+      if (!active) throw new Error('Sin paciente');
+      await deleteSesionItem(active.id, itemId);
+      return { itemId, paciente_id: active.id };
+    },
+    onSuccess: ({ paciente_id }) => {
+      void queryClient.invalidateQueries({ queryKey: ['sesion-items', paciente_id] });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo eliminar el item de la sesion.');
     },
   });
 
@@ -1029,6 +1079,12 @@ export default function PacientesPage() {
             onOpenCobro={() => abrirCobroDesdeFicha()}
             onFinalizarTratamientoSesion={(data) => finalizarSesionClinica.mutateAsync(data)}
             onCreateNotaDental={(data) => crearNotaDental.mutateAsync(data)}
+            sesionItems={sesionItemsQuery.data ?? []}
+            sesionItemsLoading={sesionItemsQuery.isLoading}
+            sesionItemsError={sesionItemsQuery.isError ? (sesionItemsQuery.error instanceof Error ? sesionItemsQuery.error.message : 'No se pudieron cargar los items de la sesion.') : null}
+            onCreateSesionItem={(input) => crearSesionItem.mutateAsync(input)}
+            onUpdateSesionItem={(itemId, cambios) => actualizarSesionItem.mutateAsync({ itemId, cambios })}
+            onDeleteSesionItem={(itemId) => eliminarSesionItem.mutateAsync(itemId)}
             userRole={user?.rol}
           />
         )}

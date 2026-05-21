@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Clock3, FileText, FlaskConical, History, Info, NotebookPen, Pill, Plus, Stethoscope, Trash2, Wallet } from 'lucide-react';
 import type {
@@ -13,6 +13,9 @@ import type {
   Presupuesto,
   PresupuestoLinea,
   RecetaClinica,
+  SesionClinicaItem,
+  SesionClinicaItemCreateInput,
+  SesionClinicaItemUpdateInput,
   SesionTratamientoRealizadoInput,
   TrabajoLaboratorio,
   TrabajoLaboratorioUpdateInput,
@@ -84,9 +87,12 @@ type VisitGroup = {
 
 type SessionTreatmentStatus = 'planificado' | 'en_curso' | 'realizado' | 'pospuesto';
 
+type SessionTreatmentOrigen = 'cita' | 'pendiente' | 'manual';
+
 type SessionTreatment = {
   id: string;
-  source: 'cita' | 'pendiente' | 'manual';
+  sesionItemId: string | null;
+  source: SessionTreatmentOrigen;
   sourceLabel: string;
   tratamientoId: string | null;
   tratamiento: TratamientoCatalogo | PresupuestoLinea['tratamiento'] | null;
@@ -108,6 +114,12 @@ const SESSION_STATUS_LABELS: Record<SessionTreatmentStatus, string> = {
   pospuesto: 'Pospuesto',
 };
 
+const SESION_ITEM_ORIGEN_BY_SOURCE: Record<SessionTreatmentOrigen, 'manual' | 'cita' | 'presupuesto_linea'> = {
+  manual: 'manual',
+  cita: 'cita',
+  pendiente: 'presupuesto_linea',
+};
+
 function normalizeSessionText(value?: string | null) {
   return (value ?? '')
     .normalize('NFD')
@@ -116,23 +128,77 @@ function normalizeSessionText(value?: string | null) {
     .trim();
 }
 
-function buildSessionTreatments(citas: Cita[], presupuestos: Presupuesto[], historial: HistorialClinico[]): SessionTreatment[] {
+function sessionTreatmentFromSesionItem(
+  item: SesionClinicaItem,
+  presupuestos: Presupuesto[],
+): SessionTreatment {
+  const linea = item.presupuesto_linea_id
+    ? presupuestos.flatMap((presupuesto) => presupuesto.lineas).find((row) => row.id === item.presupuesto_linea_id)
+    : undefined;
+  const presupuesto = linea ? presupuestos.find((row) => row.id === linea.presupuesto_id) : undefined;
+  const source: SessionTreatmentOrigen = item.origen === 'presupuesto_linea'
+    ? 'pendiente'
+    : item.origen === 'cita'
+      ? 'cita'
+      : 'manual';
+  const sourceLabel = source === 'pendiente' && presupuesto
+    ? `Ppto. ${presupuesto.numero}`
+    : source === 'cita'
+      ? 'Cita programada'
+      : 'Anadido en sesion';
+  const status: SessionTreatmentStatus = item.estado === 'realizado'
+    ? 'realizado'
+    : (item.estado as SessionTreatmentStatus);
+  return {
+    id: `sesion-${item.id}`,
+    sesionItemId: item.id,
+    source,
+    sourceLabel,
+    tratamientoId: item.tratamiento_id ?? linea?.tratamiento_id ?? null,
+    tratamiento: item.tratamiento ?? linea?.tratamiento ?? null,
+    title: item.titulo ?? item.tratamiento?.nombre ?? linea?.tratamiento?.nombre ?? 'Tratamiento de sesion',
+    piezaDental: item.pieza_dental != null ? String(item.pieza_dental) : '',
+    caras: item.caras ?? '',
+    observaciones: item.observaciones ?? '',
+    status,
+    citaId: item.cita_id ?? null,
+    linea: linea ?? undefined,
+    historialId: item.historial_id ?? null,
+  };
+}
+
+function buildSessionTreatments(
+  citas: Cita[],
+  presupuestos: Presupuesto[],
+  historial: HistorialClinico[],
+  sesionItems: SesionClinicaItem[],
+): SessionTreatment[] {
   const todayAppointments = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta'].includes(cita.estado));
   const completedBudgetLines = new Set(
     historial
       .filter((entrada) => hasFinishedState(entrada.estado) && entrada.presupuesto_linea_id)
       .map((entrada) => entrada.presupuesto_linea_id as string),
   );
+
+  const persistedActive = sesionItems.filter((item) => item.estado !== 'realizado');
+  const persistedLineaIds = new Set(persistedActive.map((item) => item.presupuesto_linea_id).filter(Boolean) as string[]);
+  const persistedCitaIds = new Set(persistedActive.map((item) => item.cita_id).filter(Boolean) as string[]);
+  const items: SessionTreatment[] = persistedActive.map((item) => sessionTreatmentFromSesionItem(item, presupuestos));
+
   const pendingLines = presupuestos.flatMap((presupuesto) => (
     presupuesto.lineas
-      .filter((linea) => !completedBudgetLines.has(linea.id) && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado'))
+      .filter((linea) => (
+        !completedBudgetLines.has(linea.id)
+        && !persistedLineaIds.has(linea.id)
+        && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
+      ))
       .map((linea) => ({ presupuesto, linea }))
   ));
-  const items: SessionTreatment[] = [];
 
   pendingLines.forEach(({ presupuesto, linea }) => {
     items.push({
       id: `linea-${linea.id}`,
+      sesionItemId: null,
       source: 'pendiente',
       sourceLabel: `Ppto. ${presupuesto.numero}`,
       tratamientoId: linea.tratamiento_id,
@@ -147,6 +213,7 @@ function buildSessionTreatments(citas: Cita[], presupuestos: Presupuesto[], hist
   });
 
   todayAppointments.forEach((cita) => {
+    if (persistedCitaIds.has(cita.id)) return;
     const motivo = cita.motivo || 'Tratamiento previsto';
     const normalizedMotivo = normalizeSessionText(motivo);
     const alreadyCovered = items.some((item) => {
@@ -156,6 +223,7 @@ function buildSessionTreatments(citas: Cita[], presupuestos: Presupuesto[], hist
     if (alreadyCovered) return;
     items.push({
       id: `cita-${cita.id}`,
+      sesionItemId: null,
       source: 'cita',
       sourceLabel: `${cita.fecha_hora.slice(11, 16)} - ${cita.estado}`,
       tratamientoId: null,
@@ -404,6 +472,20 @@ function PatientExitChecklistPanel({
   );
 }
 
+function buildCreatePayload(item: SessionTreatment): SesionClinicaItemCreateInput {
+  return {
+    tratamiento_id: item.tratamientoId,
+    presupuesto_linea_id: item.linea?.id ?? null,
+    cita_id: item.citaId ?? null,
+    titulo: item.title.trim() || null,
+    pieza_dental: item.piezaDental ? Number(item.piezaDental) : null,
+    caras: item.caras || null,
+    observaciones: item.observaciones.trim() || null,
+    estado: item.status === 'realizado' ? 'planificado' : item.status,
+    origen: SESION_ITEM_ORIGEN_BY_SOURCE[item.source],
+  };
+}
+
 function SessionWorkspace({
   paciente,
   citas,
@@ -418,6 +500,12 @@ function SessionWorkspace({
   notasDentales,
   doctorId,
   userRole,
+  sesionItems,
+  sesionItemsLoading,
+  sesionItemsError,
+  onCreateSesionItem,
+  onUpdateSesionItem,
+  onDeleteSesionItem,
   onCrearReceta,
   onOpenConsentimiento,
   onCrearPedidoLab,
@@ -442,6 +530,12 @@ function SessionWorkspace({
   notasDentales: NotaDental[];
   doctorId?: string | null;
   userRole?: UserRole | null;
+  sesionItems: SesionClinicaItem[];
+  sesionItemsLoading: boolean;
+  sesionItemsError: string | null;
+  onCreateSesionItem: (input: SesionClinicaItemCreateInput) => Promise<SesionClinicaItem>;
+  onUpdateSesionItem: (itemId: string, cambios: SesionClinicaItemUpdateInput) => Promise<SesionClinicaItem>;
+  onDeleteSesionItem: (itemId: string) => Promise<unknown>;
   onCrearReceta: () => void;
   onOpenConsentimiento: () => void;
   onCrearPedidoLab: () => void;
@@ -455,8 +549,11 @@ function SessionWorkspace({
 }) {
   const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta'].includes(cita.estado));
   const recientes = recentClinicalHistory(historial);
-  const baseSessionItems = useMemo(() => buildSessionTreatments(citas, presupuestos, historial), [citas, historial, presupuestos]);
-  const [sessionItems, setSessionItems] = useState<SessionTreatment[]>(baseSessionItems);
+  const baseSessionItems = useMemo(
+    () => buildSessionTreatments(citas, presupuestos, historial, sesionItems),
+    [citas, historial, presupuestos, sesionItems],
+  );
+  const [draftItems, setDraftItems] = useState<SessionTreatment[]>(baseSessionItems);
   const [selectedId, setSelectedId] = useState<string | null>(baseSessionItems[0]?.id ?? null);
   const [adding, setAdding] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
@@ -465,7 +562,8 @@ function SessionWorkspace({
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [quickNote, setQuickNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
-  const selected = sessionItems.find((item) => item.id === selectedId) ?? sessionItems[0] ?? null;
+  const pendingMaterialize = useRef<Set<string>>(new Set());
+  const selected = draftItems.find((item) => item.id === selectedId) ?? draftItems[0] ?? null;
   const filteredCatalog = tratamientos.filter((tratamiento) => {
     const q = normalizeSessionText(catalogSearch);
     if (!q) return true;
@@ -488,55 +586,110 @@ function SessionWorkspace({
   }), [citas, consentimientos, documentos, historial, laboratorio, paciente, presupuestos, recetas, saldoPendiente]);
 
   useEffect(() => {
-    setSessionItems(baseSessionItems);
-    setSelectedId(baseSessionItems[0]?.id ?? null);
+    setDraftItems(baseSessionItems);
+    setSelectedId((current) => {
+      if (current && baseSessionItems.some((item) => item.id === current)) return current;
+      return baseSessionItems[0]?.id ?? null;
+    });
   }, [baseSessionItems]);
 
   useEffect(() => {
     setQuickNote('');
   }, [selectedId]);
 
-  function updateSelected(patch: Partial<SessionTreatment>) {
+  function updateLocal(patch: Partial<SessionTreatment>) {
     if (!selected) return;
-    setSessionItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
+    setDraftItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
   }
 
-  function addTreatmentFromCatalog() {
+  async function ensurePersistedItem(item: SessionTreatment): Promise<SessionTreatment | null> {
+    if (item.sesionItemId) return item;
+    if (pendingMaterialize.current.has(item.id)) return null;
+    pendingMaterialize.current.add(item.id);
+    try {
+      setSavingId(item.id);
+      const created = await onCreateSesionItem(buildCreatePayload(item));
+      const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
+      setDraftItems((current) => current.map((row) => row.id === item.id ? promoted : row));
+      setSelectedId((current) => (current === item.id ? promoted.id : current));
+      return promoted;
+    } finally {
+      pendingMaterialize.current.delete(item.id);
+      setSavingId((current) => (current === item.id ? null : current));
+    }
+  }
+
+  async function persistUpdate(item: SessionTreatment, cambios: SesionClinicaItemUpdateInput) {
+    const persisted = await ensurePersistedItem(item);
+    if (!persisted?.sesionItemId) return;
+    if (Object.keys(cambios).length === 0) return;
+    setSavingId(persisted.id);
+    try {
+      const updated = await onUpdateSesionItem(persisted.sesionItemId, cambios);
+      const refreshed = sessionTreatmentFromSesionItem(updated, presupuestos);
+      setDraftItems((current) => current.map((row) => row.id === persisted.id ? refreshed : row));
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : 'No se pudo guardar el cambio en la sesion.');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  function pieceToUpdate(pieza: string) {
+    const trimmed = pieza.replace(/[^\d]/g, '').slice(0, 2);
+    return trimmed ? Number(trimmed) : null;
+  }
+
+  async function addTreatmentFromCatalog() {
     const tratamiento = tratamientos.find((item) => item.id === selectedCatalogId) ?? filteredCatalog[0];
     if (!tratamiento) return;
-    const next: SessionTreatment = {
-      id: `manual-${Date.now()}`,
-      source: 'manual',
-      sourceLabel: 'Anadido en sesion',
-      tratamientoId: tratamiento.id,
-      tratamiento,
-      title: tratamiento.nombre,
-      piezaDental: '',
-      caras: '',
-      observaciones: '',
-      status: 'en_curso',
-    };
-    setSessionItems((current) => [next, ...current]);
-    setSelectedId(next.id);
+    setSessionError(null);
     setAdding(false);
     setCatalogSearch('');
     setSelectedCatalogId('');
+    try {
+      const created = await onCreateSesionItem({
+        tratamiento_id: tratamiento.id,
+        titulo: tratamiento.nombre,
+        estado: 'en_curso',
+        origen: 'manual',
+      });
+      const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
+      setSelectedId(promoted.id);
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : 'No se pudo anadir el tratamiento a la sesion.');
+    }
   }
 
-  function removeSelected() {
+  async function removeSelected() {
     if (!selected) return;
-    const nextItems = sessionItems.filter((item) => item.id !== selected.id);
-    setSessionItems(nextItems);
-    setSelectedId(nextItems[0]?.id ?? null);
+    setSessionError(null);
+    if (!selected.sesionItemId) {
+      setDraftItems((current) => {
+        const next = current.filter((item) => item.id !== selected.id);
+        setSelectedId(next[0]?.id ?? null);
+        return next;
+      });
+      return;
+    }
+    try {
+      setSavingId(selected.id);
+      await onDeleteSesionItem(selected.sesionItemId);
+      setSelectedId(null);
+    } catch (error) {
+      setSessionError(error instanceof Error ? error.message : 'No se pudo eliminar el item de la sesion.');
+    } finally {
+      setSavingId(null);
+    }
   }
 
   function applyDentalTarget(selection: ToothSelection) {
     if (!selected) return;
     const cara = mapSurfaceToCaras(selection.surface);
-    updateSelected({
-      piezaDental: selection.toothNumber.replace(/[^\d]/g, '').slice(0, 2),
-      caras: cara ?? selected.caras,
-    });
+    const piezaDental = selection.toothNumber.replace(/[^\d]/g, '').slice(0, 2);
+    const caras = cara ?? selected.caras;
+    updateLocal({ piezaDental, caras });
+    void persistUpdate(selected, { pieza_dental: piezaDental ? Number(piezaDental) : null, caras: caras || null });
   }
 
   async function finishSelectedTreatment() {
@@ -548,21 +701,24 @@ function SessionWorkspace({
     setSessionError(null);
     setSavingId(selected.id);
     try {
+      const persisted = await ensurePersistedItem(selected);
+      if (!persisted) return;
       const historialCreado = await onFinalizarTratamientoSesion({
         paciente_id: paciente.id,
-        tratamiento_id: selected.tratamientoId,
+        tratamiento_id: persisted.tratamientoId!,
         doctor_id: doctorId ?? null,
         gabinete_id: null,
-        cita_id: selected.citaId ?? null,
-        presupuesto_linea_id: selected.linea?.id ?? null,
-        pieza_dental: selected.piezaDental ? Number(selected.piezaDental) : null,
-        caras: selected.caras || null,
-        procedimiento: selected.title.trim() || selected.tratamiento?.nombre || null,
-        observaciones: selected.observaciones.trim() || null,
-        origen: selected.source === 'pendiente' ? 'presupuesto_linea' : selected.source,
-        importe: selected.linea?.importe_neto ?? selected.linea?.precio_unitario ?? null,
+        cita_id: persisted.citaId ?? null,
+        presupuesto_linea_id: persisted.linea?.id ?? null,
+        sesion_item_id: persisted.sesionItemId ?? null,
+        pieza_dental: persisted.piezaDental ? Number(persisted.piezaDental) : null,
+        caras: persisted.caras || null,
+        procedimiento: persisted.title.trim() || persisted.tratamiento?.nombre || null,
+        observaciones: persisted.observaciones.trim() || null,
+        origen: persisted.source === 'pendiente' ? 'presupuesto_linea' : persisted.source,
+        importe: persisted.linea?.importe_neto ?? persisted.linea?.precio_unitario ?? null,
       });
-      setSessionItems((current) => current.map((item) => item.id === selected.id ? {
+      setDraftItems((current) => current.map((item) => item.id === persisted.id ? {
         ...item,
         status: 'realizado',
         historialId: historialCreado.id,
@@ -635,8 +791,14 @@ function SessionWorkspace({
             <button type="button" onClick={addTreatmentFromCatalog} disabled={!filteredCatalog.length}>Anadir a sesion</button>
           </div>
         )}
+        {sesionItemsError && (
+          <p className="session-save-error" role="alert">{sesionItemsError}</p>
+        )}
         <div className="session-treatment-list" role="list" aria-label="Tratamientos de la sesion">
-          {sessionItems.map((item) => (
+          {sesionItemsLoading && !draftItems.length && (
+            <div className="session-empty-state"><span>Cargando sesion del paciente...</span></div>
+          )}
+          {draftItems.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -649,7 +811,7 @@ function SessionWorkspace({
               <small>{item.historialId ? 'En historial' : SESSION_STATUS_LABELS[item.status]}</small>
             </button>
           ))}
-          {!sessionItems.length && (
+          {!sesionItemsLoading && !draftItems.length && (
             <div className="session-empty-state">
               <strong>Sin tratamientos en la sesion</strong>
               <span>Anade uno desde catalogo o usa tratamientos aceptados del paciente.</span>
@@ -672,27 +834,42 @@ function SessionWorkspace({
               </div>
               <select
                 value={selected.status}
-                onChange={(event) => updateSelected({ status: event.target.value as SessionTreatmentStatus })}
+                onChange={(event) => {
+                  const value = event.target.value as SessionTreatmentStatus;
+                  if (value === 'realizado') return;
+                  updateLocal({ status: value });
+                  void persistUpdate(selected, { estado: value });
+                }}
                 aria-label="Estado del tratamiento en sesion"
+                disabled={Boolean(selected.historialId)}
               >
                 {Object.entries(SESSION_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
+                  <option key={value} value={value} disabled={value === 'realizado' && !selected.historialId}>{label}</option>
                 ))}
               </select>
             </div>
             <div className="session-detail-grid">
               <label>Nombre en sesion
-                <input value={selected.title} onChange={(event) => updateSelected({ title: event.target.value })} />
+                <input
+                  value={selected.title}
+                  onChange={(event) => updateLocal({ title: event.target.value })}
+                  onBlur={() => persistUpdate(selected, { titulo: selected.title.trim() || null })}
+                />
               </label>
               <label>Tratamiento catalogo
                 <select
                   value={selected.tratamientoId ?? ''}
                   onChange={(event) => {
                     const tratamiento = tratamientos.find((item) => item.id === event.target.value) ?? null;
-                    updateSelected({
+                    const nextTitle = tratamiento?.nombre ?? selected.title;
+                    updateLocal({
                       tratamientoId: tratamiento?.id ?? null,
                       tratamiento,
-                      title: tratamiento?.nombre ?? selected.title,
+                      title: nextTitle,
+                    });
+                    void persistUpdate(selected, {
+                      tratamiento_id: tratamiento?.id ?? null,
+                      titulo: nextTitle.trim() || null,
                     });
                   }}
                 >
@@ -708,21 +885,24 @@ function SessionWorkspace({
                 <input
                   inputMode="numeric"
                   value={selected.piezaDental}
-                  onChange={(event) => updateSelected({ piezaDental: event.target.value.replace(/[^\d]/g, '').slice(0, 2) })}
+                  onChange={(event) => updateLocal({ piezaDental: event.target.value.replace(/[^\d]/g, '').slice(0, 2) })}
+                  onBlur={() => persistUpdate(selected, { pieza_dental: pieceToUpdate(selected.piezaDental) })}
                   placeholder="24"
                 />
               </label>
               <label>Caras
                 <input
                   value={selected.caras}
-                  onChange={(event) => updateSelected({ caras: event.target.value.toUpperCase().replace(/[^MODVLP]/g, '').slice(0, 6) })}
+                  onChange={(event) => updateLocal({ caras: event.target.value.toUpperCase().replace(/[^MODVLP]/g, '').slice(0, 6) })}
+                  onBlur={() => persistUpdate(selected, { caras: selected.caras || null })}
                   placeholder="MOD"
                 />
               </label>
               <label className="wide">Observacion clinica del tratamiento
                 <textarea
                   value={selected.observaciones}
-                  onChange={(event) => updateSelected({ observaciones: event.target.value })}
+                  onChange={(event) => updateLocal({ observaciones: event.target.value })}
+                  onBlur={() => persistUpdate(selected, { observaciones: selected.observaciones.trim() || null })}
                   placeholder="Material, anestesia, evolucion, incidencias, indicaciones..."
                 />
               </label>
@@ -755,8 +935,23 @@ function SessionWorkspace({
               <button type="button" onClick={finishSelectedTreatment} disabled={savingId === selected.id || Boolean(selected.historialId) || !selected.tratamientoId}>
                 <CheckCircle2 size={14} aria-hidden="true" /> {selected.historialId ? 'Guardado en historial' : savingId === selected.id ? 'Guardando...' : 'Finalizar como realizado'}
               </button>
-              <button type="button" onClick={() => updateSelected({ status: 'pospuesto' })}><Clock3 size={14} aria-hidden="true" /> Posponer</button>
-              <button type="button" onClick={removeSelected}><Trash2 size={14} aria-hidden="true" /> Eliminar de sesion</button>
+              <button
+                type="button"
+                onClick={() => {
+                  updateLocal({ status: 'pospuesto' });
+                  void persistUpdate(selected, { estado: 'pospuesto' });
+                }}
+                disabled={Boolean(selected.historialId) || savingId === selected.id}
+              >
+                <Clock3 size={14} aria-hidden="true" /> Posponer
+              </button>
+              <button
+                type="button"
+                onClick={() => void removeSelected()}
+                disabled={Boolean(selected.historialId) || savingId === selected.id}
+              >
+                <Trash2 size={14} aria-hidden="true" /> Eliminar de sesion
+              </button>
             </div>
             {sessionError && <p className="session-save-error" role="alert">{sessionError}</p>}
             <details className="session-secondary-actions">
@@ -994,6 +1189,12 @@ export function ClinicalWorkspace({
   onOpenCobro,
   onFinalizarTratamientoSesion,
   onCreateNotaDental,
+  sesionItems,
+  sesionItemsLoading,
+  sesionItemsError,
+  onCreateSesionItem,
+  onUpdateSesionItem,
+  onDeleteSesionItem,
   userRole,
 }: {
   activeTab: ClinicalTab;
@@ -1028,6 +1229,12 @@ export function ClinicalWorkspace({
   onOpenCobro?: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
   onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
+  sesionItems: SesionClinicaItem[];
+  sesionItemsLoading: boolean;
+  sesionItemsError: string | null;
+  onCreateSesionItem: (input: SesionClinicaItemCreateInput) => Promise<SesionClinicaItem>;
+  onUpdateSesionItem: (itemId: string, cambios: SesionClinicaItemUpdateInput) => Promise<SesionClinicaItem>;
+  onDeleteSesionItem: (itemId: string) => Promise<unknown>;
   userRole?: UserRole | null;
 }) {
   return (
@@ -1089,6 +1296,12 @@ export function ClinicalWorkspace({
           notasDentales={notasDentales}
           doctorId={doctorId}
           userRole={userRole}
+          sesionItems={sesionItems}
+          sesionItemsLoading={sesionItemsLoading}
+          sesionItemsError={sesionItemsError}
+          onCreateSesionItem={onCreateSesionItem}
+          onUpdateSesionItem={onUpdateSesionItem}
+          onDeleteSesionItem={onDeleteSesionItem}
           onCrearReceta={onCrearReceta}
           onOpenConsentimiento={() => onOpenConsentimiento()}
           onCrearPedidoLab={onCrearPedidoLabGeneral}
