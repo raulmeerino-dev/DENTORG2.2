@@ -900,7 +900,3 @@ export function ConfiguracionWorkspace({
     </section>
   );
 }
-
-export default function ConfiguracionPage() {
-  return <ConfiguracionWorkspace />;
-}
