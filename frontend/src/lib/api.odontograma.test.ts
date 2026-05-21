@@ -16,7 +16,7 @@ afterEach(() => {
 describe('mutaciones criticas del odontograma sin demo fallback', () => {
   it('saveOdontograma propaga el error real cuando el backend falla', async () => {
     const spy = vi.spyOn(api, 'put').mockRejectedValueOnce(new Error('Backend caido'));
-    await expect(saveOdontograma('pres-1', { denticion: 'adulta', teeth: {} })).rejects.toThrow('Backend caido');
+    await expect(saveOdontograma('pres-1', { version: 1, teeth: {} })).rejects.toThrow('Backend caido');
     expect(spy).toHaveBeenCalled();
   });
 
@@ -57,8 +57,8 @@ describe('mutaciones criticas del odontograma sin demo fallback', () => {
 
 describe('mutaciones criticas del odontograma devuelven el payload real', () => {
   it('saveOdontograma resuelve el objeto del backend', async () => {
-    vi.spyOn(api, 'put').mockResolvedValueOnce({ data: { presupuesto_id: 'pres-1', odontograma: { denticion: 'adulta', teeth: {} } } } as never);
-    const result = await saveOdontograma('pres-1', { denticion: 'adulta', teeth: {} });
+    vi.spyOn(api, 'put').mockResolvedValueOnce({ data: { presupuesto_id: 'pres-1', odontograma: { version: 1, teeth: {} } } } as never);
+    const result = await saveOdontograma('pres-1', { version: 1, teeth: {} });
     expect(result.presupuesto_id).toBe('pres-1');
   });
 
