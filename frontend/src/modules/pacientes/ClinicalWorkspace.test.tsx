@@ -295,9 +295,10 @@ describe('ClinicalWorkspace sesion actual', () => {
     }));
     // El PATCH persiste la observacion antes de finalizar.
     await waitFor(() => expect(onUpdateSesionItem).toHaveBeenCalled());
-    expect(onUpdateSesionItem.mock.calls[0][1]).toEqual(expect.objectContaining({
-      observaciones: 'Preparacion y provisional colocado',
-    }));
+    expect(onUpdateSesionItem).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ observaciones: 'Preparacion y provisional colocado' }),
+    );
 
     await waitFor(() => expect(onFinalizar).toHaveBeenCalledTimes(1));
     expect(onFinalizar).toHaveBeenCalledWith(expect.objectContaining({
