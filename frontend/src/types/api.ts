@@ -415,6 +415,7 @@ export interface SesionTratamientoRealizadoInput {
   gabinete_id?: string | null;
   cita_id?: string | null;
   presupuesto_linea_id?: string | null;
+  sesion_item_id?: string | null;
   pieza_dental?: number | null;
   caras?: string | null;
   fecha?: string | null;
@@ -422,6 +423,56 @@ export interface SesionTratamientoRealizadoInput {
   observaciones?: string | null;
   origen: 'manual' | 'cita' | 'presupuesto_linea';
   importe?: string | number | null;
+}
+
+export type EstadoSesionClinicaItem = 'planificado' | 'en_curso' | 'pospuesto' | 'realizado';
+export type OrigenSesionClinicaItem = 'manual' | 'cita' | 'presupuesto_linea';
+
+export interface SesionClinicaItem {
+  id: string;
+  paciente_id: string;
+  clinica_id: string | null;
+  doctor_id: string | null;
+  tratamiento_id: string | null;
+  presupuesto_linea_id: string | null;
+  cita_id: string | null;
+  historial_id: string | null;
+  titulo: string | null;
+  pieza_dental: number | null;
+  caras: string | null;
+  observaciones: string | null;
+  estado: EstadoSesionClinicaItem;
+  origen: OrigenSesionClinicaItem;
+  orden: number;
+  tratamiento: TratamientoResumen | null;
+  doctor: { id: string; nombre: string } | null;
+}
+
+export interface SesionClinicaItemCreateInput {
+  tratamiento_id?: string | null;
+  presupuesto_linea_id?: string | null;
+  cita_id?: string | null;
+  doctor_id?: string | null;
+  titulo?: string | null;
+  pieza_dental?: number | null;
+  caras?: string | null;
+  observaciones?: string | null;
+  estado?: EstadoSesionClinicaItem;
+  origen?: OrigenSesionClinicaItem;
+  orden?: number;
+}
+
+export interface SesionClinicaItemUpdateInput {
+  tratamiento_id?: string | null;
+  presupuesto_linea_id?: string | null;
+  cita_id?: string | null;
+  doctor_id?: string | null;
+  titulo?: string | null;
+  pieza_dental?: number | null;
+  caras?: string | null;
+  observaciones?: string | null;
+  estado?: Exclude<EstadoSesionClinicaItem, 'realizado'>;
+  orden?: number;
 }
 
 export interface HistorialSinFacturar {

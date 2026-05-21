@@ -109,6 +109,7 @@ class SesionTratamientoRealizadoCreate(BaseModel):
     gabinete_id: UUID | None = None
     cita_id: UUID | None = None
     presupuesto_linea_id: UUID | None = None
+    sesion_item_id: UUID | None = None
     pieza_dental: int | None = Field(None, ge=11, le=85)
     caras: str | None = Field(None, max_length=10, pattern=r"^[MODVLP]*$")
     fecha: date | None = None
@@ -178,6 +179,61 @@ class NotaDentalResponse(BaseModel):
     doctor_id: UUID | None
     cita_id: UUID | None
     historial_id: UUID | None
+    doctor: DoctorResumen | None = None
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Sesión clínica activa ────────────────────────────────────────────────────
+
+EstadoSesionItem = Literal["planificado", "en_curso", "pospuesto", "realizado"]
+OrigenSesionItem = Literal["manual", "cita", "presupuesto_linea"]
+
+
+class SesionClinicaItemCreate(BaseModel):
+    tratamiento_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
+    cita_id: UUID | None = None
+    doctor_id: UUID | None = None
+    titulo: str | None = Field(None, max_length=200)
+    pieza_dental: int | None = Field(None, ge=11, le=85)
+    caras: str | None = Field(None, max_length=10, pattern=r"^[MODVLP]*$")
+    observaciones: str | None = None
+    estado: EstadoSesionItem = "planificado"
+    origen: OrigenSesionItem = "manual"
+    orden: int = Field(0, ge=0, le=10000)
+
+
+class SesionClinicaItemUpdate(BaseModel):
+    tratamiento_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
+    cita_id: UUID | None = None
+    doctor_id: UUID | None = None
+    titulo: str | None = Field(None, max_length=200)
+    pieza_dental: int | None = Field(None, ge=11, le=85)
+    caras: str | None = Field(None, max_length=10, pattern=r"^[MODVLP]*$")
+    observaciones: str | None = None
+    estado: EstadoSesionItem | None = None
+    orden: int | None = Field(None, ge=0, le=10000)
+
+
+class SesionClinicaItemResponse(BaseModel):
+    id: UUID
+    paciente_id: UUID
+    clinica_id: UUID | None
+    doctor_id: UUID | None
+    tratamiento_id: UUID | None
+    presupuesto_linea_id: UUID | None
+    cita_id: UUID | None
+    historial_id: UUID | None
+    titulo: str | None
+    pieza_dental: int | None
+    caras: str | None
+    observaciones: str | None
+    estado: EstadoSesionItem
+    origen: OrigenSesionItem
+    orden: int
+    tratamiento: TratamientoResumen | None = None
     doctor: DoctorResumen | None = None
 
     model_config = {"from_attributes": True}
