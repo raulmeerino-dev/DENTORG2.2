@@ -419,6 +419,45 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function describeAxiosError(error: AxiosError): string {
+  if (!error.response) {
+    const code = error.code ?? 'NETWORK';
+    return `No se pudo conectar con el servidor (${code}). Verifica que el backend este ejecutandose en ${api.defaults.baseURL}.`;
+  }
+  const { status, data } = error.response;
+  const detail = (data as { detail?: unknown } | null | undefined)?.detail;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail) && detail.length) {
+    const first = detail[0] as { msg?: string; loc?: unknown[] } | undefined;
+    if (first?.msg) {
+      const loc = Array.isArray(first.loc) ? first.loc.filter((part) => part !== 'body').join('.') : '';
+      return loc ? `${loc}: ${first.msg}` : first.msg;
+    }
+  }
+  if (status === 401) return 'Sesion expirada o no autorizada. Vuelve a iniciar sesion.';
+  if (status === 403) return 'No tienes permisos para esta accion.';
+  if (status === 404) return 'Recurso no encontrado en el servidor.';
+  if (status >= 500) return `Error en el servidor (${status}). Revisa los logs del backend.`;
+  return `Error ${status} en la peticion.`;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const axiosError = error as AxiosError;
+    if (axiosError?.isAxiosError) {
+      axiosError.message = describeAxiosError(axiosError);
+    }
+    return Promise.reject(error);
+  },
+);
+
+export function getApiErrorMessage(error: unknown, fallback = 'Error inesperado.'): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error) return error;
+  return fallback;
+}
+
 export async function login(username: string, password: string, otp?: string) {
   try {
     const { data } = await api.post<{ access_token: string }>('/auth/login', { username, password, otp });

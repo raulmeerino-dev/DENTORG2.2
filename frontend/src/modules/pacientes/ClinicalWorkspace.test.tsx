@@ -155,6 +155,23 @@ describe('ClinicalWorkspace sesion actual', () => {
     expect(await screen.findByText('En historial')).toBeInTheDocument();
   });
 
+  it('muestra error accionable y NO marca como guardado cuando finalizar falla por red', async () => {
+    const user = userEvent.setup();
+    const failingFinalize = vi.fn(async () => {
+      throw new Error('No se pudo conectar con el servidor (ERR_NETWORK). Verifica que el backend este ejecutandose en http://127.0.0.1:8011/api.');
+    });
+    renderClinical(failingFinalize);
+
+    expect((await screen.findAllByText('Corona zirconio')).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole('button', { name: /Finalizar como realizado/i }));
+
+    await waitFor(() => expect(failingFinalize).toHaveBeenCalledTimes(1));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/No se pudo conectar con el servidor/i);
+    expect(screen.queryByText('En historial')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Finalizar como realizado/i })).toBeEnabled();
+  });
+
   it('guarda nota rapida asociada a pieza/caras sin usar observacion general del paciente', async () => {
     const user = userEvent.setup();
     const { onCreateNotaDental } = renderClinical();

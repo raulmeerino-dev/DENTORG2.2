@@ -251,8 +251,8 @@ export function TratamientosRealizadosPanel({
           tratamientos={tratamientos}
         />
       </details>
-      <details className="odontogram-support-panel">
-        <summary>Ver odontograma actual</summary>
+      <details className="odontogram-support-panel" open>
+        <summary>Odontograma actual</summary>
         <PatientOdontogramFlow
           paciente={paciente}
           mode="completed"
