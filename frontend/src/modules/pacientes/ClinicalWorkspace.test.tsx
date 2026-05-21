@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, HistorialClinico, NotaDental, NotaDentalCreateInput, Presupuesto, RecetaClinica, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, HistorialClinico, NotaDental, NotaDentalCreateInput, Presupuesto, RecetaClinica, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
 import { ClinicalWorkspace } from './ClinicalWorkspace';
 
 vi.mock('../odontogram', () => ({
@@ -60,6 +60,36 @@ const presupuesto: Presupuesto = {
   }],
 };
 
+function buildSesionItem(overrides: Partial<SesionClinicaItem> = {}): SesionClinicaItem {
+  return {
+    id: 'sesion-1',
+    paciente_id: paciente.id,
+    clinica_id: null,
+    doctor_id: 'doc-1',
+    tratamiento_id: tratamiento.id,
+    presupuesto_linea_id: 'lin-1',
+    cita_id: null,
+    historial_id: null,
+    titulo: tratamiento.nombre,
+    pieza_dental: 16,
+    caras: 'MOD',
+    observaciones: null,
+    estado: 'planificado',
+    origen: 'presupuesto_linea',
+    orden: 0,
+    tratamiento: { id: tratamiento.id, nombre: tratamiento.nombre, codigo: tratamiento.codigo },
+    doctor: { id: 'doc-1', nombre: 'Dra. Ruiz' },
+    ...overrides,
+  };
+}
+
+type RenderClinicalOptions = {
+  initialSesionItems?: SesionClinicaItem[];
+  onCreateSesionItem?: (input: SesionClinicaItemCreateInput) => Promise<SesionClinicaItem>;
+  onUpdateSesionItem?: (itemId: string, cambios: SesionClinicaItemUpdateInput) => Promise<SesionClinicaItem>;
+  onDeleteSesionItem?: (itemId: string) => Promise<unknown>;
+};
+
 function renderClinical(
   onFinalizar = vi.fn(async () => ({
   id: 'hist-1',
@@ -92,7 +122,29 @@ function renderClinical(
     caras: data.caras ?? null,
     doctor: { id: 'doc-1', nombre: 'Dra. Ruiz' },
   } as NotaDental)),
+  options: RenderClinicalOptions = {},
 ) {
+  const onCreateSesionItem = options.onCreateSesionItem ?? vi.fn(async (input: SesionClinicaItemCreateInput) => buildSesionItem({
+    id: `sesion-new-${Math.random().toString(36).slice(2, 8)}`,
+    tratamiento_id: input.tratamiento_id ?? null,
+    presupuesto_linea_id: input.presupuesto_linea_id ?? null,
+    cita_id: input.cita_id ?? null,
+    titulo: input.titulo ?? null,
+    pieza_dental: input.pieza_dental ?? null,
+    caras: input.caras ?? null,
+    observaciones: input.observaciones ?? null,
+    estado: input.estado ?? 'planificado',
+    origen: input.origen ?? 'manual',
+  }));
+  const onUpdateSesionItem = options.onUpdateSesionItem ?? vi.fn(async (itemId: string, cambios: SesionClinicaItemUpdateInput) => buildSesionItem({
+    id: itemId,
+    titulo: cambios.titulo ?? tratamiento.nombre,
+    pieza_dental: cambios.pieza_dental ?? 16,
+    caras: cambios.caras ?? 'MOD',
+    observaciones: cambios.observaciones ?? null,
+    estado: cambios.estado ?? 'planificado',
+  }));
+  const onDeleteSesionItem = options.onDeleteSesionItem ?? vi.fn(async () => undefined);
   render(
     <ClinicalWorkspace
       activeTab="sesion"
@@ -125,10 +177,16 @@ function renderClinical(
       onOpenHistorial={vi.fn()}
       onFinalizarTratamientoSesion={onFinalizar}
       onCreateNotaDental={onCreateNotaDental}
+      sesionItems={options.initialSesionItems ?? []}
+      sesionItemsLoading={false}
+      sesionItemsError={null}
+      onCreateSesionItem={onCreateSesionItem}
+      onUpdateSesionItem={onUpdateSesionItem}
+      onDeleteSesionItem={onDeleteSesionItem}
       userRole="admin"
     />,
   );
-  return { onFinalizar, onCreateNotaDental };
+  return { onFinalizar, onCreateNotaDental, onCreateSesionItem, onUpdateSesionItem, onDeleteSesionItem };
 }
 
 const visitaCita: Cita = {
@@ -207,6 +265,12 @@ function renderVisits(overrides: Partial<{
       onOpenHistorial={onOpenHistorial}
       onFinalizarTratamientoSesion={vi.fn()}
       onCreateNotaDental={vi.fn()}
+      sesionItems={[]}
+      sesionItemsLoading={false}
+      sesionItemsError={null}
+      onCreateSesionItem={vi.fn()}
+      onUpdateSesionItem={vi.fn()}
+      onDeleteSesionItem={vi.fn()}
       userRole="admin"
     />,
   );
@@ -216,12 +280,24 @@ function renderVisits(overrides: Partial<{
 describe('ClinicalWorkspace sesion actual', () => {
   it('finaliza un pendiente aceptado guardando observacion, pieza/caras y vinculo a presupuesto_linea', async () => {
     const user = userEvent.setup();
-    const { onFinalizar } = renderClinical();
+    const { onFinalizar, onCreateSesionItem, onUpdateSesionItem } = renderClinical();
 
     expect((await screen.findAllByText('Corona zirconio')).length).toBeGreaterThan(0);
     await user.clear(screen.getByLabelText(/Observacion clinica del tratamiento/i));
     await user.type(screen.getByLabelText(/Observacion clinica del tratamiento/i), 'Preparacion y provisional colocado');
     await user.click(screen.getByRole('button', { name: /Finalizar como realizado/i }));
+
+    // La sesion se materializa al primer onBlur de observaciones (origen='presupuesto_linea').
+    await waitFor(() => expect(onCreateSesionItem).toHaveBeenCalled());
+    expect(onCreateSesionItem).toHaveBeenCalledWith(expect.objectContaining({
+      presupuesto_linea_id: 'lin-1',
+      origen: 'presupuesto_linea',
+    }));
+    // El PATCH persiste la observacion antes de finalizar.
+    await waitFor(() => expect(onUpdateSesionItem).toHaveBeenCalled());
+    expect(onUpdateSesionItem.mock.calls[0][1]).toEqual(expect.objectContaining({
+      observaciones: 'Preparacion y provisional colocado',
+    }));
 
     await waitFor(() => expect(onFinalizar).toHaveBeenCalledTimes(1));
     expect(onFinalizar).toHaveBeenCalledWith(expect.objectContaining({
@@ -231,10 +307,65 @@ describe('ClinicalWorkspace sesion actual', () => {
       presupuesto_linea_id: 'lin-1',
       pieza_dental: 16,
       caras: 'MOD',
-      observaciones: 'Preparacion y provisional colocado',
       origen: 'presupuesto_linea',
+      sesion_item_id: expect.any(String),
     }));
     expect(await screen.findByText('En historial')).toBeInTheDocument();
+  });
+
+  it('persiste la sesion al refrescar: items entregados como prop se renderizan sin trabajo local', async () => {
+    const persisted: SesionClinicaItem = {
+      id: 'sesion-persist-1',
+      paciente_id: paciente.id,
+      clinica_id: null,
+      doctor_id: 'doc-1',
+      tratamiento_id: tratamiento.id,
+      presupuesto_linea_id: null,
+      cita_id: null,
+      historial_id: null,
+      titulo: 'Empaste manual pieza 24',
+      pieza_dental: 24,
+      caras: 'MOD',
+      observaciones: 'Anestesia infiltrativa',
+      estado: 'en_curso',
+      origen: 'manual',
+      orden: 0,
+      tratamiento: { id: tratamiento.id, nombre: tratamiento.nombre, codigo: tratamiento.codigo },
+      doctor: { id: 'doc-1', nombre: 'Dra. Ruiz' },
+    };
+    renderClinical(undefined, undefined, { initialSesionItems: [persisted] });
+
+    expect((await screen.findAllByText('Empaste manual pieza 24')).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Pieza 24/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Anestesia infiltrativa')).toBeInTheDocument();
+  });
+
+  it('al pulsar Eliminar de sesion sobre un item persistido llama al backend', async () => {
+    const user = userEvent.setup();
+    const persisted: SesionClinicaItem = {
+      id: 'sesion-del-1',
+      paciente_id: paciente.id,
+      clinica_id: null,
+      doctor_id: 'doc-1',
+      tratamiento_id: tratamiento.id,
+      presupuesto_linea_id: null,
+      cita_id: null,
+      historial_id: null,
+      titulo: 'Item a borrar',
+      pieza_dental: null,
+      caras: null,
+      observaciones: null,
+      estado: 'planificado',
+      origen: 'manual',
+      orden: 0,
+      tratamiento: null,
+      doctor: null,
+    };
+    const onDelete = vi.fn(async () => undefined);
+    renderClinical(undefined, undefined, { initialSesionItems: [persisted], onDeleteSesionItem: onDelete });
+
+    await user.click(await screen.findByRole('button', { name: /Eliminar de sesion/i }));
+    await waitFor(() => expect(onDelete).toHaveBeenCalledWith('sesion-del-1'));
   });
 
   it('muestra error accionable y NO marca como guardado cuando finalizar falla por red', async () => {

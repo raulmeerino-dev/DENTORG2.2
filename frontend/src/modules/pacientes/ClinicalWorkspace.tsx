@@ -562,7 +562,8 @@ function SessionWorkspace({
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [quickNote, setQuickNote] = useState('');
   const [savingNote, setSavingNote] = useState(false);
-  const pendingMaterialize = useRef<Set<string>>(new Set());
+  const pendingMaterialize = useRef<Map<string, Promise<SessionTreatment | null>>>(new Map());
+  const materializedAlias = useRef<Map<string, SessionTreatment>>(new Map());
   const selected = draftItems.find((item) => item.id === selectedId) ?? draftItems[0] ?? null;
   const filteredCatalog = tratamientos.filter((tratamiento) => {
     const q = normalizeSessionText(catalogSearch);
@@ -604,34 +605,44 @@ function SessionWorkspace({
 
   async function ensurePersistedItem(item: SessionTreatment): Promise<SessionTreatment | null> {
     if (item.sesionItemId) return item;
-    if (pendingMaterialize.current.has(item.id)) return null;
-    pendingMaterialize.current.add(item.id);
-    try {
-      setSavingId(item.id);
-      const created = await onCreateSesionItem(buildCreatePayload(item));
-      const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
-      setDraftItems((current) => current.map((row) => row.id === item.id ? promoted : row));
-      setSelectedId((current) => (current === item.id ? promoted.id : current));
-      return promoted;
-    } finally {
-      pendingMaterialize.current.delete(item.id);
-      setSavingId((current) => (current === item.id ? null : current));
-    }
+    const cached = materializedAlias.current.get(item.id);
+    if (cached?.sesionItemId) return cached;
+    const inflight = pendingMaterialize.current.get(item.id);
+    if (inflight) return inflight;
+    const promise = (async () => {
+      try {
+        const created = await onCreateSesionItem(buildCreatePayload(item));
+        const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
+        materializedAlias.current.set(item.id, promoted);
+        setDraftItems((current) => current.map((row) => row.id === item.id ? promoted : row));
+        setSelectedId((current) => (current === item.id ? promoted.id : current));
+        return promoted;
+      } finally {
+        pendingMaterialize.current.delete(item.id);
+      }
+    })();
+    pendingMaterialize.current.set(item.id, promise);
+    return promise;
   }
 
   async function persistUpdate(item: SessionTreatment, cambios: SesionClinicaItemUpdateInput) {
     const persisted = await ensurePersistedItem(item);
     if (!persisted?.sesionItemId) return;
     if (Object.keys(cambios).length === 0) return;
-    setSavingId(persisted.id);
     try {
       const updated = await onUpdateSesionItem(persisted.sesionItemId, cambios);
       const refreshed = sessionTreatmentFromSesionItem(updated, presupuestos);
-      setDraftItems((current) => current.map((row) => row.id === persisted.id ? refreshed : row));
+      setDraftItems((current) => current.map((row) => {
+        if (row.id !== persisted.id) return row;
+        return {
+          ...refreshed,
+          // Preserve client-only fields that backend doesn't echo (e.g. historialId set by finalize race).
+          historialId: row.historialId ?? refreshed.historialId,
+          status: row.historialId ? row.status : refreshed.status,
+        };
+      }));
     } catch (error) {
       setSessionError(error instanceof Error ? error.message : 'No se pudo guardar el cambio en la sesion.');
-    } finally {
-      setSavingId(null);
     }
   }
 
@@ -720,7 +731,7 @@ function SessionWorkspace({
       });
       setDraftItems((current) => current.map((item) => item.id === persisted.id ? {
         ...item,
-        status: 'realizado',
+        status: 'realizado' as SessionTreatmentStatus,
         historialId: historialCreado.id,
         sourceLabel: item.source === 'manual' ? 'Historial' : item.sourceLabel,
       } : item));
