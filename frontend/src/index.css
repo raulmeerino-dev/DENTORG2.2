@@ -15736,6 +15736,108 @@ body {
   -webkit-line-clamp: 2;
 }
 
+.piece-history-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 10px;
+}
+
+.piece-history-selector button {
+  min-width: 36px;
+  height: 30px;
+  border: 1px solid rgba(15, 159, 175, 0.18);
+  border-radius: 8px;
+  background: #f7fbfc;
+  color: #12303d;
+  font-weight: 700;
+}
+
+.piece-history-selector button.active {
+  background: #0f8ea0;
+  color: #fff;
+}
+
+.piece-history-selector span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.piece-history-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid rgba(15, 159, 175, 0.14);
+  border-radius: 12px;
+  background: #f8fcfd;
+}
+
+.piece-history-panel > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.piece-history-panel > header span,
+.piece-history-panel h4 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.piece-history-panel > header strong {
+  font-size: 1rem;
+}
+
+.piece-history-panel section {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.piece-history-panel article {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: start;
+  padding: 8px 9px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.piece-history-panel article time {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.piece-history-panel article strong,
+.piece-history-panel article span,
+.piece-history-panel article small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.piece-history-panel article span,
+.piece-history-panel article small,
+.piece-history-panel p {
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.piece-history-panel article small {
+  grid-column: 2 / -1;
+}
+
+.piece-history-panel article button {
+  align-self: center;
+}
+
 @media (max-width: 1420px) {
   .patient-selector-bar {
     grid-template-columns: minmax(250px, 1fr) minmax(230px, 330px) max-content !important;
