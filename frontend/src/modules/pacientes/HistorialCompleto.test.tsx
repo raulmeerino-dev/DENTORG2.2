@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { ApiPaciente, Cobro, Factura, PagoAnticipadoPaciente, RecetaClinica, TrabajoLaboratorio } from '../../types/api';
+import type { ApiPaciente, Cobro, DocumentoPaciente, Factura, HistorialClinico, NotaDental, PagoAnticipadoPaciente, Presupuesto, RecetaClinica, TrabajoLaboratorio } from '../../types/api';
 import { HistorialCompletoPanel } from './HistorialCompleto';
 
 const paciente: ApiPaciente = {
@@ -103,6 +103,80 @@ const trabajoLab: TrabajoLaboratorio = {
   laboratorio: null,
 };
 
+const historialPieza: HistorialClinico = {
+  id: 'hist-16',
+  paciente_id: paciente.id,
+  tratamiento_id: 'trat-endo',
+  doctor_id: 'doc-1',
+  gabinete_id: null,
+  pieza_dental: 16,
+  caras: 'O',
+  fecha: '2026-04-16',
+  diagnostico: 'Caries profunda',
+  procedimiento: 'Endodoncia',
+  observaciones: 'Conductos permeables',
+  estado: 'realizado',
+  importe: '150.00',
+  factura_id: null,
+  tratamiento: { id: 'trat-endo', nombre: 'Endodoncia', codigo: 'EN' },
+  doctor: { id: 'doc-1', nombre: 'Dra. Ruiz' },
+};
+
+const presupuestoPieza: Presupuesto = {
+  id: 'pres-1',
+  paciente_id: paciente.id,
+  numero: 12,
+  fecha: '2026-04-14',
+  estado: 'aceptado',
+  pie_pagina: null,
+  odontograma: { version: 1, teeth: {} },
+  doctor_id: 'doc-1',
+  lineas: [{
+    id: 'linea-16',
+    presupuesto_id: 'pres-1',
+    tratamiento_id: 'trat-corona',
+    tratamiento: { id: 'trat-corona', nombre: 'Corona zirconio', codigo: 'PF' },
+    pieza_dental: 16,
+    caras: null,
+    precio_unitario: '300.00',
+    descuento_porcentaje: '0.00',
+    aceptado: true,
+    pasado_trabajo_pendiente: false,
+    importe_neto: '300.00',
+  }],
+  total: '300.00',
+  total_aceptado: '300.00',
+};
+
+const notaPieza: NotaDental = {
+  id: 'nota-16',
+  paciente_id: paciente.id,
+  pieza_dental: 16,
+  caras: 'O',
+  texto: 'Control radiografico en 6 meses',
+  fecha: '2026-04-17',
+  doctor_id: 'doc-1',
+  cita_id: null,
+  historial_id: null,
+  doctor: { id: 'doc-1', nombre: 'Dra. Ruiz' },
+};
+
+const documentoPieza: DocumentoPaciente = {
+  id: 'doc-16',
+  paciente_id: paciente.id,
+  nombre_original: 'rx-pieza-16.pdf',
+  mime_type: 'application/pdf',
+  tamano_bytes: 100,
+  categoria: 'radiografia',
+  descripcion: 'RX pieza 16',
+  fecha_documento: '2026-04-17',
+  tratamiento_id: null,
+  historial_id: historialPieza.id,
+  doctor_id: 'doc-1',
+  etiquetas: 'endo',
+  created_at: '2026-04-17T10:00:00',
+};
+
 function renderHistorial(overrides: Partial<Parameters<typeof HistorialCompletoPanel>[0]> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -118,6 +192,7 @@ function renderHistorial(overrides: Partial<Parameters<typeof HistorialCompletoP
         consentimientos={[]}
         recetas={[receta]}
         laboratorio={[trabajoLab]}
+        notasDentales={[]}
         onOpenDocumento={vi.fn()}
         onOpenConsentimiento={vi.fn()}
         onOpenFactura={vi.fn()}
@@ -191,5 +266,21 @@ describe('HistorialCompletoPanel filtros', () => {
     renderHistorial({ facturas: [facturaAnulada], anticipos: [] });
     await user.click(screen.getByRole('button', { name: 'Cobros' }));
     expect(screen.getByText('Cobro anulado')).toBeInTheDocument();
+  });
+
+  it('muestra una lectura de historial por pieza con realizados, pendientes, notas y documentos', () => {
+    renderHistorial({
+      historial: [historialPieza],
+      presupuestos: [presupuestoPieza],
+      documentos: [documentoPieza],
+      notasDentales: [notaPieza],
+    });
+
+    expect(screen.getAllByRole('button', { name: '16' }).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Historial de pieza 16')).toBeInTheDocument();
+    expect(screen.getAllByText('Endodoncia').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Corona zirconio').length).toBeGreaterThan(0);
+    expect(screen.getByText('Control radiografico en 6 meses')).toBeInTheDocument();
+    expect(screen.getAllByText('RX pieza 16').length).toBeGreaterThan(0);
   });
 });

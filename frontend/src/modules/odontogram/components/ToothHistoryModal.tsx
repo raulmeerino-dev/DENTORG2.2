@@ -21,7 +21,7 @@ export function ToothHistoryModal({ tooth, onClose }: ToothHistoryModalProps) {
           <div>
             <span>Historial clínico</span>
             <h2 id="tooth-history-title">Pieza {tooth.number}</h2>
-            <p>{tooth.status === 'missing' ? 'Pieza ausente' : 'Registro local del prototipo'}</p>
+            <p>{tooth.status === 'missing' ? 'Pieza ausente' : 'Lectura de tratamientos asociados a la pieza'}</p>
           </div>
           <button className="od-modal-close" type="button" onClick={onClose} aria-label="Cerrar">
             ×
@@ -47,7 +47,7 @@ export function ToothHistoryModal({ tooth, onClose }: ToothHistoryModalProps) {
             {tooth.notes ? <p className="od-muted">{tooth.notes}</p> : null}
           </div>
         ) : (
-          <p className="od-history-empty">No hay movimientos registrados para esta pieza en los datos demo.</p>
+          <p className="od-history-empty">No hay movimientos registrados para esta pieza.</p>
         )}
       </section>
     </div>

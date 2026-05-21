@@ -1079,6 +1079,7 @@ export default function PacientesPage() {
                 consentimientos={consentimientosQuery.data ?? []}
                 recetas={recetasPacienteQuery.data ?? []}
                 laboratorio={laboratorioPacienteQuery.data ?? []}
+                notasDentales={notasDentalesQuery.data ?? []}
                 onOpenDocumento={abrirDocumento}
                 onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
                 onOpenFactura={abrirPdfFactura}

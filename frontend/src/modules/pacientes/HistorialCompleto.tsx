@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, PagoAnticipadoPaciente, Presupuesto, RecetaClinica, TrabajoLaboratorio, UserRole } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, NotaDental, PagoAnticipadoPaciente, Presupuesto, RecetaClinica, TrabajoLaboratorio, UserRole } from '../../types/api';
 import { formatDate, fullName, money } from '../../lib/utils';
 import { PatientOdontogramFlow } from '../odontogram';
+import { collectDentalPieces, DentalPieceHistoryPanel } from './DentalPieceHistoryPanel';
 
 type HistoryFilter = 'todo' | 'clinico' | 'citas' | 'presupuestos' | 'facturacion' | 'cobros' | 'documentos' | 'consentimientos' | 'recetas' | 'laboratorio' | 'odontograma';
 
@@ -148,6 +149,7 @@ export function HistorialCompletoPanel({
   consentimientos,
   recetas = [],
   laboratorio = [],
+  notasDentales = [],
   onOpenDocumento,
   onOpenConsentimiento,
   onOpenFactura,
@@ -164,6 +166,7 @@ export function HistorialCompletoPanel({
   consentimientos: Consentimiento[];
   recetas?: RecetaClinica[];
   laboratorio?: TrabajoLaboratorio[];
+  notasDentales?: NotaDental[];
   onOpenDocumento: (documento: DocumentoPaciente) => void;
   onOpenConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenFactura: (factura: Factura) => void;
@@ -171,6 +174,16 @@ export function HistorialCompletoPanel({
   userRole?: UserRole | null;
 }) {
   const [filter, setFilter] = useState<HistoryFilter>('todo');
+  const pieceOptions = useMemo(() => collectDentalPieces({
+    historial,
+    presupuestos,
+    notasDentales,
+    documentos,
+  }), [documentos, historial, notasDentales, presupuestos]);
+  const [selectedPiece, setSelectedPiece] = useState<number | null>(pieceOptions[0] ?? null);
+  const activePiece = selectedPiece && pieceOptions.includes(selectedPiece)
+    ? selectedPiece
+    : pieceOptions[0] ?? selectedPiece;
   const events = useMemo<TimelineEvent[]>(() => {
     const next: TimelineEvent[] = [];
 
@@ -398,6 +411,19 @@ export function HistorialCompletoPanel({
 
         <details className="odontogram-support-panel history-odontogram-panel" open>
           <summary>Odontograma asociado al historial</summary>
+          <div className="piece-history-selector" aria-label="Piezas con historial">
+            {pieceOptions.map((piece) => (
+              <button
+                key={piece}
+                type="button"
+                className={activePiece === piece ? 'active' : ''}
+                onClick={() => setSelectedPiece(piece)}
+              >
+                {piece}
+              </button>
+            ))}
+            {!pieceOptions.length && <span>Sin piezas vinculadas en los datos actuales.</span>}
+          </div>
           <PatientOdontogramFlow
             paciente={paciente}
             mode="history"
@@ -406,6 +432,18 @@ export function HistorialCompletoPanel({
             readOnly
             enableQuickTreatments={false}
             userRole={userRole}
+            onSelectDentalTarget={(selection) => {
+              const piece = Number(selection.toothNumber);
+              if (Number.isFinite(piece)) setSelectedPiece(piece);
+            }}
+          />
+          <DentalPieceHistoryPanel
+            piece={activePiece}
+            historial={historial}
+            presupuestos={presupuestos}
+            notasDentales={notasDentales}
+            documentos={documentos}
+            onOpenDocumento={onOpenDocumento}
           />
         </details>
       </div>
