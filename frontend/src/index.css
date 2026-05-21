@@ -18122,3 +18122,241 @@ html[data-theme="dark"] .odontogram-support-panel {
   background: linear-gradient(180deg, #0d2534, #0a1f2c) !important;
   border-color: #2b5b72 !important;
 }
+
+/* ============================================================
+   CORRECTIVE POLISH — fixes nav overlap and global spacing.
+   Última capa. Pisa solo lo estrictamente necesario.
+   ============================================================ */
+
+/* Header: añade un separador limpio y deja respirar lo de abajo. */
+.euro-shell-header {
+  padding-bottom: 6px !important;
+}
+
+.euro-main-nav {
+  padding: 4px 16px 12px !important;
+  gap: 10px !important;
+}
+
+/* Botones de navegación: estilo unificado claro/oscuro, sin sombras que se monten. */
+.euro-nav-button {
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  padding: 0 14px !important;
+  font-size: 0.85rem;
+  font-weight: 700 !important;
+  letter-spacing: 0;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+
+.euro-nav-button .nav-icon {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 7px;
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* Light mode nav */
+html:not([data-theme="dark"]) .euro-nav-button {
+  color: #44607a !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button:hover {
+  background: rgba(14, 165, 233, 0.08) !important;
+  color: #042439 !important;
+  transform: none !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.active {
+  background: rgba(14, 165, 233, 0.14) !important;
+  color: #052b40 !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
+  box-shadow: none !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.active .nav-icon {
+  background: transparent !important;
+  color: #0369a1 !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button:hover .nav-icon,
+html:not([data-theme="dark"]) .euro-nav-button .nav-icon {
+  color: #0369a1 !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.nav-exit {
+  color: #b91c1c !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.nav-exit:hover {
+  background: rgba(220, 38, 38, 0.10) !important;
+  color: #7f1d1d !important;
+}
+
+html:not([data-theme="dark"]) .euro-nav-button.nav-exit .nav-icon,
+html:not([data-theme="dark"]) .euro-nav-button.nav-exit:hover .nav-icon {
+  color: #b91c1c !important;
+}
+
+/* Dark mode nav */
+html[data-theme="dark"] .euro-nav-button {
+  color: #9ab5c5 !important;
+}
+
+html[data-theme="dark"] .euro-nav-button .nav-icon {
+  color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] .euro-nav-button:hover {
+  background: rgba(56, 189, 248, 0.10) !important;
+  color: #f1fbff !important;
+  transform: none !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.active {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #f4fcff !important;
+  border-color: rgba(56, 189, 248, 0.40) !important;
+  box-shadow: none !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.active .nav-icon {
+  background: transparent !important;
+  color: #7dd3fc !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.nav-exit {
+  color: #fda4af !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.nav-exit:hover {
+  background: rgba(248, 113, 113, 0.14) !important;
+  color: #ffe1e1 !important;
+}
+
+html[data-theme="dark"] .euro-nav-button.nav-exit .nav-icon,
+html[data-theme="dark"] .euro-nav-button.nav-exit:hover .nav-icon {
+  color: #fda4af !important;
+}
+
+/* Más respiro entre la barra de estado y el contenido principal. */
+.main-content {
+  padding: 14px 14px 18px !important;
+}
+
+@media (max-width: 900px) {
+  .main-content { padding: 10px 10px 14px !important; }
+}
+
+/* Toolbar de paciente: deja un margen claro respecto al header. */
+.patient-selector-bar {
+  margin-top: 4px !important;
+  margin-bottom: 12px !important;
+}
+
+/* Tabs principales: sin pegarse al borde inferior, sin sombras solapadas. */
+.patient-module-tabs {
+  margin-top: 6px !important;
+  margin-bottom: 10px !important;
+}
+
+/* Tira PACIENTE / PROXIMA / etc: ligero margen vertical. */
+.patient-summary-strip {
+  margin: 2px 0 12px !important;
+  border-radius: 10px !important;
+  border-top: 1px solid var(--lm-line, #dde7ee) !important;
+  border-bottom: 1px solid var(--lm-line, #dde7ee) !important;
+}
+html[data-theme="dark"] .patient-summary-strip {
+  border-color: var(--dm-line, rgba(125, 211, 252, 0.12)) !important;
+}
+
+/* KPI clínicos: margen inferior respecto al sub-tabs. */
+.clinical-overview {
+  margin: 8px 0 12px !important;
+}
+
+.clinical-subtabs {
+  margin-bottom: 14px !important;
+  padding-bottom: 2px !important;
+}
+
+/* Cards: radio y separación coherentes. */
+.clinical-list article,
+.consent-panel,
+.workspace-section,
+.billing-panel,
+.first-visit-panel,
+.budget-panel,
+.realizados-workspace,
+.historial-facturacion-workspace,
+.session-add-panel,
+.patient-info-card,
+.patient-hero-card,
+.patient-next-card,
+.patient-last-card,
+.patient-money-card,
+.patient-history-card,
+.patient-side-card {
+  border-radius: 12px !important;
+}
+
+/* Patient screen: gap consistente entre filas internas. */
+.patient-screen {
+  row-gap: 0 !important;
+}
+
+.patient-screen > * + * {
+  margin-top: 0;
+}
+
+/* Botones genéricos: sin transformes residuales que produzcan saltos visuales. */
+button {
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease !important;
+}
+
+button:active {
+  transform: translateY(0) !important;
+}
+
+/* Agenda: gap mínimo entre cabecera y cuerpo. */
+.agenda-euro > * + * {
+  margin-top: 6px;
+}
+
+/* Caja: padding consistente. */
+.caja-screen {
+  padding: 4px 0 !important;
+}
+
+/* Admin extras: deja respirar las secciones. */
+.admin-extras > * + * {
+  margin-top: 10px;
+}
+
+/* Ningún elemento ráfaga: si algo todavía mete drop-shadow descendente,
+   recortarlo a la caja del propio elemento. */
+.euro-shell-header,
+.patient-selector-bar,
+.patient-module-tabs,
+.patient-summary-strip,
+.clinical-overview,
+.clinical-subtabs {
+  isolation: isolate;
+}
+
+/* Anti-doble-borde: la barra de status no debe pintar borde sobre la toolbar. */
+.app-status {
+  border-bottom-width: 0 !important;
+  margin-bottom: 6px !important;
+}
+
+/* Que el botón activo no cree halos verticales fuera de su caja. */
+.euro-nav-button.active::after,
+.euro-nav-button.active::before {
+  display: none !important;
+}

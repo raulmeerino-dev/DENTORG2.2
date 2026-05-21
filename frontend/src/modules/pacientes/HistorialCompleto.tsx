@@ -396,8 +396,8 @@ export function HistorialCompletoPanel({
           {!ledgerGroups.length && <div className="history-ledger-empty">No hay eventos para este filtro.</div>}
         </div>
 
-        <details className="odontogram-support-panel history-odontogram-panel">
-          <summary>Ver odontograma asociado al historial</summary>
+        <details className="odontogram-support-panel history-odontogram-panel" open>
+          <summary>Odontograma asociado al historial</summary>
           <PatientOdontogramFlow
             paciente={paciente}
             mode="history"

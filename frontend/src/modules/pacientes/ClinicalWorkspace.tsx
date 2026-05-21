@@ -716,14 +716,13 @@ function SessionWorkspace({
           </section>
         </aside>
       </div>
-      <details className="secondary-clinic-panel session-odontogram-support">
-        <summary>Odontograma clinico de apoyo</summary>
+      <details className="secondary-clinic-panel session-odontogram-support" open>
+        <summary>Odontograma clinico de trabajo</summary>
         <PatientOdontogramFlow
           paciente={paciente}
           mode="current"
           title="Odontograma clinico de trabajo"
           subtitle="Selecciona una pieza o superficie para aplicarla al tratamiento activo de la sesion."
-          readOnly
           enableQuickTreatments={false}
           userRole={userRole}
           onSelectDentalTarget={applyDentalTarget}

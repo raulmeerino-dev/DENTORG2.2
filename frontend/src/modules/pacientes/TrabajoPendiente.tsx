@@ -85,8 +85,8 @@ export function TrabajoPendientePanel({
           {!rows.length && <tr><td colSpan={8}>Sin tratamientos pendientes aceptados.</td></tr>}
         </tbody>
       </table>
-      <details className="odontogram-support-panel">
-        <summary>Ver mapa de pendientes por pieza</summary>
+      <details className="odontogram-support-panel" open>
+        <summary>Mapa de pendientes por pieza</summary>
         <PatientOdontogramFlow
           paciente={paciente ?? null}
           mode="pending"
