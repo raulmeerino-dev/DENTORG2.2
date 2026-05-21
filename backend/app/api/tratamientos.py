@@ -20,6 +20,7 @@ from app.models.historial import HistorialClinico, NotaDental
 from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
 from app.models.paciente import Paciente
 from app.models.presupuesto import PresupuestoLinea, TrabajoPendiente
+from app.models.sesion_clinica import SesionClinicaItem
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
 from app.models.usuario import Usuario
 from app.schemas.tratamiento import (
@@ -31,6 +32,9 @@ from app.schemas.tratamiento import (
     HistorialUpdate,
     NotaDentalCreate,
     NotaDentalResponse,
+    SesionClinicaItemCreate,
+    SesionClinicaItemResponse,
+    SesionClinicaItemUpdate,
     SesionTratamientoRealizadoCreate,
     TratamientoCreate,
     TratamientoResponse,
@@ -412,6 +416,201 @@ async def crear_nota_dental(
     return NotaDentalResponse.model_validate(result.scalar_one())
 
 
+# ─── Sesión clínica activa ────────────────────────────────────────────────────
+
+
+SESION_CLINICA_LOAD_OPTIONS = (
+    selectinload(SesionClinicaItem.tratamiento),
+    selectinload(SesionClinicaItem.doctor),
+)
+
+
+async def _get_sesion_item_or_404(
+    db: AsyncSession,
+    paciente_id: UUID,
+    item_id: UUID,
+) -> SesionClinicaItem:
+    result = await db.execute(
+        select(SesionClinicaItem)
+        .options(*SESION_CLINICA_LOAD_OPTIONS)
+        .where(SesionClinicaItem.id == item_id, SesionClinicaItem.paciente_id == paciente_id)
+    )
+    item = result.scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item de sesion no encontrado")
+    return item
+
+
+def _ensure_sesion_role(current_user: CurrentUser) -> None:
+    if current_user.rol not in {"admin", "doctor", "auxiliar"}:
+        raise HTTPException(status_code=403, detail="No puede operar sobre la sesion clinica.")
+
+
+@router.get(
+    "/pacientes/{paciente_id}/sesion-items",
+    response_model=list[SesionClinicaItemResponse],
+)
+async def listar_sesion_items(
+    paciente_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    incluir_realizados: bool = Query(
+        False,
+        description="Si es false, devuelve solo los items con estado != 'realizado'.",
+    ),
+) -> list[SesionClinicaItemResponse]:
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
+    stmt = (
+        select(SesionClinicaItem)
+        .options(*SESION_CLINICA_LOAD_OPTIONS)
+        .where(SesionClinicaItem.paciente_id == paciente_id)
+        .order_by(SesionClinicaItem.orden, SesionClinicaItem.created_at)
+    )
+    if not incluir_realizados:
+        stmt = stmt.where(SesionClinicaItem.estado != "realizado")
+    result = await db.execute(stmt)
+    return [SesionClinicaItemResponse.model_validate(item) for item in result.scalars().all()]
+
+
+@router.post(
+    "/pacientes/{paciente_id}/sesion-items",
+    response_model=SesionClinicaItemResponse,
+    status_code=201,
+)
+async def crear_sesion_item(
+    paciente_id: UUID,
+    data: SesionClinicaItemCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> SesionClinicaItemResponse:
+    _ensure_sesion_role(current_user)
+
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
+    if data.tratamiento_id:
+        tratamiento = await db.get(TratamientoCatalogo, data.tratamiento_id)
+        if not tratamiento:
+            raise HTTPException(status_code=404, detail="Tratamiento no encontrado")
+
+    if data.presupuesto_linea_id:
+        linea = await db.get(PresupuestoLinea, data.presupuesto_linea_id)
+        if not linea:
+            raise HTTPException(status_code=404, detail="Linea de presupuesto no encontrada")
+
+    if data.cita_id:
+        cita = await db.get(Cita, data.cita_id)
+        if not cita or cita.paciente_id != paciente_id:
+            raise HTTPException(status_code=404, detail="Cita no encontrada para el paciente")
+        ensure_clinic_access(current_user, cita.clinica_id)
+
+    doctor_id = data.doctor_id or await _current_user_doctor_id(db, current_user)
+
+    item = SesionClinicaItem(
+        paciente_id=paciente_id,
+        clinica_id=paciente.clinica_id,
+        doctor_id=doctor_id,
+        tratamiento_id=data.tratamiento_id,
+        presupuesto_linea_id=data.presupuesto_linea_id,
+        cita_id=data.cita_id,
+        titulo=data.titulo,
+        pieza_dental=data.pieza_dental,
+        caras=_normalize_caras(data.caras),
+        observaciones=data.observaciones,
+        estado=data.estado,
+        origen=data.origen,
+        orden=data.orden,
+    )
+    db.add(item)
+    await db.commit()
+    result = await db.execute(
+        select(SesionClinicaItem)
+        .options(*SESION_CLINICA_LOAD_OPTIONS)
+        .where(SesionClinicaItem.id == item.id)
+    )
+    return SesionClinicaItemResponse.model_validate(result.scalar_one())
+
+
+@router.patch(
+    "/pacientes/{paciente_id}/sesion-items/{item_id}",
+    response_model=SesionClinicaItemResponse,
+)
+async def actualizar_sesion_item(
+    paciente_id: UUID,
+    item_id: UUID,
+    data: SesionClinicaItemUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> SesionClinicaItemResponse:
+    _ensure_sesion_role(current_user)
+
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
+    item = await _get_sesion_item_or_404(db, paciente_id, item_id)
+    if item.estado == "realizado":
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede editar un item de sesion ya finalizado",
+        )
+
+    cambios = data.model_dump(exclude_unset=True)
+    if "caras" in cambios:
+        cambios["caras"] = _normalize_caras(cambios["caras"])
+    if cambios.get("estado") == "realizado":
+        # No permitimos saltar a 'realizado' desde el PATCH: el cierre real
+        # debe pasar por POST /historial/sesion-realizada para crear historial.
+        raise HTTPException(
+            status_code=400,
+            detail="Use POST /tratamientos/historial/sesion-realizada para finalizar como realizado",
+        )
+
+    for field, value in cambios.items():
+        setattr(item, field, value)
+    await db.commit()
+    result = await db.execute(
+        select(SesionClinicaItem)
+        .options(*SESION_CLINICA_LOAD_OPTIONS)
+        .where(SesionClinicaItem.id == item_id)
+    )
+    return SesionClinicaItemResponse.model_validate(result.scalar_one())
+
+
+@router.delete(
+    "/pacientes/{paciente_id}/sesion-items/{item_id}",
+    status_code=204,
+)
+async def eliminar_sesion_item(
+    paciente_id: UUID,
+    item_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> None:
+    _ensure_sesion_role(current_user)
+
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
+    item = await _get_sesion_item_or_404(db, paciente_id, item_id)
+    if item.estado == "realizado":
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede eliminar un item de sesion ya finalizado",
+        )
+    await db.delete(item)
+    await db.commit()
+
+
 @router.post("/historial/sesion-realizada", response_model=HistorialResponse, status_code=201)
 async def finalizar_tratamiento_sesion(
     data: SesionTratamientoRealizadoCreate,
@@ -537,6 +736,25 @@ async def finalizar_tratamiento_sesion(
         trabajo.historial_id = historial.id
         trabajo.pieza_dental = pieza_dental
         trabajo.caras = caras
+
+    sesion_item: SesionClinicaItem | None = None
+    if data.sesion_item_id:
+        sesion_item = await db.get(SesionClinicaItem, data.sesion_item_id)
+        if not sesion_item or sesion_item.paciente_id != data.paciente_id:
+            raise HTTPException(
+                status_code=404,
+                detail="Item de sesion no encontrado para el paciente",
+            )
+    if sesion_item:
+        sesion_item.estado = "realizado"
+        sesion_item.historial_id = historial.id
+        sesion_item.tratamiento_id = data.tratamiento_id
+        sesion_item.doctor_id = doctor_id
+        sesion_item.pieza_dental = pieza_dental
+        sesion_item.caras = caras
+        if data.observaciones is not None:
+            sesion_item.observaciones = data.observaciones
+
     await _mark_session_historial_on_odontograma(
         db,
         historial=historial,

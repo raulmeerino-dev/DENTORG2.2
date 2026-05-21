@@ -24,8 +24,10 @@ import type {
   OdontogramaContexto,
   OdontogramaEvento,
   OdontogramaPaciente,
+  OdontogramaPieza,
   OdontogramaPlan,
   OdontogramaStatus,
+  OdontogramaSuperficie,
   OdontogramaSurfaceName,
   PagoAnticipadoPaciente,
   PlantillaConsentimiento,
@@ -34,6 +36,9 @@ import type {
   PresupuestoLinea,
   RecetaClinica,
   RecetaCreateInput,
+  SesionClinicaItem,
+  SesionClinicaItemCreateInput,
+  SesionClinicaItemUpdateInput,
   SesionTratamientoRealizadoInput,
   TrabajoLaboratorioCreateInput,
   TrabajoLaboratorioUpdateInput,
@@ -599,6 +604,33 @@ export async function getHistorialSinFacturar(pacienteId: string) {
 export async function finalizarTratamientoSesion(data: SesionTratamientoRealizadoInput) {
   const { data: saved } = await api.post<HistorialClinico>('/tratamientos/historial/sesion-realizada', data);
   return saved;
+}
+
+export async function getSesionItemsPaciente(pacienteId: string, options: { incluirRealizados?: boolean } = {}) {
+  const { data } = await api.get<SesionClinicaItem[]>(`/tratamientos/pacientes/${pacienteId}/sesion-items`, {
+    params: options.incluirRealizados ? { incluir_realizados: true } : undefined,
+  });
+  return data;
+}
+
+export async function createSesionItem(pacienteId: string, payload: SesionClinicaItemCreateInput) {
+  const { data } = await api.post<SesionClinicaItem>(
+    `/tratamientos/pacientes/${pacienteId}/sesion-items`,
+    payload,
+  );
+  return data;
+}
+
+export async function updateSesionItem(pacienteId: string, itemId: string, payload: SesionClinicaItemUpdateInput) {
+  const { data } = await api.patch<SesionClinicaItem>(
+    `/tratamientos/pacientes/${pacienteId}/sesion-items/${itemId}`,
+    payload,
+  );
+  return data;
+}
+
+export async function deleteSesionItem(pacienteId: string, itemId: string) {
+  await api.delete(`/tratamientos/pacientes/${pacienteId}/sesion-items/${itemId}`);
 }
 
 export async function getNotasDentalesPaciente(pacienteId: string, pieza?: number) {
@@ -1733,21 +1765,19 @@ export async function getOdontogramaContexto(
 }
 
 export async function createOdontogramaPaciente(pacienteId: string) {
-  return withDemoFallback(api.post<OdontogramaPaciente>(`/pacientes/${pacienteId}/odontograma`), demoOdontograma(pacienteId));
+  const response = await api.post<OdontogramaPaciente>(`/pacientes/${pacienteId}/odontograma`);
+  return response.data;
 }
 
 export async function updateOdontogramaPieza(odontogramaId: string, piezaFdi: number, data: {
   estado_general?: OdontogramaStatus | string;
   notas?: string | null;
 }) {
-  const fallback = demoOdontograma('demo-pac-1').piezas[0];
-  return withDemoFallback(api.patch<typeof fallback>(`/odontogramas/${odontogramaId}/piezas/${piezaFdi}`, data), {
-    ...fallback,
-    odontograma_id: odontogramaId,
-    pieza_fdi: piezaFdi,
-    estado_general: data.estado_general ?? fallback.estado_general,
-    notas: data.notas ?? fallback.notas,
-  });
+  const response = await api.patch<OdontogramaPieza>(
+    `/odontogramas/${odontogramaId}/piezas/${piezaFdi}`,
+    data,
+  );
+  return response.data;
 }
 
 export async function updateOdontogramaSuperficie(odontogramaId: string, piezaFdi: number, superficie: OdontogramaSurfaceName, data: {
@@ -1757,16 +1787,11 @@ export async function updateOdontogramaSuperficie(odontogramaId: string, piezaFd
   color_estado?: string | null;
   notas?: string | null;
 }) {
-  const fallback = demoOdontograma('demo-pac-1').piezas[0].superficies[0];
-  return withDemoFallback(api.patch<typeof fallback>(`/odontogramas/${odontogramaId}/piezas/${piezaFdi}/superficies/${superficie}`, data), {
-    ...fallback,
-    id: `demo-sup-${piezaFdi}-${superficie}`,
-    superficie,
-    condicion: data.condicion ?? fallback.condicion,
-    tratamiento_planificado_id: data.tratamiento_planificado_id ?? fallback.tratamiento_planificado_id,
-    color_estado: data.color_estado ?? fallback.color_estado,
-    notas: data.notas ?? fallback.notas,
-  });
+  const response = await api.patch<OdontogramaSuperficie>(
+    `/odontogramas/${odontogramaId}/piezas/${piezaFdi}/superficies/${superficie}`,
+    data,
+  );
+  return response.data;
 }
 
 export async function getOdontogramaHistorial(odontogramaId: string) {
@@ -1774,11 +1799,8 @@ export async function getOdontogramaHistorial(odontogramaId: string) {
 }
 
 export async function duplicateOdontogramaVersion(odontogramaId: string) {
-  return withDemoFallback(api.post<OdontogramaPaciente>(`/odontograma/${odontogramaId}/duplicar-version`), {
-    ...demoOdontograma('demo-pac-1'),
-    id: `demo-odon-dup-${Date.now()}`,
-    version: 2,
-  });
+  const response = await api.post<OdontogramaPaciente>(`/odontograma/${odontogramaId}/duplicar-version`);
+  return response.data;
 }
 
 export async function createPresupuestoFromOdontograma(odontogramaId: string, data: {
@@ -1786,17 +1808,19 @@ export async function createPresupuestoFromOdontograma(odontogramaId: string, da
   items?: Array<{ pieza_fdi: number; superficie?: OdontogramaSurfaceName | null; tratamiento_id: string; precio_unitario: string | number }>;
   pie_pagina?: string | null;
 }) {
-  return withDemoFallback(api.post<{ presupuesto_id: string; lineas_creadas: number }>(`/odontogramas/${odontogramaId}/generar-presupuesto`, data), {
-    presupuesto_id: `demo-pres-${Date.now()}`,
-    lineas_creadas: data.items?.length ?? 1,
-  });
+  const response = await api.post<{ presupuesto_id: string; lineas_creadas: number }>(
+    `/odontogramas/${odontogramaId}/generar-presupuesto`,
+    data,
+  );
+  return response.data;
 }
 
 export async function saveOdontograma(presupuestoId: string, odontograma: OdontogramaPlan) {
-  return withDemoFallback(api.put<{ presupuesto_id: string; odontograma: OdontogramaPlan }>(
+  const response = await api.put<{ presupuesto_id: string; odontograma: OdontogramaPlan }>(
     `/presupuestos/${presupuestoId}/odontograma`,
     { odontograma },
-  ), { presupuesto_id: presupuestoId, odontograma });
+  );
+  return response.data;
 }
 
 export function facturaPdfUrl(facturaId: string) {

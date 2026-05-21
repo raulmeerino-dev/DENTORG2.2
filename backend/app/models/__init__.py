@@ -42,6 +42,7 @@ from app.models.odontograma import (
 from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
 from app.models.receta import RecetaClinica
+from app.models.sesion_clinica import SesionClinicaItem
 from app.models.referencia import Referencia, paciente_referencias
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
@@ -77,6 +78,7 @@ __all__ = [
     "Presupuesto",
     "PresupuestoLinea",
     "TrabajoPendiente",
+    "SesionClinicaItem",
     "RecetaClinica",
     "FormaPago",
     "Factura",
