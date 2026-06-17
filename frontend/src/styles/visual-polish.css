@@ -1,0 +1,1365 @@
+/* =============================================================================
+ * DentOrg2 — Visual Polish (Fases 2–6 UX/UI 2026)
+ * -----------------------------------------------------------------------------
+ * Capa puramente visual. Se importa DESPUÉS de layout-foundation.css.
+ *
+ * Objetivos:
+ *   - Status pills con colores semánticos (cita, presupuesto, factura...).
+ *   - KPI cards consistentes (Hoy, Caja).
+ *   - Cards más limpias (Ficha, Sesión, Visitas).
+ *   - Empty states uniformes.
+ *   - Inline alerts con variantes (error/info/success/warning).
+ *   - Botones con jerarquía clara (primary / secondary / ghost).
+ *   - Scroll interno en Admin/extras y fichero-screen.
+ *   - Sin tocar lógica ni JSX salvo correcciones mínimas.
+ *
+ * Diseño base reutilizado de los tokens existentes:
+ *   --color-primary, --color-danger, --color-success, --color-warning,
+ *   --color-surface, --color-text, --color-border, etc.
+ * ============================================================================= */
+
+
+/* ============================================================================
+ * SECCIÓN A — STATUS PILLS SEMÁNTICAS (Fase 4)
+ * ============================================================================ */
+
+.status-pill,
+.status-chip,
+.appointment-state,
+.linea-estado-badge,
+.budget-estado-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--color-primary-soft, #e6f4f7);
+  color: var(--color-primary, #0891a4);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* --- Estados de cita -------------------------------------------------- */
+
+.status-pill.status-programada {
+  background: #fff3cd;
+  border-color: #f5d489;
+  color: #6b4a00;
+}
+
+.status-pill.status-confirmada {
+  background: #d6f5e0;
+  border-color: #93d8a8;
+  color: #1e6b3f;
+}
+
+.status-pill.status-en_clinica {
+  background: #d6e9fa;
+  border-color: #8ab9e7;
+  color: #0f447d;
+}
+
+.status-pill.status-en_tratamiento {
+  background: #e1d6fa;
+  border-color: #a890e3;
+  color: #432d80;
+}
+
+.status-pill.status-atendida {
+  background: #d6f5e0;
+  border-color: #6cc88e;
+  color: #144b2a;
+}
+
+.status-pill.status-finalizada {
+  background: #d6f5e0;
+  border-color: #6cc88e;
+  color: #144b2a;
+}
+
+.status-pill.status-anulada {
+  background: #e8edf1;
+  border-color: #c5d1da;
+  color: #4d626f;
+  text-decoration: line-through;
+}
+
+.status-pill.status-falta {
+  background: #fbd1d1;
+  border-color: #e89292;
+  color: #862828;
+}
+
+.status-pill.status-mensaje_enviado {
+  background: #d6e9fa;
+  border-color: #8ab9e7;
+  color: #0f447d;
+}
+
+/* --- Estados de factura ----------------------------------------------- */
+
+.status-pill.status-borrador {
+  background: #eef2f6;
+  border-color: #c9d4dc;
+  color: #4a5e6c;
+}
+
+.status-pill.status-emitida {
+  background: #d6e9fa;
+  border-color: #8ab9e7;
+  color: #0f447d;
+}
+
+.status-pill.status-cobrada,
+.status-pill.status-cobrado {
+  background: #d6f5e0;
+  border-color: #6cc88e;
+  color: #144b2a;
+}
+
+.status-pill.status-parcial,
+.status-pill.status-cobrado_parcial {
+  background: #fff3cd;
+  border-color: #f5d489;
+  color: #6b4a00;
+}
+
+.status-pill.status-pendiente,
+.status-pill.status-impagada {
+  background: #fbd1d1;
+  border-color: #e89292;
+  color: #862828;
+}
+
+.status-pill.status-rectificada,
+.status-pill.status-anulado {
+  background: #e8edf1;
+  border-color: #c5d1da;
+  color: #4d626f;
+  text-decoration: line-through;
+}
+
+/* --- Estados de presupuesto / línea ----------------------------------- */
+
+.status-pill.status-aceptado,
+.status-pill.status-aceptada,
+.budget-estado-pill.estado-aceptado,
+.budget-estado-pill.estado-aceptada {
+  background: #d6f5e0;
+  border-color: #6cc88e;
+  color: #144b2a;
+}
+
+.status-pill.status-parcial,
+.budget-estado-pill.estado-parcial {
+  background: #fff3cd;
+  border-color: #f5d489;
+  color: #6b4a00;
+}
+
+.status-pill.status-rechazado,
+.status-pill.status-rechazada,
+.budget-estado-pill.estado-rechazado,
+.budget-estado-pill.estado-rechazada {
+  background: #fbd1d1;
+  border-color: #e89292;
+  color: #862828;
+}
+
+.status-pill.status-realizado,
+.status-pill.status-realizada {
+  background: #d6f5e0;
+  border-color: #6cc88e;
+  color: #144b2a;
+}
+
+.status-pill.status-facturado,
+.status-pill.status-facturada {
+  background: #d6e9fa;
+  border-color: #8ab9e7;
+  color: #0f447d;
+}
+
+
+/* ============================================================================
+ * SECCIÓN B — INLINE ALERTS CON VARIANTES (Fase 6)
+ * ============================================================================ */
+
+.inline-alert {
+  margin: 8px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #f5d489;
+  background: #fff7e0;
+  color: #5a3d00;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.inline-alert.inline-alert-error,
+.inline-alert[role="alert"] {
+  border-color: #e89292;
+  background: #fdecec;
+  color: #842828;
+}
+
+.inline-alert.inline-alert-success {
+  border-color: #88c8a0;
+  background: #e2f4e8;
+  color: #1d5634;
+}
+
+.inline-alert.inline-alert-info {
+  border-color: #8ab9e7;
+  background: #e1eefb;
+  color: #14416b;
+}
+
+html[data-theme="dark"] .inline-alert {
+  border-color: #6e5311;
+  background: #2c2105;
+  color: #f5dca0;
+}
+
+html[data-theme="dark"] .inline-alert.inline-alert-error,
+html[data-theme="dark"] .inline-alert[role="alert"] {
+  border-color: #813434;
+  background: #2e1010;
+  color: #f5b3b3;
+}
+
+html[data-theme="dark"] .inline-alert.inline-alert-success {
+  border-color: #2d6841;
+  background: #102b1c;
+  color: #b6e7c4;
+}
+
+html[data-theme="dark"] .inline-alert.inline-alert-info {
+  border-color: #2a5784;
+  background: #0c2236;
+  color: #b6d8f3;
+}
+
+
+/* ============================================================================
+ * SECCIÓN C — EMPTY STATES (Fase 6)
+ * ============================================================================ */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 120px;
+  padding: 22px 18px;
+  border: 1px dashed var(--color-border, #d8e4ec);
+  border-radius: 12px;
+  background: var(--color-surface-alt, #f8fcff);
+  color: var(--color-text-muted, #60717f);
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.empty-state strong {
+  color: var(--color-text, #0f3146);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.empty-state p,
+.empty-state span {
+  margin: 0;
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.empty-state svg {
+  color: var(--color-primary, #0891a4);
+  opacity: 0.6;
+}
+
+html[data-theme="dark"] .empty-state {
+  background: rgba(15, 31, 43, 0.45);
+  border-color: #29485a;
+  color: #8aa3b1;
+}
+
+
+/* ============================================================================
+ * SECCIÓN D — KPI CARDS UNIFORMES (Fase 4 — Hoy, Caja)
+ * ============================================================================ */
+
+.dashboard-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.dashboard-metrics > div,
+.dashboard-metrics .kpi-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-left: 3px solid var(--color-primary, #0891a4);
+  border-radius: 12px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(7, 49, 79, 0.06));
+  transition: box-shadow var(--transition-fast, 120ms ease-out);
+}
+
+.dashboard-metrics > div:hover,
+.dashboard-metrics .kpi-card:hover {
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(7, 49, 79, 0.10));
+}
+
+.dashboard-metrics > div span,
+.dashboard-metrics .kpi-card span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-metrics > div strong,
+.dashboard-metrics .kpi-card strong {
+  color: var(--color-text, #0f3146);
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-metrics > div small,
+.dashboard-metrics .kpi-card small {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+/* Variantes semánticas (left border accent) */
+.dashboard-metrics .kpi-card-danger {
+  border-left-color: var(--color-danger, #c1432a);
+}
+.dashboard-metrics .kpi-card-danger strong {
+  color: var(--color-danger, #c1432a);
+}
+
+.dashboard-metrics .kpi-card-success {
+  border-left-color: var(--color-success, #2c8a52);
+}
+.dashboard-metrics .kpi-card-success strong {
+  color: var(--color-success, #2c8a52);
+}
+
+.dashboard-metrics .kpi-card-info {
+  border-left-color: var(--color-primary, #0891a4);
+}
+
+.dashboard-metrics .kpi-card-warning {
+  border-left-color: var(--color-warning, #b08800);
+}
+.dashboard-metrics .kpi-card-warning strong {
+  color: var(--color-warning, #b08800);
+}
+
+html[data-theme="dark"] .dashboard-metrics > div,
+html[data-theme="dark"] .dashboard-metrics .kpi-card {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .dashboard-metrics > div strong,
+html[data-theme="dark"] .dashboard-metrics .kpi-card strong {
+  color: #cfe6ef;
+}
+
+
+/* ============================================================================
+ * SECCIÓN E — FICHA DEL PACIENTE (Fase 2)
+ * ============================================================================ */
+
+.patient-selector-bar {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 12px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-sm);
+}
+
+.patient-selector-current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  min-width: 0;
+}
+
+.patient-selector-current strong {
+  font-size: 1.02rem;
+  color: var(--color-text, #0f3146);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-selector-current small {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.78rem;
+}
+
+.patient-selector-chips {
+  display: inline-flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.patient-selector-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.patient-selector-chip-danger {
+  background: #fbd1d1;
+  color: #862828;
+  border: 1px solid #e89292;
+}
+
+.patient-selector-chip-info {
+  background: #d6e9fa;
+  color: #14416b;
+  border: 1px solid #8ab9e7;
+}
+
+.patient-selector-chip-success {
+  background: #d6f5e0;
+  color: #144b2a;
+  border: 1px solid #6cc88e;
+}
+
+.patient-selector-empty {
+  color: var(--color-text-muted, #60717f);
+  font-style: italic;
+}
+
+/* Resumen lateral (paciente fijo arriba en pestañas no-ficha) */
+.patient-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--color-surface-alt, #f8fcff);
+  border-top: 1px solid var(--color-border, #d8e4ec);
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.78rem;
+}
+
+.patient-summary-strip span {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.patient-summary-strip b {
+  color: var(--color-text, #0f3146);
+  font-weight: 800;
+  margin-right: 4px;
+}
+
+/* Cards de la ficha */
+.patient-hero-card,
+.patient-info-card,
+.patient-money-card,
+.patient-contact-card,
+.patient-clinical-card {
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 12px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-sm);
+}
+
+.patient-hero-card {
+  padding: 14px 16px;
+}
+
+.patient-hero-card strong {
+  font-size: 1.18rem;
+  color: var(--color-text, #0f3146);
+}
+
+.patient-avatar {
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--color-primary, #0891a4), #4cb3a0);
+  box-shadow: 0 6px 14px rgba(8, 145, 164, 0.25);
+}
+
+.patient-info-card h3,
+.patient-money-card h3 {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+}
+
+.patient-money-card strong {
+  font-variant-numeric: tabular-nums;
+}
+
+html[data-theme="dark"] .patient-selector-bar,
+html[data-theme="dark"] .patient-hero-card,
+html[data-theme="dark"] .patient-info-card,
+html[data-theme="dark"] .patient-money-card,
+html[data-theme="dark"] .patient-contact-card,
+html[data-theme="dark"] .patient-clinical-card {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .patient-summary-strip {
+  background: #102230;
+  border-color: #29485a;
+}
+
+
+/* ============================================================================
+ * SECCIÓN F — TABS HORIZONTALES UNIFORMES (Fase 2/3/4)
+ * ============================================================================ */
+
+.history-filter-tabs,
+.treatment-subtabs,
+.caja-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--color-surface-alt, #f8fcff);
+  border: 1px solid var(--color-border, #d8e4ec);
+}
+
+.history-filter-tabs button,
+.treatment-subtabs button,
+.caja-tabs button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--color-text, #0f3146);
+  font-weight: 700;
+  font-size: 0.82rem;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.history-filter-tabs button:hover,
+.treatment-subtabs button:hover,
+.caja-tabs button:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+  border-color: var(--color-primary, #0891a4);
+}
+
+.history-filter-tabs button.active,
+.treatment-subtabs button.active,
+.caja-tabs button.active {
+  background: var(--color-primary, #0891a4);
+  border-color: var(--color-primary, #0891a4);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .history-filter-tabs,
+html[data-theme="dark"] .treatment-subtabs,
+html[data-theme="dark"] .caja-tabs {
+  background: #0f1f2b;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .history-filter-tabs button,
+html[data-theme="dark"] .treatment-subtabs button,
+html[data-theme="dark"] .caja-tabs button {
+  color: #cfe6ef;
+}
+
+
+/* ============================================================================
+ * SECCIÓN G — SESIÓN ACTUAL / CLÍNICA (Fase 3)
+ * ============================================================================ */
+
+.clinical-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.clinical-overview-item {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 10px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: none;
+  min-width: 0;
+}
+
+.clinical-overview-item span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.clinical-overview-item strong {
+  color: var(--color-text, #0f3146);
+  font-size: 1.1rem;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.clinical-overview-item.needs-attention {
+  border-left: 3px solid var(--color-warning, #b08800);
+}
+
+.clinical-overview-item.has-debt {
+  border-left: 3px solid var(--color-danger, #c1432a);
+}
+
+.clinical-overview-item.is-positive {
+  border-left: 3px solid var(--color-success, #2c8a52);
+}
+
+html[data-theme="dark"] .clinical-overview-item {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+
+/* ============================================================================
+ * SECCIÓN H — HISTORIAL: TIMELINE LIMPIA (Fase 2/6)
+ * ============================================================================ */
+
+.complete-history-head {
+  border: 1px solid var(--color-border, #d8e4ec);
+  background: var(--color-surface, #ffffff);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.complete-history-head strong {
+  color: var(--color-text, #0f3146);
+  font-size: 1rem;
+}
+
+.history-ledger-group {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 10px;
+  background: var(--color-surface, #ffffff);
+  padding: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.history-ledger-group > header {
+  display: grid;
+  grid-template-columns: 76px auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.history-ledger-group > header time {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.history-ledger-group > header > span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-soft, #e6f4f7);
+  color: var(--color-primary, #0891a4);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.history-ledger-group > header strong {
+  color: var(--color-text, #0f3146);
+  font-size: 0.92rem;
+}
+
+.history-ledger-group > header p {
+  margin: 0;
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.78rem;
+}
+
+.history-ledger-group > header b {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text, #0f3146);
+  font-weight: 900;
+}
+
+.history-ledger-item {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-surface-alt, #f8fcff);
+}
+
+.history-ledger-item button {
+  border: 1px solid var(--color-border, #d8e4ec);
+  background: var(--color-surface, #ffffff);
+  border-radius: 7px;
+  padding: 4px 10px;
+  font-weight: 800;
+  color: var(--color-primary, #0891a4);
+}
+
+.history-ledger-item button:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+  border-color: var(--color-primary, #0891a4);
+}
+
+/* Colores por filtro */
+.history-ledger-clinico { border-left: 3px solid var(--color-primary, #0891a4); }
+.history-ledger-citas { border-left: 3px solid #2a7de1; }
+.history-ledger-presupuestos { border-left: 3px solid #b08800; }
+.history-ledger-facturacion { border-left: 3px solid #4f3aa3; }
+.history-ledger-cobros { border-left: 3px solid var(--color-success, #2c8a52); }
+.history-ledger-documentos { border-left: 3px solid #6f6f6f; }
+.history-ledger-consentimientos { border-left: 3px solid #5a8a99; }
+.history-ledger-recetas { border-left: 3px solid #c1432a; }
+.history-ledger-laboratorio { border-left: 3px solid #7d4e91; }
+.history-ledger-odontograma { border-left: 3px solid #0891a4; }
+
+.history-ledger-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  padding: 22px;
+  border: 1px dashed var(--color-border, #d8e4ec);
+  border-radius: 12px;
+  background: var(--color-surface-alt, #f8fcff);
+  color: var(--color-text-muted, #60717f);
+  font-style: italic;
+}
+
+html[data-theme="dark"] .complete-history-head,
+html[data-theme="dark"] .history-ledger-group {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .history-ledger-item {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+
+/* ============================================================================
+ * SECCIÓN I — AGENDA: APPOINTMENTS (Fase 4)
+ * ============================================================================ */
+
+.agenda-appointment {
+  border-radius: 8px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-left-width: 3px;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.agenda-appointment:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+  box-shadow: var(--shadow-sm);
+}
+
+.agenda-appointment.estado-programada { border-left-color: #b08800; }
+.agenda-appointment.estado-confirmada { border-left-color: var(--color-success, #2c8a52); }
+.agenda-appointment.estado-en_clinica { border-left-color: #2a7de1; }
+.agenda-appointment.estado-en_tratamiento { border-left-color: #6f57b3; }
+.agenda-appointment.estado-atendida { border-left-color: var(--color-success, #2c8a52); }
+.agenda-appointment.estado-anulada {
+  border-left-color: #b8c1ca;
+  background: var(--color-surface-alt, #f8fcff);
+  opacity: 0.78;
+}
+.agenda-appointment.estado-falta { border-left-color: var(--color-danger, #c1432a); }
+
+
+/* ============================================================================
+ * SECCIÓN J — HOY: AGENDA TABLE Y CITA ROWS (Fase 4)
+ * ============================================================================ */
+
+.hoy-citas-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.hoy-citas-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface-alt, #f8fcff);
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+}
+
+.hoy-citas-table td {
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+.hoy-cita-row {
+  transition: background-color var(--transition-fast);
+}
+
+.hoy-cita-row:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+}
+
+.hoy-cita-row td:first-child strong {
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  color: var(--color-text, #0f3146);
+}
+
+.hoy-cita-row.estado-anulada {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.hoy-patient-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary, #0891a4);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hoy-patient-link:hover {
+  text-decoration: underline;
+}
+
+html[data-theme="dark"] .hoy-citas-table thead th {
+  background: #102230;
+  color: #8aa3b1;
+}
+
+html[data-theme="dark"] .hoy-citas-table td {
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .hoy-cita-row:hover {
+  background: #163646;
+}
+
+
+/* ============================================================================
+ * SECCIÓN K — CAJA: TABLE (Fase 5)
+ * ============================================================================ */
+
+.caja-screen .panel-caption {
+  padding: 10px 14px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 12px;
+}
+
+.caja-screen .panel-caption strong {
+  color: var(--color-text, #0f3146);
+  font-size: 1.05rem;
+}
+
+.caja-screen .panel-caption span {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.84rem;
+  margin-left: 6px;
+}
+
+.caja-table-wrap {
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 12px;
+  background: var(--color-surface, #ffffff);
+}
+
+.caja-table-wrap .euro-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.caja-table-wrap .euro-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface-alt, #f8fcff);
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+}
+
+.caja-table-wrap .euro-table td {
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  padding: 8px 10px;
+  vertical-align: middle;
+}
+
+.caja-table-wrap .euro-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.caja-table-wrap .row-pending td {
+  background: rgba(193, 67, 42, 0.04);
+}
+
+.caja-table-wrap .euro-table tbody tr:hover td {
+  background: var(--color-primary-soft, #e6f4f7);
+}
+
+html[data-theme="dark"] .caja-screen .panel-caption,
+html[data-theme="dark"] .caja-table-wrap {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .caja-table-wrap .euro-table thead th {
+  background: #102230;
+  color: #8aa3b1;
+}
+
+html[data-theme="dark"] .caja-table-wrap .euro-table td {
+  border-color: #1f3a4c;
+}
+
+html[data-theme="dark"] .caja-table-wrap .euro-table tbody tr:hover td {
+  background: #163646;
+}
+
+
+/* ============================================================================
+ * SECCIÓN L — ADMIN/EXTRAS: scroll architecture + visual (Fase 5)
+ * ============================================================================ */
+
+/* Hacer la página flex column con scroll interno solo en el contenido. */
+.main-content > .admin-extras {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: auto;
+}
+
+/* Anular el min-height: calc(100vh - 100px) heredado de .fichero-screen
+ * que rompía el flex sizing dentro de main-content. */
+.main-content > .fichero-screen,
+.main-content > .admin-extras,
+.main-content > .listados-screen {
+  min-height: 0;
+}
+
+.admin-extras > .toolbar,
+.admin-extras > .file-tabs,
+.admin-extras > .inline-alert,
+.admin-extras > .patient-loading-strip {
+  flex: 0 0 auto;
+}
+
+/* Cualquier otro hijo directo es el contenido de la tab activa: scroll. */
+.admin-extras > .fichero-grid,
+.admin-extras > .admin-security-stack,
+.admin-extras > .admin-config-embedded,
+.admin-extras > section:not(.toolbar),
+.admin-extras > div:not(.toolbar):not(.file-tabs):not(.inline-alert):not(.patient-loading-strip) {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+.admin-extras .toolbar {
+  border-radius: 12px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #d8e4ec);
+  padding: 12px 14px;
+}
+
+.admin-extras .toolbar h1 {
+  color: var(--color-text, #0f3146);
+  font-size: 1.15rem;
+}
+
+.admin-extras .toolbar .eyebrow {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-extras .file-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--color-border, #d8e4ec);
+  background: var(--color-surface-alt, #f8fcff);
+  border-radius: 10px;
+  margin: 8px 0;
+}
+
+.admin-extras .file-tabs button {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--color-text, #0f3146);
+}
+
+.admin-extras .file-tabs button:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+  border-color: var(--color-primary, #0891a4);
+}
+
+.admin-extras .file-tabs button.active {
+  background: var(--color-primary, #0891a4);
+  border-color: var(--color-primary, #0891a4);
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .admin-extras .toolbar {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .admin-extras .file-tabs {
+  background: #0f1f2b;
+  border-color: #29485a;
+}
+
+
+/* ============================================================================
+ * SECCIÓN M — TABLAS GENÉRICAS Y desk-panel (Fase 5/6)
+ * ============================================================================ */
+
+.desk-panel {
+  border: 1px solid var(--color-border, #d8e4ec);
+  border-radius: 12px;
+  background: var(--color-surface, #ffffff);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.desk-panel .panel-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.desk-panel .panel-caption strong {
+  color: var(--color-text, #0f3146);
+  font-size: 0.95rem;
+}
+
+.desk-panel .panel-caption span {
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.78rem;
+}
+
+.desk-panel .euro-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.desk-panel .euro-table thead th {
+  background: var(--color-surface-alt, #f8fcff);
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 10px;
+}
+
+.desk-panel .euro-table td {
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  padding: 8px 10px;
+}
+
+html[data-theme="dark"] .desk-panel {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+
+/* ============================================================================
+ * SECCIÓN N — BOTONES CON JERARQUÍA (Fase 6)
+ * ============================================================================ */
+
+/* Variante "primary-action": acción principal contextual */
+.primary-action,
+button.primary-button,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-primary, #0891a4);
+  border-radius: 8px;
+  background: var(--color-primary, #0891a4);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.84rem;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.primary-action:hover,
+button.primary-button:hover,
+.btn-primary:hover {
+  background: var(--color-primary-hover, #006c7d);
+  border-color: var(--color-primary-hover, #006c7d);
+}
+
+.primary-action:disabled,
+.btn-primary:disabled {
+  background: var(--color-text-muted, #60717f);
+  border-color: var(--color-text-muted, #60717f);
+  color: #ffffff;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+button.secondary-button,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-strong, #b8d3df);
+  border-radius: 8px;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f3146);
+  font-weight: 800;
+  font-size: 0.84rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+button.secondary-button:hover,
+.btn-secondary:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+  border-color: var(--color-primary, #0891a4);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-primary, #0891a4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  background: var(--color-primary-soft, #e6f4f7);
+}
+
+.btn-danger {
+  background: var(--color-danger, #c1432a);
+  border-color: var(--color-danger, #c1432a);
+  color: #ffffff;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.05);
+}
+
+
+/* ============================================================================
+ * SECCIÓN O — FORMULARIOS, INPUTS, LABELS (Fase 6)
+ * ============================================================================ */
+
+.patient-edit-grid label,
+.patient-edit-modal label,
+.settings-form label {
+  display: grid;
+  gap: 4px;
+  color: var(--color-text-muted, #60717f);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.patient-edit-grid input,
+.patient-edit-grid select,
+.patient-edit-grid textarea,
+.patient-edit-modal input,
+.patient-edit-modal select,
+.patient-edit-modal textarea,
+.settings-form input,
+.settings-form select,
+.settings-form textarea {
+  min-height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #d8e4ec);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f3146);
+  padding: 6px 10px;
+  font-size: 0.86rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.patient-edit-grid input:focus,
+.patient-edit-grid select:focus,
+.patient-edit-grid textarea:focus,
+.patient-edit-modal input:focus,
+.settings-form input:focus,
+.settings-form select:focus,
+.settings-form textarea:focus {
+  border-color: var(--color-primary, #0891a4);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 145, 164, 0.12);
+}
+
+
+/* ============================================================================
+ * SECCIÓN P — MODALES (Fase 6)
+ * ============================================================================ */
+
+.modal-backdrop {
+  background: rgba(7, 49, 79, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.patient-edit-modal,
+.modal-content {
+  border-radius: 14px;
+  background: var(--color-surface, #ffffff);
+  box-shadow: var(--shadow-lg, 0 18px 40px rgba(7, 49, 79, 0.25));
+  border: 1px solid var(--color-border, #d8e4ec);
+  overflow: hidden;
+}
+
+.modal-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border, #d8e4ec);
+  background: var(--color-surface-alt, #f8fcff);
+}
+
+.modal-titlebar strong {
+  color: var(--color-text, #0f3146);
+  font-size: 1rem;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border, #d8e4ec);
+  background: var(--color-surface-alt, #f8fcff);
+}
+
+html[data-theme="dark"] .patient-edit-modal,
+html[data-theme="dark"] .modal-content {
+  background: #132b3a;
+  border-color: #29485a;
+}
+
+html[data-theme="dark"] .modal-titlebar,
+html[data-theme="dark"] .modal-actions {
+  background: #0f1f2b;
+  border-color: #29485a;
+}
+
+
+/* ============================================================================
+ * SECCIÓN Q — Cumplimiento legal: scroll fallback
+ * ============================================================================ */
+
+.main-content > .cumplimiento-screen,
+.main-content > .login-shell {
+  min-height: 0;
+}
+
+
+/* ============================================================================
+ * SECCIÓN R — Tipografía base de números
+ * ============================================================================ */
+
+.num,
+td.num,
+th.num,
+.money,
+.amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}

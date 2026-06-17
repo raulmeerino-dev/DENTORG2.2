@@ -318,6 +318,44 @@ export interface RecordatorioCitaResponse {
   emailUrl?: string | null;
 }
 
+export interface WhatsAppPatientSummary {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  num_historial: number | null;
+}
+
+export interface WhatsAppAppointmentSummary {
+  id: string;
+  fecha_hora: string;
+  estado: string;
+  motivo: string | null;
+  doctor_nombre: string | null;
+  doctor_id: string | null;
+  gabinete_id: string | null;
+  duracion_min: number;
+}
+
+export interface WhatsAppInboxItem {
+  id: string;
+  clinica_id: string | null;
+  patient_id: string | null;
+  appointment_id: string | null;
+  direction: 'inbound' | 'outbound';
+  phone: string | null;
+  message_body: string;
+  received_at: string | null;
+  sent_at: string | null;
+  interpreted_intent: string | null;
+  processed: boolean;
+  provider_message_id: string | null;
+  idempotency_key?: string | null;
+  raw_payload: Record<string, unknown> | null;
+  created_at: string;
+  patient: WhatsAppPatientSummary | null;
+  appointment: WhatsAppAppointmentSummary | null;
+}
+
 export interface Cita {
   id: string;
   paciente_id: string;

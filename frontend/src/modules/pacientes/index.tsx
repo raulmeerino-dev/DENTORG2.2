@@ -41,6 +41,7 @@ import {
   getSesionItemsPaciente,
   getTratamientosCatalogo,
   getTrabajosLaboratorio,
+  getWhatsAppComunicaciones,
   openConsentimientoPdf,
   openDocumentoPaciente,
   openRecetaClinicaPdf,
@@ -199,7 +200,7 @@ export default function PacientesPage() {
   const [recetaError, setRecetaError] = useState<string | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeMainTab: MainPatientTab = tab === 'presupuestos'
     ? 'presupuestos'
     : isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
@@ -210,8 +211,11 @@ export default function PacientesPage() {
   const activeTreatmentTab = isTreatmentTab(tab) ? tab : treatmentTab;
   const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
   const pacientes = pacientesQuery.data ?? [];
-  const requestedPatientId = searchParams.get('paciente_id') ?? sessionStorage.getItem('dentorg_selected_patient_id');
-  const activeSummary = selected ?? pacientes.find((paciente) => paciente.id === requestedPatientId) ?? pacientes[0] ?? null;
+  const urlPatientId = searchParams.get('paciente_id');
+  const cachedPatientId = sessionStorage.getItem('dentorg_selected_patient_id');
+  const requestedPatientId = urlPatientId ?? cachedPatientId;
+  const selectedMatchesRequest = selected && (!requestedPatientId || selected.id === requestedPatientId) ? selected : null;
+  const activeSummary = selectedMatchesRequest ?? pacientes.find((paciente) => paciente.id === requestedPatientId) ?? pacientes[0] ?? null;
   const pacienteDetalleQuery = useQuery({
     queryKey: ['paciente-detalle', activeSummary?.id],
     queryFn: () => getPaciente(activeSummary!.id),
@@ -255,6 +259,11 @@ export default function PacientesPage() {
   const citasPacienteQuery = useQuery({
     queryKey: ['citas-paciente', active?.id],
     queryFn: () => getCitas({ paciente_id: active!.id }),
+    enabled: Boolean(active),
+  });
+  const whatsappPacienteQuery = useQuery({
+    queryKey: ['whatsapp-comunicaciones-paciente', active?.id],
+    queryFn: () => getWhatsAppComunicaciones({ patient_id: active!.id, limit: 100 }),
     enabled: Boolean(active),
   });
   const documentosQuery = useQuery({
@@ -312,6 +321,25 @@ export default function PacientesPage() {
     return () => window.clearTimeout(timeout);
   }, []);
 
+  useEffect(() => {
+    if (!activeSummary?.id) return;
+    sessionStorage.setItem('dentorg_selected_patient_id', activeSummary.id);
+    sessionStorage.setItem('dentorg_selected_patient_name', fullName(activeSummary));
+    if (urlPatientId === activeSummary.id) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('paciente_id', activeSummary.id);
+    setSearchParams(next, { replace: true });
+  }, [activeSummary, searchParams, setSearchParams, urlPatientId]);
+
+  function setActivePatient(paciente: ApiPaciente, options: { replace?: boolean } = {}) {
+    setSelected(paciente);
+    sessionStorage.setItem('dentorg_selected_patient_id', paciente.id);
+    sessionStorage.setItem('dentorg_selected_patient_name', fullName(paciente));
+    const next = new URLSearchParams(searchParams);
+    next.set('paciente_id', paciente.id);
+    setSearchParams(next, { replace: options.replace ?? false });
+  }
+
   function openPatientArea(targetTab: WorkTab) {
     if (isTreatmentTab(targetTab)) {
       setTreatmentTab(targetTab);
@@ -347,6 +375,28 @@ export default function PacientesPage() {
     setDocumentsUploadOpen(Boolean(options.upload));
   }
 
+  function invalidatePatientWorkspace(pacienteId: string) {
+    [
+      ['paciente-detalle', pacienteId],
+      ['presupuestos', pacienteId],
+      ['facturas', pacienteId],
+      ['pagos-anticipados', pacienteId],
+      ['saldo-paciente', pacienteId],
+      ['historial-paciente', pacienteId],
+      ['historial-sin-facturar', pacienteId],
+      ['citas-paciente', pacienteId],
+      ['documentos-paciente', pacienteId],
+      ['consentimientos-paciente', pacienteId],
+      ['laboratorio-paciente', pacienteId],
+      ['recetas-paciente', pacienteId],
+      ['notas-dentales', pacienteId],
+      ['sesion-items', pacienteId],
+      ['odontograma-contexto', pacienteId],
+    ].forEach((queryKey) => {
+      void queryClient.invalidateQueries({ queryKey });
+    });
+  }
+
   const nuevoPresupuesto = useMutation({
     mutationFn: async () => {
       if (!active) throw new Error('Sin paciente');
@@ -378,8 +428,7 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       setFacturaManualOpen(false);
-      void facturasQuery.refetch();
-      void saldoQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
     },
   });
@@ -412,10 +461,7 @@ export default function PacientesPage() {
     onSuccess: (factura) => {
       setInvoiceCreatorOpen(false);
       openPatientArea('historial');
-      void facturasQuery.refetch();
-      void historialQuery.refetch();
-      void historialSinFacturarQuery.refetch();
-      void saldoQuery.refetch();
+      invalidatePatientWorkspace(factura.paciente_id);
       window.open(facturaPdfUrl(factura.id), '_blank');
     },
   });
@@ -429,8 +475,7 @@ export default function PacientesPage() {
       return registrarCobro(factura.id, forma.id, Number(factura.pendiente));
     },
     onSuccess: () => {
-      void facturasQuery.refetch();
-      void saldoQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
     },
   });
@@ -440,8 +485,7 @@ export default function PacientesPage() {
       registrarCobro(facturaId, formaPagoId, importe),
     onSuccess: () => {
       setCobroFactura(null);
-      void facturasQuery.refetch();
-      void saldoQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
     },
   });
@@ -453,8 +497,7 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       setAnticipoModal(null);
-      void pagosAnticipadosQuery.refetch();
-      void saldoQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
     },
   });
@@ -466,8 +509,7 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       setAnticipoModal(null);
-      void pagosAnticipadosQuery.refetch();
-      void saldoQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
     },
   });
@@ -490,8 +532,7 @@ export default function PacientesPage() {
     },
     onSuccess: () => {
       setContextMenu(null);
-      void facturasQuery.refetch();
-      void saldoQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
     },
   });
@@ -501,8 +542,8 @@ export default function PacientesPage() {
       if (!active) throw new Error('Sin paciente');
       return uploadDocumentoPaciente(active.id, data);
     },
-    onSuccess: () => {
-      void documentosQuery.refetch();
+    onSuccess: (documento) => {
+      invalidatePatientWorkspace(documento.paciente_id);
       setDocumentsDrawerOpen(true);
       setDocumentsUploadOpen(false);
       setTab('pacientes');
@@ -539,15 +580,15 @@ export default function PacientesPage() {
       return { kind: 'documento' as const, doc };
     },
     onSuccess: (result) => {
-      void documentosQuery.refetch();
-      void consentimientosQuery.refetch();
       setDesigner(null);
       if (result.kind === 'consentimiento') {
+        invalidatePatientWorkspace(result.consentimiento.paciente_id);
         setDocumentsDrawerOpen(true);
         setTab('pacientes');
         void openConsentimientoPdf(result.consentimiento.id);
         return;
       }
+      invalidatePatientWorkspace(result.doc.paciente_id);
       setDocumentsDrawerOpen(true);
       setTab('pacientes');
       if (active && result.doc.id) void openDocumentoPaciente(active.id, result.doc.id, result.doc.nombre_original);
@@ -560,9 +601,9 @@ export default function PacientesPage() {
       return updatePaciente(active.id, data);
     },
     onSuccess: (paciente) => {
-      setSelected(paciente);
+      setActivePatient(paciente, { replace: true });
       setEditingPatient(false);
-      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', paciente.id] });
+      invalidatePatientWorkspace(paciente.id);
       void pacientesQuery.refetch();
     },
   });
@@ -570,9 +611,8 @@ export default function PacientesPage() {
   const crearPaciente = useMutation({
     mutationFn: (data: Parameters<typeof createPaciente>[0]) => createPaciente(data),
     onSuccess: (paciente) => {
-      setSelected(paciente);
+      setActivePatient(paciente);
       setNuevoPacienteOpen(false);
-      sessionStorage.setItem('dentorg_selected_patient_id', paciente.id);
       setTab('pacientes');
       void pacientesQuery.refetch();
     },
@@ -580,10 +620,10 @@ export default function PacientesPage() {
 
   const crearPedidoLab = useMutation({
     mutationFn: (data: TrabajoLaboratorioCreateInput) => createTrabajoLaboratorio(data),
-    onSuccess: () => {
+    onSuccess: (trabajo) => {
       setPedidoLabContext({ open: false, linea: null });
       setPedidoLabError(null);
-      void laboratorioPacienteQuery.refetch();
+      invalidatePatientWorkspace(trabajo.paciente_id);
     },
     onError: (error) => {
       setPedidoLabError(error instanceof Error ? error.message : 'No se pudo crear el pedido');
@@ -593,8 +633,8 @@ export default function PacientesPage() {
   const actualizarTrabajoLab = useMutation({
     mutationFn: ({ trabajoId, cambios }: { trabajoId: string; cambios: TrabajoLaboratorioUpdateInput }) =>
       updateTrabajoLaboratorio(trabajoId, cambios),
-    onSuccess: () => {
-      void laboratorioPacienteQuery.refetch();
+    onSuccess: (trabajo) => {
+      invalidatePatientWorkspace(trabajo.paciente_id);
       toast.success('Trabajo de laboratorio actualizado');
     },
     onError: (error) => {
@@ -611,7 +651,7 @@ export default function PacientesPage() {
     onSuccess: (receta) => {
       setRecetaModalOpen(false);
       setRecetaError(null);
-      void recetasPacienteQuery.refetch();
+      invalidatePatientWorkspace(receta.paciente_id);
       toast.success('Receta creada. Abriendo PDF...');
       void openRecetaClinicaPdf(receta.id).catch(() => {
         toast.error('Receta creada pero el navegador bloqueó el PDF. Búscala en el historial.');
@@ -630,15 +670,7 @@ export default function PacientesPage() {
         entrada,
         ...current.filter((item) => item.id !== entrada.id),
       ]);
-      void queryClient.invalidateQueries({ queryKey: ['historial-paciente', entrada.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['historial-sin-facturar', entrada.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['presupuestos', entrada.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['citas-paciente', entrada.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['sesion-items', entrada.paciente_id] });
-      void historialQuery.refetch();
-      void historialSinFacturarQuery.refetch();
-      void presupuestosQuery.refetch();
-      if (active?.id) void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', active.id] });
+      invalidatePatientWorkspace(entrada.paciente_id);
       toast.success('Tratamiento guardado en historial.');
     },
     onError: (error) => {
@@ -689,7 +721,7 @@ export default function PacientesPage() {
   const crearNotaDental = useMutation({
     mutationFn: (data: NotaDentalCreateInput) => createNotaDental(data),
     onSuccess: (nota) => {
-      void queryClient.invalidateQueries({ queryKey: ['notas-dentales', nota.paciente_id] });
+      invalidatePatientWorkspace(nota.paciente_id);
       toast.success('Nota de pieza guardada.');
     },
     onError: (error) => {
@@ -708,8 +740,8 @@ export default function PacientesPage() {
       });
     },
     onSuccess: (paciente) => {
-      setSelected(paciente);
-      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', paciente.id] });
+      setActivePatient(paciente, { replace: true });
+      invalidatePatientWorkspace(paciente.id);
       void pacientesQuery.refetch();
     },
   });
@@ -737,7 +769,7 @@ export default function PacientesPage() {
     const id = revocarConsentimientoTarget.id;
     setRevocarConsentimientoTarget(null);
     void revocarConsentimiento(id, motivo).then(() => {
-      void consentimientosQuery.refetch();
+      if (active?.id) invalidatePatientWorkspace(active.id);
     });
   }
 
@@ -825,8 +857,7 @@ export default function PacientesPage() {
           selectedId={active?.id ?? null}
           onNew={() => setNuevoPacienteOpen(true)}
           onSelect={(paciente) => {
-            setSelected(paciente);
-            sessionStorage.setItem('dentorg_selected_patient_id', paciente.id);
+            setActivePatient(paciente);
             setTab('pacientes');
           }}
         />
@@ -1125,7 +1156,7 @@ export default function PacientesPage() {
               />
             </details>
             <details className="history-ledger-details" open={billingLedgerOpen} onToggle={(event) => setBillingLedgerOpen(event.currentTarget.open)}>
-              <summary>Cronologia agrupada (clinico, citas, documentos, recetas, laboratorio)</summary>
+              <summary>Cronologia agrupada (clinico, citas, WhatsApp, documentos, recetas, laboratorio)</summary>
               <HistorialCompletoPanel
                 paciente={active}
                 historial={historialQuery.data ?? []}
@@ -1138,6 +1169,7 @@ export default function PacientesPage() {
                 recetas={recetasPacienteQuery.data ?? []}
                 laboratorio={laboratorioPacienteQuery.data ?? []}
                 notasDentales={notasDentalesQuery.data ?? []}
+                whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
                 onOpenDocumento={abrirDocumento}
                 onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
                 onOpenFactura={abrirPdfFactura}

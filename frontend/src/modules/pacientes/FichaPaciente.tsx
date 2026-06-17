@@ -15,6 +15,14 @@ import { formatDate, fullName, money } from '../../lib/utils';
 import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
 import { PatientOdontogramSummary } from './PatientOdontogramSummary';
+import { buildPatientStatus, type PatientStatusSeverity } from './patientStatus';
+
+const STATUS_SEVERITY_TONE: Record<PatientStatusSeverity, 'success' | 'info' | 'warning' | 'danger'> = {
+  ok: 'success',
+  info: 'info',
+  warning: 'warning',
+  critical: 'danger',
+};
 
 function CardHead({ icon, title, status, statusTone, action }: { icon: ReactNode; title: string; status?: string; statusTone?: 'success' | 'warning' | 'danger' | 'info' | 'muted'; action?: ReactNode }) {
   return (
@@ -229,7 +237,7 @@ export function PatientForm({
   const lastVisit = recentHistory[0] ?? null;
   const nowIso = new Date().toISOString();
   const nextCita = citas
-    .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta'].includes(cita.estado))
+    .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado))
     .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
   const lastTreatment = lastVisit?.procedimiento || lastVisit?.tratamiento?.nombre || 'Sin tratamiento registrado';
   const lastComment = lastVisit?.observaciones || lastVisit?.diagnostico || 'Sin comentario clinico en esta entrada.';
@@ -259,6 +267,17 @@ export function PatientForm({
   ));
 
   const hasAlertasReales = Boolean(healthText) || (paciente?.observaciones?.trim()?.length ?? 0) > 0;
+  const patientStatus = buildPatientStatus({
+    paciente,
+    presupuestos,
+    citas,
+    historial,
+    saldoPendiente: totals.pendiente,
+    laboratorio,
+    consentimientos,
+    today,
+  });
+  const statusTone = STATUS_SEVERITY_TONE[patientStatus.severity];
 
   const edad = (() => {
     if (!paciente?.fecha_nacimiento) return null;
@@ -292,6 +311,18 @@ export function PatientForm({
           <span>Paciente</span>
           <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
           <em>H {paciente?.num_historial ?? '-'} · {paciente?.telefono || paciente?.telefono2 || 'sin telefono'} · {paciente?.dni_nie || 'sin DNI'}</em>
+          {paciente && (
+            <span
+              className={`patient-card-chip patient-card-chip-${statusTone}`}
+              title={patientStatus.description}
+              aria-label={`Estado del paciente: ${patientStatus.label}. ${patientStatus.description}`}
+            >
+              {patientStatus.label}
+              {patientStatus.suggestedAction && (
+                <em style={{ marginLeft: 6, fontStyle: 'normal', opacity: 0.85 }}>· {patientStatus.suggestedAction}</em>
+              )}
+            </span>
+          )}
           <PatientIdentityChips paciente={paciente} />
         </div>
         <div className={`patient-hub-alert ${hasAlertasReales ? 'has-alerts' : ''}`}>
@@ -735,7 +766,7 @@ export function PatientFullViewModal({
   const recentHistory = historial.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
   const nowIso = new Date().toISOString();
   const nextCita = citas
-    .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta'].includes(cita.estado))
+    .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado))
     .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
   const lastVisit = recentHistory[0] ?? null;
   const billingTotals = getBillingTotals(facturas);

@@ -48,6 +48,7 @@ from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.tratamiento import EntidadBaremo, FamiliaTratamiento, TratamientoCatalogo
 from app.models.usuario import Usuario
+from app.models.whatsapp import WhatsAppComunicacion
 
 __all__ = [
     "Doctor",
@@ -102,4 +103,5 @@ __all__ = [
     "RegistroFacturacion",
     "AuthSession",
     "BackupRegistro",
+    "WhatsAppComunicacion",
 ]

@@ -24,10 +24,10 @@ import {
   verificarBackup,
 } from '../../lib/api';
 import type { Doctor, HorarioDoctor, TratamientoCatalogo } from '../../types/api';
+import { FICHEROS } from './configuracionTabs';
+import type { FicheroTab } from './configuracionTabs';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-export const FICHEROS = ['general', 'doctores', 'tratamientos', 'agenda', 'roles', 'caja', 'laboratorio', 'documentos', 'seguridad'] as const;
-export type FicheroTab = typeof FICHEROS[number];
 
 type ConfiguracionWorkspaceProps = {
   activeTab?: FicheroTab;

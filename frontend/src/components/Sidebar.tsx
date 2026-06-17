@@ -5,8 +5,10 @@ import {
   Building2,
   CalendarCheck2,
   CalendarDays,
+  ClipboardList,
   CreditCard,
   LogOut,
+  MessageCircle,
   Moon,
   Settings2,
   ShieldCheck,
@@ -22,11 +24,25 @@ const ICON_SIZE = 18;
 
 const NAV_ICONS: Partial<Record<AppSection, ReactNode>> = {
   hoy: <CalendarCheck2 size={ICON_SIZE} strokeWidth={1.9} />,
-  pacientes: <UsersRound size={ICON_SIZE} strokeWidth={1.9} />,
   agenda: <CalendarDays size={ICON_SIZE} strokeWidth={1.9} />,
+  whatsapp: <MessageCircle size={ICON_SIZE} strokeWidth={1.9} />,
+  pacientes: <UsersRound size={ICON_SIZE} strokeWidth={1.9} />,
   caja: <CreditCard size={ICON_SIZE} strokeWidth={1.9} />,
+  listados: <ClipboardList size={ICON_SIZE} strokeWidth={1.9} />,
   adminExtras: <Settings2 size={ICON_SIZE} strokeWidth={1.9} />,
+  portalPaciente: <CalendarCheck2 size={ICON_SIZE} strokeWidth={1.9} />,
 };
+
+const MAIN_NAV_IDS: AppSection[] = [
+  'hoy',
+  'agenda',
+  'whatsapp',
+  'pacientes',
+  'caja',
+  'listados',
+  'adminExtras',
+  'portalPaciente',
+];
 
 export default function MainNav() {
   const { user, logout } = useAuth();
@@ -36,12 +52,13 @@ export default function MainNav() {
   const navItems = WORKFLOW_ITEMS.filter((item) => (
     item.route
     && canAccess(user?.rol, item)
-    && ['hoy', 'pacientes', 'agenda', 'caja', 'adminExtras'].includes(item.id)
+    && MAIN_NAV_IDS.includes(item.id)
   ));
   const nowLabel = now.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
     + ` ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
   const isDark = theme === 'dark';
-  const isAdminArea = ['/admin-extras', '/configuracion', '/listados'].some((route) => location.pathname.startsWith(route));
+  const isAdminArea = ['/admin-extras', '/configuracion'].some((route) => location.pathname.startsWith(route));
+  const isPortalArea = ['/mis-citas', '/portal'].some((route) => location.pathname.startsWith(route));
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -85,7 +102,7 @@ export default function MainNav() {
             <NavLink
               key={item.id}
               to={item.route!}
-              className={({ isActive }) => `euro-nav-button${isActive || (item.id === 'adminExtras' && isAdminArea) ? ' active' : ''}`}
+              className={({ isActive }) => `euro-nav-button${isActive || (item.id === 'adminExtras' && isAdminArea) || (item.id === 'portalPaciente' && isPortalArea) ? ' active' : ''}`}
               aria-label={item.label}
             >
               <span className="nav-icon" aria-hidden="true">{NAV_ICONS[item.id]}</span>

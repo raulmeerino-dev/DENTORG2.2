@@ -173,7 +173,7 @@ function buildSessionTreatments(
   historial: HistorialClinico[],
   sesionItems: SesionClinicaItem[],
 ): SessionTreatment[] {
-  const todayAppointments = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta'].includes(cita.estado));
+  const todayAppointments = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
   const completedBudgetLines = new Set(
     historial
       .filter((entrada) => hasFinishedState(entrada.estado) && entrada.presupuesto_linea_id)
@@ -387,7 +387,7 @@ function ClinicalOverview({
   const pendientes = presupuestos.flatMap((presupuesto) => (
     presupuesto.lineas.filter((linea) => linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
   ));
-  const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta'].includes(cita.estado));
+  const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
   const realizados = historial.filter((entrada) => hasFinishedState(entrada.estado));
   const consentimientosPendientes = consentimientos.filter((item) => item.estado !== 'firmado' && item.estado !== 'revocado').length;
   const labVencidos = contarLaboratorioVencidos(laboratorio);
@@ -547,7 +547,7 @@ function SessionWorkspace({
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
   onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
 }) {
-  const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta'].includes(cita.estado));
+  const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
   const recientes = recentClinicalHistory(historial);
   const baseSessionItems = useMemo(
     () => buildSessionTreatments(citas, presupuestos, historial, sesionItems),
@@ -587,15 +587,28 @@ function SessionWorkspace({
   }), [citas, consentimientos, documentos, historial, laboratorio, paciente, presupuestos, recetas, saldoPendiente]);
 
   useEffect(() => {
-    setDraftItems(baseSessionItems);
-    setSelectedId((current) => {
-      if (current && baseSessionItems.some((item) => item.id === current)) return current;
-      return baseSessionItems[0]?.id ?? null;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      setDraftItems(baseSessionItems);
+      setSelectedId((current) => {
+        if (current && baseSessionItems.some((item) => item.id === current)) return current;
+        return baseSessionItems[0]?.id ?? null;
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [baseSessionItems]);
 
   useEffect(() => {
-    setQuickNote('');
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) setQuickNote('');
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedId]);
 
   function updateLocal(patch: Partial<SessionTreatment>) {

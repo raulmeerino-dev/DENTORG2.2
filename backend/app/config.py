@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     login_rate_limit_block_seconds: int = 900
     upload_rate_limit_per_minute: int = 30
     max_upload_size_mb: int = 50
+    whatsapp_webhook_token: str = ""
 
     # Entorno
     environment: Literal["development", "production"] = "development"

@@ -376,7 +376,12 @@ async def dashboard(
         "tratamientos": tratamientos,
         "pacientes_deuda": pacientes_deuda,
         "alertas": {
-            "citas_sin_confirmar": citas["por_estado"].get("programada", 0),
+            "citas_sin_confirmar": (
+                citas["por_estado"].get("programada", 0)
+                + citas["por_estado"].get("pending_confirmation", 0)
+                + citas["por_estado"].get("reminder_sent", 0)
+                + citas["por_estado"].get("pending_manual_review", 0)
+            ),
             "pacientes_en_clinica": citas["por_estado"].get("en_clinica", 0),
             "faltas_periodo": citas["faltas"],
             "deuda_pendiente": facturacion["pendiente"],

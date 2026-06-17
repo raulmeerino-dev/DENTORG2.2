@@ -9,7 +9,19 @@ from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
 
 EstadoCitaEnum = Enum(
-    "programada", "confirmada", "en_clinica", "atendida", "falta", "anulada",
+    "programada",
+    "confirmada",
+    "en_clinica",
+    "atendida",
+    "falta",
+    "anulada",
+    "pending_confirmation",
+    "confirmed",
+    "reminder_sent",
+    "reschedule_requested",
+    "cancelled_by_patient",
+    "pending_manual_review",
+    "rescheduled",
     name="estado_cita"
 )
 

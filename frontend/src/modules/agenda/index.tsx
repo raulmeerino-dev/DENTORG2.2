@@ -23,7 +23,14 @@ type HorariosPorDoctor = Record<string, HorarioDoctor[]>;
 
 const ESTADOS = [
   'programada',
+  'pending_confirmation',
+  'reminder_sent',
   'confirmada',
+  'confirmed',
+  'reschedule_requested',
+  'pending_manual_review',
+  'cancelled_by_patient',
+  'rescheduled',
   'en_clinica',
   'atendida',
   'anulada',
@@ -32,8 +39,15 @@ const ESTADOS = [
 
 const STATUS_META: Record<string, { label: string; mark: string; className: string }> = {
   programada: { label: 'Sin confirmar', mark: '?', className: 'state-pending' },
+  pending_confirmation: { label: 'Sin confirmar', mark: '?', className: 'state-pending' },
   mensaje_enviado: { label: 'Mensaje enviado', mark: 'MSG', className: 'state-message' },
+  reminder_sent: { label: 'Mensaje enviado', mark: 'MSG', className: 'state-message' },
   confirmada: { label: 'Confirmada', mark: 'OK', className: 'state-confirmed' },
+  confirmed: { label: 'Confirmada', mark: 'OK', className: 'state-confirmed' },
+  reschedule_requested: { label: 'Solicita cambio', mark: 'REP', className: 'state-message' },
+  pending_manual_review: { label: 'Revisar', mark: 'REV', className: 'state-pending' },
+  cancelled_by_patient: { label: 'Cancelada paciente', mark: 'X', className: 'state-cancelled' },
+  rescheduled: { label: 'Reprogramada', mark: 'REP', className: 'state-confirmed' },
   en_clinica: { label: 'En clinica', mark: 'IN', className: 'state-clinic' },
   en_tratamiento: { label: 'En tratamiento', mark: 'TR', className: 'state-treatment' },
   atendida: { label: 'Finalizada', mark: 'FIN', className: 'state-done' },
@@ -179,8 +193,8 @@ function buildAgendaSlots({
 
 function getVisualStatus(cita: Cita) {
   const obs = cita.observaciones?.toLowerCase() ?? '';
-  if (cita.estado === 'programada' && cita.recordatorio_enviado) return 'mensaje_enviado';
-  if (cita.estado === 'programada' && obs.includes('recordatorio')) return 'mensaje_enviado';
+    if (['programada', 'pending_confirmation'].includes(cita.estado) && cita.recordatorio_enviado) return 'mensaje_enviado';
+    if (['programada', 'pending_confirmation'].includes(cita.estado) && obs.includes('recordatorio')) return 'mensaje_enviado';
   if (cita.estado === 'en_clinica' && obs.includes('en tratamiento')) return 'en_tratamiento';
   return cita.estado;
 }
@@ -500,7 +514,7 @@ function CitaModal({
           <span>Paciente en clinica: {estado === 'en_clinica' ? 'Si' : 'No'}</span>
           <span>Recordatorio: {cita?.recordatorio_enviado ? 'Enviado' : 'No enviado'}</span>
           <span>Canal: {cita?.recordatorio_canal ?? '-'}</span>
-          <span>Confirmacion: {estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}</span>
+          <span>Confirmacion: {['confirmada', 'confirmed'].includes(estado) ? 'Confirmada' : 'Pendiente'}</span>
         </aside>
         {cita && (
           <div className="video-consult-panel">
@@ -593,7 +607,7 @@ function BuscarHuecoModal({
           duracion_min: duration,
           doctorNombre: doctor.nombre,
           doctorColor: doctor.color_agenda,
-        })).filter((hueco) => !citas.some((cita) => cita.doctor_id === doctor.id && !['anulada', 'falta'].includes(cita.estado) && overlaps(hueco.fecha_hora_inicio, duration, cita))))).slice(0, 40);
+    })).filter((hueco) => !citas.some((cita) => cita.doctor_id === doctor.id && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado) && overlaps(hueco.fecha_hora_inicio, duration, cita))))).slice(0, 40);
       }
 
       setResultados(merged);
@@ -702,7 +716,7 @@ function CitasPacienteModal({
     enabled: Boolean(pacienteId),
   });
   const citasPendientes = (citasPacienteQuery.data ?? [])
-    .filter((cita) => !['anulada', 'falta', 'atendida'].includes(cita.estado))
+    .filter((cita) => !['anulada', 'falta', 'cancelled_by_patient', 'atendida'].includes(cita.estado))
     .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora));
 
   return (
@@ -736,7 +750,14 @@ function CitasPacienteModal({
 export default function AgendaPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [day, setDay] = useState(todayIso());
+  const [day, setDay] = useState(() => {
+    const focusDate = sessionStorage.getItem('dentorg_agenda_focus_date');
+    if (focusDate) {
+      sessionStorage.removeItem('dentorg_agenda_focus_date');
+      return focusDate;
+    }
+    return todayIso();
+  });
   const [doctorId, setDoctorId] = useState<string>('');
   const [modalCita, setModalCita] = useState<Cita | null>(null);
   const [slotDraft, setSlotDraft] = useState<SlotDraft | null>(null);
@@ -767,6 +788,18 @@ export default function AgendaPage() {
   const doctores = useMemo(() => doctoresQuery.data ?? [], [doctoresQuery.data]);
   const pacientes = useMemo(() => pacientesQuery.data ?? [], [pacientesQuery.data]);
   const citas = useMemo(() => citasQuery.data ?? [], [citasQuery.data]);
+
+  useEffect(() => {
+    const focusCitaId = sessionStorage.getItem('dentorg_agenda_focus_cita_id');
+    if (!focusCitaId || citasQuery.isLoading) return;
+    const cita = citas.find((item) => item.id === focusCitaId);
+    if (!cita) return;
+    const timeout = window.setTimeout(() => {
+      sessionStorage.removeItem('dentorg_agenda_focus_cita_id');
+      setModalCita(cita);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [citas, citasQuery.isLoading]);
   const horariosAgendaQuery = useQuery({
     queryKey: ['agenda-horarios', doctores.map((doctor) => doctor.id).join(',')],
     queryFn: async () => {
@@ -1083,8 +1116,8 @@ export default function AgendaPage() {
       : doctorId
         ? 'Sin horario'
         : 'Todas las agendas';
-  const citasActivas = citas.filter((cita) => !['anulada', 'falta'].includes(cita.estado));
-  const pendientesConfirmar = citasActivas.filter((cita) => cita.estado === 'programada');
+  const citasActivas = citas.filter((cita) => !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
+  const pendientesConfirmar = citasActivas.filter((cita) => ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'].includes(cita.estado));
   const pacientesEnClinica = citasActivas.filter((cita) => cita.estado === 'en_clinica');
   const hasAgendaError = doctoresQuery.isError || pacientesQuery.isError || citasQuery.isError || telefonearQuery.isError || horariosAgendaQuery.isError;
   const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
