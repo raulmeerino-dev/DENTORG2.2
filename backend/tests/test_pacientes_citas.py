@@ -44,6 +44,7 @@ async def auth_headers_for_user(
     *,
     rol: str = "recepcion",
     clinica_id=None,
+    paciente_id=None,
 ) -> dict[str, str]:
     username = f"{rol}-{uuid4().hex[:8]}"
     usuario = Usuario(
@@ -52,6 +53,7 @@ async def auth_headers_for_user(
         nombre="Usuario Clinica",
         rol=rol,
         clinica_id=clinica_id,
+        paciente_id=paciente_id,
         activo=True,
     )
     db_session.add(usuario)
@@ -323,6 +325,32 @@ async def test_portal_paciente_citas_documentos_y_firma(client: AsyncClient, db_
     )
     assert firmado.status_code == 200
     assert firmado.json()["estado"] == "firmado"
+
+
+@pytest.mark.asyncio
+async def test_portal_rol_paciente_solo_accede_a_su_ficha(client: AsyncClient, db_session: AsyncSession):
+    paciente_propio = Paciente(nombre="Lucia", apellidos="Propia")
+    paciente_ajeno = Paciente(nombre="Mario", apellidos="Ajeno")
+    db_session.add_all([paciente_propio, paciente_ajeno])
+    await db_session.flush()
+
+    headers = await auth_headers_for_user(
+        client,
+        db_session,
+        rol="paciente",
+        paciente_id=paciente_propio.id,
+    )
+
+    propio = await client.get("/api/portal/me", headers=headers)
+    assert propio.status_code == 200
+    assert propio.json()["paciente"]["id"] == str(paciente_propio.id)
+
+    ajeno = await client.get(
+        "/api/portal/me",
+        headers=headers,
+        params={"paciente_id": str(paciente_ajeno.id)},
+    )
+    assert ajeno.status_code == 403
 
 
 @pytest.mark.asyncio

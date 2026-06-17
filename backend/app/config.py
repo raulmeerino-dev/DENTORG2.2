@@ -42,6 +42,8 @@ class Settings(BaseSettings):
     backend_port: int = 8000
     frontend_url: str = DEFAULT_FRONTEND_URL
     allowed_hosts: str = "localhost,127.0.0.1,::1,test"
+    cors_allowed_methods: str = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    cors_allowed_headers: str = "Authorization,Content-Type,Accept,X-Request-ID"
     sql_echo: bool = False
 
     # Seguridad
@@ -80,6 +82,14 @@ class Settings(BaseSettings):
         return [host.strip() for host in self.allowed_hosts.split(",") if host.strip()]
 
     @property
+    def cors_allowed_methods_list(self) -> list[str]:
+        return [method.strip().upper() for method in self.cors_allowed_methods.split(",") if method.strip()]
+
+    @property
+    def cors_allowed_headers_list(self) -> list[str]:
+        return [header.strip() for header in self.cors_allowed_headers.split(",") if header.strip()]
+
+    @property
     def cors_allowed_origins(self) -> list[str]:
         origins = [self.frontend_url.strip()]
 
@@ -112,6 +122,10 @@ class Settings(BaseSettings):
             errores.append("DB_ENCRYPTION_KEY debe ser unica y tener al menos 32 caracteres")
         if not self.allowed_hosts_list or "*" in self.allowed_hosts_list:
             errores.append("ALLOWED_HOSTS debe listar hosts explicitos en produccion")
+        if not self.auth_cookie_secure:
+            errores.append("AUTH_COOKIE_SECURE debe estar activo en produccion")
+        if self.auth_cookie_samesite == "none" and not self.auth_cookie_secure:
+            errores.append("AUTH_COOKIE_SAMESITE=none requiere AUTH_COOKIE_SECURE=true")
         if not self.sif_codigo.strip():
             errores.append("SIF_CODIGO debe informar el identificador del sistema")
 

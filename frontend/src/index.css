@@ -18839,3 +18839,258 @@ button:active {
 .euro-nav-button.active::before {
   display: none !important;
 }
+
+/* Operativa clinica: acciones directas en agenda sin abrir modal. */
+.agenda-euro .agenda-appointment {
+  grid-template-columns: 30px minmax(120px, 1.15fr) minmax(100px, .95fr) 104px 52px minmax(150px, auto) !important;
+  align-items: center;
+}
+
+.agenda-appointment-actions {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.agenda-appointment-actions button {
+  min-height: 24px;
+  padding: 2px 7px;
+  border: 1px solid #b8cbd6;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #0f4f72;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.agenda-appointment-actions button:hover {
+  border-color: #0f8ea0;
+  background: #eaf8fb;
+}
+
+.agenda-empty-day {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.agenda-empty-day strong {
+  color: #7c2d12;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.agenda-empty-day span {
+  flex: 1;
+  min-width: 0;
+  color: #6b4b00;
+  font-size: 13px;
+}
+
+.agenda-empty-day button {
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid #d99a1e;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #7a4f00;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Paciente activo: prioridades visibles para recepcion y doctor. */
+.patient-priority-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 7px 10px;
+  border-bottom: 1px solid #d8e3ea;
+  background: #f8fbfd;
+}
+
+.patient-priority-strip button {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 1px;
+  padding: 6px 9px;
+  border: 1px solid #dbe7ee;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17364b;
+  text-align: left;
+}
+
+.patient-priority-strip button span,
+.patient-priority-strip button strong,
+.patient-priority-strip button small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-priority-strip button span {
+  color: #60717f;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.patient-priority-strip button strong {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.patient-priority-strip button small {
+  color: #526d80;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.patient-priority-strip .priority-danger {
+  border-color: #f1b6b6;
+  background: #fff5f5;
+}
+
+.patient-priority-strip .priority-danger strong {
+  color: #b42318;
+}
+
+.patient-priority-strip .priority-warning {
+  border-color: #f6cf8e;
+  background: #fff8e6;
+}
+
+.patient-priority-strip .priority-warning strong {
+  color: #9a5b00;
+}
+
+.patient-priority-strip .priority-info {
+  border-color: #b8d8f2;
+  background: #eff8ff;
+}
+
+.patient-priority-strip .priority-info strong {
+  color: #075985;
+}
+
+.patient-priority-strip .priority-ok strong {
+  color: #16784f;
+}
+
+/* Presupuesto y factura: recorrido visible sin cambiar reglas de negocio. */
+.budget-flow-strip,
+.invoice-flow-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.budget-flow-strip span,
+.invoice-flow-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 8px;
+  border: 1px solid #d7e2e8;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #60717f;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.budget-flow-strip b,
+.invoice-flow-strip b {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #e7eef3;
+  color: #35586b;
+  font-size: 10px;
+}
+
+.budget-flow-strip .done,
+.invoice-flow-strip .done {
+  border-color: #b6e1c6;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.budget-flow-strip .current,
+.invoice-flow-strip .current {
+  border-color: #9ccfed;
+  background: #eff8ff;
+  color: #075985;
+  box-shadow: inset 0 0 0 1px #b8d8f2;
+}
+
+.invoice-flow-strip {
+  padding: 0 0 8px;
+}
+
+html[data-theme="dark"] .agenda-appointment-actions button,
+html[data-theme="dark"] .agenda-empty-day button,
+html[data-theme="dark"] .patient-priority-strip button,
+html[data-theme="dark"] .budget-flow-strip span,
+html[data-theme="dark"] .invoice-flow-strip span {
+  border-color: #2f4a60;
+  background: #101b28;
+  color: #eaf2f8;
+}
+
+html[data-theme="dark"] .patient-priority-strip,
+html[data-theme="dark"] .agenda-empty-day {
+  border-color: #2f4a60;
+  background: #0d1722;
+}
+
+@media (max-width: 1180px) {
+  .agenda-euro .agenda-appointment {
+    grid-template-columns: 28px minmax(100px, 1fr) minmax(90px, .8fr) 88px minmax(126px, auto) !important;
+  }
+
+  .agenda-euro .agenda-appointment em {
+    display: none;
+  }
+
+  .patient-priority-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .agenda-euro .agenda-appointment {
+    grid-template-columns: 28px minmax(0, 1fr) minmax(118px, auto) !important;
+  }
+
+  .agenda-euro .agenda-appointment span,
+  .agenda-euro .agenda-appointment small {
+    display: none;
+  }
+
+  .agenda-appointment-actions {
+    justify-content: flex-end;
+  }
+
+  .agenda-empty-day,
+  .patient-priority-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .agenda-empty-day {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

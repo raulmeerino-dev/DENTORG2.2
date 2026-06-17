@@ -6,6 +6,7 @@ export interface UsuarioMe {
   nombre: string;
   rol: UserRole;
   doctor_id: string | null;
+  paciente_id?: string | null;
   clinica_id?: string | null;
   two_factor_enabled?: boolean;
 }

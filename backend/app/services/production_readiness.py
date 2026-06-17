@@ -35,6 +35,8 @@ def build_production_readiness_report(
     last_backup: dict[str, Any] | None,
     rf_count: int,
     sif_event_count: int,
+    patient_portal_users: int = 0,
+    patient_portal_unlinked_users: int = 0,
 ) -> dict[str, Any]:
     checks: list[dict[str, str]] = []
 
@@ -71,6 +73,31 @@ def build_production_readiness_report(
         checks.append(_check("fail", "auth", "SameSite none sin Secure", "Las cookies SameSite=None requieren Secure.", "Usar Secure o cambiar SameSite a lax/strict."))
     else:
         checks.append(_check("ok", "auth", "Cookies de sesion", "La configuracion de cookie es coherente para el entorno actual.", "Endurecer a secure/strict si el flujo lo permite."))
+
+    if patient_portal_unlinked_users > 0:
+        checks.append(_check(
+            "fail",
+            "portal paciente",
+            "Usuarios paciente sin ficha",
+            f"Hay {patient_portal_unlinked_users} usuario(s) paciente sin paciente_id vinculado.",
+            "Vincular cada usuario paciente a su ficha antes de activar el portal en produccion.",
+        ))
+    elif patient_portal_users > 0:
+        checks.append(_check(
+            "ok",
+            "portal paciente",
+            "Usuarios paciente vinculados",
+            f"Hay {patient_portal_users} usuario(s) paciente vinculados a ficha.",
+            "Mantener altas del portal mediante invitacion controlada o vinculacion explicita.",
+        ))
+    else:
+        checks.append(_check(
+            "warn",
+            "portal paciente",
+            "Portal sin usuarios paciente",
+            "No hay usuarios con rol paciente configurados.",
+            "Crear usuarios paciente solo cuando exista flujo seguro de invitacion y vinculacion.",
+        ))
 
     if audit_events <= 0:
         checks.append(_check("warn", "auditoria", "Auditoria sin eventos", "No hay eventos de auditoria registrados todavia.", "Verificar accesos a historia clinica, documentos, facturacion y cambios de agenda."))

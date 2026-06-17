@@ -86,6 +86,7 @@ def _build_token_data(usuario: Usuario, session: AuthSession) -> dict[str, str |
         "username": usuario.username,
         "rol": usuario.rol,
         "clinica_id": str(usuario.clinica_id) if usuario.clinica_id else None,
+        "paciente_id": str(usuario.paciente_id) if usuario.paciente_id else None,
         "sid": str(session.id),
         "rnonce": session.refresh_nonce,
     }

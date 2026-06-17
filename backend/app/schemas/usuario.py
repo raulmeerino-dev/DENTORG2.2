@@ -11,6 +11,7 @@ class UsuarioCreate(BaseModel):
     nombre: str = Field(..., min_length=1, max_length=100)
     rol: RolUsuario
     doctor_id: UUID | None = None
+    paciente_id: UUID | None = None
     clinica_id: UUID | None = None
 
 
@@ -18,6 +19,7 @@ class UsuarioUpdate(BaseModel):
     nombre: str | None = Field(None, max_length=100)
     rol: RolUsuario | None = None
     doctor_id: UUID | None = None
+    paciente_id: UUID | None = None
     clinica_id: UUID | None = None
     activo: bool | None = None
 
@@ -28,6 +30,7 @@ class UsuarioResponse(BaseModel):
     nombre: str
     rol: str
     doctor_id: UUID | None
+    paciente_id: UUID | None = None
     clinica_id: UUID | None = None
     activo: bool
 

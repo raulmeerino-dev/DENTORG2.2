@@ -151,6 +151,14 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
 
   const dtoAcum = presupuesto.lineas.reduce((sum, l) => sum + Number(l.descuento_porcentaje ?? 0), 0);
   const avgDto = presupuesto.lineas.length > 0 ? Math.round(dtoAcum / presupuesto.lineas.length) : 0;
+  const hasPendingWork = acceptedLines.some((linea) => linea.pasado_trabajo_pendiente);
+  const flowSteps = [
+    { key: 'borrador', label: 'Borrador', done: presupuesto.lineas.length > 0, current: presupuesto.estado === 'borrador' },
+    { key: 'presentado', label: 'Presentado', done: ['presentado', 'aceptado', 'facturado'].includes(presupuesto.estado), current: presupuesto.estado === 'presentado' },
+    { key: 'aceptado', label: 'Aceptado', done: acceptedLines.length > 0 || ['aceptado', 'facturado'].includes(presupuesto.estado), current: presupuesto.estado === 'aceptado' && !hasPendingWork },
+    { key: 'pendiente', label: 'Trabajo pendiente', done: hasPendingWork || presupuesto.estado === 'facturado', current: presupuesto.estado === 'aceptado' && hasPendingWork },
+    { key: 'factura', label: 'Factura', done: presupuesto.estado === 'facturado', current: presupuesto.estado === 'facturado' },
+  ];
 
   return (
     <section className="desk-panel budget-panel">
@@ -184,6 +192,13 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
               <button onClick={() => setRechazarOpen(true)} disabled={rejectBudget.isPending || presupuestoCerrado} className="btn-reject">Rechazar</button>
             </div>
           </details>
+        </div>
+        <div className="budget-flow-strip" aria-label="Flujo de presupuesto a factura">
+          {flowSteps.map((step, index) => (
+            <span key={step.key} className={`${step.done ? 'done' : ''} ${step.current ? 'current' : ''}`.trim()}>
+              <b>{index + 1}</b>{step.label}
+            </span>
+          ))}
         </div>
       </div>
 

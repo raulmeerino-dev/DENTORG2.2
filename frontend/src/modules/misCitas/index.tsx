@@ -40,26 +40,27 @@ export default function MisCitasPage() {
     queryFn: getPacientes,
     enabled: user?.rol !== 'paciente',
   });
-  const activePacienteId = pacienteId || pacientesQuery.data?.[0]?.id || '';
+  const activePacienteId = user?.rol === 'paciente' ? (user.paciente_id ?? '') : (pacienteId || pacientesQuery.data?.[0]?.id || '');
+  const portalPacienteParam = user?.rol === 'paciente' ? undefined : activePacienteId;
   const portalMe = useQuery({
     queryKey: ['portal-me', activePacienteId],
-    queryFn: () => getPortalMe(activePacienteId),
-    enabled: Boolean(activePacienteId),
+    queryFn: () => getPortalMe(portalPacienteParam),
+    enabled: user?.rol === 'paciente' || Boolean(activePacienteId),
   });
   const citasQuery = useQuery({
     queryKey: ['portal-citas', activePacienteId],
-    queryFn: () => getPortalCitas(activePacienteId),
-    enabled: Boolean(activePacienteId),
+    queryFn: () => getPortalCitas(portalPacienteParam),
+    enabled: user?.rol === 'paciente' || Boolean(activePacienteId),
   });
   const documentosQuery = useQuery({
     queryKey: ['portal-documentos', activePacienteId],
-    queryFn: () => getPortalDocumentos(activePacienteId),
-    enabled: Boolean(activePacienteId),
+    queryFn: () => getPortalDocumentos(portalPacienteParam),
+    enabled: user?.rol === 'paciente' || Boolean(activePacienteId),
   });
   const consentimientosQuery = useQuery({
     queryKey: ['portal-consentimientos', activePacienteId],
-    queryFn: () => getPortalConsentimientos(activePacienteId),
-    enabled: Boolean(activePacienteId),
+    queryFn: () => getPortalConsentimientos(portalPacienteParam),
+    enabled: user?.rol === 'paciente' || Boolean(activePacienteId),
   });
 
   const paciente = useMemo(
@@ -75,13 +76,13 @@ export default function MisCitasPage() {
   };
 
   const confirmar = useMutation({
-    mutationFn: (citaId: string) => confirmarPortalCita(citaId, activePacienteId),
+    mutationFn: (citaId: string) => confirmarPortalCita(citaId, portalPacienteParam),
     onSuccess: refreshPortal,
   });
   const cancelar = useMutation({
     mutationFn: ({ citaId, reprogramar }: { citaId: string; reprogramar: boolean }) => cancelarPortalCita(
       citaId,
-      activePacienteId,
+      portalPacienteParam,
       reprogramar ? 'Solicita posponer la cita' : 'Cancelada desde portal paciente',
       reprogramar,
     ),
@@ -89,7 +90,7 @@ export default function MisCitasPage() {
   });
   const firmar = useMutation({
     mutationFn: ({ consentimientoId, firma }: { consentimientoId: string; firma: string }) =>
-      firmarPortalConsentimiento(consentimientoId, activePacienteId, firma),
+      firmarPortalConsentimiento(consentimientoId, portalPacienteParam, firma),
     onSuccess: () => {
       setFirmaPara(null);
       refreshPortal();

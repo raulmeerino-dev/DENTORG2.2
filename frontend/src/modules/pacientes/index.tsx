@@ -153,6 +153,9 @@ const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'historial', label: 'Historial' },
 ];
 
+const INACTIVE_APPOINTMENT_STATES = new Set(['anulada', 'falta', 'cancelled_by_patient']);
+const COMPLETED_TREATMENT_STATES = new Set(['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo']);
+
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
   return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas' || tab === 'notas';
 }
@@ -171,6 +174,12 @@ function presupuestoEstadoLabel(estado: string) {
   };
   return labels[estado] ?? estado;
 }
+
+function localDateTimeKey(date = new Date()) {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+}
+
 export default function PacientesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -305,14 +314,27 @@ export default function PacientesPage() {
   const presupuestos = presupuestosQuery.data ?? [];
   const facturas = facturasQuery.data ?? [];
   const pagosAnticipados = pagosAnticipadosQuery.data ?? [];
+  const citasPaciente = citasPacienteQuery.data ?? [];
+  const historialPaciente = historialQuery.data ?? [];
+  const laboratorioPaciente = laboratorioPacienteQuery.data ?? [];
   const billingTotals = getBillingTotals(facturas);
   const totalFacturado = Number(saldoQuery.data?.total_facturado ?? billingTotals.facturado);
   const totalPendiente = Number(saldoQuery.data?.pendiente ?? billingTotals.pendiente);
-  const tratamientosRealizados = historialQuery.data?.filter((item) => ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(item.estado)).length ?? 0;
-  const nextCita = citasPacienteQuery.data?.slice().sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0];
+  const tratamientosRealizados = historialPaciente.filter((item) => COMPLETED_TREATMENT_STATES.has(item.estado)).length;
+  const nextCita = citasPaciente
+    .filter((cita) => !INACTIVE_APPOINTMENT_STATES.has(cita.estado) && cita.fecha_hora.slice(0, 16) >= localDateTimeKey())
+    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
+  const tratamientosPendientes = presupuestos.reduce((total, presupuesto) => total + presupuesto.lineas.filter((linea) => {
+    const alreadyDone = historialPaciente.some((entrada) =>
+      entrada.presupuesto_linea_id === linea.id && COMPLETED_TREATMENT_STATES.has(entrada.estado),
+    );
+    return !alreadyDone && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado');
+  }).length, 0);
+  const laboratorioVencido = contarLaboratorioVencidos(laboratorioPaciente);
   const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
   const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
+  const hasImportantAlerts = Boolean(alergias || laboratorioVencido > 0 || totalPendiente > 0 || tratamientosPendientes > 0);
 
   useEffect(() => {
     if (sessionStorage.getItem('dentorg_patient_action') !== 'new') return;
@@ -940,6 +962,30 @@ export default function PacientesPage() {
             <span><b>Realizados</b>{tratamientosRealizados}</span>
             <span><b>Saldo</b>{money(totalPendiente)} / {money(totalFacturado)}</span>
             <span><b>Docs</b>{documentosQuery.data?.length ?? 0} - CI {consentimientosQuery.data?.length ?? 0}</span>
+          </aside>
+        )}
+        {active && (
+          <aside className={`patient-priority-strip${hasImportantAlerts ? ' has-alerts' : ''}`} aria-label="Prioridades del paciente activo">
+            <button type="button" className={totalPendiente > 0 ? 'priority-danger' : 'priority-ok'} onClick={() => abrirCobroDesdeFicha()}>
+              <span>Deuda</span>
+              <strong>{totalPendiente > 0 ? money(totalPendiente) : 'Al dia'}</strong>
+              <small>{totalPendiente > 0 ? 'Registrar cobro' : 'Sin saldo pendiente'}</small>
+            </button>
+            <button type="button" className={nextCita ? 'priority-info' : 'priority-muted'} onClick={abrirAgendaPaciente}>
+              <span>Proxima cita</span>
+              <strong>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)}` : 'Sin programar'}</strong>
+              <small>{nextCita?.motivo ?? 'Dar cita'}</small>
+            </button>
+            <button type="button" className={tratamientosPendientes > 0 ? 'priority-warning' : 'priority-ok'} onClick={() => openPatientArea('pendiente')}>
+              <span>Pendientes</span>
+              <strong>{tratamientosPendientes}</strong>
+              <small>{tratamientosPendientes > 0 ? 'Abrir trabajo pendiente' : 'Sin tratamientos pendientes'}</small>
+            </button>
+            <button type="button" className={alergias || laboratorioVencido > 0 ? 'priority-danger' : 'priority-muted'} onClick={() => openPatientArea('notas')}>
+              <span>Alertas</span>
+              <strong>{alergias ? 'Alergia' : laboratorioVencido > 0 ? `${laboratorioVencido} lab vencido` : 'Sin alertas'}</strong>
+              <small>{alergias || laboratorioVencido > 0 ? 'Revisar antes de tratar' : 'Ficha clinica'}</small>
+            </button>
           </aside>
         )}
 

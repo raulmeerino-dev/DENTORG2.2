@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { AxiosError } from 'axios';
-import { api, getApiErrorMessage } from './api';
+import { AUTH_TOKEN_KEY, api, clearStoredAuthToken, getApiErrorMessage, getStoredAuthToken } from './api';
 
 function makeAxiosError(overrides: Partial<AxiosError> = {}): AxiosError {
   const error = new Error('Network Error') as AxiosError;
@@ -86,6 +86,17 @@ describe('api default config', () => {
 
   it('envia withCredentials para que pase la cookie de sesion', () => {
     expect(api.defaults.withCredentials).toBe(true);
+  });
+
+  it('no recupera access tokens persistentes desde Web Storage', () => {
+    window.localStorage.setItem(AUTH_TOKEN_KEY, 'local-token');
+    window.sessionStorage.setItem(AUTH_TOKEN_KEY, 'session-token');
+
+    expect(getStoredAuthToken()).toBeNull();
+
+    clearStoredAuthToken();
+    expect(window.localStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
+    expect(window.sessionStorage.getItem(AUTH_TOKEN_KEY)).toBeNull();
   });
 });
 

@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.documento import DocumentoPaciente
 from app.models.doctor import Doctor
+from app.models.documento import DocumentoPaciente
 from app.models.factura import FormaPago
 from app.models.historial import HistorialClinico
 from app.models.presupuesto import Presupuesto, PresupuestoLinea

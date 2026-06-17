@@ -1,7 +1,14 @@
-import { createContext, useContext, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { clearStoredAuthToken, getMe, getStoredAuthToken, login as loginRequest, logout as logoutRequest } from '../lib/api';
+import {
+  clearStoredAuthToken,
+  getMe,
+  getStoredAuthToken,
+  login as loginRequest,
+  logout as logoutRequest,
+  refreshAuthToken,
+} from '../lib/api';
 import type { UsuarioMe } from '../types/api';
 
 interface AuthContextValue {
@@ -17,16 +24,43 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [hasToken, setHasToken] = useState(() => Boolean(getStoredAuthToken()));
+  const [isBootstrapping, setIsBootstrapping] = useState(() => !getStoredAuthToken());
+
+  useEffect(() => {
+    let cancelled = false;
+    if (getStoredAuthToken()) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    refreshAuthToken()
+      .then(() => {
+        if (!cancelled) setHasToken(true);
+      })
+      .catch(() => {
+        clearStoredAuthToken();
+        if (!cancelled) setHasToken(false);
+      })
+      .finally(() => {
+        if (!cancelled) setIsBootstrapping(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const { data, isLoading } = useQuery({
     queryKey: ['me', hasToken],
     queryFn: getMe,
-    enabled: hasToken,
+    enabled: hasToken && !isBootstrapping,
     retry: false,
   });
 
   const value = useMemo<AuthContextValue>(() => ({
     user: data ?? null,
-    isLoading,
+    isLoading: isBootstrapping || isLoading,
     isAuthenticated: Boolean(data),
     login: async (username, password, otp) => {
       await loginRequest(username, password, otp);
@@ -39,7 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHasToken(false);
       queryClient.clear();
     },
-  }), [data, isLoading, queryClient]);
+  }), [data, isBootstrapping, isLoading, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
