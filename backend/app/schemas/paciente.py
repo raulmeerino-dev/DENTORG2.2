@@ -211,11 +211,15 @@ class PacienteResponse(BaseModel):
 class PacienteResumen(BaseModel):
     """Versión compacta para búsqueda global y listas."""
     id: UUID
+    codigo: str | None = None
     num_historial: int
     nombre: str
     apellidos: str
     fecha_nacimiento: date | None
+    dni_nie: str | None = None
     telefono: str | None = None
+    telefono2: str | None = None
+    email: str | None = None
     activo: bool
 
     model_config = {"from_attributes": True}

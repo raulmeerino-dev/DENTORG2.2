@@ -69,7 +69,14 @@ async def test_crud_paciente(client: AsyncClient, db_session: AsyncSession):
     created = await client.post(
         "/api/pacientes",
         headers=headers,
-        json={"nombre": "Ana", "apellidos": "Dental", "telefono": "600000000"},
+        json={
+            "nombre": "Ana",
+            "apellidos": "Dental",
+            "dni_nie": "12345678Z",
+            "telefono": "600000000",
+            "telefono2": "611222333",
+            "email": "ana.dental@example.com",
+        },
     )
     assert created.status_code == 201
     paciente = created.json()
@@ -86,6 +93,17 @@ async def test_crud_paciente(client: AsyncClient, db_session: AsyncSession):
     listed = await client.get("/api/pacientes?q=Ana", headers=headers)
     assert listed.status_code == 200
     assert any(item["id"] == paciente["id"] for item in listed.json())
+    summary = next(item for item in listed.json() if item["id"] == paciente["id"])
+    assert summary["dni_nie"] == "12345678Z"
+    assert summary["telefono2"] == "611222333"
+    assert summary["email"] == "ana.dental@example.com"
+
+
+@pytest.mark.asyncio
+async def test_rol_paciente_no_puede_listar_pacientes(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers_for_user(client, db_session, rol="paciente")
+    response = await client.get("/api/pacientes", headers=headers)
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -831,6 +849,22 @@ async def test_presupuesto_aceptado_se_factura_y_se_paga(client: AsyncClient, db
     assert factura["estado"] == "emitida"
     assert factura["huella"]
     assert float(factura["total"]) == 390.0
+
+    presupuesto_facturado = await client.get(f"/api/presupuestos/{presupuesto_id}", headers=headers)
+    assert presupuesto_facturado.status_code == 200
+    assert presupuesto_facturado.json()["estado"] == "facturado"
+
+    factura_duplicada = await client.post(
+        f"/api/presupuestos/{presupuesto_id}/convertir-a-factura",
+        headers=headers,
+        json={
+            "serie": "A",
+            "fecha": datetime.now(timezone.utc).date().isoformat(),
+            "forma_pago_id": str(forma_pago.id),
+            "solo_aceptadas": True,
+        },
+    )
+    assert factura_duplicada.status_code == 409
 
     pago = await client.post(
         f"/api/facturas/{factura['id']}/pagos",

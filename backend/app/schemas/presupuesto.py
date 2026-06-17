@@ -62,7 +62,7 @@ class PresupuestoCreate(BaseModel):
 
 class PresupuestoUpdate(BaseModel):
     fecha: date | None = None
-    estado: str | None = Field(None, pattern=r"^(borrador|presentado|aceptado|rechazado|parcial|caducado)$")
+    estado: str | None = Field(None, pattern=r"^(borrador|presentado|aceptado|rechazado|parcial|caducado|facturado)$")
     pie_pagina: str | None = None
     doctor_id: UUID | None = None
 

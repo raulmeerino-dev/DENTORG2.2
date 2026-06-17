@@ -18,6 +18,7 @@ from sqlalchemy.orm import selectinload
 from app.api.citas import _to_response as cita_to_response
 from app.core.crypto import cifrar_campos_paciente, cifrar_json, descifrar_json, descifrar_paciente
 from app.core.permissions import (
+    ROLE_PACIENTE,
     CurrentUser,
     RequireAdmin,
     RequireDoctor,
@@ -150,6 +151,9 @@ async def listar_pacientes(
     - Sin `q`: devuelve la lista ordenada por apellidos (paginada).
     - Con `q`: filtra por nombre, apellidos o código (ILIKE).
     """
+    if current_user.rol == ROLE_PACIENTE:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Use el portal paciente para consultar sus datos.")
+
     stmt = select(Paciente).order_by(Paciente.apellidos, Paciente.nombre)
 
     stmt = scope_select_by_clinic(stmt, Paciente, current_user)
@@ -171,20 +175,22 @@ async def listar_pacientes(
     result = await db.execute(stmt)
     pacientes = result.scalars().all()
 
-    # PacienteResumen no incluye campos cifrados (solo teléfono para llamadas rápidas)
-    # Para evitar N+1, solo desciframos teléfono principal
+    # Resumen interno para busqueda rapida en recepcion/agenda.
     resumenes = []
     for p in pacientes:
-        from app.core.crypto import descifrar_bytes
-        tel = await descifrar_bytes(db, p.telefono)
+        descifrados = await descifrar_paciente(db, p)
         resumenes.append(
             PacienteResumen(
                 id=p.id,
+                codigo=p.codigo,
                 num_historial=p.num_historial,
                 nombre=p.nombre,
                 apellidos=p.apellidos,
                 fecha_nacimiento=p.fecha_nacimiento,
-                telefono=tel,
+                dni_nie=descifrados["dni_nie"],
+                telefono=descifrados["telefono"],
+                telefono2=descifrados["telefono2"],
+                email=descifrados["email"],
                 activo=p.activo,
             )
         )

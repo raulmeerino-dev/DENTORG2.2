@@ -17,6 +17,7 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from alembic import command
+from app.config import get_settings
 from app.database import get_db
 from app.main import app
 
@@ -62,6 +63,7 @@ async def create_tables(create_test_database: None) -> AsyncGenerator[None, None
 
     previous_database_url = os.environ.get("DATABASE_URL")
     os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+    get_settings.cache_clear()
     alembic_cfg = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     command.upgrade(alembic_cfg, "head")
     yield
@@ -73,6 +75,7 @@ async def create_tables(create_test_database: None) -> AsyncGenerator[None, None
         os.environ.pop("DATABASE_URL", None)
     else:
         os.environ["DATABASE_URL"] = previous_database_url
+    get_settings.cache_clear()
     await test_engine.dispose()
 
 

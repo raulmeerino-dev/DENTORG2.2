@@ -10,7 +10,7 @@ from app.database import Base
 from app.models.base import TimestampMixin, UUIDMixin
 
 EstadoPresupuestoEnum = Enum(
-    "borrador", "presentado", "aceptado", "rechazado", "parcial", "caducado",
+    "borrador", "presentado", "aceptado", "rechazado", "parcial", "caducado", "facturado",
     name="estado_presupuesto"
 )
 
