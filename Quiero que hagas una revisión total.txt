@@ -1,0 +1,241 @@
+Quiero que hagas una revisión total, profunda y profesional de este proyecto.
+
+IMPORTANTE:
+No modifiques archivos todavía. Primero quiero un análisis completo del estado actual del proyecto, su arquitectura, sus módulos, sus problemas, sus puntos fuertes y un plan de mejora ordenado.
+
+Objetivo final:
+Quiero convertir este proyecto en un programa perfecto, organizado, completo, práctico, funcional, mantenible y escalable. Debe parecer una aplicación profesional real, no una suma de pantallas sueltas.
+
+Contexto funcional del proyecto:
+La aplicación está orientada a la gestión de una clínica dental / clínica sanitaria. El flujo debe estar muy bien organizado por módulos principales.
+
+La estructura ideal debería tener, como mínimo:
+
+1. Módulo de Agenda
+- Calendario diario, semanal y mensual.
+- Gestión de citas.
+- Relación directa entre cita, paciente, profesional, tratamiento y estado.
+- Estados claros: pendiente, confirmada, en curso, realizada, cancelada, no asistió.
+- Acceso rápido desde una cita a la ficha del paciente.
+- Posibilidad de crear tratamientos o notas clínicas desde una cita.
+
+2. Módulo de Pacientes
+Debe ser el centro del sistema.
+Cada paciente debería tener:
+- Datos personales.
+- Datos de contacto.
+- Historial clínico.
+- Odontograma.
+- Tratamientos.
+- Presupuestos.
+- Facturas/pagos si existen o están previstos.
+- Documentos, imágenes o archivos.
+- Notas internas.
+- Citas pasadas y futuras.
+- Laboratorio asociado cuando un tratamiento lo requiera.
+
+3. Módulo Clínico / Tratamientos
+- Registro de diagnósticos.
+- Planes de tratamiento.
+- Evolución del tratamiento.
+- Relación clara con piezas dentales / odontograma.
+- Relación con presupuesto.
+- Relación con citas.
+- Estados del tratamiento: planificado, aceptado, en curso, finalizado, cancelado.
+- Que no haya datos clínicos aislados sin relación con paciente.
+
+4. Odontograma
+Quiero que revises especialmente cómo está implementado el odontograma.
+No quiero que sea solo una pantalla visual suelta ni que esté únicamente dentro de presupuestos.
+Debe estar integrado en todo el flujo clínico:
+- Ficha del paciente.
+- Diagnóstico.
+- Tratamientos.
+- Presupuestos.
+- Historial clínico.
+- Evolución por pieza dental.
+Analiza si el odontograma actual está bien estructurado, si guarda correctamente los datos y si se relaciona con los demás módulos.
+Si el odontograma visual antiguo está mal integrado, propón cómo reemplazarlo o refactorizarlo sin romper la lógica útil existente.
+
+5. Módulo de Presupuestos
+- Presupuestos asociados siempre a un paciente.
+- Presupuestos generados a partir de tratamientos o actos clínicos.
+- Estados: borrador, enviado, aceptado, rechazado, vencido.
+- Relación con odontograma cuando aplique.
+- Posibilidad de convertir presupuesto aceptado en tratamiento activo.
+
+6. Módulo de Administración
+Debe servir para configurar el programa, no para mezclar funciones clínicas.
+Revisar si debería incluir:
+- Usuarios.
+- Roles y permisos.
+- Profesionales.
+- Especialidades.
+- Tarifas.
+- Tratamientos base.
+- Laboratorios.
+- Formas de pago.
+- Configuración general.
+- Plantillas.
+- Parámetros del sistema.
+- Gestión de almacén si existe.
+
+7. Laboratorio
+No quiero que laboratorio sea necesariamente un módulo principal independiente.
+Analiza si lo más lógico es que sea una pestaña o sección dentro de la ficha del paciente o dentro de un tratamiento concreto.
+Debe usarse solo cuando un tratamiento necesite trabajo de laboratorio.
+Debe poder registrar:
+- Tipo de trabajo.
+- Laboratorio asignado.
+- Fechas de envío y recepción.
+- Estado.
+- Observaciones.
+- Coste si aplica.
+- Relación con tratamiento y paciente.
+
+8. Almacén
+Analiza si debe estar dentro de Administración o como módulo separado.
+Solo debe ser módulo principal si realmente tiene suficiente peso funcional.
+Si no, propón una estructura simple:
+- Materiales.
+- Stock.
+- Entradas/salidas.
+- Alertas de bajo stock.
+- Proveedores.
+
+Quiero que hagas la revisión en varias capas:
+
+A) Revisión de arquitectura
+- Estructura de carpetas.
+- Separación frontend/backend.
+- Organización de componentes.
+- Organización de rutas.
+- Organización de modelos, schemas, servicios y endpoints.
+- Consistencia de nombres.
+- Duplicidades.
+- Código muerto o innecesario.
+- Archivos mal ubicados.
+- Dependencias innecesarias.
+- Riesgos técnicos.
+
+B) Revisión del modelo de datos
+Analiza:
+- Entidades principales.
+- Relaciones entre tablas/modelos.
+- Si hay datos duplicados.
+- Si faltan claves externas.
+- Si los tratamientos, presupuestos, odontograma, citas y pacientes están correctamente conectados.
+- Si la estructura permite escalar.
+- Si hay modelos que deberían fusionarse, dividirse o renombrarse.
+- Si hay migraciones pendientes o incoherentes.
+
+C) Revisión del flujo de trabajo real
+Explícame cómo debería funcionar la aplicación en la práctica desde el punto de vista de una clínica:
+
+Ejemplo:
+1. Entra un paciente nuevo.
+2. Se crea ficha.
+3. Se agenda una cita.
+4. Se hace diagnóstico.
+5. Se marca información en odontograma.
+6. Se propone tratamiento.
+7. Se genera presupuesto.
+8. El paciente acepta.
+9. Se ejecutan citas del tratamiento.
+10. Se actualiza historial.
+11. Si hay laboratorio, se registra dentro del tratamiento.
+12. Se finaliza tratamiento.
+13. Se factura o registra pago si aplica.
+
+Compara este flujo ideal con lo que existe actualmente en el proyecto.
+
+D) Revisión de interfaz y experiencia de usuario
+Analiza:
+- Si la navegación es clara.
+- Si los módulos están bien organizados.
+- Si hay pantallas redundantes.
+- Si hay demasiados pasos.
+- Si falta acceso rápido a acciones frecuentes.
+- Si el usuario entiende dónde está cada cosa.
+- Si la ficha del paciente funciona como centro del sistema.
+- Si la agenda conecta bien con el resto.
+- Si la interfaz parece profesional.
+
+E) Revisión funcional
+Indica:
+- Qué funciona bien.
+- Qué funciona a medias.
+- Qué está mal planteado.
+- Qué falta.
+- Qué sobra.
+- Qué habría que rehacer.
+- Qué habría que mantener.
+
+F) Revisión de calidad de código
+Analiza:
+- Código repetido.
+- Componentes demasiado grandes.
+- Servicios mal separados.
+- Lógica de negocio metida en componentes visuales.
+- Endpoints inconsistentes.
+- Falta de validaciones.
+- Falta de manejo de errores.
+- Falta de estados de carga.
+- Falta de control de permisos.
+- Falta de tests.
+- Falta de documentación.
+
+G) Seguridad y permisos
+Revisa si el proyecto contempla:
+- Roles de usuario.
+- Permisos por módulo.
+- Protección de rutas.
+- Validaciones backend.
+- Datos sensibles de pacientes.
+- Registro de acciones importantes.
+- Buenas prácticas básicas para una aplicación clínica.
+
+H) Plan de mejora
+Después del análisis, quiero que me entregues un plan de acción dividido en fases:
+
+Fase 1: Ordenar estructura sin romper funcionalidad.
+Fase 2: Corregir relaciones críticas entre pacientes, citas, tratamientos, presupuestos y odontograma.
+Fase 3: Mejorar flujo clínico completo.
+Fase 4: Mejorar interfaz y experiencia de usuario.
+Fase 5: Añadir funciones avanzadas.
+Fase 6: Refactorización, limpieza y tests.
+
+Para cada fase quiero:
+- Objetivo.
+- Archivos o zonas afectadas.
+- Riesgo.
+- Prioridad.
+- Qué resultado se espera.
+- Qué no se debe tocar todavía.
+
+I) Propuesta de arquitectura final
+Propón una estructura final clara del proyecto:
+- Carpetas frontend.
+- Carpetas backend.
+- Módulos principales.
+- Modelos principales.
+- Rutas principales.
+- Servicios principales.
+- Componentes reutilizables.
+- Flujo de navegación ideal.
+
+J) Resumen ejecutivo
+Al final, dame un resumen claro y directo:
+- Estado actual del proyecto.
+- Principales problemas.
+- Principales oportunidades.
+- Qué harías primero.
+- Qué partes parecen recuperables.
+- Qué partes conviene rehacer.
+- Cómo debería quedar el programa final.
+
+Formato de respuesta:
+Quiero una respuesta muy ordenada, con apartados claros.
+No quiero cambios de código todavía.
+No quiero que empieces a implementar nada hasta que yo te lo pida.
+Primero entrega solo el diagnóstico, resumen y plan de mejora.

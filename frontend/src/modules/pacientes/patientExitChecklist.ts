@@ -41,7 +41,7 @@ export type PatientExitChecklistInput = {
 };
 
 const FINISHED_STATES = new Set(['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo', 'atendido', 'finalizado']);
-const CANCELLED_APPOINTMENT_STATES = new Set(['anulada', 'falta', 'cancelada']);
+const CANCELLED_APPOINTMENT_STATES = new Set(['anulada', 'falta', 'cancelada', 'cancelled_by_patient']);
 const RECEIVED_LAB_STATES = new Set(['recibido', 'recepcionado', 'entregado', 'colocado', 'finalizado', 'completado']);
 
 function dateKey(value?: string | null) {

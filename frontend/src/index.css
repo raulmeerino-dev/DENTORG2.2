@@ -2738,10 +2738,21 @@ body {
   background: #fff7df;
 }
 
-.status-confirmada {
+.status-confirmada,
+.status-confirmed,
+.status-rescheduled {
   color: #075c35;
   border-color: #8bd8ad;
   background: #e9fbf0;
+}
+
+.status-reminder_sent,
+.status-pending_confirmation,
+.status-pending_manual_review,
+.status-reschedule_requested {
+  color: #62420a;
+  border-color: #f0c46d;
+  background: #fff7df;
 }
 
 .status-en_clinica,
@@ -2752,7 +2763,8 @@ body {
 }
 
 .status-anulada,
-.status-falta {
+.status-falta,
+.status-cancelled_by_patient {
   color: #7c1f1f;
   border-color: #efaaa4;
   background: #fff0ee;
@@ -8020,6 +8032,200 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   cursor: not-allowed;
 }
 
+.whatsapp-inbox-page {
+  gap: 12px;
+}
+
+.whatsapp-page-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.whatsapp-page-head > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.whatsapp-page-head span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.whatsapp-page-head strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.whatsapp-page-filters {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.whatsapp-page-filters button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-dark);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.whatsapp-page-filters button.active {
+  border-color: #128c7e;
+  background: #e4f8ed;
+  color: #0b7040;
+}
+
+.whatsapp-inbox-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+  min-height: 0;
+  padding: 0 12px 12px;
+}
+
+.whatsapp-inbox-table-wrap {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.whatsapp-inbox-table {
+  min-width: 1040px;
+}
+
+.whatsapp-inbox-table td small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.whatsapp-message-cell {
+  max-width: 260px;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.whatsapp-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 210px;
+}
+
+.whatsapp-table-actions button {
+  min-width: 30px;
+  min-height: 28px;
+  display: inline-grid;
+  place-items: center;
+  padding: 4px 7px;
+}
+
+.whatsapp-reschedule-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.whatsapp-reschedule-panel header {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.whatsapp-reschedule-panel header span,
+.whatsapp-reschedule-panel p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.whatsapp-slot-filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.whatsapp-slot-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.whatsapp-slot-filters input,
+.whatsapp-slot-filters select {
+  min-height: 32px;
+  border: 1px solid var(--border-dark);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--text);
+  font: inherit;
+  text-transform: none;
+}
+
+.whatsapp-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: auto;
+}
+
+.whatsapp-slot-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  text-align: left;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-muted);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.whatsapp-slot-list button span,
+.whatsapp-slot-list button em {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: normal;
+}
+
+html[data-theme="dark"] .whatsapp-page-filters button.active {
+  background: color-mix(in srgb, #128c7e 35%, transparent);
+  color: #d7f9e1;
+}
+
+@media (max-width: 1024px) {
+  .whatsapp-inbox-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Módulo Caja ─────────────────────────────────────── */
 .caja-table-wrap {
   overflow: auto;
@@ -11350,11 +11556,19 @@ body,
 }
 
 .agenda-appointment.status-confirmada,
-.appointment-state.status-confirmada {
+.agenda-appointment.status-confirmed,
+.agenda-appointment.status-rescheduled,
+.appointment-state.status-confirmada,
+.appointment-state.status-confirmed,
+.appointment-state.status-rescheduled {
   background: #ecfdf5;
 }
 
 .agenda-appointment.status-programada,
+.agenda-appointment.status-pending_confirmation,
+.agenda-appointment.status-reminder_sent,
+.agenda-appointment.status-pending_manual_review,
+.agenda-appointment.status-reschedule_requested,
 .appointment-state.status-programada {
   background: #fff7ed;
 }
@@ -11366,8 +11580,10 @@ body,
 
 .agenda-appointment.status-anulada,
 .agenda-appointment.status-falta,
+.agenda-appointment.status-cancelled_by_patient,
 .appointment-state.status-anulada,
-.appointment-state.status-falta {
+.appointment-state.status-falta,
+.appointment-state.status-cancelled_by_patient {
   background: #fef2f2;
 }
 
@@ -15614,6 +15830,10 @@ body {
   box-shadow: none !important;
 }
 
+.patient-dashboard-mode .patient-flow-strip {
+  display: none !important;
+}
+
 .patient-flow-strip button {
   min-height: 48px !important;
   border: 0 !important;
@@ -15912,6 +16132,33 @@ body {
 
   .patient-flow-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .patient-module-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow: visible !important;
+  }
+
+  .patient-dashboard-mode .patient-module-tabs button {
+    min-width: 0 !important;
+    justify-content: center !important;
+    white-space: nowrap !important;
+  }
+
+  .patient-odontogram-summary-card .patient-card-head {
+    align-items: flex-start !important;
+    flex-wrap: wrap !important;
+  }
+
+  .patient-odontogram-summary-card .patient-card-head h3 {
+    flex: 1 1 160px;
+  }
+
+  .patient-odontogram-summary-card .patient-card-head-right {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 

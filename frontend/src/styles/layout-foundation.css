@@ -1,0 +1,425 @@
+/* =============================================================================
+ * DentCore — Layout Foundation (Fase 1 UX/UI 2026)
+ * -----------------------------------------------------------------------------
+ * Capa final de la cascada: se importa DESPUÉS de index.css, así que sus reglas
+ * ganan la cascada sin tener que tocar las 18k líneas heredadas.
+ *
+ * Objetivo único de esta fase:
+ *   - Ninguna pantalla principal debe scrollear globalmente.
+ *   - Cada módulo con mucho contenido (Historial, Sesión, Visitas, tablas,
+ *     listados, etc.) tiene su propio contenedor con scroll INTERNO.
+ *   - El header, las tabs y los KPI quedan fijos arriba; solo el panel con
+ *     el contenido voluminoso se desplaza.
+ *
+ * Reglas de oro aplicadas:
+ *   1. Cada eslabón flex/grid de la cadena necesita `min-height: 0` para
+ *      colapsar correctamente y dejar al hijo con `overflow: auto` sitio.
+ *   2. Las páginas raíz son `display: flex; flex-direction: column;
+ *      overflow: hidden;` y ocupan toda la altura disponible de `main-content`.
+ *   3. Se evita `overflow-x` accidental en cualquier nivel.
+ * ============================================================================= */
+
+
+/* ------------------------------------------------------------------ */
+/* 1. Shell global — anclar la altura y prohibir el scroll de página  */
+/* ------------------------------------------------------------------ */
+
+html,
+body,
+#root {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 8px;
+}
+
+/* Una página ocupa todo el alto de main-content. Por defecto deja que su
+ * contenido scrollee dentro de ella (fallback seguro para Admin, Listados,
+ * Login, MisCitas...). Las pantallas principales (pacientes, hoy, agenda,
+ * caja) sobreescriben este `overflow` más abajo a `hidden` porque tienen
+ * arquitectura de scroll interna explícita. */
+.main-content > .page,
+.main-content > section.page,
+.main-content > .page-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+/* Bloqueo del scroll global para las pantallas con scroll interno modular. */
+.main-content > .patient-screen,
+.main-content > .caja-screen,
+.main-content > .agenda-euro,
+.main-content > .hoy-page {
+  overflow: hidden;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 2. Utilidades canónicas reutilizables                              */
+/* ------------------------------------------------------------------ */
+
+/* Contenedor genérico tipo "módulo": cabecera fija + cuerpo scrolleable. */
+.module-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.module-head {
+  flex: 0 0 auto;
+}
+
+.module-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+/* Región scrolleable suelta (cuando no hace falta el patrón shell/head/body). */
+.scroll-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 3. Pacientes — la pantalla pivote                                  */
+/*    Usamos flex column en vez de grid: más robusto frente a cambios */
+/*    en el número de hijos visibles (la summary-strip aparece o no   */
+/*    según el modo).                                                 */
+/* ------------------------------------------------------------------ */
+
+.patient-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.patient-screen > .patient-titlebar,
+.patient-screen > .patient-module-tabs,
+.patient-screen > .patient-command-row,
+.patient-screen > .patient-summary-strip,
+.patient-screen > .inline-alert,
+.patient-screen > .patient-loading-strip {
+  flex: 0 0 auto;
+}
+
+/* La mesa del paciente ocupa todo el resto. Sus hijos son grids/flex
+ * propios; aquí solo le damos contexto para colapsar bien. */
+.patient-screen > .patient-desk {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.patient-desk > * {
+  min-height: 0;
+  min-width: 0;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 4. Workspace clínico — overview + tabs fijos, contenido scroll     */
+/* ------------------------------------------------------------------ */
+
+.clinical-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.clinical-workspace > .clinical-overview,
+.clinical-workspace > .treatment-subtabs {
+  flex: 0 0 auto;
+}
+
+/* Cualquier hijo del workspace que no sea cabecera o tabs es el contenido
+ * de la pestaña activa: ese sí scrollea. */
+.clinical-workspace > :not(.clinical-overview):not(.treatment-subtabs) {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 5. Historial completo — solo la timeline scrollea                  */
+/* ------------------------------------------------------------------ */
+
+.complete-history-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.complete-history-panel > .complete-history-head,
+.complete-history-panel > .history-filter-tabs {
+  flex: 0 0 auto;
+}
+
+.complete-history-panel > .complete-history-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 6. Presupuestos — selector fijo, panel scrollea                    */
+/* ------------------------------------------------------------------ */
+
+.budget-main-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.budget-main-workspace > .inline-alert,
+.budget-main-workspace > .presupuesto-selector,
+.budget-main-workspace > .budget-closed-notice {
+  flex: 0 0 auto;
+}
+
+/* Todo lo demás (el panel del presupuesto activo) es lo que scrollea. */
+.budget-main-workspace
+  > :not(.inline-alert):not(.presupuesto-selector):not(.budget-closed-notice) {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 7. Agenda — toolbar fijo, layout interno con scroll por columna    */
+/* ------------------------------------------------------------------ */
+
+.agenda-euro {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agenda-euro > .agenda-toolbar,
+.agenda-euro > .inline-alert,
+.agenda-euro > .patient-loading-strip {
+  flex: 0 0 auto;
+}
+
+.agenda-euro > .agenda-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(248px, 290px) minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+}
+
+@media (max-width: 1100px) {
+  .agenda-euro > .agenda-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 8. Hoy — KPIs y alertas fijos, agenda + side scrollean             */
+/* ------------------------------------------------------------------ */
+
+.hoy-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.hoy-page > .dashboard-metrics,
+.hoy-page > .inline-alert,
+.hoy-page > .patient-loading-strip {
+  flex: 0 0 auto;
+}
+
+.hoy-page > .hoy-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.hoy-page .hoy-agenda,
+.hoy-page .hoy-side > section,
+.hoy-page .hoy-citas-table-wrap {
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 9. Caja — KPIs + tabs fijos, tabla scrollea                        */
+/* ------------------------------------------------------------------ */
+
+.caja-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.caja-screen > .panel-caption,
+.caja-screen > .dashboard-metrics,
+.caja-screen > .caja-tabs,
+.caja-screen > .inline-alert {
+  flex: 0 0 auto;
+}
+
+.caja-screen > .caja-table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 10. Admin / Listados / MisCitas — comportamiento por defecto       */
+/*     Estos quedan con scroll de página (fallback de .page) hasta    */
+/*     una fase posterior. Sin tocar.                                 */
+/* ------------------------------------------------------------------ */
+
+/* (intencionalmente sin reglas en esta fase) */
+
+
+/* ------------------------------------------------------------------ */
+/* 11. Seguridad: nunca permitir scroll horizontal                    */
+/* ------------------------------------------------------------------ */
+
+.main-content,
+.patient-desk,
+.clinical-workspace,
+.agenda-euro,
+.agenda-layout,
+.caja-screen,
+.hoy-page,
+.complete-history-panel,
+.budget-main-workspace {
+  overflow-x: hidden;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 12. Pulido visual ligero compatible con cualquier pantalla         */
+/* ------------------------------------------------------------------ */
+
+/* Scrollbars discretas en regiones con scroll interno (WebKit/Chromium). */
+.scroll-region::-webkit-scrollbar,
+.module-body::-webkit-scrollbar,
+.patient-desk *::-webkit-scrollbar,
+.complete-history-panel > .complete-history-layout::-webkit-scrollbar,
+.caja-screen > .caja-table-wrap::-webkit-scrollbar,
+.hoy-page .hoy-agenda::-webkit-scrollbar,
+.budget-main-workspace > *::-webkit-scrollbar,
+.clinical-workspace > *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.scroll-region::-webkit-scrollbar-thumb,
+.module-body::-webkit-scrollbar-thumb,
+.patient-desk *::-webkit-scrollbar-thumb,
+.complete-history-panel > .complete-history-layout::-webkit-scrollbar-thumb,
+.caja-screen > .caja-table-wrap::-webkit-scrollbar-thumb,
+.hoy-page .hoy-agenda::-webkit-scrollbar-thumb,
+.budget-main-workspace > *::-webkit-scrollbar-thumb,
+.clinical-workspace > *::-webkit-scrollbar-thumb {
+  background: rgba(96, 113, 127, 0.28);
+  border-radius: 999px;
+}
+
+.scroll-region:hover::-webkit-scrollbar-thumb,
+.module-body:hover::-webkit-scrollbar-thumb,
+.complete-history-panel > .complete-history-layout:hover::-webkit-scrollbar-thumb,
+.caja-screen > .caja-table-wrap:hover::-webkit-scrollbar-thumb {
+  background: rgba(96, 113, 127, 0.45);
+}
+
+/* Sticky thead para tablas dentro de .scroll-region / .caja-table-wrap. */
+.caja-table-wrap .euro-table thead th,
+.scroll-region table.euro-table thead th,
+.module-body table.euro-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel, #e7e7e7);
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 13. Modo oscuro: respetar superficies ya definidas                 */
+/* ------------------------------------------------------------------ */
+
+html[data-theme="dark"] .scroll-region::-webkit-scrollbar-thumb,
+html[data-theme="dark"] .module-body::-webkit-scrollbar-thumb {
+  background: rgba(138, 163, 177, 0.32);
+}
+
+html[data-theme="dark"] .caja-table-wrap .euro-table thead th,
+html[data-theme="dark"] .scroll-region table.euro-table thead th,
+html[data-theme="dark"] .module-body table.euro-table thead th {
+  background: #132b3a;
+}

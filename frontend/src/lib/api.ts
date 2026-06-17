@@ -62,6 +62,7 @@ import type {
   TratamientoCatalogo,
   UsuarioMe,
   VideoConsultaResponse,
+  WhatsAppInboxItem,
 } from '../types/api';
 
 export const api = axios.create({
@@ -499,15 +500,8 @@ export async function getClinicas() {
 }
 
 export async function createClinica(data: Partial<Clinica> & { nombre: string }) {
-  return withDemoFallback(api.post<Clinica>('/clinicas', data), {
-    id: `demo-clinica-${Date.now()}`,
-    nombre: data.nombre,
-    direccion: data.direccion ?? null,
-    telefono: data.telefono ?? null,
-    email: data.email ?? null,
-    cif: data.cif ?? null,
-    activa: true,
-  });
+  const { data: created } = await api.post<Clinica>('/clinicas', data);
+  return created;
 }
 
 export async function getPaciente(pacienteId: string) {
@@ -965,49 +959,17 @@ export async function getPortalCitas(pacienteId: string) {
 }
 
 export async function confirmarPortalCita(citaId: string, pacienteId: string) {
-  return withDemoFallback(api.post<Cita>(`/portal/citas/${citaId}/confirmar`, null, { params: { paciente_id: pacienteId } }), {
-    id: citaId,
-    paciente_id: pacienteId,
-    doctor_id: DEMO_DOCTORES[0].id,
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString(),
-    duracion_min: 30,
-    estado: 'confirmada',
-    es_urgencia: false,
-    motivo: 'Confirmada',
-    observaciones: null,
-    recordatorio_enviado: false,
-    recordatorio_canal: null,
-    recordatorio_estado: null,
-    recordatorio_at: null,
-    confirmado_at: new Date().toISOString(),
-    motivo_cancelacion: null,
-  });
+  const { data } = await api.post<Cita>(`/portal/citas/${citaId}/confirmar`, null, { params: { paciente_id: pacienteId } });
+  return data;
 }
 
 export async function cancelarPortalCita(citaId: string, pacienteId: string, motivo: string, reprogramar = false) {
-  return withDemoFallback(api.post<Cita>(`/portal/citas/${citaId}/cancelar`, {
+  const { data } = await api.post<Cita>(`/portal/citas/${citaId}/cancelar`, {
     motivo_cancelacion: motivo,
     tipo: reprogramar ? 'reprogramada' : 'anulacion_paciente',
     crear_telefonear: reprogramar,
-  }, { params: { paciente_id: pacienteId } }), {
-    id: citaId,
-    paciente_id: pacienteId,
-    doctor_id: DEMO_DOCTORES[0].id,
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString(),
-    duracion_min: 30,
-    estado: 'anulada',
-    es_urgencia: false,
-    motivo: 'Cancelada',
-    observaciones: null,
-    recordatorio_enviado: false,
-    recordatorio_canal: null,
-    recordatorio_estado: null,
-    recordatorio_at: null,
-    confirmado_at: null,
-    motivo_cancelacion: motivo,
-  });
+  }, { params: { paciente_id: pacienteId } });
+  return data;
 }
 
 export async function getPortalDocumentos(pacienteId: string) {
@@ -1021,34 +983,102 @@ export async function getPortalConsentimientos(pacienteId: string) {
 }
 
 export async function firmarPortalConsentimiento(consentimientoId: string, pacienteId: string, firmaPacienteBase64: string) {
-  return withDemoFallback(api.post<Consentimiento>(`/portal/consentimientos/${consentimientoId}/firmar`, {
+  const { data } = await api.post<Consentimiento>(`/portal/consentimientos/${consentimientoId}/firmar`, {
     firma_paciente_base64: firmaPacienteBase64,
-  }, { params: { paciente_id: pacienteId } }), {
-    ...DEMO_CONSENTIMIENTOS[0],
-    id: consentimientoId,
-    paciente_id: pacienteId,
-    estado: 'firmado',
-    firmado_at: new Date().toISOString(),
-    hash_documento: 'demo',
-  });
+  }, { params: { paciente_id: pacienteId } });
+  return data;
 }
 
 export async function iniciarVideoConsulta(citaId: string) {
-  return withDemoFallback(api.post<VideoConsultaResponse>(`/citas/${citaId}/video`), {
-    citaId,
-    videoUrl: `https://meet.jit.si/dentcore-demo-${citaId}`,
-    estado: 'iniciada',
-  });
+  const { data } = await api.post<VideoConsultaResponse>(`/citas/${citaId}/video`);
+  return data;
 }
 
 export async function enviarRecordatorioCita(citaId: string, canal: 'whatsapp' | 'email' | 'ambos', mensaje?: string) {
-  return withDemoFallback(api.post<RecordatorioCitaResponse>(`/citas/${citaId}/recordatorio`, { canal, mensaje }), {
-    citaId,
-    canal,
-    estado: 'enviado',
-    whatsappUrl: canal !== 'email' ? `https://wa.me/?text=${encodeURIComponent(mensaje ?? 'Recordatorio de cita dental')}` : null,
-    emailUrl: canal !== 'whatsapp' ? `mailto:?subject=${encodeURIComponent('Recordatorio de cita dental')}&body=${encodeURIComponent(mensaje ?? '')}` : null,
+  const { data } = await api.post<RecordatorioCitaResponse>(`/citas/${citaId}/recordatorio`, { canal, mensaje });
+  return data;
+}
+
+export async function getWhatsAppComunicaciones(params: {
+  patient_id?: string;
+  appointment_id?: string;
+  direction?: 'inbound' | 'outbound';
+  processed?: boolean;
+  intent?: string;
+  limit?: number;
+} = {}) {
+  const day = new Date().toISOString().slice(0, 10);
+  const fallback: WhatsAppInboxItem[] = [
+    {
+      id: 'demo-wa-1',
+      clinica_id: 'demo-clinica-1',
+      patient_id: 'demo-pac-2',
+      appointment_id: 'demo-cita-2',
+      direction: 'inbound' as const,
+      phone: '600000001',
+      message_body: 'No puedo, necesito cambiar la cita',
+      received_at: `${day}T09:35:00`,
+      sent_at: null,
+      interpreted_intent: 'reschedule_requested',
+      processed: false,
+      provider_message_id: 'demo-wa-msg-1',
+      idempotency_key: 'demo-inbound-wa-1',
+      raw_payload: null,
+      created_at: `${day}T09:35:00`,
+      patient: { id: 'demo-pac-2', nombre: 'PILAR', apellidos: 'OJEDA CALVO', num_historial: 91313 },
+      appointment: { id: 'demo-cita-2', fecha_hora: `${day}T16:10:00`, estado: 'reminder_sent', motivo: 'Ortodoncia', doctor_nombre: DEMO_DOCTORES[1].nombre, doctor_id: 'demo-doc-2', gabinete_id: 'gab-2', duracion_min: 40 },
+    },
+    {
+      id: 'demo-wa-2',
+      clinica_id: 'demo-clinica-1',
+      patient_id: 'demo-pac-1',
+      appointment_id: 'demo-cita-1',
+      direction: 'outbound' as const,
+      phone: '942503186',
+      message_body: 'Hola CESAR, le recordamos su cita.',
+      received_at: null,
+      sent_at: `${day}T09:15:00`,
+      interpreted_intent: null,
+      processed: true,
+      provider_message_id: null,
+      idempotency_key: null,
+      raw_payload: null,
+      created_at: `${day}T09:15:00`,
+      patient: { id: 'demo-pac-1', nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', num_historial: 91312 },
+      appointment: { id: 'demo-cita-1', fecha_hora: `${day}T15:00:00`, estado: 'confirmed', motivo: 'Revision', doctor_nombre: DEMO_DOCTORES[0].nombre, doctor_id: 'demo-doc-1', gabinete_id: 'gab-1', duracion_min: 30 },
+    },
+  ].filter((item) => {
+    if (params.patient_id && item.patient_id !== params.patient_id && !params.patient_id.startsWith('demo-')) return false;
+    if (params.appointment_id && item.appointment_id !== params.appointment_id) return false;
+    if (params.direction && item.direction !== params.direction) return false;
+    if (params.processed !== undefined && item.processed !== params.processed) return false;
+    if (params.intent && item.interpreted_intent !== params.intent) return false;
+    return true;
   });
+  return withDemoFallback(api.get<WhatsAppInboxItem[]>('/whatsapp/comunicaciones', { params }), fallback);
+}
+
+export async function aplicarAccionWhatsApp(
+  communicationId: string,
+  action: 'confirm' | 'cancel' | 'mark_pending' | 'manual_review' | 'mark_reviewed' | 'ignore',
+  note?: string,
+) {
+  const { data } = await api.post<WhatsAppInboxItem>(`/whatsapp/comunicaciones/${communicationId}/accion`, { action, note });
+  return data;
+}
+
+export async function reprogramarWhatsAppComunicacion(
+  communicationId: string,
+  data: {
+    fecha_hora: string;
+    duracion_min?: number;
+    gabinete_id?: string | null;
+    forzar_fuera_horario?: boolean;
+    note?: string | null;
+  },
+) {
+  const { data: updated } = await api.post<WhatsAppInboxItem>(`/whatsapp/comunicaciones/${communicationId}/reprogramar`, data);
+  return updated;
 }
 
 export async function buscarHuecosLibres(params: {
@@ -1213,14 +1243,8 @@ export async function updateHorarioDoctor(doctorId: string, diaSemana: number, d
   bloques: Array<{ inicio: string; fin: string }>;
   intervalo_min: number;
 }) {
-  return withDemoFallback(api.put<HorarioDoctor>(`/doctores/${doctorId}/horarios/${diaSemana}`, data), {
-    id: `demo-hor-${doctorId}-${diaSemana}`,
-    doctor_id: doctorId,
-    dia_semana: diaSemana,
-    tipo_dia: data.tipo_dia,
-    bloques: data.bloques,
-    intervalo_min: data.intervalo_min,
-  });
+  const { data: updated } = await api.put<HorarioDoctor>(`/doctores/${doctorId}/horarios/${diaSemana}`, data);
+  return updated;
 }
 
 export async function getFamiliasTratamiento() {
@@ -1228,16 +1252,12 @@ export async function getFamiliasTratamiento() {
 }
 
 export async function createFamiliaTratamiento(data: { nombre: string; icono?: string | null; orden?: number }) {
-  return withDemoFallback(api.post<FamiliaTratamiento>('/tratamientos/familias', {
-    nombre: data.nombre,
-    icono: data.icono ?? null,
-    orden: data.orden ?? 0,
-  }), {
-    id: `demo-fam-${Date.now()}`,
+  const { data: created } = await api.post<FamiliaTratamiento>('/tratamientos/familias', {
     nombre: data.nombre,
     icono: data.icono ?? null,
     orden: data.orden ?? 0,
   });
+  return created;
 }
 
 export async function getTratamientosCatalogo(params: { q?: string; familia_id?: string; solo_activos?: boolean } = {}) {
@@ -1259,24 +1279,13 @@ export async function createTratamientoCatalogo(data: {
   requiere_pieza?: boolean;
   requiere_caras?: boolean;
 }) {
-  const familia = DEMO_FAMILIAS.find((item) => item.id === data.familia_id) ?? DEMO_FAMILIAS[0];
-  return withDemoFallback(api.post<TratamientoCatalogo>('/tratamientos', {
+  const { data: created } = await api.post<TratamientoCatalogo>('/tratamientos', {
     ...data,
     iva_porcentaje: data.iva_porcentaje ?? 0,
     requiere_pieza: Boolean(data.requiere_pieza),
     requiere_caras: Boolean(data.requiere_caras),
-  }), {
-    id: `demo-trat-${Date.now()}`,
-    familia_id: data.familia_id,
-    familia,
-    codigo: data.codigo ?? null,
-    nombre: data.nombre,
-    precio: String(data.precio),
-    iva_porcentaje: String(data.iva_porcentaje ?? 0),
-    requiere_pieza: Boolean(data.requiere_pieza),
-    requiere_caras: Boolean(data.requiere_caras),
-    activo: true,
   });
+  return created;
 }
 
 export async function updateTratamientoCatalogo(id: string, data: Partial<{
@@ -1289,27 +1298,13 @@ export async function updateTratamientoCatalogo(id: string, data: Partial<{
   requiere_caras: boolean;
   activo: boolean;
 }>) {
-  const familia = (data.familia_id ? DEMO_FAMILIAS.find((item) => item.id === data.familia_id) : DEMO_FAMILIAS[0]) ?? DEMO_FAMILIAS[0];
-  return withDemoFallback(api.patch<TratamientoCatalogo>(`/tratamientos/${id}`, data), {
-    id,
-    familia_id: data.familia_id ?? familia.id,
-    familia,
-    codigo: data.codigo ?? null,
-    nombre: data.nombre ?? 'Tratamiento',
-    precio: String(data.precio ?? 0),
-    iva_porcentaje: String(data.iva_porcentaje ?? 0),
-    requiere_pieza: Boolean(data.requiere_pieza),
-    requiere_caras: Boolean(data.requiere_caras),
-    activo: data.activo ?? true,
-  });
+  const { data: updated } = await api.patch<TratamientoCatalogo>(`/tratamientos/${id}`, data);
+  return updated;
 }
 
 export async function deactivateTratamientoCatalogo(id: string) {
-  return withDemoFallback(api.delete<TratamientoCatalogo>(`/tratamientos/${id}`), {
-    ...DEMO_TRATAMIENTO_BY_ID['t-limp'],
-    id,
-    activo: false,
-  });
+  const { data } = await api.delete<TratamientoCatalogo>(`/tratamientos/${id}`);
+  return data;
 }
 
 export async function getInventario() {
@@ -1324,35 +1319,13 @@ export async function getAlertasStock() {
 }
 
 export async function createProductoInventario(data: Partial<ProductoInventario> & { nombre: string; stock_min: number; stock_act: number }) {
-  return withDemoFallback(api.post<ProductoInventario>('/inventario', data), {
-    id: `demo-prod-${Date.now()}`,
-    clinica_id: data.clinica_id ?? null,
-    nombre: data.nombre,
-    categoria: data.categoria ?? null,
-    sku: data.sku ?? null,
-    stock_min: data.stock_min,
-    stock_act: data.stock_act,
-    unidad: data.unidad ?? 'ud',
-    coste_unitario: data.coste_unitario ?? 0,
-    proveedor_id: null,
-    activo: true,
-  });
+  const { data: created } = await api.post<ProductoInventario>('/inventario', data);
+  return created;
 }
 
 export async function updateProductoInventario(id: string, data: Partial<ProductoInventario>) {
-  return withDemoFallback(api.patch<ProductoInventario>(`/inventario/${id}`, data), {
-    id,
-    clinica_id: data.clinica_id ?? null,
-    nombre: data.nombre ?? 'Producto',
-    categoria: data.categoria ?? null,
-    sku: data.sku ?? null,
-    stock_min: data.stock_min ?? 0,
-    stock_act: data.stock_act ?? 0,
-    unidad: data.unidad ?? 'ud',
-    coste_unitario: data.coste_unitario ?? 0,
-    proveedor_id: data.proveedor_id ?? null,
-    activo: data.activo ?? true,
-  });
+  const { data: updated } = await api.patch<ProductoInventario>(`/inventario/${id}`, data);
+  return updated;
 }
 
 export async function getMovimientosInventario(productoId: string) {
@@ -1367,19 +1340,8 @@ export async function registrarMovimientoInventario(productoId: string, data: {
     referencia_tipo?: string | null;
     referencia_id?: string | null;
 }) {
-  return withDemoFallback(api.post<ProductoInventario>(`/inventario/${productoId}/movimientos`, data), {
-    id: productoId,
-    clinica_id: null,
-    nombre: 'Producto',
-    categoria: null,
-    sku: null,
-    stock_min: 0,
-    stock_act: data.tipo === 'entrada' || data.tipo === 'ajuste' ? data.cantidad : 0,
-    unidad: 'ud',
-    coste_unitario: 0,
-    proveedor_id: null,
-    activo: true,
-  });
+  const { data: updated } = await api.post<ProductoInventario>(`/inventario/${productoId}/movimientos`, data);
+  return updated;
 }
 
 export async function getProveedoresInventario() {
@@ -1393,16 +1355,8 @@ export async function createProveedorInventario(data: {
   email?: string | null;
   notas?: string | null;
 }) {
-  return withDemoFallback(api.post<ProveedorInventario>('/inventario/proveedores', data), {
-    id: `demo-prov-${Date.now()}`,
-    clinica_id: null,
-    nombre: data.nombre,
-    contacto: data.contacto ?? null,
-    telefono: data.telefono ?? null,
-    email: data.email ?? null,
-    notas: data.notas ?? null,
-    activo: true,
-  });
+  const { data: created } = await api.post<ProveedorInventario>('/inventario/proveedores', data);
+  return created;
 }
 
 export async function getPedidosInventario() {
@@ -1415,48 +1369,18 @@ export async function createPedidoInventario(data: {
   notas?: string | null;
   lineas: { producto_id: string; cantidad: number; coste_unitario: number }[];
 }) {
-  return withDemoFallback(api.post<PedidoProveedorInventario>('/inventario/pedidos', data), {
-    id: `demo-pedido-${Date.now()}`,
-    proveedor_id: data.proveedor_id,
-    clinica_id: null,
-    estado: 'borrador',
-    fecha: data.fecha ?? new Date().toISOString().slice(0, 10),
-    notas: data.notas ?? null,
-    lineas: data.lineas.map((linea, index) => ({
-      id: `demo-linea-${index}`,
-      pedido_id: 'demo',
-      producto_id: linea.producto_id,
-      cantidad: linea.cantidad,
-      coste_unitario: linea.coste_unitario,
-    })),
-    created_at: new Date().toISOString(),
-  });
+  const { data: created } = await api.post<PedidoProveedorInventario>('/inventario/pedidos', data);
+  return created;
 }
 
 export async function updatePedidoInventario(id: string, data: Partial<PedidoProveedorInventario>) {
-  return withDemoFallback(api.patch<PedidoProveedorInventario>(`/inventario/pedidos/${id}`, data), {
-    id,
-    proveedor_id: data.proveedor_id ?? '',
-    clinica_id: data.clinica_id ?? null,
-    estado: data.estado ?? 'borrador',
-    fecha: data.fecha ?? new Date().toISOString().slice(0, 10),
-    notas: data.notas ?? null,
-    lineas: data.lineas ?? [],
-    created_at: data.created_at ?? new Date().toISOString(),
-  });
+  const { data: updated } = await api.patch<PedidoProveedorInventario>(`/inventario/pedidos/${id}`, data);
+  return updated;
 }
 
 export async function recibirPedidoInventario(id: string) {
-  return withDemoFallback(api.post<PedidoProveedorInventario>(`/inventario/pedidos/${id}/recibir`), {
-    id,
-    proveedor_id: '',
-    clinica_id: null,
-    estado: 'recibido',
-    fecha: new Date().toISOString().slice(0, 10),
-    notas: null,
-    lineas: [],
-    created_at: new Date().toISOString(),
-  });
+  const { data } = await api.post<PedidoProveedorInventario>(`/inventario/pedidos/${id}/recibir`);
+  return data;
 }
 
 export async function getIngresosReporte(desde: string, hasta: string) {

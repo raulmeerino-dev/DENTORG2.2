@@ -26,7 +26,7 @@ import { ADMIN_TABS } from './tabs';
 import type { AdminTabId } from './tabs';
 import { AdminReportes } from './AdminReportes';
 import { ConfiguracionWorkspace } from './ConfiguracionWorkspace';
-import type { FicheroTab } from './ConfiguracionWorkspace';
+import type { FicheroTab } from './configuracionTabs';
 
 type Tab = AdminTabId;
 type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';

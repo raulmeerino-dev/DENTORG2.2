@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, NotaDental, PagoAnticipadoPaciente, Presupuesto, RecetaClinica, TrabajoLaboratorio, UserRole } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, NotaDental, PagoAnticipadoPaciente, Presupuesto, RecetaClinica, TrabajoLaboratorio, UserRole, WhatsAppInboxItem } from '../../types/api';
 import { formatDate, fullName, money } from '../../lib/utils';
 import { PatientOdontogramFlow } from '../odontogram';
-import { collectDentalPieces, DentalPieceHistoryPanel } from './DentalPieceHistoryPanel';
+import { DentalPieceHistoryPanel } from './DentalPieceHistoryPanel';
+import { collectDentalPieces } from './dentalPieceUtils';
 
-type HistoryFilter = 'todo' | 'clinico' | 'citas' | 'presupuestos' | 'facturacion' | 'cobros' | 'documentos' | 'consentimientos' | 'recetas' | 'laboratorio' | 'odontograma';
+type HistoryFilter = 'todo' | 'clinico' | 'citas' | 'presupuestos' | 'facturacion' | 'cobros' | 'documentos' | 'consentimientos' | 'recetas' | 'laboratorio' | 'whatsapp' | 'odontograma';
 
 type TimelineEvent = {
   id: string;
@@ -44,6 +45,7 @@ const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: 'consentimientos', label: 'Consentimientos' },
   { id: 'recetas', label: 'Recetas' },
   { id: 'laboratorio', label: 'Laboratorio' },
+  { id: 'whatsapp', label: 'WhatsApp' },
   { id: 'odontograma', label: 'Odontograma' },
 ];
 
@@ -150,6 +152,7 @@ export function HistorialCompletoPanel({
   recetas = [],
   laboratorio = [],
   notasDentales = [],
+  whatsappComunicaciones = [],
   onOpenDocumento,
   onOpenConsentimiento,
   onOpenFactura,
@@ -167,6 +170,7 @@ export function HistorialCompletoPanel({
   recetas?: RecetaClinica[];
   laboratorio?: TrabajoLaboratorio[];
   notasDentales?: NotaDental[];
+  whatsappComunicaciones?: WhatsAppInboxItem[];
   onOpenDocumento: (documento: DocumentoPaciente) => void;
   onOpenConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenFactura: (factura: Factura) => void;
@@ -227,6 +231,28 @@ export function HistorialCompletoPanel({
         title: cita.motivo || 'Cita dental',
         detail: cita.observaciones || cita.estado,
         meta: `${formatDate(cita.fecha_hora)} ${cita.fecha_hora.slice(11, 16)} · ${cita.duracion_min} min`,
+      });
+    });
+
+    whatsappComunicaciones.forEach((mensaje) => {
+      const fecha = mensaje.received_at ?? mensaje.sent_at ?? mensaje.created_at;
+      const direction = mensaje.direction === 'inbound' ? 'Recibido' : 'Enviado';
+      const appointmentMeta = mensaje.appointment
+        ? `${formatDate(mensaje.appointment.fecha_hora)} ${mensaje.appointment.fecha_hora.slice(11, 16)}`
+        : 'Sin cita asociada';
+      next.push({
+        id: `wa-${mensaje.id}`,
+        date: fecha,
+        filter: 'whatsapp',
+        label: 'WhatsApp',
+        title: direction,
+        detail: mensaje.message_body,
+        meta: [
+          appointmentMeta,
+          mensaje.interpreted_intent,
+          mensaje.appointment?.estado,
+          mensaje.processed ? 'procesado' : 'pendiente',
+        ].filter(Boolean).join(' - '),
       });
     });
 
@@ -350,7 +376,7 @@ export function HistorialCompletoPanel({
     });
 
     return next.sort(sortDesc);
-  }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas]);
+  }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
 
   const visibleEvents = filter === 'todo' ? events : events.filter((event) => event.filter === filter);
   const ledgerGroups = buildLedgerGroups(visibleEvents);

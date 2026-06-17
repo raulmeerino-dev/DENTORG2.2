@@ -5,13 +5,15 @@ export type AppSection =
   | 'hoy'
   | 'pacientes'
   | 'agenda'
+  | 'whatsapp'
   | 'listados'
   | 'clinica'
   | 'caja'
   | 'documentos'
   | 'laboratorio'
   | 'seguridad'
-  | 'adminExtras';
+  | 'adminExtras'
+  | 'portalPaciente';
 
 export interface WorkflowItem {
   id: AppSection;
@@ -40,20 +42,28 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     shortcut: 'HO',
   },
   {
-    id: 'pacientes',
-    label: 'Pacientes',
-    description: 'Ficha, historia, presupuestos, realizados, cobros y documentos.',
-    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
-    route: '/pacientes',
-    shortcut: 'PA',
-  },
-  {
     id: 'agenda',
     label: 'Agenda',
     description: 'Citas, huecos, llamadas, estados y ocupacion.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/agenda',
     shortcut: 'AG',
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    description: 'Respuestas, confirmaciones, cambios y reprogramacion asistida.',
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
+    route: '/whatsapp',
+    shortcut: 'WA',
+  },
+  {
+    id: 'pacientes',
+    label: 'Pacientes',
+    description: 'Ficha, historia, presupuestos, realizados, cobros y documentos.',
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
+    route: '/pacientes',
+    shortcut: 'PA',
   },
   {
     id: 'caja',
@@ -64,20 +74,28 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     shortcut: 'CA',
   },
   {
+    id: 'listados',
+    label: 'Reportes/Listados',
+    description: 'Reportes, listados fiscales y listados operativos de la clinica.',
+    roles: ['admin'],
+    route: '/listados',
+    shortcut: 'RE',
+  },
+  {
     id: 'adminExtras',
-    label: 'Admin',
+    label: 'Administracion',
     description: 'Clinicas, usuarios, inventario, catalogos, auditoria, seguridad y backups.',
     roles: ['admin'],
     route: '/admin-extras',
     shortcut: 'AD',
   },
   {
-    id: 'listados',
-    label: 'Listados',
-    description: 'Listados fiscales y operativos dentro de administracion.',
-    roles: ['admin'],
-    route: '/listados',
-    shortcut: 'LI',
+    id: 'portalPaciente',
+    label: 'Portal paciente',
+    description: 'Mis citas, documentos y consentimientos del paciente.',
+    roles: ['paciente'],
+    route: '/mis-citas',
+    shortcut: 'MI',
   },
   {
     id: 'clinica',

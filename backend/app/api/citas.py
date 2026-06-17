@@ -49,6 +49,7 @@ from app.services.agenda_service import (
     hay_solapamiento_gabinete,
 )
 from app.services.audit import write_audit_log
+from app.services.whatsapp_service import record_outbound_whatsapp
 
 router = APIRouter()
 
@@ -146,10 +147,11 @@ async def _to_telefonear_response(
     )
 
 
-ESTADOS_FALTA = {"falta", "anulada"}
+ESTADOS_FALTA = {"falta", "anulada", "cancelled_by_patient"}
 TIPO_FALTA_MAP = {
     "falta": "falta",
     "anulada": "anulacion_paciente",
+    "cancelled_by_patient": "anulacion_paciente",
 }
 
 
@@ -260,7 +262,7 @@ async def listar_citas(
     paciente_id: UUID | None = Query(None),
     fecha_desde: datetime | None = Query(None),
     fecha_hasta: datetime | None = Query(None),
-    estado: str | None = Query(None, pattern=r"^(programada|confirmada|en_clinica|atendida|falta|anulada)$"),
+    estado: str | None = Query(None, pattern=r"^(programada|confirmada|en_clinica|atendida|falta|anulada|pending_confirmation|confirmed|reminder_sent|reschedule_requested|cancelled_by_patient|pending_manual_review|rescheduled)$"),
 ) -> list[CitaResponse]:
     q = (
         select(Cita)
@@ -447,6 +449,9 @@ async def reprogramar_cita(
     cita.gabinete_id = nuevo_gabinete
     cita.fecha_hora = data.fecha_hora
     cita.duracion_min = nueva_duracion
+    if cita.estado in {"reschedule_requested", "pending_manual_review"}:
+        cita.estado = "rescheduled"
+        cita.recordatorio_estado = "reprogramada_manual"
     if data.motivo:
         cita.observaciones = f"{cita.observaciones or ''}\nReprogramada: {data.motivo}".strip()
     await _registrar_cambio_cita(
@@ -701,6 +706,10 @@ async def enviar_recordatorio(
     cita.recordatorio_canal = data.canal
     cita.recordatorio_estado = "enviado"
     cita.recordatorio_at = datetime.now(timezone.utc)
+    if data.canal in {"whatsapp", "ambos"}:
+        await record_outbound_whatsapp(db, cita=cita, message_body=mensaje)
+        if cita.estado in {"programada", "pending_confirmation"}:
+            cita.estado = "reminder_sent"
     await db.commit()
     return RecordatorioResponse(
         citaId=cita_id,

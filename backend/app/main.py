@@ -24,6 +24,7 @@ from app.api import (
     reportes,
     sync_import,
     tratamientos,
+    whatsapp,
 )
 from app.config import get_settings
 from app.core.audit import AuditLogMiddleware
@@ -88,6 +89,7 @@ app.include_router(inventario.router, prefix="/api/inventario", tags=["inventari
 app.include_router(sync_import.router, prefix="/api/sync", tags=["sync"])
 app.include_router(sync_import.import_router, prefix="/api/import", tags=["import"])
 app.include_router(portal.router, prefix="/api/portal", tags=["portal"])
+app.include_router(whatsapp.router, prefix="/api/whatsapp", tags=["whatsapp"])
 
 
 @app.get("/api/health")

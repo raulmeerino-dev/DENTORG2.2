@@ -14,6 +14,7 @@ import ListadosPage from './modules/listados';
 import LoginPage from './modules/auth/LoginPage';
 import AdminExtrasPage from './modules/adminExtras';
 import MisCitasPage from './modules/misCitas';
+import WhatsAppPage from './modules/whatsapp';
 
 const queryClient = new QueryClient({
   mutationCache: new MutationCache({
@@ -24,6 +25,11 @@ const queryClient = new QueryClient({
   }),
 });
 
+const STAFF_ROLES: UserRole[] = ['admin', 'doctor', 'recepcion', 'auxiliar'];
+const BILLING_ROLES: UserRole[] = ['admin', 'recepcion'];
+const ADMIN_ROLES: UserRole[] = ['admin'];
+const PATIENT_ROLES: UserRole[] = ['paciente'];
+
 function Protected({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <div className="loading-page">Cargando sesión...</div>;
@@ -33,8 +39,15 @@ function Protected({ children }: { children: ReactNode }) {
 
 function RoleProtected({ roles, children }: { roles: UserRole[]; children: ReactNode }) {
   const { user } = useAuth();
-  if (!user || !roles.includes(user.rol)) return <Navigate to="/hoy" replace />;
+  if (!user || !roles.includes(user.rol)) {
+    return <Navigate to={user?.rol === 'paciente' ? '/mis-citas' : '/hoy'} replace />;
+  }
   return children;
+}
+
+function HomeRedirect() {
+  const { user } = useAuth();
+  return <Navigate to={user?.rol === 'paciente' ? '/mis-citas' : '/hoy'} replace />;
 }
 
 function ConfiguracionRedirect() {
@@ -50,17 +63,18 @@ export default function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
-              <Route index element={<Navigate to="/hoy" replace />} />
-              <Route path="hoy" element={<HoyPage />} />
-              <Route path="dashboard" element={<RoleProtected roles={['admin']}><Navigate to="/admin-extras?tab=reportes" replace /></RoleProtected>} />
-              <Route path="pacientes" element={<PacientesPage />} />
-              <Route path="agenda" element={<AgendaPage />} />
-              <Route path="caja" element={<RoleProtected roles={['admin', 'recepcion']}><CajaPage /></RoleProtected>} />
-              <Route path="listados" element={<RoleProtected roles={['admin']}><ListadosPage /></RoleProtected>} />
-              <Route path="configuracion" element={<RoleProtected roles={['admin']}><ConfiguracionRedirect /></RoleProtected>} />
-              <Route path="admin-extras" element={<RoleProtected roles={['admin']}><AdminExtrasPage /></RoleProtected>} />
-              <Route path="mis-citas" element={<MisCitasPage />} />
-              <Route path="portal" element={<MisCitasPage />} />
+              <Route index element={<HomeRedirect />} />
+              <Route path="hoy" element={<RoleProtected roles={STAFF_ROLES}><HoyPage /></RoleProtected>} />
+              <Route path="dashboard" element={<RoleProtected roles={ADMIN_ROLES}><Navigate to="/admin-extras?tab=reportes" replace /></RoleProtected>} />
+              <Route path="pacientes" element={<RoleProtected roles={STAFF_ROLES}><PacientesPage /></RoleProtected>} />
+              <Route path="agenda" element={<RoleProtected roles={STAFF_ROLES}><AgendaPage /></RoleProtected>} />
+              <Route path="whatsapp" element={<RoleProtected roles={STAFF_ROLES}><WhatsAppPage /></RoleProtected>} />
+              <Route path="caja" element={<RoleProtected roles={BILLING_ROLES}><CajaPage /></RoleProtected>} />
+              <Route path="listados" element={<RoleProtected roles={ADMIN_ROLES}><ListadosPage /></RoleProtected>} />
+              <Route path="configuracion" element={<RoleProtected roles={ADMIN_ROLES}><ConfiguracionRedirect /></RoleProtected>} />
+              <Route path="admin-extras" element={<RoleProtected roles={ADMIN_ROLES}><AdminExtrasPage /></RoleProtected>} />
+              <Route path="mis-citas" element={<RoleProtected roles={PATIENT_ROLES}><MisCitasPage /></RoleProtected>} />
+              <Route path="portal" element={<RoleProtected roles={PATIENT_ROLES}><MisCitasPage /></RoleProtected>} />
             </Route>
           </Routes>
         </BrowserRouter>

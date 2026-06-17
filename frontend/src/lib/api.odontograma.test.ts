@@ -1,10 +1,14 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   api,
+  confirmarPortalCita,
+  createClinica,
   createOdontogramaPaciente,
+  createProductoInventario,
   createPresupuestoFromOdontograma,
   duplicateOdontogramaVersion,
   saveOdontograma,
+  updateHorarioDoctor,
   updateOdontogramaPieza,
   updateOdontogramaSuperficie,
 } from './api';
@@ -67,5 +71,43 @@ describe('mutaciones criticas del odontograma devuelven el payload real', () => 
     const result = await updateOdontogramaSuperficie('odo-1', 24, 'oclusal_incisal', { condicion: 'tratamiento_realizado' });
     expect(result.superficie).toBe('oclusal_incisal');
     expect(result.condicion).toBe('tratamiento_realizado');
+  });
+});
+
+describe('otras escrituras reales sin demo fallback', () => {
+  it('createClinica propaga el error real', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Backend caido'));
+    await expect(createClinica({ nombre: 'Clinica Real' })).rejects.toThrow('Backend caido');
+    expect(spy).toHaveBeenCalledWith('/clinicas', { nombre: 'Clinica Real' });
+  });
+
+  it('confirmarPortalCita propaga el error real', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Sin token portal'));
+    await expect(confirmarPortalCita('cita-1', 'pac-1')).rejects.toThrow('Sin token portal');
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('updateHorarioDoctor propaga el error real', async () => {
+    const spy = vi.spyOn(api, 'put').mockRejectedValueOnce(new Error('Horario invalido'));
+    await expect(updateHorarioDoctor('doc-1', 1, {
+      tipo_dia: 'laborable',
+      bloques: [{ inicio: '09:00', fin: '13:00' }],
+      intervalo_min: 10,
+    })).rejects.toThrow('Horario invalido');
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('createProductoInventario propaga el error real', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Stock rechazado'));
+    await expect(createProductoInventario({
+      nombre: 'Guantes',
+      stock_min: 10,
+      stock_act: 4,
+    })).rejects.toThrow('Stock rechazado');
+    expect(spy).toHaveBeenCalledWith('/inventario', {
+      nombre: 'Guantes',
+      stock_min: 10,
+      stock_act: 4,
+    });
   });
 });

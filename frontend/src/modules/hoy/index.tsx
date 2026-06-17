@@ -7,6 +7,7 @@ import {
   getCitas,
   getReportDashboard,
   getTelefonear,
+  getWhatsAppComunicaciones,
   updateCita,
 } from '../../lib/api';
 import type { Cita, TelefonearPendiente } from '../../types/api';
@@ -60,6 +61,13 @@ function telefonearNombre(item: TelefonearPendiente) {
 const ESTADO_LABEL: Record<string, string> = {
   programada: 'Sin confirmar',
   confirmada: 'Confirmada',
+  pending_confirmation: 'Sin confirmar',
+  reminder_sent: 'Mensaje enviado',
+  confirmed: 'Confirmada',
+  reschedule_requested: 'Solicita cambio',
+  cancelled_by_patient: 'Cancelada paciente',
+  pending_manual_review: 'Revisar',
+  rescheduled: 'Reprogramada',
   en_clinica: 'En clínica',
   en_tratamiento: 'En tratamiento',
   atendida: 'Finalizada',
@@ -126,6 +134,10 @@ export default function HoyPage() {
     queryFn: () => getCitas({ fecha_desde: `${reminderDesde}T00:00:00`, fecha_hasta: `${reminderHasta}T23:59:59` }),
     enabled: reminderOpen,
   });
+  const whatsappInboxQuery = useQuery({
+    queryKey: ['whatsapp-comunicaciones', 'inbound-pending'],
+    queryFn: () => getWhatsAppComunicaciones({ direction: 'inbound', processed: false, limit: 100 }),
+  });
 
   const confirmarMutation = useMutation({
     mutationFn: (citaId: string) => confirmarCita(citaId),
@@ -158,16 +170,17 @@ export default function HoyPage() {
   const citas = citasQuery.data ?? [];
   const telefonear = telefonearQuery.data ?? [];
   const dashboard = dashboardQuery.data;
+  const whatsappPendientes = whatsappInboxQuery.data ?? [];
 
-  const activas = citas.filter((c) => !['anulada', 'falta'].includes(c.estado));
-  const sinConfirmar = activas.filter((c) => c.estado === 'programada');
+  const activas = citas.filter((c) => !['anulada', 'falta', 'cancelled_by_patient'].includes(c.estado));
+  const sinConfirmar = activas.filter((c) => ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'].includes(c.estado));
   const enClinica = activas.filter((c) => ['en_clinica', 'en_tratamiento'].includes(c.estado));
   const atendidas = citas.filter((c) => c.estado === 'atendida');
-  const canceladas = citas.filter((c) => ['anulada', 'falta'].includes(c.estado));
+  const canceladas = citas.filter((c) => ['anulada', 'falta', 'cancelled_by_patient'].includes(c.estado));
   const pendientesLlamar = telefonear.filter((item) => !item.reubicada);
   const reminderCitas = useMemo(
     () => (reminderCitasQuery.data ?? [])
-      .filter((cita) => !['anulada', 'falta', 'atendida'].includes(cita.estado))
+      .filter((cita) => !['anulada', 'falta', 'cancelled_by_patient', 'atendida'].includes(cita.estado))
       .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora)),
     [reminderCitasQuery.data],
   );
@@ -200,7 +213,7 @@ export default function HoyPage() {
   }
 
   function seleccionarPendientes() {
-    setSelectedReminderIds(selectableReminderCitas.filter((cita) => cita.estado === 'programada').map((cita) => cita.id));
+    setSelectedReminderIds(selectableReminderCitas.filter((cita) => ['programada', 'pending_confirmation', 'reminder_sent'].includes(cita.estado)).map((cita) => cita.id));
   }
 
   function seleccionarTodas() {
@@ -292,12 +305,12 @@ export default function HoyPage() {
                   <td>{cita.motivo ?? '—'}</td>
                   <td><span className={`status-pill status-${cita.estado}`}>{ESTADO_LABEL[cita.estado] ?? cita.estado}</span></td>
                   <td>
-                    {cita.estado === 'programada' && (
+                    {['programada', 'pending_confirmation', 'reminder_sent'].includes(cita.estado) && (
                       <button type="button" disabled={confirmarMutation.isPending} onClick={() => confirmarMutation.mutate(cita.id)}>
                         Confirmar
                       </button>
                     )}
-                    {cita.estado === 'confirmada' && (
+                    {['confirmada', 'confirmed'].includes(cita.estado) && (
                       <button type="button" disabled={updateEstadoMutation.isPending} onClick={() => updateEstadoMutation.mutate({ citaId: cita.id, estado: 'en_clinica' })}>
                         Ha llegado
                       </button>
@@ -378,6 +391,9 @@ export default function HoyPage() {
               <button type="button" className="euro-action-button whatsapp-action" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp" title="Recordatorios WhatsApp">
                 <WhatsAppIcon />
               </button>
+              <Link to="/whatsapp" className="euro-action-button">
+                Respuestas WA {whatsappPendientes.length > 0 ? `(${whatsappPendientes.length})` : ''}
+              </Link>
             </div>
           </section>
 
