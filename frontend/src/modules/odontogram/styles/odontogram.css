@@ -98,6 +98,25 @@
   background: #fff1f1;
 }
 
+.budget-clinical-restricted {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #dce8ef;
+  border-radius: 8px;
+  background: #f8fbfd;
+  color: #486a87;
+  font-size: 12px;
+}
+
+.budget-clinical-restricted strong {
+  color: #102a43;
+  font-size: 13px;
+}
+
 .odontogram-context-actions {
   display: flex;
   flex-wrap: wrap;

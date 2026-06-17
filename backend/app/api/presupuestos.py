@@ -600,6 +600,9 @@ async def convertir_presupuesto_a_factura(
 ) -> FacturaResponse:
     presupuesto = await _get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
+    if presupuesto.estado == "facturado":
+        raise HTTPException(status_code=409, detail="El presupuesto ya esta facturado")
+
     lineas = [linea for linea in presupuesto.lineas if linea.aceptado] if data.solo_aceptadas else list(presupuesto.lineas)
     if not lineas:
         raise HTTPException(status_code=409, detail="No hay lineas aceptadas para facturar")
@@ -646,6 +649,7 @@ async def convertir_presupuesto_a_factura(
             if historial and historial.factura_id is None:
                 historial.factura_id = factura.id
 
+    presupuesto.estado = "facturado"
     await sellar_factura(db, factura)
     await registrar_registro_facturacion(
         db,

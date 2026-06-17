@@ -131,6 +131,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   const totalNeto = presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
   const totalAceptado = acceptedLines.reduce((sum, l) => sum + Number(l.importe_neto), 0);
   const presupuestoCerrado = ['aceptado', 'facturado', 'rechazado'].includes(presupuesto.estado);
+  const canInvoiceBudget = acceptedLines.length > 0 && !['facturado', 'rechazado'].includes(presupuesto.estado);
 
   function loadLine(linea: PresupuestoLinea) {
     setLineaSeleccionada(linea);
@@ -183,7 +184,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
           <button onClick={() => presentBudget.mutate()} disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}>Presentar</button>
           <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuestoCerrado} className="btn-accept">Aceptar todo</button>
           <button onClick={() => passPending.mutate()} disabled={passPending.isPending || !acceptedLines.length} className="btn-pending">Trabajo pendiente</button>
-          <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !acceptedLines.length} className="btn-invoice">Facturar</button>
+          <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !canInvoiceBudget} className="btn-invoice">Facturar</button>
           <details className="budget-secondary-menu">
             <summary>Mas</summary>
             <div>

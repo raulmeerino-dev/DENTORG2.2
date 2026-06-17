@@ -177,9 +177,6 @@ async def _add_event(
 
 
 async def _get_or_create_piece(db: AsyncSession, odontograma: Odontograma, pieza_fdi: int) -> OdontogramaPieza:
-    for piece in odontograma.piezas:
-        if piece.pieza_fdi == pieza_fdi:
-            return piece
     result = await db.execute(
         select(OdontogramaPieza).where(
             OdontogramaPieza.odontograma_id == odontograma.id,
@@ -201,9 +198,6 @@ async def _get_or_create_surface(
     piece: OdontogramaPieza,
     superficie: str,
 ) -> OdontogramaSuperficie:
-    for surface in piece.superficies:
-        if surface.superficie == superficie:
-            return surface
     result = await db.execute(
         select(OdontogramaSuperficie).where(
             OdontogramaSuperficie.pieza_id == piece.id,

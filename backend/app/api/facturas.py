@@ -67,7 +67,10 @@ _LOAD_FACTURA = [
 
 async def _get_factura_or_404(db: AsyncSession, factura_id: UUID) -> Factura:
     result = await db.execute(
-        select(Factura).options(*_LOAD_FACTURA).where(Factura.id == factura_id)
+        select(Factura)
+        .options(*_LOAD_FACTURA)
+        .where(Factura.id == factura_id)
+        .execution_options(populate_existing=True)
     )
     factura = result.scalar_one_or_none()
     if not factura:

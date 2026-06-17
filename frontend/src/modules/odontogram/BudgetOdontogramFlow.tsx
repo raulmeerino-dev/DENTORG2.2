@@ -22,10 +22,12 @@ type BudgetOdontogramFlowProps = {
 export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, userRole }: BudgetOdontogramFlowProps) {
   const queryClient = useQueryClient();
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
+  const canUseClinicalOdontogram = userRole === 'admin' || userRole === 'doctor' || userRole === 'auxiliar';
   const odontogramaQuery = useQuery({
     queryKey: ['patient-odontogram-flow', paciente.id],
     queryFn: () => getOdontogramaPaciente(paciente.id),
     staleTime: 30_000,
+    enabled: canUseClinicalOdontogram,
   });
 
   const baseData = useMemo(() => odontogramaBackendToVisual(odontogramaQuery.data), [odontogramaQuery.data]);
@@ -69,20 +71,27 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, user
 
   return (
     <section className="odontogram-flow-panel budget-odontogram-flow">
-      <OdontogramaTool
-        mode="presupuesto"
-        paciente={paciente}
-        contextId={presupuesto.id}
-        data={visualData}
-        title="Odontograma del presupuesto"
-        subtitle="Seleccione pieza/superficie y doble clic para anadir tratamiento propuesto. No modifica el odontograma actual."
-        totalBudget={totalBudget}
-        readOnly={addTreatmentMutation.isPending}
-        enableQuickTreatments
-        tratamientos={tratamientos}
-        userRole={userRole}
-        onAddTreatment={handleAddTreatment}
-      />
+      {canUseClinicalOdontogram ? (
+        <OdontogramaTool
+          mode="presupuesto"
+          paciente={paciente}
+          contextId={presupuesto.id}
+          data={visualData}
+          title="Odontograma del presupuesto"
+          subtitle="Seleccione pieza/superficie y doble clic para anadir tratamiento propuesto. No modifica el odontograma actual."
+          totalBudget={totalBudget}
+          readOnly={addTreatmentMutation.isPending}
+          enableQuickTreatments
+          tratamientos={tratamientos}
+          userRole={userRole}
+          onAddTreatment={handleAddTreatment}
+        />
+      ) : (
+        <div className="budget-clinical-restricted" role="note">
+          <strong>Odontograma reservado a clinica</strong>
+          <span>Recepcion puede gestionar el presupuesto desde las lineas y acciones superiores.</span>
+        </div>
+      )}
       {addTreatmentMutation.isPending && <div className="odontogram-flow-status">Anadiendo linea...</div>}
       {addTreatmentMutation.isError && <div className="odontogram-flow-status error">No se pudo crear la linea.</div>}
       {duplicateNotice && <div className="odontogram-flow-status">{duplicateNotice}</div>}
