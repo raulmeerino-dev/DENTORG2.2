@@ -16,15 +16,15 @@ from app.core.permissions import (
     resolve_clinic_id,
 )
 from app.database import get_db
+from app.models.documento import DocumentoPaciente
+from app.models.historial import HistorialClinico
 from app.models.odontograma import (
     Odontograma,
     OdontogramaEvento,
     OdontogramaPieza,
     OdontogramaSuperficie,
 )
-from app.models.documento import DocumentoPaciente
 from app.models.paciente import Paciente
-from app.models.historial import HistorialClinico
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
 from app.models.tratamiento import TratamientoCatalogo
 from app.schemas.odontograma import (

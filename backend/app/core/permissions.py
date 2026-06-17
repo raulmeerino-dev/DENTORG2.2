@@ -20,11 +20,19 @@ BILLING_ROLES = {ROLE_ADMIN, ROLE_RECEPCION}
 
 
 class TokenData:
-    def __init__(self, user_id: UUID, username: str, rol: str, clinica_id: UUID | None = None):
+    def __init__(
+        self,
+        user_id: UUID,
+        username: str,
+        rol: str,
+        clinica_id: UUID | None = None,
+        paciente_id: UUID | None = None,
+    ):
         self.user_id = user_id
         self.username = username
         self.rol = rol
         self.clinica_id = clinica_id
+        self.paciente_id = paciente_id
 
 
 async def get_current_user(
@@ -48,11 +56,13 @@ async def get_current_user(
         raise credentials_exception
 
     clinica_id = payload.get("clinica_id")
+    paciente_id = payload.get("paciente_id")
     return TokenData(
         user_id=UUID(user_id),
         username=username,
         rol=rol,
         clinica_id=UUID(clinica_id) if clinica_id else None,
+        paciente_id=UUID(paciente_id) if paciente_id else None,
     )
 
 

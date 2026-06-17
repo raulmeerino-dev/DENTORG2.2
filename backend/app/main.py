@@ -56,8 +56,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=settings.cors_allowed_methods_list,
+    allow_headers=settings.cors_allowed_headers_list,
 )
 
 if settings.allowed_hosts_list:

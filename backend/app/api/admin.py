@@ -21,6 +21,7 @@ from app.models.audit_log import AuditLog
 from app.models.backup import BackupRegistro
 from app.models.entidad import Entidad
 from app.models.factura import Factura
+from app.models.paciente import Paciente
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.usuario import Usuario
@@ -32,6 +33,23 @@ from app.services.verifactu_service import obtener_resumen_cumplimiento_sif, reg
 
 router = APIRouter()
 settings = get_settings()
+
+
+async def _validate_patient_user_link(
+    db: AsyncSession,
+    paciente_id: UUID | None,
+    clinica_id: UUID | None,
+) -> None:
+    if paciente_id is None:
+        return
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente or getattr(paciente, "deleted_at", None) is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Paciente vinculado no encontrado")
+    if clinica_id and paciente.clinica_id and paciente.clinica_id != clinica_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El paciente vinculado pertenece a otra clinica.",
+        )
 
 
 @router.get("/usuarios", response_model=list[UsuarioResponse], dependencies=[RequireAdmin])
@@ -50,6 +68,7 @@ async def crear_usuario(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> UsuarioResponse:
     """Crear nuevo usuario. Solo admin."""
+    await _validate_patient_user_link(db, data.paciente_id, data.clinica_id)
     # Verificar que el username no existe
     result = await db.execute(select(Usuario).where(Usuario.username == data.username))
     if result.scalar_one_or_none():
@@ -64,6 +83,7 @@ async def crear_usuario(
         nombre=data.nombre,
         rol=data.rol,
         doctor_id=data.doctor_id,
+        paciente_id=data.paciente_id,
         clinica_id=data.clinica_id,
         activo=True,
     )
@@ -85,12 +105,18 @@ async def actualizar_usuario(
     if not usuario:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
 
+    effective_paciente_id = data.paciente_id if data.paciente_id is not None else usuario.paciente_id
+    effective_clinica_id = data.clinica_id if data.clinica_id is not None else usuario.clinica_id
+    await _validate_patient_user_link(db, effective_paciente_id, effective_clinica_id)
+
     if data.nombre is not None:
         usuario.nombre = data.nombre
     if data.rol is not None:
         usuario.rol = data.rol
     if data.doctor_id is not None:
         usuario.doctor_id = data.doctor_id
+    if data.paciente_id is not None:
+        usuario.paciente_id = data.paciente_id
     if data.clinica_id is not None:
         usuario.clinica_id = data.clinica_id
     if data.activo is not None:
@@ -394,6 +420,15 @@ async def obtener_preflight_produccion(
     audit_events = await db.scalar(select(func.count()).select_from(AuditLog)) or 0
     rf_count = await db.scalar(select(func.count()).select_from(RegistroFacturacion)) or 0
     sif_event_count = await db.scalar(select(func.count()).select_from(RegistroEventoSIF)) or 0
+    patient_portal_users = await db.scalar(
+        select(func.count()).select_from(Usuario).where(Usuario.rol == "paciente")
+    ) or 0
+    patient_portal_unlinked_users = await db.scalar(
+        select(func.count()).select_from(Usuario).where(
+            Usuario.rol == "paciente",
+            Usuario.paciente_id.is_(None),
+        )
+    ) or 0
     ultimo_backup = (
         await db.execute(
             select(BackupRegistro).order_by(BackupRegistro.started_at.desc()).limit(1)
@@ -405,6 +440,8 @@ async def obtener_preflight_produccion(
         audit_events=audit_events,
         rf_count=rf_count,
         sif_event_count=sif_event_count,
+        patient_portal_users=patient_portal_users,
+        patient_portal_unlinked_users=patient_portal_unlinked_users,
         last_backup={
             "estado": ultimo_backup.estado,
             "started_at": ultimo_backup.started_at,

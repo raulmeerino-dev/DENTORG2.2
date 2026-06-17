@@ -21,6 +21,9 @@ class Usuario(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     doctor_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True
     )
+    paciente_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=True, index=True
+    )
     clinica_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True
     )
@@ -31,4 +34,5 @@ class Usuario(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
 
     # Relaciones
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="usuario", foreign_keys=[doctor_id])  # noqa: F821
+    paciente: Mapped["Paciente"] = relationship("Paciente", foreign_keys=[paciente_id])  # noqa: F821
     clinica: Mapped["Clinica"] = relationship("Clinica")  # noqa: F821

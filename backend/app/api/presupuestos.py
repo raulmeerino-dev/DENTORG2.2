@@ -19,7 +19,12 @@ from app.core.permissions import (
 from app.database import get_db
 from app.models.factura import Cobro, Factura, FacturaLinea
 from app.models.historial import HistorialClinico
-from app.models.odontograma import Odontograma, OdontogramaEvento, OdontogramaPieza, OdontogramaSuperficie
+from app.models.odontograma import (
+    Odontograma,
+    OdontogramaEvento,
+    OdontogramaPieza,
+    OdontogramaSuperficie,
+)
 from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
 from app.schemas.factura import FacturaResponse

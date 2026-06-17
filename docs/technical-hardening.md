@@ -6,6 +6,9 @@
 - Frontend: `npm run lint` queda como comprobacion obligatoria en CI.
 - Tests puros de PDF no fuerzan arranque de PostgreSQL; la base de datos de test se prepara solo cuando se solicita `db_session` o `client`.
 - La generacion PDF queda centralizada en `backend/app/services/pdf_service.py`.
+- El portal paciente se debe activar con usuarios `paciente` vinculados por `usuarios.paciente_id`; el parametro `paciente_id` queda solo para previsualizacion interna.
+- El access token del frontend vive en memoria y la recuperacion de sesion se hace mediante refresh cookie HttpOnly.
+- CORS usa listas explicitas de metodos y cabeceras configurables por entorno.
 
 ## Modulos grandes detectados
 

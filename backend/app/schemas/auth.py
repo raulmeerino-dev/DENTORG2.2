@@ -28,6 +28,7 @@ class UsuarioMe(BaseModel):
     nombre: str
     rol: str
     doctor_id: UUID | None = None
+    paciente_id: UUID | None = None
     clinica_id: UUID | None = None
     two_factor_enabled: bool = False
 

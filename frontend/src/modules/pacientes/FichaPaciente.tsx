@@ -75,6 +75,13 @@ function readableHealthData(datos?: Record<string, unknown> | null) {
     .join('\n');
 }
 
+function normalizePatientFinderText(value?: string | number | null) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
 export function PatientFinder({
   pacientes,
   selectedId,
@@ -89,11 +96,22 @@ export function PatientFinder({
   const [query, setQuery] = useState('');
   const [resultsOpen, setResultsOpen] = useState(false);
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = normalizePatientFinderText(query).trim();
     if (!q) return pacientes.slice(0, 12);
-    return pacientes.filter((p) =>
-      `${p.num_historial} ${p.codigo ?? ''} ${p.nombre} ${p.apellidos} ${p.telefono ?? ''}`.toLowerCase().includes(q),
-    ).slice(0, 10);
+    const tokens = q.split(/\s+/).filter(Boolean);
+    return pacientes.filter((p) => {
+      const haystack = normalizePatientFinderText([
+        p.num_historial,
+        p.codigo,
+        p.nombre,
+        p.apellidos,
+        p.telefono,
+        p.telefono2,
+        p.dni_nie,
+        p.email,
+      ].filter(Boolean).join(' '));
+      return tokens.every((token) => haystack.includes(token));
+    }).slice(0, 10);
   }, [pacientes, query]);
 
   function selectPaciente(paciente: ApiPaciente) {
@@ -145,7 +163,7 @@ export function PatientFinder({
               <span>{paciente.telefono ?? 'sin telefono'} · H{String(paciente.num_historial).padStart(4, '0')}</span>
             </button>
           ))}
-          {!filtered.length && <span>No hay pacientes con ese criterio.</span>}
+          {!filtered.length && <span>No hay pacientes con ese criterio. Revisa telefono, DNI o crea una ficha nueva.</span>}
         </div>
       )}
     </div>

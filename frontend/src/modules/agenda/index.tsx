@@ -1257,7 +1257,11 @@ export default function AgendaPage() {
           </div>
           {!slots.length && (
             <div className="agenda-empty-day">
-              No hay horario configurado para este dia. Revise Ajustes generales &gt; Agenda.
+              <strong>Sin horario para este dia.</strong>
+              <span>Configure bloques de trabajo antes de dar citas o revise el profesional seleccionado.</span>
+              <button type="button" onClick={() => navigate(`/admin-extras?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`)}>
+                Abrir horarios
+              </button>
             </div>
           )}
           {slots.map((slot) => {
@@ -1295,7 +1299,11 @@ export default function AgendaPage() {
                     </div>
                   )}
                   {citasSlot.map((cita) => {
-                    const visual = STATUS_META[getVisualStatus(cita)] ?? STATUS_META.programada;
+                    const visualStatus = getVisualStatus(cita);
+                    const visual = STATUS_META[visualStatus] ?? STATUS_META.programada;
+                    const canConfirm = ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'].includes(cita.estado);
+                    const canMoveToClinic = !['en_clinica', 'atendida', 'anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado);
+                    const canFinish = cita.estado === 'en_clinica';
                     return (
                       <article
                         className={`agenda-appointment ${visual.className}`}
@@ -1316,6 +1324,50 @@ export default function AgendaPage() {
                         <span>{cita.motivo ?? visual.label}</span>
                         <small>{visual.label}</small>
                         <em>{cita.duracion_min} min</em>
+                        <div className="agenda-appointment-actions" aria-label={`Acciones rapidas de ${patientName(cita)}`}>
+                          {canConfirm && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                confirmMutation.mutate(cita);
+                              }}
+                            >
+                              OK
+                            </button>
+                          )}
+                          {canMoveToClinic && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setStatus(cita, 'en_clinica');
+                              }}
+                            >
+                              En clinica
+                            </button>
+                          )}
+                          {canFinish && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setStatus(cita, 'atendida');
+                              }}
+                            >
+                              Fin
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openPatient(cita);
+                            }}
+                          >
+                            Ficha
+                          </button>
+                        </div>
                       </article>
                     );
                   })}

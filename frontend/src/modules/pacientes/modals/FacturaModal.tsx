@@ -88,7 +88,13 @@ export function InvoiceCreationModal({
             <label>Nº Historial
               <input readOnly value={paciente.num_historial} />
             </label>
-            <span className="invoice-sif-stamp">SIF / VERI*FACTU listo</span>
+            <span className="invoice-sif-stamp">Desde tratamientos realizados</span>
+          </div>
+          <div className="invoice-flow-strip" aria-label="Flujo de factura">
+            <span className="done"><b>1</b>Realizados</span>
+            <span className={selectedLineas.length ? 'done current' : 'current'}><b>2</b>Seleccionar</span>
+            <span><b>3</b>Factura</span>
+            <span className={generarCobro ? 'current' : ''}><b>4</b>Cobro opcional</span>
           </div>
 
           <div className="invoice-creation-grid">
@@ -100,7 +106,7 @@ export function InvoiceCreationModal({
                   <tbody>
                     {loading && <tr><td colSpan={3}>Cargando tratamientos pendientes...</td></tr>}
                     {!loading && renderRows(availableLineas, move)}
-                    {!loading && !availableLineas.length && <tr><td colSpan={3}>No hay tratamientos pendientes de facturar.</td></tr>}
+                    {!loading && !availableLineas.length && <tr><td colSpan={3}>No hay tratamientos realizados pendientes de factura. Finaliza un tratamiento desde Clinica para facturarlo.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -158,7 +164,7 @@ export function InvoiceCreationModal({
                 <input type="checkbox" checked={generarCobro} onChange={(event) => setGenerarCobro(event.currentTarget.checked)} />
                 Generar cobro y marcar como pagada
               </label>
-              <p>Al generar se crea RF, huella, QR fiscal, PDF archivado y evento SIF.</p>
+              <p>Al generar se crea la factura y queda vinculada al historial del paciente. El cobro solo se registra si marcas la opcion anterior.</p>
               <button className="primary-action" disabled={!selectedLineas.length || saving} onClick={() => onGenerate({
                 lineas: selectedLineas,
                 fecha,

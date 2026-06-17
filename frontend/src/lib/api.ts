@@ -73,6 +73,7 @@ export const api = axios.create({
 export const AUTH_TOKEN_KEY = 'dentcore_token';
 const DEMO_TOKEN_PREFIX = 'demo:';
 const DEMO_FALLBACK_ENABLED = import.meta.env.VITE_DEMO_FALLBACK === 'true';
+let inMemoryAuthToken: string | null = null;
 
 function addMinutesLocal(time: string, minutes: number) {
   const [hour, minute] = time.split(':').map(Number);
@@ -81,15 +82,17 @@ function addMinutesLocal(time: string, minutes: number) {
 }
 
 export function getStoredAuthToken() {
-  return sessionStorage.getItem(AUTH_TOKEN_KEY) ?? localStorage.getItem(AUTH_TOKEN_KEY);
+  return inMemoryAuthToken;
 }
 
 function setStoredAuthToken(token: string) {
-  sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  inMemoryAuthToken = token;
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
 export function clearStoredAuthToken() {
+  inMemoryAuthToken = null;
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
@@ -475,6 +478,12 @@ export async function login(username: string, password: string, otp?: string) {
     setStoredAuthToken(demo);
     return demo;
   }
+}
+
+export async function refreshAuthToken() {
+  const { data } = await api.post<{ access_token: string }>('/auth/refresh');
+  setStoredAuthToken(data.access_token);
+  return data.access_token;
 }
 
 export async function logout() {
@@ -941,51 +950,59 @@ export async function getPacienteCitas(pacienteId: string) {
   return withDemoFallback(api.get<Cita[]>(`/pacientes/${pacienteId}/citas`), fallback);
 }
 
-export async function getPortalMe(pacienteId: string) {
-  const paciente = DEMO_PACIENTES.find((item) => item.id === pacienteId) ?? DEMO_PACIENTES[0];
-  return withDemoFallback(api.get<PortalMe>('/portal/me', { params: { paciente_id: pacienteId } }), {
+function portalPatientParams(pacienteId?: string | null) {
+  return pacienteId ? { paciente_id: pacienteId } : {};
+}
+
+function demoPortalPatient(pacienteId?: string | null) {
+  return DEMO_PACIENTES.find((item) => item.id === pacienteId) ?? DEMO_PACIENTES[0];
+}
+
+export async function getPortalMe(pacienteId?: string | null) {
+  const paciente = demoPortalPatient(pacienteId);
+  return withDemoFallback(api.get<PortalMe>('/portal/me', { params: portalPatientParams(pacienteId) }), {
     paciente,
     resumen: {
       proximas_citas: 1,
-      documentos: DEMO_DOCUMENTOS.filter((item) => item.paciente_id === pacienteId || pacienteId.startsWith('demo-')).length,
+      documentos: DEMO_DOCUMENTOS.filter((item) => item.paciente_id === paciente.id || paciente.id.startsWith('demo-')).length,
       consentimientos_pendientes: DEMO_CONSENTIMIENTOS.filter((item) => item.estado === 'pendiente_firma').length,
     },
   });
 }
 
-export async function getPortalCitas(pacienteId: string) {
-  const fallback = await getPacienteCitas(pacienteId);
-  return withDemoFallback(api.get<Cita[]>('/portal/citas', { params: { paciente_id: pacienteId } }), fallback);
+export async function getPortalCitas(pacienteId?: string | null) {
+  const fallback = await getPacienteCitas(demoPortalPatient(pacienteId).id);
+  return withDemoFallback(api.get<Cita[]>('/portal/citas', { params: portalPatientParams(pacienteId) }), fallback);
 }
 
-export async function confirmarPortalCita(citaId: string, pacienteId: string) {
-  const { data } = await api.post<Cita>(`/portal/citas/${citaId}/confirmar`, null, { params: { paciente_id: pacienteId } });
+export async function confirmarPortalCita(citaId: string, pacienteId?: string | null) {
+  const { data } = await api.post<Cita>(`/portal/citas/${citaId}/confirmar`, null, { params: portalPatientParams(pacienteId) });
   return data;
 }
 
-export async function cancelarPortalCita(citaId: string, pacienteId: string, motivo: string, reprogramar = false) {
+export async function cancelarPortalCita(citaId: string, pacienteId: string | null | undefined, motivo: string, reprogramar = false) {
   const { data } = await api.post<Cita>(`/portal/citas/${citaId}/cancelar`, {
     motivo_cancelacion: motivo,
     tipo: reprogramar ? 'reprogramada' : 'anulacion_paciente',
     crear_telefonear: reprogramar,
-  }, { params: { paciente_id: pacienteId } });
+  }, { params: portalPatientParams(pacienteId) });
   return data;
 }
 
-export async function getPortalDocumentos(pacienteId: string) {
-  const fallback = await getDocumentosPaciente(pacienteId);
-  return withDemoFallback(api.get<DocumentoPaciente[]>('/portal/documentos', { params: { paciente_id: pacienteId } }), fallback);
+export async function getPortalDocumentos(pacienteId?: string | null) {
+  const fallback = await getDocumentosPaciente(demoPortalPatient(pacienteId).id);
+  return withDemoFallback(api.get<DocumentoPaciente[]>('/portal/documentos', { params: portalPatientParams(pacienteId) }), fallback);
 }
 
-export async function getPortalConsentimientos(pacienteId: string) {
-  const fallback = await getConsentimientosPaciente(pacienteId);
-  return withDemoFallback(api.get<Consentimiento[]>('/portal/consentimientos', { params: { paciente_id: pacienteId } }), fallback);
+export async function getPortalConsentimientos(pacienteId?: string | null) {
+  const fallback = await getConsentimientosPaciente(demoPortalPatient(pacienteId).id);
+  return withDemoFallback(api.get<Consentimiento[]>('/portal/consentimientos', { params: portalPatientParams(pacienteId) }), fallback);
 }
 
-export async function firmarPortalConsentimiento(consentimientoId: string, pacienteId: string, firmaPacienteBase64: string) {
+export async function firmarPortalConsentimiento(consentimientoId: string, pacienteId: string | null | undefined, firmaPacienteBase64: string) {
   const { data } = await api.post<Consentimiento>(`/portal/consentimientos/${consentimientoId}/firmar`, {
     firma_paciente_base64: firmaPacienteBase64,
-  }, { params: { paciente_id: pacienteId } });
+  }, { params: portalPatientParams(pacienteId) });
   return data;
 }
 

@@ -23,6 +23,11 @@ JWT_EXPIRE_MINUTES=240
 REFRESH_TOKEN_EXPIRE_DAYS=7
 ENVIRONMENT=production
 FRONTEND_URL=https://app.ejemplo.com
+ALLOWED_HOSTS=api.ejemplo.com
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAMESITE=lax
+CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
+CORS_ALLOWED_HEADERS=Authorization,Content-Type,Accept,X-Request-ID
 ```
 
 Clinica/PDF:
@@ -40,9 +45,11 @@ Seguridad:
 
 - No usar secretos de ejemplo.
 - No dejar CORS abierto.
-- Configurar `ALLOWED_HOSTS` si se expone a internet.
+- Configurar `ALLOWED_HOSTS` con el host real del backend.
+- En produccion `AUTH_COOKIE_SECURE=true` es obligatorio porque el refresh token viaja en cookie HttpOnly.
 - Mantener backups fuera del mismo servidor si es posible.
 - Proteger `uploads` y `backups` contra acceso publico directo.
+- Los usuarios con rol `paciente` deben tener `paciente_id` vinculado antes de activar el portal.
 
 ## Backend produccion
 
@@ -99,7 +106,9 @@ El sistema tiene registro de backups, pero la estrategia de produccion debe incl
 - HTTPS activo.
 - CORS limitado al frontend real.
 - `ENVIRONMENT=production`.
+- `AUTH_COOKIE_SECURE=true`.
 - `JWT_SECRET_KEY` y `DB_ENCRYPTION_KEY` fuertes.
+- Usuarios con rol `paciente` vinculados a su ficha.
 - PostgreSQL protegido y sin exposicion innecesaria.
 - Usuarios admin revisados.
 - Migraciones aplicadas.

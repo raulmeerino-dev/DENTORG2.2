@@ -39,13 +39,21 @@ async def _get_portal_paciente(
     current_user: CurrentUser,
     paciente_id: UUID | None,
 ) -> Paciente:
+    if current_user.rol == ROLE_PACIENTE:
+        if current_user.paciente_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Portal paciente no vinculado a una ficha clinica.",
+            )
+        if paciente_id is not None and paciente_id != current_user.paciente_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No puede acceder a datos de otro paciente.",
+            )
+        paciente_id = current_user.paciente_id
+
     if paciente_id is None:
-        detail = (
-            "Usuario paciente sin vinculo directo a una ficha. "
-            "Seleccione paciente_id hasta activar el portal con invitacion segura."
-        )
-        if current_user.rol != ROLE_PACIENTE:
-            detail = "Seleccione un paciente para previsualizar el portal."
+        detail = "Seleccione un paciente para previsualizar el portal."
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 
     result = await db.execute(
