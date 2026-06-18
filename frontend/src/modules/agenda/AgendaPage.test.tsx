@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -148,6 +148,19 @@ describe('AgendaPage flujos de cita', () => {
 
     await waitFor(() => expect(mocks.buscarHuecosLibres).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/Buscar hueco libre/i)).toBeInTheDocument();
+  });
+
+  it('no duplica el filtro activo ni estados equivalentes en agenda', async () => {
+    renderAgenda();
+
+    const toolbar = await screen.findByLabelText(/Filtros y acciones de agenda/i);
+    expect(within(toolbar).getAllByText('Todas las agendas')).toHaveLength(1);
+    expect(within(toolbar).getByText('Resumen')).toBeInTheDocument();
+
+    const legend = await screen.findByLabelText(/Leyenda de estados de cita/i);
+    expect(within(legend).getAllByText('Sin confirmar')).toHaveLength(1);
+    expect(within(legend).getAllByText('Confirmada')).toHaveLength(1);
+    expect(within(legend).getAllByText('Mensaje enviado')).toHaveLength(1);
   });
 
   it('abre nueva cita desde Pacientes con paciente y tratamiento precargados y llama a createCita', async () => {

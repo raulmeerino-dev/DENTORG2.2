@@ -55,6 +55,21 @@ const STATUS_META: Record<string, { label: string; mark: string; className: stri
   falta: { label: 'No asistio', mark: 'NO', className: 'state-missed' },
 };
 
+const AGENDA_STATUS_LEGEND = [
+  'programada',
+  'mensaje_enviado',
+  'confirmada',
+  'reschedule_requested',
+  'pending_manual_review',
+  'cancelled_by_patient',
+  'rescheduled',
+  'en_clinica',
+  'en_tratamiento',
+  'atendida',
+  'anulada',
+  'falta',
+] as const;
+
 function todayIso() {
   const today = new Date();
   const year = today.getFullYear();
@@ -352,8 +367,10 @@ function AgendaToolbar({
   onSearchSlot: () => void;
   onOpenHorario: () => void;
 }) {
+  const statusTitle = horarioLabel === 'Todas las agendas' ? 'Resumen' : horarioLabel;
+
   return (
-    <div className="agenda-compact-toolbar" onClick={(event) => event.stopPropagation()}>
+    <div className="agenda-compact-toolbar" aria-label="Filtros y acciones de agenda" onClick={(event) => event.stopPropagation()}>
       <label>
         <span>Fecha</span>
         <input type="date" value={day} onChange={(event) => onDayChange(event.target.value)} />
@@ -374,7 +391,7 @@ function AgendaToolbar({
         </select>
       </label>
       <div className="agenda-toolbar-status" title={horarioLabel}>
-        <b>{horarioLabel}</b>
+        <b>{statusTitle}</b>
         <span>{citasCount} citas · {pendingCount} confirmar · {clinicCount} en clínica</span>
       </div>
       <div className="agenda-toolbar-actions">
@@ -1356,7 +1373,7 @@ export default function AgendaPage() {
 
         <main className="agenda-slots">
           <div className="agenda-status-legend" aria-label="Leyenda de estados de cita">
-            {ESTADOS.map((estado) => {
+            {AGENDA_STATUS_LEGEND.map((estado) => {
               const visual = STATUS_META[estado] ?? STATUS_META.programada;
               return (
                 <span className={visual.className} key={estado}>
