@@ -230,6 +230,24 @@ async def test_crud_cita(client: AsyncClient, db_session: AsyncSession):
     assert huecos.status_code == 200
     assert all(item["fecha_hora_inicio"] != fecha.isoformat().replace("+00:00", "Z") for item in huecos.json())
 
+    desde_intermedio = fecha.replace(hour=10, minute=5)
+    huecos_intermedios = await client.get(
+        "/api/citas/buscar-hueco",
+        headers=headers,
+        params={
+            "doctor_id": str(doctor.id),
+            "duracion_min": 30,
+            "desde": desde_intermedio.isoformat(),
+            "hasta": fecha.replace(hour=12).isoformat(),
+            "max_resultados": 5,
+        },
+    )
+    assert huecos_intermedios.status_code == 200
+    assert all(
+        datetime.fromisoformat(item["fecha_hora_inicio"].replace("Z", "+00:00")) >= desde_intermedio
+        for item in huecos_intermedios.json()
+    )
+
     reminder = await client.post(
         f"/api/citas/{cita['id']}/recordatorio",
         headers=headers,
@@ -323,6 +341,24 @@ async def test_portal_paciente_citas_documentos_y_firma(client: AsyncClient, db_
     assert confirmada.status_code == 200
     assert confirmada.json()["estado"] == "confirmada"
 
+    solicitar_cambio = await client.post(
+        f"/api/portal/citas/{cita.id}/solicitar-cambio",
+        headers=headers,
+        params=params,
+        json={"motivo": "Prefiero venir por la tarde"},
+    )
+    assert solicitar_cambio.status_code == 200
+    assert solicitar_cambio.json()["estado"] == "reschedule_requested"
+    assert "Prefiero venir por la tarde" in (solicitar_cambio.json()["observaciones"] or "")
+
+    telefonear = await client.get("/api/citas/telefonear/pendientes", headers=headers)
+    assert telefonear.status_code == 200
+    assert any(
+        item["cita_original_id"] == str(cita.id)
+        and item["motivo"] == "Solicitud de cambio desde portal"
+        for item in telefonear.json()
+    )
+
     docs = await client.get("/api/portal/documentos", headers=headers, params=params)
     assert docs.status_code == 200
     assert docs.json()[0]["nombre_original"] == "informe.pdf"
@@ -369,6 +405,88 @@ async def test_portal_rol_paciente_solo_accede_a_su_ficha(client: AsyncClient, d
         params={"paciente_id": str(paciente_ajeno.id)},
     )
     assert ajeno.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_portal_paciente_no_modifica_citas_ajenas_pasadas_o_cerradas(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    doctor = Doctor(nombre="Dra. Portal Seguridad", color_agenda="#0f89b8", activo=True)
+    paciente_propio = Paciente(nombre="Laura", apellidos="Portal")
+    paciente_ajeno = Paciente(nombre="Pablo", apellidos="Ajeno")
+    db_session.add_all([doctor, paciente_propio, paciente_ajeno])
+    await db_session.flush()
+
+    cita_pasada = Cita(
+        paciente_id=paciente_propio.id,
+        doctor_id=doctor.id,
+        fecha_hora=datetime.now(timezone.utc) - timedelta(days=1),
+        duracion_min=30,
+        motivo="Revision pasada",
+    )
+    cita_cerrada = Cita(
+        paciente_id=paciente_propio.id,
+        doctor_id=doctor.id,
+        fecha_hora=datetime.now(timezone.utc) + timedelta(days=2),
+        duracion_min=30,
+        estado="atendida",
+        motivo="Tratamiento cerrado",
+    )
+    cita_ajena = Cita(
+        paciente_id=paciente_ajeno.id,
+        doctor_id=doctor.id,
+        fecha_hora=datetime.now(timezone.utc) + timedelta(days=3),
+        duracion_min=30,
+        motivo="Cita ajena",
+    )
+    db_session.add_all([cita_pasada, cita_cerrada, cita_ajena])
+    await db_session.commit()
+
+    headers = await auth_headers_for_user(
+        client,
+        db_session,
+        rol="paciente",
+        paciente_id=paciente_propio.id,
+    )
+
+    citas = await client.get("/api/portal/citas", headers=headers)
+    assert citas.status_code == 200
+    assert citas.json() == []
+
+    confirmar_pasada = await client.post(f"/api/portal/citas/{cita_pasada.id}/confirmar", headers=headers)
+    assert confirmar_pasada.status_code == 409
+
+    cambiar_pasada = await client.post(
+        f"/api/portal/citas/{cita_pasada.id}/solicitar-cambio",
+        headers=headers,
+        json={"motivo": "Necesito otra fecha"},
+    )
+    assert cambiar_pasada.status_code == 409
+
+    cancelar_cerrada = await client.post(
+        f"/api/portal/citas/{cita_cerrada.id}/cancelar",
+        headers=headers,
+        json={"motivo_cancelacion": "No puedo asistir", "tipo": "anulacion_paciente"},
+    )
+    assert cancelar_cerrada.status_code == 409
+
+    cambiar_cerrada = await client.post(
+        f"/api/portal/citas/{cita_cerrada.id}/solicitar-cambio",
+        headers=headers,
+        json={"motivo": "Necesito otra fecha"},
+    )
+    assert cambiar_cerrada.status_code == 409
+
+    confirmar_ajena = await client.post(f"/api/portal/citas/{cita_ajena.id}/confirmar", headers=headers)
+    assert confirmar_ajena.status_code == 404
+
+    cambiar_ajena = await client.post(
+        f"/api/portal/citas/{cita_ajena.id}/solicitar-cambio",
+        headers=headers,
+        json={"motivo": "Necesito otra fecha"},
+    )
+    assert cambiar_ajena.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -866,6 +984,13 @@ async def test_presupuesto_aceptado_se_factura_y_se_paga(client: AsyncClient, db
     )
     assert factura_duplicada.status_code == 409
 
+    cobro_excesivo = await client.post(
+        f"/api/facturas/{factura['id']}/pagos",
+        headers=headers,
+        json={"importe": "400.00", "forma_pago_id": str(forma_pago.id), "notas": "Cobro excesivo"},
+    )
+    assert cobro_excesivo.status_code == 409
+
     pago = await client.post(
         f"/api/facturas/{factura['id']}/pagos",
         headers=headers,
@@ -873,6 +998,13 @@ async def test_presupuesto_aceptado_se_factura_y_se_paga(client: AsyncClient, db
     )
     assert pago.status_code == 201
     assert pago.json()["estado"] == "pagada"
+
+    cobro_factura_pagada = await client.post(
+        f"/api/facturas/{factura['id']}/pagos",
+        headers=headers,
+        json={"importe": "1.00", "forma_pago_id": str(forma_pago.id), "notas": "Cobro tras pago completo"},
+    )
+    assert cobro_factura_pagada.status_code == 409
 
     saldo = await client.get(f"/api/pacientes/{paciente_id}/saldo", headers=headers)
     assert saldo.status_code == 200

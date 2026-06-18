@@ -638,34 +638,75 @@ async def actualizar_superficie(
     _validate_adult_tooth(pieza_fdi)
     superficie_normalizada = _normalize_superficie(superficie)
     odontograma = await _load_odontograma(db, odontograma_id, current_user)
-    piece = await _get_or_create_piece(db, odontograma, pieza_fdi)
-
-    result = await db.execute(
-        select(OdontogramaSuperficie).where(
-            OdontogramaSuperficie.pieza_id == piece.id,
-            OdontogramaSuperficie.superficie == superficie_normalizada,
+    piece_result = await db.execute(
+        select(OdontogramaPieza).where(
+            OdontogramaPieza.odontograma_id == odontograma.id,
+            OdontogramaPieza.pieza_fdi == pieza_fdi,
         )
     )
-    surface = result.scalar_one_or_none()
-    if not surface:
-        surface = OdontogramaSuperficie(pieza_id=piece.id, superficie=superficie_normalizada)
-        db.add(surface)
-        await db.flush()
+    piece = piece_result.scalar_one_or_none()
+    surface = None
+    if piece:
+        result = await db.execute(
+            select(OdontogramaSuperficie).where(
+                OdontogramaSuperficie.pieza_id == piece.id,
+                OdontogramaSuperficie.superficie == superficie_normalizada,
+            )
+        )
+        surface = result.scalar_one_or_none()
     old = {
-        "condicion": surface.condicion,
-        "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
-        "tratamiento_realizado_id": str(surface.tratamiento_realizado_id) if surface.tratamiento_realizado_id else None,
-        "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
-        "color_estado": surface.color_estado,
-        "notas": surface.notas,
+        "condicion": surface.condicion if surface else "sano",
+        "tratamiento_planificado_id": (
+            str(surface.tratamiento_planificado_id) if surface and surface.tratamiento_planificado_id else None
+        ),
+        "tratamiento_realizado_id": (
+            str(surface.tratamiento_realizado_id) if surface and surface.tratamiento_realizado_id else None
+        ),
+        "presupuesto_linea_id": (
+            str(surface.presupuesto_linea_id) if surface and surface.presupuesto_linea_id else None
+        ),
+        "color_estado": surface.color_estado if surface else None,
+        "notas": surface.notas if surface else None,
     }
     changes = data.model_dump(exclude_unset=True)
-    for field, value in changes.items():
-        setattr(surface, field, value)
+    next_condicion = changes.get("condicion", surface.condicion if surface else "sano")
+    next_planificado = changes.get("tratamiento_planificado_id", surface.tratamiento_planificado_id if surface else None)
+    next_realizado = changes.get("tratamiento_realizado_id", surface.tratamiento_realizado_id if surface else None)
+
     if data.tratamiento_planificado_id:
         tratamiento = await db.get(TratamientoCatalogo, data.tratamiento_planificado_id)
         if not tratamiento or not tratamiento.activo:
             raise HTTPException(status_code=404, detail="Tratamiento planificado no encontrado")
+    if data.tratamiento_realizado_id:
+        historial = await db.get(HistorialClinico, data.tratamiento_realizado_id)
+        if not historial or historial.paciente_id != odontograma.paciente_id:
+            raise HTTPException(status_code=404, detail="Tratamiento realizado no encontrado para este paciente")
+    if next_condicion == "tratamiento_realizado" and not next_realizado:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un estado realizado debe vincular un tratamiento realizado del historial.",
+        )
+    if next_condicion in {"tratamiento_pendiente", "tratamiento_presupuestado", "tratamiento_aceptado"} and next_realizado:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un tratamiento pendiente o presupuestado no puede mantener un realizado vinculado.",
+        )
+    if next_condicion in {"tratamiento_pendiente", "tratamiento_presupuestado", "tratamiento_aceptado"} and not next_planificado:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un tratamiento pendiente o presupuestado debe vincular un tratamiento planificado.",
+        )
+
+    if not piece:
+        piece = OdontogramaPieza(odontograma_id=odontograma.id, pieza_fdi=pieza_fdi)
+        db.add(piece)
+        await db.flush()
+    if not surface:
+        surface = OdontogramaSuperficie(pieza_id=piece.id, superficie=superficie_normalizada)
+        db.add(surface)
+        await db.flush()
+    for field, value in changes.items():
+        setattr(surface, field, value)
 
     await _add_event(
         db,

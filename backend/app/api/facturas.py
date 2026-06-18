@@ -715,6 +715,13 @@ async def registrar_cobro(
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+    total_cobrado_actual = sum(c.importe for c in factura.cobros if c.anulado_at is None)
+    pendiente = factura.total - total_cobrado_actual
+    if pendiente <= 0:
+        raise HTTPException(status_code=409, detail="La factura no tiene importe pendiente de cobro")
+    if data.importe > pendiente:
+        raise HTTPException(status_code=409, detail="El cobro supera el importe pendiente de la factura")
+
     cobro = Cobro(
         factura_id=factura_id,
         fecha=datetime.now(timezone.utc),
@@ -726,7 +733,7 @@ async def registrar_cobro(
     db.add(cobro)
 
     await db.flush()
-    total_cobrado = sum(c.importe for c in factura.cobros if c.anulado_at is None) + data.importe
+    total_cobrado = total_cobrado_actual + data.importe
     factura.estado = _estado_por_cobro(factura.total, total_cobrado)
     await registrar_evento_sif(
         db,

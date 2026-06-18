@@ -103,6 +103,20 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     assert surface.json()["superficie"] == "lingual_palatina"
     assert surface.json()["tratamiento_planificado_id"] == str(tratamiento.id)
 
+    pendiente_sin_tratamiento = await client.patch(
+        f"/api/odontogramas/{odontograma_id}/piezas/24/superficies/distal",
+        headers=headers,
+        json={"condicion": "tratamiento_pendiente"},
+    )
+    assert pendiente_sin_tratamiento.status_code == 409
+
+    realizado_sin_historial = await client.patch(
+        f"/api/odontogramas/{odontograma_id}/piezas/24/superficies/distal",
+        headers=headers,
+        json={"condicion": "tratamiento_realizado", "tratamiento_planificado_id": str(tratamiento.id)},
+    )
+    assert realizado_sin_historial.status_code == 409
+
     stored = await client.get(f"/api/pacientes/{paciente_id}/odontograma", headers=headers)
     assert stored.status_code == 200
     pieza_24 = next(item for item in stored.json()["piezas"] if item["pieza_fdi"] == 24)

@@ -374,7 +374,16 @@ export interface Cita {
   recordatorio_at?: string | null;
   confirmado_at?: string | null;
   motivo_cancelacion?: string | null;
-  paciente?: { nombre: string; apellidos: string; telefono: string | null };
+  paciente?: {
+    nombre: string;
+    apellidos: string;
+    telefono: string | null;
+    telefono2?: string | null;
+    dni_nie?: string | null;
+    email?: string | null;
+    codigo?: string | null;
+    num_historial?: number;
+  };
   doctor?: { nombre: string; color_agenda: string | null };
 }
 

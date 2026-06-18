@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -91,6 +91,14 @@ function addDaysIso(day: string, days: number) {
 
 function slotIso(day: string, slot: string) {
   return `${day}T${slot}:00`;
+}
+
+function nowLocalDateTimeIso() {
+  const now = new Date();
+  const date = isoDate(now);
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${date}T${hours}:${minutes}:00`;
 }
 
 function minutesFromTime(time: string) {
@@ -236,12 +244,83 @@ function patientMatchesQuery(paciente: ApiPaciente, query: string) {
   return tokens.every((token) => haystack.includes(token));
 }
 
+function citaMatchesQuery(cita: Cita, pacientes: ApiPaciente[], query: string) {
+  const tokens = normalizePatientSearch(query).split(' ').filter(Boolean);
+  if (!tokens.length) return true;
+  const paciente = findPaciente(pacientes, cita.paciente_id);
+  const visual = STATUS_META[getVisualStatus(cita)] ?? STATUS_META.programada;
+  const haystack = normalizePatientSearch([
+    patientName(cita),
+    paciente ? patientSearchText(paciente) : '',
+    cita.paciente?.telefono,
+    cita.paciente?.telefono2,
+    cita.paciente?.dni_nie,
+    cita.paciente?.email,
+    cita.paciente?.codigo,
+    cita.paciente?.num_historial,
+    cita.motivo,
+    cita.observaciones,
+    cita.doctor?.nombre,
+    cita.estado,
+    visual.label,
+  ].filter(Boolean).join(' '));
+  return tokens.every((token) => haystack.includes(token));
+}
+
 function shortDoctorName(name: string) {
   return name
     .replace(/^Dra?\.\s*/i, '')
     .split(/\s+/)
     .slice(0, 2)
     .join(' ');
+}
+
+function AgendaDayBrief({
+  nextCita,
+  pendingCount,
+  changeRequestCount,
+  clinicCount,
+  freeSlotsCount,
+  totalSlots,
+  onOpenNext,
+  onSearchSlot,
+  onSearchCita,
+}: {
+  nextCita: Cita | null;
+  pendingCount: number;
+  changeRequestCount: number;
+  clinicCount: number;
+  freeSlotsCount: number;
+  totalSlots: number;
+  onOpenNext: () => void;
+  onSearchSlot: () => void;
+  onSearchCita: () => void;
+}) {
+  return (
+    <div className="agenda-day-brief" aria-label="Resumen operativo de agenda">
+      <button type="button" className="agenda-day-brief-main" onClick={nextCita ? onOpenNext : onSearchSlot}>
+        <span>Siguiente</span>
+        <strong>{nextCita ? `${nextCita.fecha_hora.slice(11, 16)} · ${patientName(nextCita)}` : 'Sin siguiente cita'}</strong>
+        <em>{nextCita?.motivo || 'Buscar un hueco libre'}</em>
+      </button>
+      <button type="button" onClick={onSearchCita}>
+        <span>Por confirmar</span>
+        <strong>{pendingCount}</strong>
+      </button>
+      <button type="button" onClick={onSearchCita}>
+        <span>Cambios</span>
+        <strong>{changeRequestCount}</strong>
+      </button>
+      <button type="button" onClick={onSearchCita}>
+        <span>En clinica</span>
+        <strong>{clinicCount}</strong>
+      </button>
+      <button type="button" onClick={onSearchSlot}>
+        <span>Huecos visibles</span>
+        <strong>{freeSlotsCount}/{totalSlots}</strong>
+      </button>
+    </div>
+  );
 }
 
 function AgendaToolbar({
@@ -563,7 +642,7 @@ function BuscarHuecoModal({
     return pacientes.filter((paciente) => patientMatchesQuery(paciente, pacienteQuery)).slice(0, 30);
   }, [pacientes, pacienteQuery]);
 
-  async function search(event?: FormEvent) {
+  const search = useCallback(async (event?: FormEvent) => {
     event?.preventDefault();
     setError('');
     const targets = selectedDoctorId ? doctores.filter((doctor) => doctor.id === selectedDoctorId) : doctores;
@@ -575,11 +654,12 @@ function BuscarHuecoModal({
     try {
       const hasta = addDaysIso(fechaDesde, Math.max(0, Number(dias || 1) - 1));
       const duration = Number(duracion);
+      const desdeDateTime = fechaDesde === todayIso() ? nowLocalDateTimeIso() : `${fechaDesde}T00:00:00`;
       const responses = await Promise.all(targets.map(async (doctor) => {
         const huecos = await buscarHuecosLibres({
           doctor_id: doctor.id,
           duracion_min: duration,
-          desde: `${fechaDesde}T00:00:00`,
+          desde: desdeDateTime,
           hasta: `${hasta}T23:59:59`,
           solo_manana: turno === 'manana',
           solo_tarde: turno === 'tarde',
@@ -607,7 +687,10 @@ function BuscarHuecoModal({
           duracion_min: duration,
           doctorNombre: doctor.nombre,
           doctorColor: doctor.color_agenda,
-    })).filter((hueco) => !citas.some((cita) => cita.doctor_id === doctor.id && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado) && overlaps(hueco.fecha_hora_inicio, duration, cita))))).slice(0, 40);
+    })).filter((hueco) => (
+          hueco.fecha_hora_inicio >= desdeDateTime
+          && !citas.some((cita) => cita.doctor_id === doctor.id && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado) && overlaps(hueco.fecha_hora_inicio, duration, cita))
+        )))).slice(0, 40);
       }
 
       setResultados(merged);
@@ -616,7 +699,14 @@ function BuscarHuecoModal({
     } finally {
       setBuscando(false);
     }
-  }
+  }, [dias, doctores, duracion, fechaDesde, selectedDoctorId, turno]);
+
+  const autoSearchStartedRef = useRef(false);
+  useEffect(() => {
+    if (autoSearchStartedRef.current) return;
+    autoSearchStartedRef.current = true;
+    void search();
+  }, [search]);
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
@@ -675,6 +765,12 @@ function BuscarHuecoModal({
         <div className="slot-results">
           {error && <p className="form-error">{error}</p>}
           {!error && !resultados.length && <p>Elige los filtros y pulsa Buscar.</p>}
+          {!error && Boolean(resultados.length) && (
+            <div className="slot-results-summary">
+              <strong>{resultados.length} huecos encontrados</strong>
+              <span>Pulse uno para crear la cita con esos datos.</span>
+            </div>
+          )}
           {resultados.map((hueco) => (
             <button
               type="button"
@@ -1071,10 +1167,7 @@ export default function AgendaPage() {
 
   function ejecutarBusqueda(query: string) {
     if (!query.trim()) return;
-    const q = query.toLowerCase();
-    const cita = (citasQuery.data ?? []).find((item) =>
-      `${patientName(item)} ${item.motivo ?? ''}`.toLowerCase().includes(q),
-    );
+    const cita = (citasQuery.data ?? []).find((item) => citaMatchesQuery(item, pacientes, query));
     if (cita) {
       setSearchQuery('');
       setShowSearchBar(false);
@@ -1118,7 +1211,14 @@ export default function AgendaPage() {
         : 'Todas las agendas';
   const citasActivas = citas.filter((cita) => !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
   const pendientesConfirmar = citasActivas.filter((cita) => ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'].includes(cita.estado));
+  const solicitudesCambio = citasActivas.filter((cita) => cita.estado === 'reschedule_requested');
   const pacientesEnClinica = citasActivas.filter((cita) => cita.estado === 'en_clinica');
+  const nextVisibleCita = citasActivas
+    .filter((cita) => !['atendida', 'reschedule_requested', 'pending_manual_review'].includes(cita.estado) && cita.fecha_hora >= now.toISOString())
+    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
+  const freeSlotsCount = slots.filter((slot) => (
+    !citasActivas.some((cita) => cita.fecha_hora.slice(11, 16) === slot && cita.estado !== 'atendida')
+  )).length;
   const hasAgendaError = doctoresQuery.isError || pacientesQuery.isError || citasQuery.isError || telefonearQuery.isError || horariosAgendaQuery.isError;
   const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
 
@@ -1154,6 +1254,17 @@ export default function AgendaPage() {
           <span />
         </div>
       )}
+      <AgendaDayBrief
+        nextCita={nextVisibleCita}
+        pendingCount={pendientesConfirmar.length}
+        changeRequestCount={solicitudesCambio.length}
+        clinicCount={pacientesEnClinica.length}
+        freeSlotsCount={freeSlotsCount}
+        totalSlots={slots.length}
+        onOpenNext={() => nextVisibleCita && setModalCita(nextVisibleCita)}
+        onSearchSlot={buscarHuecoLibre}
+        onSearchCita={buscarCita}
+      />
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
           <div className="doctor-legend">
@@ -1302,7 +1413,8 @@ export default function AgendaPage() {
                     const visualStatus = getVisualStatus(cita);
                     const visual = STATUS_META[visualStatus] ?? STATUS_META.programada;
                     const canConfirm = ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'].includes(cita.estado);
-                    const canMoveToClinic = !['en_clinica', 'atendida', 'anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado);
+                    const needsReschedule = cita.estado === 'reschedule_requested';
+                    const canMoveToClinic = !['en_clinica', 'atendida', 'anulada', 'falta', 'cancelled_by_patient', 'reschedule_requested', 'pending_manual_review'].includes(cita.estado);
                     const canFinish = cita.estado === 'en_clinica';
                     return (
                       <article
@@ -1345,6 +1457,17 @@ export default function AgendaPage() {
                               }}
                             >
                               En clinica
+                            </button>
+                          )}
+                          {needsReschedule && (
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                reprogramarCita(cita);
+                              }}
+                            >
+                              Reubicar
                             </button>
                           )}
                           {canFinish && (

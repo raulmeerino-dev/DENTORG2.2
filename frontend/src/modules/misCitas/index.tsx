@@ -14,6 +14,7 @@ import {
   getPortalMe,
   openConsentimientoPdf,
   openDocumentoPaciente,
+  solicitarCambioPortalCita,
 } from '../../lib/api';
 
 type PortalTab = 'citas' | 'documentos' | 'consentimientos';
@@ -25,6 +26,17 @@ function formatFecha(value: string) {
 function formatHora(value: string) {
   return new Date(value).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
+
+const CITA_STATE_LABELS: Record<string, string> = {
+  programada: 'Pendiente de confirmar',
+  pending_confirmation: 'Pendiente de confirmar',
+  reminder_sent: 'Recordatorio enviado',
+  confirmada: 'Confirmada',
+  confirmed: 'Confirmada',
+  reschedule_requested: 'Cambio solicitado',
+  pending_manual_review: 'En revisión',
+  rescheduled: 'Reprogramada',
+};
 
 export default function MisCitasPage() {
   const queryClient = useQueryClient();
@@ -80,11 +92,14 @@ export default function MisCitasPage() {
     onSuccess: refreshPortal,
   });
   const cancelar = useMutation({
-    mutationFn: ({ citaId, reprogramar }: { citaId: string; reprogramar: boolean }) => cancelarPortalCita(
+    mutationFn: (citaId: string) => cancelarPortalCita(citaId, portalPacienteParam, 'Cancelada desde portal paciente'),
+    onSuccess: refreshPortal,
+  });
+  const solicitarCambio = useMutation({
+    mutationFn: (citaId: string) => solicitarCambioPortalCita(
       citaId,
       portalPacienteParam,
-      reprogramar ? 'Solicita posponer la cita' : 'Cancelada desde portal paciente',
-      reprogramar,
+      'Solicita cambiar la cita desde portal paciente',
     ),
     onSuccess: refreshPortal,
   });
@@ -139,6 +154,7 @@ export default function MisCitasPage() {
     if (!firmaPara || !canvasRef.current) return;
     firmar.mutate({ consentimientoId: firmaPara.id, firma: canvasRef.current.toDataURL('image/png') });
   };
+  const actionError = confirmar.error ?? cancelar.error ?? solicitarCambio.error ?? firmar.error;
 
   return (
     <section className="page mobile-portal">
@@ -173,6 +189,11 @@ export default function MisCitasPage() {
           <span>{portalMe.data?.resumen.consentimientos_pendientes ?? 0} firmas</span>
         </div>
       </div>
+      {actionError && (
+        <div className="inline-alert portal-action-alert">
+          {actionError instanceof Error ? actionError.message : 'No se ha podido completar la acción.'}
+        </div>
+      )}
 
       <div className="mobile-portal-tabs">
         <button className={tab === 'citas' ? 'active' : ''} onClick={() => setTab('citas')}>Citas</button>
@@ -189,15 +210,21 @@ export default function MisCitasPage() {
                 <span>{formatHora(cita.fecha_hora)} - {cita.duracion_min} min</span>
               </div>
               <p>{cita.motivo || 'Cita dental'}</p>
-              <span className="mobile-cita-state">{cita.estado}</span>
+              <span className="mobile-cita-state">{CITA_STATE_LABELS[cita.estado] ?? cita.estado}</span>
               <div className="mobile-cita-actions">
-                <button onClick={() => confirmar.mutate(cita.id)} disabled={confirmar.isPending || cita.estado === 'confirmada'}>
+                <button
+                  onClick={() => confirmar.mutate(cita.id)}
+                  disabled={confirmar.isPending || cita.estado === 'confirmada' || cita.estado === 'reschedule_requested'}
+                >
                   Confirmar
                 </button>
-                <button onClick={() => cancelar.mutate({ citaId: cita.id, reprogramar: true })} disabled={cancelar.isPending || cita.estado === 'anulada'}>
-                  Posponer
+                <button
+                  onClick={() => solicitarCambio.mutate(cita.id)}
+                  disabled={solicitarCambio.isPending || cita.estado === 'reschedule_requested'}
+                >
+                  {cita.estado === 'reschedule_requested' ? 'Cambio solicitado' : 'Solicitar cambio'}
                 </button>
-                <button onClick={() => cancelar.mutate({ citaId: cita.id, reprogramar: false })} disabled={cancelar.isPending || cita.estado === 'anulada'}>
+                <button onClick={() => cancelar.mutate(cita.id)} disabled={cancelar.isPending || cita.estado === 'anulada' || cita.estado === 'reschedule_requested'}>
                   Cancelar
                 </button>
               </div>
