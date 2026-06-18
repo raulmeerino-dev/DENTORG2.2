@@ -24,6 +24,15 @@ export interface WorkflowItem {
   shortcut?: string;
 }
 
+export const GLOBAL_LAUNCHER_IDS: AppSection[] = [
+  'hoy',
+  'agenda',
+  'pacientes',
+  'listados',
+  'adminExtras',
+  'portalPaciente',
+];
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   doctor: 'Doctor',
@@ -54,12 +63,13 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     label: 'WhatsApp',
     description: 'Respuestas, confirmaciones, cambios y reprogramacion asistida.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
+    route: '/whatsapp',
     shortcut: 'WA',
   },
   {
     id: 'pacientes',
     label: 'Pacientes',
-    description: 'Ficha, historia, presupuestos, realizados, cobros y documentos.',
+    description: 'Ficha, clinica, historial, presupuestos contextuales, cobros y documentos.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/pacientes',
     shortcut: 'PA',
@@ -75,8 +85,8 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   {
     id: 'listados',
     label: 'Reportes/Listados',
-    description: 'Reportes, listados fiscales y listados operativos de la clinica.',
-    roles: ['admin'],
+    description: 'Reportes, listados operativos y control economico de la clinica.',
+    roles: ['admin', 'recepcion'],
     route: '/listados',
     shortcut: 'RE',
   },

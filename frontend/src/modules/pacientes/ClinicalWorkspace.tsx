@@ -1208,6 +1208,7 @@ export function ClinicalWorkspace({
   onOpenConsentimientoPdf,
   onRevocarConsentimiento,
   onOpenDocumentos,
+  onOpenPresupuestos,
   onOpenHistorial,
   onSchedulePatient,
   onOpenCobro,
@@ -1248,6 +1249,7 @@ export function ClinicalWorkspace({
   onOpenConsentimientoPdf: (consentimiento: Consentimiento) => void;
   onRevocarConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenDocumentos: () => void;
+  onOpenPresupuestos: () => void;
   onOpenHistorial: () => void;
   onSchedulePatient?: () => void;
   onOpenCobro?: () => void;
@@ -1283,6 +1285,9 @@ export function ClinicalWorkspace({
             {item.label}
           </button>
         ))}
+        <button type="button" className="clinical-subtab-action" onClick={onOpenPresupuestos} disabled={!paciente}>
+          Presupuestos
+        </button>
       </nav>
 
       {activeTab === 'primera' && (
