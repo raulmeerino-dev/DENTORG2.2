@@ -29,11 +29,14 @@ describe('workflow permissions', () => {
       .filter((item) => canAccess(role, item))
       .map((item) => item.label);
 
-    expect(labelsFor('recepcion')).toEqual(['Hoy', 'Agenda', 'WhatsApp', 'Pacientes', 'Caja']);
-    expect(labelsFor('doctor')).toEqual(['Hoy', 'Agenda', 'WhatsApp', 'Pacientes']);
-    expect(labelsFor('auxiliar')).toEqual(['Hoy', 'Agenda', 'WhatsApp', 'Pacientes']);
-    expect(labelsFor('admin')).toEqual(['Hoy', 'Agenda', 'WhatsApp', 'Pacientes', 'Caja', 'Reportes/Listados', 'Administracion']);
+    expect(labelsFor('recepcion')).toEqual(['Hoy', 'Agenda', 'Pacientes', 'Caja']);
+    expect(labelsFor('doctor')).toEqual(['Hoy', 'Agenda', 'Pacientes']);
+    expect(labelsFor('auxiliar')).toEqual(['Hoy', 'Agenda', 'Pacientes']);
+    expect(labelsFor('admin')).toEqual(['Hoy', 'Agenda', 'Pacientes', 'Caja', 'Reportes/Listados', 'Administracion']);
     expect(labelsFor('paciente')).toEqual(['Portal paciente']);
+    const whatsapp = WORKFLOW_ITEMS.find((item) => item.id === 'whatsapp');
+    expect(whatsapp?.label).toBe('WhatsApp');
+    expect(whatsapp?.route).toBeUndefined();
     expect(WORKFLOW_ITEMS.find((item) => item.id === 'dashboard')).toBeUndefined();
   });
 });

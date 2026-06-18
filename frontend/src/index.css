@@ -19286,3 +19286,57 @@ html[data-theme="dark"] .slot-results-summary {
     flex-direction: column;
   }
 }
+
+/* Patient action menu: keep secondary actions in flow so they do not cover clinical tabs or ledgers. */
+.patient-selector-bar:has(.patient-actions-menu) {
+  align-items: start !important;
+}
+
+.patient-actions:has(.patient-actions-menu) {
+  align-items: flex-end !important;
+  gap: 6px;
+}
+
+.patient-actions-menu {
+  position: static !important;
+  width: min(270px, 100%);
+  max-height: min(260px, calc(100vh - 210px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 6px;
+}
+
+.patient-actions-menu button {
+  min-height: 30px;
+}
+
+@media (max-width: 1180px) {
+  .patient-selector-bar .patient-actions-primary button:not(.patient-actions-more) {
+    width: 34px !important;
+    padding: 0 !important;
+    justify-content: center;
+  }
+
+  .patient-selector-bar .patient-actions-primary button:not(.patient-actions-more) span {
+    display: none !important;
+  }
+
+  .patient-actions-menu {
+    width: min(270px, calc(100vw - 28px));
+  }
+}
+
+@media (max-width: 720px) {
+  .patient-selector-bar .patient-actions-primary button:not(.patient-actions-more) {
+    width: auto !important;
+    padding: 0 8px !important;
+  }
+
+  .patient-selector-bar .patient-actions-primary button:not(.patient-actions-more) span {
+    display: inline !important;
+  }
+
+  .patient-actions:has(.patient-actions-menu) {
+    align-items: flex-start !important;
+  }
+}
