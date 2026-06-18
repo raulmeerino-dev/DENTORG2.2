@@ -18920,6 +18920,115 @@ button:active {
   display: none !important;
 }
 
+/* Historial paciente: la tabla debe desplazarse; el pie de acciones nunca debe quedar cortado. */
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .patient-desk {
+  overflow-y: auto !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-complete-workspace {
+  align-content: start;
+  grid-auto-rows: max-content;
+  min-height: 0;
+  overflow: visible !important;
+  padding-bottom: 10px;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-billing-eurodent {
+  align-self: start;
+  height: auto !important;
+  min-height: 0 !important;
+  grid-template-rows: auto auto auto auto !important;
+  gap: 6px !important;
+  padding: 8px 10px !important;
+  overflow: visible !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .billing-operational-strip {
+  padding: 6px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .billing-operational-strip div {
+  padding: 4px 8px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .billing-operational-strip button {
+  min-height: 34px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-eurodent-head {
+  gap: 6px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-eurodent-head input,
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-eurodent-head select {
+  height: 28px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-ledger-scroll {
+  height: clamp(220px, 34vh, 340px);
+  min-height: 220px !important;
+  overflow: auto !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-eurodent-footer {
+  grid-template-columns: minmax(280px, 1fr) auto minmax(360px, max-content) !important;
+  align-items: stretch !important;
+  gap: 8px !important;
+  overflow: visible !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-comments textarea {
+  height: 46px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-action-buttons {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-content: center;
+  justify-content: flex-end;
+  gap: 6px !important;
+  min-width: min(100%, 450px);
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-action-buttons button,
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .invoice-split-button > button {
+  min-width: 68px !important;
+  min-height: 34px !important;
+  padding: 0 10px !important;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .invoice-split-button {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+:is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .invoice-action-popover {
+  z-index: 40 !important;
+  bottom: calc(100% + 8px) !important;
+}
+
+@media (max-height: 760px) {
+  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-ledger-scroll {
+    height: clamp(180px, 31vh, 250px);
+    min-height: 180px !important;
+  }
+
+  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-eurodent-footer {
+    grid-template-columns: minmax(260px, 1fr) auto minmax(300px, max-content) !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-eurodent-footer {
+    grid-template-columns: 1fr !important;
+  }
+
+  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-action-buttons {
+    justify-content: flex-start;
+  }
+}
+
 /* Operativa clinica: acciones directas en agenda sin abrir modal. */
 .patient-flow-strip {
   grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
