@@ -27,6 +27,7 @@ const queryClient = new QueryClient({
 
 const STAFF_ROLES: UserRole[] = ['admin', 'doctor', 'recepcion', 'auxiliar'];
 const BILLING_ROLES: UserRole[] = ['admin', 'recepcion'];
+const REPORT_ROLES: UserRole[] = ['admin', 'recepcion'];
 const ADMIN_ROLES: UserRole[] = ['admin'];
 const PATIENT_ROLES: UserRole[] = ['paciente'];
 
@@ -70,7 +71,7 @@ export default function App() {
               <Route path="agenda" element={<RoleProtected roles={STAFF_ROLES}><AgendaPage /></RoleProtected>} />
               <Route path="whatsapp" element={<RoleProtected roles={STAFF_ROLES}><WhatsAppPage /></RoleProtected>} />
               <Route path="caja" element={<RoleProtected roles={BILLING_ROLES}><CajaPage /></RoleProtected>} />
-              <Route path="listados" element={<RoleProtected roles={ADMIN_ROLES}><ListadosPage /></RoleProtected>} />
+              <Route path="listados" element={<RoleProtected roles={REPORT_ROLES}><ListadosPage /></RoleProtected>} />
               <Route path="configuracion" element={<RoleProtected roles={ADMIN_ROLES}><ConfiguracionRedirect /></RoleProtected>} />
               <Route path="admin-extras" element={<RoleProtected roles={ADMIN_ROLES}><AdminExtrasPage /></RoleProtected>} />
               <Route path="mis-citas" element={<RoleProtected roles={PATIENT_ROLES}><MisCitasPage /></RoleProtected>} />

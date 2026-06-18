@@ -423,3 +423,365 @@ html[data-theme="dark"] .scroll-region table.euro-table thead th,
 html[data-theme="dark"] .module-body table.euro-table thead th {
   background: #132b3a;
 }
+
+
+/* ------------------------------------------------------------------ */
+/* 14. Compact application window                                      */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --app-window-height: 100vh;
+  --app-topbar-height: 42px;
+  --app-status-height: 16px;
+  --app-workspace-gap: 6px;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-window-height: 100dvh;
+  }
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: var(--app-window-height);
+  max-height: var(--app-window-height);
+  min-height: 0;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body {
+  margin: 0;
+}
+
+.app-shell {
+  height: var(--app-window-height);
+  max-height: var(--app-window-height);
+  min-height: 0;
+  overflow: hidden !important;
+}
+
+.euro-shell-header {
+  flex: 0 0 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.app-launcher-shell {
+  flex: 0 0 auto;
+  overflow: visible !important;
+}
+
+.app-launcher-bar {
+  height: var(--app-topbar-height) !important;
+  min-height: var(--app-topbar-height) !important;
+  padding: 0 10px !important;
+}
+
+.app-brand,
+.app-context-pill,
+.app-role-pill,
+.app-exit-button {
+  min-height: 26px;
+}
+
+.app-brand-logo {
+  width: 26px !important;
+  height: 26px !important;
+}
+
+.euro-main-nav {
+  display: none !important;
+}
+
+.app-status {
+  flex: 0 0 var(--app-status-height);
+  height: var(--app-status-height) !important;
+  min-height: var(--app-status-height) !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 9px;
+  line-height: 1;
+}
+
+.app-status i {
+  height: 2px !important;
+}
+
+.main-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden !important;
+  padding: var(--app-workspace-gap) !important;
+}
+
+.main-content > .page {
+  min-height: 0;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 15. Compact patient workspace                                       */
+/* ------------------------------------------------------------------ */
+
+.main-content > .patient-selector-bar {
+  flex: 0 0 auto;
+  min-height: 34px;
+  margin: 0 0 4px !important;
+  padding: 4px 6px !important;
+  gap: 6px !important;
+}
+
+.patient-selector-bar .patient-finder input,
+.patient-selector-bar .patient-actions-primary button,
+.patient-selector-current,
+.patient-action-menu-trigger {
+  min-height: 28px !important;
+}
+
+.patient-selector-bar .patient-actions-primary button,
+.patient-action-menu-trigger {
+  padding: 0 8px !important;
+}
+
+.main-content > .patient-screen {
+  flex: 1 1 auto;
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.patient-module-tabs {
+  flex: 0 0 30px;
+  min-height: 30px !important;
+  margin: 0 0 4px !important;
+  padding: 2px !important;
+}
+
+.patient-module-tabs button {
+  min-height: 26px !important;
+  padding: 0 10px !important;
+  font-size: 0.76rem;
+}
+
+.patient-module-tabs svg {
+  width: 14px;
+  height: 14px;
+}
+
+.patient-summary-strip {
+  flex: 0 0 auto;
+  min-height: 24px !important;
+  margin: 0 0 4px !important;
+  padding: 2px 6px !important;
+  gap: 6px !important;
+}
+
+.patient-summary-strip span {
+  min-height: 18px;
+  font-size: 0.68rem;
+}
+
+.patient-priority-strip {
+  flex: 0 0 auto;
+  min-height: 30px !important;
+  margin: 0 0 5px !important;
+  padding: 3px 5px !important;
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 5px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.patient-priority-strip button {
+  flex: 1 0 150px;
+  min-width: 0;
+  min-height: 26px !important;
+  padding: 3px 7px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.patient-priority-strip button small {
+  display: none !important;
+}
+
+.patient-priority-strip button span {
+  font-size: 0.56rem;
+}
+
+.patient-priority-strip button strong {
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+.patient-screen > .patient-desk {
+  flex: 1 1 auto;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.patient-desk > * {
+  min-height: 0;
+}
+
+.patient-dashboard-mode .patient-desk > div,
+.patient-screen.no-bottom-bar .patient-desk > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.patient-form-grid.patient-bento {
+  height: 100%;
+  min-height: 0 !important;
+  align-content: start;
+  overflow: auto !important;
+  scrollbar-width: thin;
+}
+
+.patient-hub-head {
+  padding: 8px !important;
+}
+
+.patient-hub-head-actions {
+  gap: 5px !important;
+}
+
+.patient-hub-head-actions button {
+  min-height: 28px !important;
+  padding: 0 8px !important;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* 16. Compact clinical and history modules                            */
+/* ------------------------------------------------------------------ */
+
+.clinical-workspace {
+  gap: 5px !important;
+  overflow: hidden !important;
+}
+
+.clinical-overview {
+  flex: 0 0 auto;
+  min-height: 32px;
+  margin: 0 0 4px !important;
+  display: flex !important;
+  grid-template-columns: none !important;
+  gap: 5px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.clinical-overview-item {
+  flex: 1 1 120px;
+  min-width: 108px;
+  min-height: 30px;
+  padding: 5px 7px !important;
+}
+
+.clinical-overview-item strong {
+  font-size: 0.84rem !important;
+  line-height: 1;
+}
+
+.clinical-overview-item small {
+  font-size: 0.62rem !important;
+}
+
+.clinical-subtabs,
+.treatment-subtabs {
+  flex: 0 0 auto;
+  min-height: 30px !important;
+  margin: 0 0 4px !important;
+  padding: 2px !important;
+  gap: 4px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.clinical-subtabs button,
+.treatment-subtabs button {
+  min-height: 26px !important;
+  padding: 0 8px !important;
+  white-space: nowrap;
+}
+
+.clinical-workspace > :not(.clinical-overview):not(.clinical-subtabs):not(.treatment-subtabs) {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.history-complete-workspace,
+.history-billing-eurodent,
+.complete-history-panel,
+.complete-history-layout,
+.history-ledger-scroll,
+.patient-documents-drawer,
+.patient-consent-drawer,
+.patient-recipes-drawer {
+  min-height: 0 !important;
+  scrollbar-width: thin;
+}
+
+.history-complete-workspace {
+  height: 100%;
+  overflow: auto !important;
+  padding-bottom: 8px;
+}
+
+.budget-context-workspace,
+.budget-main-workspace,
+.patient-context-panel,
+.patient-budget-panel {
+  min-height: 0 !important;
+}
+
+.budget-context-workspace,
+.budget-main-workspace {
+  overflow: hidden !important;
+}
+
+.patient-context-panel {
+  max-height: calc(var(--app-window-height) - 20px);
+}
+
+.budget-main-workspace > :not(.budget-patient-selector):not(.patient-budget-tabs) {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 900px) {
+  .app-launcher-bar {
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .main-content > .patient-selector-bar {
+    min-height: 38px;
+  }
+
+  .patient-module-tabs {
+    overflow-x: auto;
+  }
+
+  .patient-module-tabs button {
+    flex: 0 0 auto;
+  }
+}

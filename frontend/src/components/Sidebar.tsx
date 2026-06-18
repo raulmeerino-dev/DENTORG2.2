@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Building2,
   CalendarCheck2,
   CalendarDays,
+  ChevronDown,
   ClipboardList,
-  CreditCard,
   LogOut,
-  MessageCircle,
   Moon,
   Settings2,
   ShieldCheck,
@@ -16,8 +15,8 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useAuth } from '../auth/AuthContext';
-import { ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
-import type { AppSection } from '../config/workflow';
+import { GLOBAL_LAUNCHER_IDS, ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
+import type { AppSection, WorkflowItem } from '../config/workflow';
 import dentcoreLogo from '../assets/branding/dentcore-clinic-logo-64.png';
 
 const ICON_SIZE = 18;
@@ -25,39 +24,40 @@ const ICON_SIZE = 18;
 const NAV_ICONS: Partial<Record<AppSection, ReactNode>> = {
   hoy: <CalendarCheck2 size={ICON_SIZE} strokeWidth={1.9} />,
   agenda: <CalendarDays size={ICON_SIZE} strokeWidth={1.9} />,
-  whatsapp: <MessageCircle size={ICON_SIZE} strokeWidth={1.9} />,
   pacientes: <UsersRound size={ICON_SIZE} strokeWidth={1.9} />,
-  caja: <CreditCard size={ICON_SIZE} strokeWidth={1.9} />,
   listados: <ClipboardList size={ICON_SIZE} strokeWidth={1.9} />,
   adminExtras: <Settings2 size={ICON_SIZE} strokeWidth={1.9} />,
   portalPaciente: <CalendarCheck2 size={ICON_SIZE} strokeWidth={1.9} />,
 };
 
-const MAIN_NAV_IDS: AppSection[] = [
-  'hoy',
-  'agenda',
-  'pacientes',
-  'caja',
-  'listados',
-  'adminExtras',
-  'portalPaciente',
-];
-
 export default function MainNav() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const headerRef = useRef<HTMLElement | null>(null);
   const [theme, setTheme] = useState(() => localStorage.getItem('dentcore-theme') ?? 'light');
   const [now, setNow] = useState(() => new Date());
-  const navItems = WORKFLOW_ITEMS.filter((item) => (
-    item.route
-    && canAccess(user?.rol, item)
-    && MAIN_NAV_IDS.includes(item.id)
-  ));
+  const [launcherOpen, setLauncherOpen] = useState(false);
+  const navItems = GLOBAL_LAUNCHER_IDS
+    .map((id) => WORKFLOW_ITEMS.find((item) => item.id === id))
+    .filter((item): item is WorkflowItem => Boolean(item?.route && canAccess(user?.rol, item)));
   const nowLabel = now.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' })
     + ` ${now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`;
   const isDark = theme === 'dark';
   const isAdminArea = ['/admin-extras', '/configuracion'].some((route) => location.pathname.startsWith(route));
+  const isAgendaArea = ['/agenda', '/whatsapp'].some((route) => location.pathname.startsWith(route));
+  const isReportsArea = ['/listados', '/caja'].some((route) => location.pathname.startsWith(route));
   const isPortalArea = ['/mis-citas', '/portal'].some((route) => location.pathname.startsWith(route));
+
+  function isItemActive(item: WorkflowItem) {
+    if (!item.route) return false;
+    if (item.id === 'agenda') return isAgendaArea;
+    if (item.id === 'listados') return isReportsArea;
+    if (item.id === 'adminExtras') return isAdminArea;
+    if (item.id === 'portalPaciente') return isPortalArea;
+    return location.pathname === item.route || location.pathname.startsWith(`${item.route}/`);
+  }
+
+  const activeItem = navItems.find(isItemActive);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -69,19 +69,79 @@ export default function MainNav() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!launcherOpen) return undefined;
+
+    function onPointerDown(event: PointerEvent) {
+      if (!headerRef.current?.contains(event.target as Node)) {
+        setLauncherOpen(false);
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setLauncherOpen(false);
+      }
+    }
+
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [launcherOpen]);
+
   return (
-    <header className="euro-shell-header">
-      <div className="euro-titlebar">
-        <div className="app-brand">
-          <span className="app-brand-mark" aria-hidden="true">
-            <img src={dentcoreLogo} alt="" />
-          </span>
-          <div>
-            <strong>DentCore Clinic</strong>
-            <span className="title-clock">{nowLabel}</span>
-          </div>
+    <header className="euro-shell-header app-launcher-shell" ref={headerRef}>
+      <div className="euro-titlebar app-launcher-bar">
+        <div className="app-launcher-anchor">
+          <button
+            type="button"
+            className="app-brand app-launcher-trigger"
+            aria-haspopup="menu"
+            aria-expanded={launcherOpen}
+            aria-controls="main-module-launcher"
+            onClick={() => setLauncherOpen((open) => !open)}
+          >
+            <span className="app-brand-mark" aria-hidden="true">
+              <img src={dentcoreLogo} alt="" />
+            </span>
+            <span className="app-brand-copy">
+              <strong>DentCore Clinic</strong>
+              <span className="title-clock">{activeItem?.label ?? nowLabel}</span>
+            </span>
+            <ChevronDown className="app-launcher-chevron" size={16} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+
+          {launcherOpen && (
+            <div id="main-module-launcher" className="module-launcher-menu" role="menu" aria-label="Modulos principales">
+              {navItems.map((item) => {
+                const active = isItemActive(item);
+                return (
+                  <NavLink
+                    key={item.id}
+                    to={item.route!}
+                    role="menuitem"
+                    aria-current={active ? 'page' : undefined}
+                    className={`module-launcher-item${active ? ' active' : ''}`}
+                    onClick={() => setLauncherOpen(false)}
+                  >
+                    <span className="module-launcher-icon" aria-hidden="true">{NAV_ICONS[item.id]}</span>
+                    <span className="module-launcher-copy">
+                      <strong>{item.label}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                    {item.shortcut && <span className="module-launcher-shortcut">{item.shortcut}</span>}
+                  </NavLink>
+                );
+              })}
+            </div>
+          )}
         </div>
+
         <div className="euro-titlebar-context">
+          <span className="title-clock app-launcher-clock">{nowLabel}</span>
           <span className="clinic-chip"><Building2 size={13} strokeWidth={2} aria-hidden="true" /> Clinica Dental</span>
           <span className="role-chip"><ShieldCheck size={13} strokeWidth={2} aria-hidden="true" /> {user?.nombre} - {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
           <button
@@ -93,31 +153,14 @@ export default function MainNav() {
           >
             {isDark ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
           </button>
-        </div>
-      </div>
-      <nav className="euro-main-nav" aria-label="Modulos principales">
-        <div className="euro-nav-group">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.id}
-              to={item.route!}
-              className={({ isActive }) => `euro-nav-button${isActive || (item.id === 'adminExtras' && isAdminArea) || (item.id === 'portalPaciente' && isPortalArea) ? ' active' : ''}`}
-              aria-label={item.label}
-            >
-              <span className="nav-icon" aria-hidden="true">{NAV_ICONS[item.id]}</span>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </div>
-        <div className="euro-nav-actions">
-          <button className="euro-nav-button nav-exit" onClick={() => void logout()}>
+          <button className="euro-nav-button nav-exit app-launcher-exit" onClick={() => void logout()}>
             <span className="nav-icon" aria-hidden="true">
               <LogOut size={ICON_SIZE} strokeWidth={1.9} />
             </span>
             <span>Salir</span>
           </button>
         </div>
-      </nav>
+      </div>
     </header>
   );
 }

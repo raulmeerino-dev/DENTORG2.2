@@ -82,7 +82,7 @@ import { ClinicalWorkspace } from './ClinicalWorkspace';
 import type { ClinicalTab } from './ClinicalWorkspace';
 
 export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'notas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
-type MainPatientTab = 'pacientes' | 'presupuestos' | 'clinica' | 'historial';
+type MainPatientTab = 'pacientes' | 'clinica' | 'historial';
 type TreatmentTab = ClinicalTab;
 type PatientContextMenu =
   | { x: number; y: number; kind: 'paciente' }
@@ -148,7 +148,6 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
 
 const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'pacientes', label: 'Ficha' },
-  { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'clinica', label: 'Clinica' },
   { id: 'historial', label: 'Historial' },
 ];
@@ -202,6 +201,7 @@ export default function PacientesPage() {
   const [facturaManualOpen, setFacturaManualOpen] = useState(false);
   const [revocarConsentimientoTarget, setRevocarConsentimientoTarget] = useState<Consentimiento | null>(null);
   const [selectedPresupuestoId, setSelectedPresupuestoId] = useState<string | null>(null);
+  const [presupuestoPanelOpen, setPresupuestoPanelOpen] = useState(false);
   const [nuevoPacienteOpen, setNuevoPacienteOpen] = useState(false);
   const [comentarioOpen, setComentarioOpen] = useState(false);
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
@@ -210,9 +210,7 @@ export default function PacientesPage() {
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeMainTab: MainPatientTab = tab === 'presupuestos'
-    ? 'presupuestos'
-    : isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
+  const activeMainTab: MainPatientTab = isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
       ? 'clinica'
       : tab === 'historial' || tab === 'facturacion' || tab === 'realizados'
       ? 'historial'
@@ -376,7 +374,7 @@ export default function PacientesPage() {
       return;
     }
     if (targetTab === 'presupuestos') {
-      setTab('presupuestos');
+      setPresupuestoPanelOpen(true);
       return;
     }
     if (targetTab === 'realizados' || targetTab === 'facturacion' || targetTab === 'historial') {
@@ -423,6 +421,9 @@ export default function PacientesPage() {
   }
 
   const nuevoPresupuesto = useMutation({
+    onMutate: () => {
+      setPresupuestoPanelOpen(true);
+    },
     mutationFn: async () => {
       if (!active) throw new Error('Sin paciente');
       const doctor = doctoresQuery.data?.[0];
@@ -874,6 +875,89 @@ export default function PacientesPage() {
     navigate('/agenda');
   }
 
+  function renderPresupuestosContextPanel() {
+    const activeId = selectedPresupuestoId ?? presupuestos[0]?.id;
+    const presupuesto = presupuestos.find((p) => p.id === activeId);
+    const noDoctorsConfigured = doctoresQuery.isFetched && !doctoresQuery.data?.length;
+    const createDisabled = !active || doctoresQuery.isLoading || !doctoresQuery.data?.length || nuevoPresupuesto.isPending;
+    const createError = nuevoPresupuesto.error instanceof Error ? nuevoPresupuesto.error.message : null;
+    const createLabel = nuevoPresupuesto.isPending ? 'Creando...' : 'Crear nuevo presupuesto';
+    const activeBudgetClosed = isPresupuestoCerrado(presupuesto?.estado);
+    const selector = (
+      <>
+        {(!active || noDoctorsConfigured || createError) && (
+          <div className="inline-alert budget-create-alert" role="alert">
+            {!active && 'Selecciona un paciente antes de crear un presupuesto.'}
+            {active && noDoctorsConfigured && 'No hay doctores configurados. Crea o activa un doctor para poder crear presupuestos.'}
+            {active && doctoresQuery.data?.length && createError}
+          </div>
+        )}
+        <div className="presupuesto-selector" aria-label="Presupuestos del paciente">
+          {presupuestos.map((p) => {
+            const totalAceptadoPresupuesto = Number(p.total_aceptado ?? 0);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`presupuesto-pill${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''} presupuesto-pill-${p.estado}`}
+                onClick={() => setSelectedPresupuestoId(p.id)}
+              >
+                <span className="pp-num">#{p.numero}</span>
+                <span className="pp-estado">{presupuestoEstadoLabel(p.estado)}</span>
+                <span className="pp-date">{formatDate(p.fecha).slice(0, 5)}</span>
+                <span className="pp-total">Total {money(Number(p.total ?? 0))}</span>
+                {totalAceptadoPresupuesto > 0 && <span className="pp-accepted">Aceptado {money(totalAceptadoPresupuesto)}</span>}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="presupuesto-pill presupuesto-pill-nuevo"
+            aria-label={createLabel}
+            title={createLabel}
+            onClick={() => nuevoPresupuesto.mutate()}
+            disabled={createDisabled}
+          >
+            {nuevoPresupuesto.isPending ? 'Creando...' : '+ Nuevo'}
+          </button>
+        </div>
+        {activeBudgetClosed && presupuesto && (
+          <div className={`budget-closed-notice budget-closed-${presupuesto.estado}`} role="note">
+            <div>
+              <strong>Este presupuesto ya esta {presupuestoEstadoLabel(presupuesto.estado).toLowerCase()}.</strong>
+              <span>Para nuevos tratamientos crea un nuevo presupuesto.</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => nuevoPresupuesto.mutate()}
+              disabled={createDisabled}
+            >
+              {createLabel}
+            </button>
+          </div>
+        )}
+      </>
+    );
+
+    return (
+      <section className="budget-main-workspace budget-context-workspace">
+        {selector}
+        {!presupuesto && !presupuestosQuery.isLoading && (
+          <div className="desk-panel empty-state">No hay presupuestos para este paciente.</div>
+        )}
+        {presupuesto && active && (
+          <PresupuestoPanel
+            key={presupuesto.id}
+            presupuesto={presupuesto}
+            paciente={active}
+            tratamientos={tratamientosQuery.data ?? []}
+            userRole={user?.rol}
+          />
+        )}
+      </section>
+    );
+  }
+
   return (
     <>
       <div className="patient-selector-bar">
@@ -1012,6 +1096,12 @@ export default function PacientesPage() {
               onEdit={() => setEditingPatient(true)}
               onOpenFull={() => setFullPatientOpen(true)}
               onOpenCitas={abrirAgendaPaciente}
+              onNuevoPresupuesto={() => nuevoPresupuesto.mutate()}
+              onCrearReceta={() => {
+                setRecetaError(null);
+                setRecetaModalOpen(true);
+              }}
+              onWhatsApp={abrirWhatsAppPaciente}
               onOpenPresupuestos={() => openPatientArea('presupuestos')}
               onOpenPendientes={() => openPatientArea('pendiente')}
               onOpenRealizados={() => openPatientArea('realizados')}
@@ -1030,96 +1120,6 @@ export default function PacientesPage() {
               onOpenOdontogramaDetail={() => openPatientArea('primera')}
             />
           </div>
-        )}
-        {activeMainTab === 'presupuestos' && (
-          <section className="budget-main-workspace">
-            {(() => {
-              const activeId = selectedPresupuestoId ?? presupuestos[0]?.id;
-              const presupuesto = presupuestos.find((p) => p.id === activeId);
-              const noDoctorsConfigured = doctoresQuery.isFetched && !doctoresQuery.data?.length;
-              const createDisabled = !active || doctoresQuery.isLoading || !doctoresQuery.data?.length || nuevoPresupuesto.isPending;
-              const createError = nuevoPresupuesto.error instanceof Error ? nuevoPresupuesto.error.message : null;
-              const createLabel = nuevoPresupuesto.isPending ? 'Creando...' : 'Crear nuevo presupuesto';
-              const activeBudgetClosed = isPresupuestoCerrado(presupuesto?.estado);
-              const selector = (
-                <>
-                  {(!active || noDoctorsConfigured || createError) && (
-                    <div className="inline-alert budget-create-alert" role="alert">
-                      {!active && 'Selecciona un paciente antes de crear un presupuesto.'}
-                      {active && noDoctorsConfigured && 'No hay doctores configurados. Crea o activa un doctor para poder crear presupuestos.'}
-                      {active && doctoresQuery.data?.length && createError}
-                    </div>
-                  )}
-                  <div className="presupuesto-selector" aria-label="Presupuestos del paciente">
-                    {presupuestos.map((p) => {
-                      const totalAceptadoPresupuesto = Number(p.total_aceptado ?? 0);
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`presupuesto-pill${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''} presupuesto-pill-${p.estado}`}
-                          onClick={() => setSelectedPresupuestoId(p.id)}
-                        >
-                          <span className="pp-num">#{p.numero}</span>
-                          <span className="pp-estado">{presupuestoEstadoLabel(p.estado)}</span>
-                          <span className="pp-date">{formatDate(p.fecha).slice(0, 5)}</span>
-                          <span className="pp-total">Total {money(Number(p.total ?? 0))}</span>
-                          {totalAceptadoPresupuesto > 0 && <span className="pp-accepted">Aceptado {money(totalAceptadoPresupuesto)}</span>}
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      className="presupuesto-pill presupuesto-pill-nuevo"
-                      aria-label={createLabel}
-                      title={createLabel}
-                      onClick={() => nuevoPresupuesto.mutate()}
-                      disabled={createDisabled}
-                    >
-                      {nuevoPresupuesto.isPending ? 'Creando...' : '+ Nuevo'}
-                    </button>
-                  </div>
-                  {activeBudgetClosed && presupuesto && (
-                    <div className={`budget-closed-notice budget-closed-${presupuesto.estado}`} role="note">
-                      <div>
-                        <strong>Este presupuesto ya esta {presupuestoEstadoLabel(presupuesto.estado).toLowerCase()}.</strong>
-                        <span>Para nuevos tratamientos crea un nuevo presupuesto.</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => nuevoPresupuesto.mutate()}
-                        disabled={createDisabled}
-                      >
-                        {createLabel}
-                      </button>
-                    </div>
-                  )}
-                </>
-              );
-              if (!presupuesto) {
-                return (
-                  <>
-                    {selector}
-                    {!presupuestosQuery.isLoading && (
-                      <div className="desk-panel empty-state">No hay presupuestos para este paciente.</div>
-                    )}
-                  </>
-                );
-              }
-              return (
-                <>
-                  {selector}
-                  <PresupuestoPanel
-                    key={presupuesto.id}
-                    presupuesto={presupuesto}
-                    paciente={active!}
-                    tratamientos={tratamientosQuery.data ?? []}
-                    userRole={user?.rol}
-                  />
-                </>
-              );
-            })()}
-          </section>
         )}
         {activeMainTab === 'clinica' && (
           <ClinicalWorkspace
@@ -1159,6 +1159,7 @@ export default function PacientesPage() {
             onOpenConsentimientoPdf={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
             onRevocarConsentimiento={revocarConsentimientoPaciente}
             onOpenDocumentos={() => openDocumentsDrawer()}
+            onOpenPresupuestos={() => openPatientArea('presupuestos')}
             onOpenHistorial={() => openPatientArea('historial')}
             onSchedulePatient={abrirAgendaPaciente}
             onOpenCobro={() => abrirCobroDesdeFicha()}
@@ -1372,6 +1373,26 @@ export default function PacientesPage() {
             setRecetaModalOpen(true);
           }}
         />
+      )}
+      {presupuestoPanelOpen && active && (
+        <div className="modal-backdrop patient-context-panel-backdrop" onMouseDown={() => setPresupuestoPanelOpen(false)}>
+          <section
+            className="patient-context-panel patient-budget-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Presupuestos de ${fullName(active)}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <header className="modal-titlebar patient-context-panel-head">
+              <div>
+                <strong>Presupuestos</strong>
+                <span>{fullName(active)} - H {active.num_historial}</span>
+              </div>
+              <button type="button" onClick={() => setPresupuestoPanelOpen(false)}>Cerrar</button>
+            </header>
+            {renderPresupuestosContextPanel()}
+          </section>
+        </div>
       )}
       {invoiceHistoryOpen && (
         <InvoiceHistoryModal

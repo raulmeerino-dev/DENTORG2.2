@@ -174,6 +174,7 @@ function renderClinical(
       onOpenConsentimientoPdf={vi.fn()}
       onRevocarConsentimiento={vi.fn()}
       onOpenDocumentos={vi.fn()}
+      onOpenPresupuestos={vi.fn()}
       onOpenHistorial={vi.fn()}
       onFinalizarTratamientoSesion={onFinalizar}
       onCreateNotaDental={onCreateNotaDental}
@@ -262,6 +263,7 @@ function renderVisits(overrides: Partial<{
       onOpenConsentimientoPdf={vi.fn()}
       onRevocarConsentimiento={vi.fn()}
       onOpenDocumentos={vi.fn()}
+      onOpenPresupuestos={vi.fn()}
       onOpenHistorial={onOpenHistorial}
       onFinalizarTratamientoSesion={vi.fn()}
       onCreateNotaDental={vi.fn()}

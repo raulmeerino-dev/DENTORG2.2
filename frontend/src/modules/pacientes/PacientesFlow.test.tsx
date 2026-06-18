@@ -12,7 +12,7 @@
  *  - WhatsApp del paciente abre wa.me con teléfono normalizado
  */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -234,14 +234,15 @@ describe('Flujo integración cross-módulo', () => {
     mocks.openRecetaClinicaPdf.mockClear();
   });
 
-  it('menú "Más acciones" abre el modal de receta y envía datos correctos', async () => {
+  it('accion rapida de ficha abre el modal de receta y envia datos correctos', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    const actions = await screen.findByLabelText('Acciones rapidas del paciente');
-    await user.click(within(actions).getByRole('button', { name: 'Recetas' }));
+    const recetaButton = await screen.findByRole('button', { name: /^Nueva receta$/i });
+    await waitFor(() => expect(recetaButton).not.toBeDisabled());
+    await user.click(recetaButton);
 
-    expect(await screen.findByText(/Nueva receta/i)).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Medicamento/)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Medicamento/), 'Ibuprofeno 600');
     await user.type(screen.getByLabelText(/Posología/), '1 cada 8h');
     await user.click(screen.getByRole('button', { name: /Crear receta/ }));

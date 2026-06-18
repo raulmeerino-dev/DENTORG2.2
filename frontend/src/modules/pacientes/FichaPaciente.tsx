@@ -206,6 +206,9 @@ export function PatientForm({
   onEdit,
   onOpenFull,
   onOpenCitas,
+  onNuevoPresupuesto,
+  onCrearReceta,
+  onWhatsApp,
   onOpenPresupuestos,
   onOpenPendientes,
   onOpenRealizados,
@@ -231,6 +234,9 @@ export function PatientForm({
   onEdit: () => void;
   onOpenFull: () => void;
   onOpenCitas: () => void;
+  onNuevoPresupuesto: () => void;
+  onCrearReceta: () => void;
+  onWhatsApp: () => void;
   onOpenPresupuestos: () => void;
   onOpenPendientes: () => void;
   onOpenRealizados: () => void;
@@ -353,8 +359,19 @@ export function PatientForm({
           <em>{money(totals.cobrado)} cobrado</em>
         </div>
         <div className="patient-hub-head-actions">
+          <button type="button" onClick={onEdit} disabled={!paciente}>Editar datos</button>
+          <button type="button" onClick={onOpenCitas} disabled={!paciente}>Nueva cita</button>
+          <button type="button" onClick={onCrearReceta} disabled={!paciente}>Nueva receta</button>
+          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Documentos</button>
+          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>CI / circular</button>
+          <button type="button" onClick={onNuevoPresupuesto} disabled={!paciente}>Nuevo presupuesto</button>
+          {(paciente?.telefono || paciente?.telefono2) && (
+            <button type="button" onClick={onWhatsApp}>WhatsApp</button>
+          )}
+          {totals.pendiente > 0 && (
+            <button type="button" className="patient-action-danger" onClick={() => onRegistrarCobro(facturasPendientes[0] ?? null)}>Cobrar</button>
+          )}
           <button type="button" onClick={onOpenFull} disabled={!paciente}>Vista completa</button>
-          <button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>
         </div>
       </section>
 

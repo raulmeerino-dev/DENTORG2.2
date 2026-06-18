@@ -19449,3 +19449,370 @@ html[data-theme="dark"] .slot-results-summary {
     align-items: flex-start !important;
   }
 }
+
+/* Main module launcher: replaces the visible top navigation row. */
+.app-launcher-shell {
+  position: relative;
+  z-index: 80;
+  overflow: visible !important;
+  padding: 0 !important;
+}
+
+.app-launcher-bar {
+  height: 46px !important;
+  min-height: 46px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px;
+}
+
+.app-launcher-anchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.app-launcher-trigger {
+  min-width: 0;
+  min-height: 38px;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 10px 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-launcher-trigger:hover,
+.app-launcher-trigger[aria-expanded="true"] {
+  border-color: rgba(14, 165, 233, 0.28);
+  background: rgba(14, 165, 233, 0.09);
+}
+
+.app-brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.app-launcher-trigger .app-brand-mark {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+.app-launcher-trigger .app-brand-mark img {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.app-launcher-trigger strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 0.95rem !important;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-launcher-trigger .title-clock {
+  overflow: hidden;
+  max-width: 170px;
+  font-size: 0.68rem !important;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-launcher-chevron {
+  flex: 0 0 auto;
+  transition: transform 140ms ease;
+}
+
+.app-launcher-trigger[aria-expanded="true"] .app-launcher-chevron {
+  transform: rotate(180deg);
+}
+
+.module-launcher-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 180;
+  width: min(390px, calc(100vw - 24px));
+  max-height: min(520px, calc(100vh - 72px));
+  overflow-y: auto;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #bdd5e2;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 18px 44px rgba(15, 39, 54, 0.22);
+}
+
+.module-launcher-item {
+  min-width: 0;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: #17364b;
+  text-decoration: none;
+}
+
+.module-launcher-item:hover {
+  border-color: #bdd5e2;
+  background: #f3fbfd;
+}
+
+.module-launcher-item.active {
+  border-color: rgba(14, 165, 233, 0.55);
+  background: #eaf7fc;
+  color: #052b40;
+}
+
+.module-launcher-icon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #eaf4f8;
+  color: #0369a1;
+}
+
+.module-launcher-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.module-launcher-copy strong,
+.module-launcher-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-launcher-copy strong {
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.module-launcher-copy small {
+  color: #587185;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.module-launcher-shortcut {
+  min-width: 28px;
+  padding: 3px 5px;
+  border-radius: 7px;
+  background: #eef5f8;
+  color: #587185;
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.app-launcher-clock {
+  max-width: none !important;
+  white-space: nowrap;
+}
+
+.app-launcher-exit {
+  min-height: 32px !important;
+  padding: 0 10px !important;
+}
+
+.app-launcher-shell .euro-main-nav {
+  display: none !important;
+}
+
+html[data-theme="dark"] .app-launcher-trigger:hover,
+html[data-theme="dark"] .app-launcher-trigger[aria-expanded="true"] {
+  border-color: rgba(125, 211, 252, 0.34);
+  background: rgba(56, 189, 248, 0.12);
+}
+
+html[data-theme="dark"] .module-launcher-menu {
+  border-color: rgba(125, 211, 252, 0.24);
+  background: #0d2534;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.38);
+}
+
+html[data-theme="dark"] .module-launcher-item {
+  color: #e8f7fa;
+}
+
+html[data-theme="dark"] .module-launcher-item:hover {
+  border-color: rgba(125, 211, 252, 0.28);
+  background: rgba(56, 189, 248, 0.10);
+}
+
+html[data-theme="dark"] .module-launcher-item.active {
+  border-color: rgba(125, 211, 252, 0.48);
+  background: rgba(56, 189, 248, 0.16);
+  color: #f4fcff;
+}
+
+html[data-theme="dark"] .module-launcher-icon {
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+}
+
+html[data-theme="dark"] .module-launcher-copy small,
+html[data-theme="dark"] .module-launcher-shortcut {
+  color: #9ab5c5;
+}
+
+html[data-theme="dark"] .module-launcher-shortcut {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+@media (max-width: 820px) {
+  .app-launcher-bar {
+    padding: 0 10px !important;
+  }
+
+  .app-launcher-clock,
+  .clinic-chip {
+    display: none !important;
+  }
+
+  .role-chip {
+    max-width: 190px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-launcher-bar {
+    gap: 6px;
+  }
+
+  .role-chip,
+  .app-launcher-exit span:not(.nav-icon) {
+    display: none !important;
+  }
+
+  .app-launcher-trigger .title-clock {
+    max-width: 120px;
+  }
+}
+
+/* Pacientes 3 areas: Presupuestos vive como panel contextual del paciente. */
+.patient-context-panel-backdrop {
+  z-index: 170;
+  padding: 18px;
+}
+
+.patient-context-panel {
+  width: min(1320px, calc(100vw - 36px));
+  height: min(88vh, 860px);
+  min-height: min(680px, calc(100vh - 36px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #b9ccd7;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 30px 70px rgba(11, 44, 65, 0.28);
+}
+
+.patient-context-panel-head {
+  flex: 0 0 auto;
+}
+
+.patient-context-panel-head div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.patient-context-panel-head span {
+  overflow: hidden;
+  color: #60717f;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-budget-panel .budget-context-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px;
+}
+
+.patient-budget-panel .presupuesto-selector {
+  flex: 0 0 auto;
+}
+
+.clinical-subtabs .clinical-subtab-action {
+  margin-left: auto;
+  border-color: rgba(14, 165, 233, 0.28) !important;
+  background: rgba(14, 165, 233, 0.10) !important;
+  color: #075985 !important;
+}
+
+.patient-hub-head-actions {
+  align-content: center;
+}
+
+.patient-hub-head-actions button {
+  min-height: 28px !important;
+  padding: 3px 8px !important;
+  white-space: nowrap;
+}
+
+.patient-hub-head-actions .patient-action-danger {
+  border-color: #f0b6b6 !important;
+  background: #fff2f0 !important;
+  color: #b42318 !important;
+}
+
+html[data-theme="dark"] .patient-context-panel {
+  border-color: rgba(125, 211, 252, 0.22);
+  background: #0d2534;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.42);
+}
+
+html[data-theme="dark"] .patient-context-panel-head span {
+  color: #9ab5c5;
+}
+
+html[data-theme="dark"] .clinical-subtabs .clinical-subtab-action {
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  background: rgba(56, 189, 248, 0.13) !important;
+  color: #dff8ff !important;
+}
+
+html[data-theme="dark"] .patient-hub-head-actions .patient-action-danger {
+  border-color: rgba(248, 113, 113, 0.32) !important;
+  background: rgba(248, 113, 113, 0.14) !important;
+  color: #fecaca !important;
+}
+
+@media (max-width: 900px) {
+  .patient-context-panel {
+    width: calc(100vw - 20px);
+    height: calc(100vh - 20px);
+    min-height: 0;
+  }
+
+  .clinical-subtabs .clinical-subtab-action {
+    margin-left: 0;
+  }
+}

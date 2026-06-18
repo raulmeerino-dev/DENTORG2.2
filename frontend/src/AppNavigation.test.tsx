@@ -80,4 +80,12 @@ describe('App navigation', () => {
 
     await waitFor(() => expect(screen.getByText(/WhatsApp page/i)).toBeInTheDocument());
   });
+
+  it('allows reception to use reports/listados for caja context', async () => {
+    authState.user = { id: 'user-2', nombre: 'Recepcion', rol: 'recepcion' };
+    window.history.pushState({}, '', '/listados');
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/Listados page/i)).toBeInTheDocument());
+  });
 });
