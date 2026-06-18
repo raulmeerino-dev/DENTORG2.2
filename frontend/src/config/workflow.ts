@@ -54,7 +54,6 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
     label: 'WhatsApp',
     description: 'Respuestas, confirmaciones, cambios y reprogramacion asistida.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
-    route: '/whatsapp',
     shortcut: 'WA',
   },
   {

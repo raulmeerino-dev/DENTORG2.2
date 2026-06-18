@@ -36,7 +36,6 @@ const NAV_ICONS: Partial<Record<AppSection, ReactNode>> = {
 const MAIN_NAV_IDS: AppSection[] = [
   'hoy',
   'agenda',
-  'whatsapp',
   'pacientes',
   'caja',
   'listados',

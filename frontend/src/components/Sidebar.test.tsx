@@ -27,7 +27,7 @@ describe('MainNav', () => {
 
     expect(screen.getByRole('link', { name: /Hoy/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Agenda/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /WhatsApp/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /WhatsApp/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Pacientes/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Caja/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Reportes\/Listados/i })).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe('MainNav', () => {
 
     expect(screen.getByRole('link', { name: /Hoy/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Agenda/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /WhatsApp/i })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /WhatsApp/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Pacientes/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Caja/i })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Reportes\/Listados/i })).not.toBeInTheDocument();
