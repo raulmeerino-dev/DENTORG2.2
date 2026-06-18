@@ -8,6 +8,7 @@ import {
   createPresupuestoFromOdontograma,
   duplicateOdontogramaVersion,
   saveOdontograma,
+  solicitarCambioPortalCita,
   updateHorarioDoctor,
   updateOdontogramaPieza,
   updateOdontogramaSuperficie,
@@ -85,6 +86,16 @@ describe('otras escrituras reales sin demo fallback', () => {
     const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Sin token portal'));
     await expect(confirmarPortalCita('cita-1', 'pac-1')).rejects.toThrow('Sin token portal');
     expect(spy).toHaveBeenCalled();
+  });
+
+  it('solicitarCambioPortalCita propaga el error real', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Cita cerrada'));
+    await expect(solicitarCambioPortalCita('cita-1', 'pac-1', 'Necesito otra hora')).rejects.toThrow('Cita cerrada');
+    expect(spy).toHaveBeenCalledWith(
+      '/portal/citas/cita-1/solicitar-cambio',
+      { motivo: 'Necesito otra hora' },
+      { params: { paciente_id: 'pac-1' } },
+    );
   });
 
   it('updateHorarioDoctor propaga el error real', async () => {

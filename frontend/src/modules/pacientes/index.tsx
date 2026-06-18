@@ -317,6 +317,8 @@ export default function PacientesPage() {
   const citasPaciente = citasPacienteQuery.data ?? [];
   const historialPaciente = historialQuery.data ?? [];
   const laboratorioPaciente = laboratorioPacienteQuery.data ?? [];
+  const documentosPaciente = documentosQuery.data ?? [];
+  const consentimientosPaciente = consentimientosQuery.data ?? [];
   const billingTotals = getBillingTotals(facturas);
   const totalFacturado = Number(saldoQuery.data?.total_facturado ?? billingTotals.facturado);
   const totalPendiente = Number(saldoQuery.data?.pendiente ?? billingTotals.pendiente);
@@ -330,11 +332,12 @@ export default function PacientesPage() {
     );
     return !alreadyDone && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado');
   }).length, 0);
+  const consentimientosPendientes = consentimientosPaciente.filter((item) => item.estado !== 'firmado' && item.estado !== 'revocado').length;
   const laboratorioVencido = contarLaboratorioVencidos(laboratorioPaciente);
   const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
   const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
-  const hasImportantAlerts = Boolean(alergias || laboratorioVencido > 0 || totalPendiente > 0 || tratamientosPendientes > 0);
+  const hasImportantAlerts = Boolean(alergias || laboratorioVencido > 0 || totalPendiente > 0 || tratamientosPendientes > 0 || consentimientosPendientes > 0);
 
   useEffect(() => {
     if (sessionStorage.getItem('dentorg_patient_action') !== 'new') return;
@@ -985,6 +988,11 @@ export default function PacientesPage() {
               <span>Alertas</span>
               <strong>{alergias ? 'Alergia' : laboratorioVencido > 0 ? `${laboratorioVencido} lab vencido` : 'Sin alertas'}</strong>
               <small>{alergias || laboratorioVencido > 0 ? 'Revisar antes de tratar' : 'Ficha clinica'}</small>
+            </button>
+            <button type="button" className={consentimientosPendientes > 0 ? 'priority-warning' : 'priority-info'} onClick={() => openDocumentsDrawer()}>
+              <span>Docs / CI</span>
+              <strong>{consentimientosPendientes > 0 ? `${consentimientosPendientes} CI pte.` : `${documentosPaciente.length} docs`}</strong>
+              <small>{consentimientosPendientes > 0 ? 'Firmas pendientes' : `${consentimientosPaciente.length} consentimientos`}</small>
             </button>
           </aside>
         )}

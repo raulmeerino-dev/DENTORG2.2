@@ -362,9 +362,11 @@ export function PatientForm({
       <section className="patient-flow-strip" aria-label="Flujo clinico del paciente">
         <button type="button" onClick={onOpenCitas} disabled={!paciente}>Citas <strong>{citas.length}</strong></button>
         <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}>Presupuestos <strong>{presupuestos.length}</strong></button>
-        <button type="button" onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
+        <button type="button" className={pendientes.length ? 'patient-flow-warning' : ''} onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
         <button type="button" onClick={onOpenRealizados} disabled={!paciente}>Realizados <strong>{realizados.length}</strong></button>
-        <button type="button" onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
+        <button type="button" className={facturasPendientes.length ? 'patient-flow-danger' : ''} onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
+        <button type="button" className={consentimientosPendientes ? 'patient-flow-warning' : ''} onClick={onOpenConsentimientos} disabled={!paciente}>CI pte. <strong>{consentimientosPendientes}</strong></button>
+        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
       </section>
 
       {/* COL IZQ — clínica: odontograma + observaciones */}

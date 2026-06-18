@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -28,10 +28,17 @@ from app.services.audit import write_audit_log
 
 router = APIRouter()
 
+PORTAL_CITA_ESTADOS_BLOQUEADOS = {"anulada", "falta", "cancelled_by_patient", "atendida", "en_clinica"}
+
 
 class PortalMeResponse(BaseModel):
     paciente: PacienteResponse
     resumen: dict[str, int]
+
+
+class PortalSolicitarCambioCita(BaseModel):
+    motivo: str = Field("Solicita cambiar la cita desde portal paciente", max_length=300)
+    proximo_intento_at: datetime | None = None
 
 
 async def _get_portal_paciente(
@@ -76,6 +83,31 @@ async def _ensure_cita_de_paciente(db: AsyncSession, cita_id: UUID, paciente: Pa
     return cita
 
 
+def _ensure_cita_modificable_desde_portal(
+    cita: Cita,
+    *,
+    allow_reschedule_requested: bool = False,
+) -> None:
+    fecha_cita = cita.fecha_hora
+    if fecha_cita.tzinfo is None:
+        fecha_cita = fecha_cita.replace(tzinfo=timezone.utc)
+    if fecha_cita <= datetime.now(timezone.utc):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La cita ya no admite cambios desde el portal paciente.",
+        )
+    if cita.estado in PORTAL_CITA_ESTADOS_BLOQUEADOS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La cita esta cerrada o debe gestionarse con la clinica.",
+        )
+    if cita.estado == "reschedule_requested" and not allow_reschedule_requested:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La cita ya tiene una solicitud de cambio pendiente.",
+        )
+
+
 @router.get("/me", response_model=PortalMeResponse)
 async def portal_me(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -88,7 +120,7 @@ async def portal_me(
         select(func.count(Cita.id)).where(
             Cita.paciente_id == paciente.id,
             Cita.fecha_hora >= now,
-            Cita.estado.notin_(("anulada", "falta")),
+            Cita.estado.notin_(tuple(PORTAL_CITA_ESTADOS_BLOQUEADOS)),
         )
     )
     documentos_count = await db.scalar(
@@ -121,7 +153,11 @@ async def portal_citas(
     result = await db.execute(
         select(Cita)
         .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
-        .where(Cita.paciente_id == paciente.id, Cita.fecha_hora >= datetime.now(timezone.utc))
+        .where(
+            Cita.paciente_id == paciente.id,
+            Cita.fecha_hora >= datetime.now(timezone.utc),
+            Cita.estado.notin_(tuple(PORTAL_CITA_ESTADOS_BLOQUEADOS)),
+        )
         .order_by(Cita.fecha_hora)
     )
     return [await _to_response(db, cita) for cita in result.scalars().all()]
@@ -137,6 +173,7 @@ async def portal_confirmar_cita(
 ) -> CitaResponse:
     paciente = await _get_portal_paciente(db, current_user, paciente_id)
     cita = await _ensure_cita_de_paciente(db, cita_id, paciente, current_user)
+    _ensure_cita_modificable_desde_portal(cita)
     old = _snapshot_cita(cita)
     cita.estado = "confirmada"
     cita.confirmado_at = cita.confirmado_at or datetime.now(timezone.utc)
@@ -165,6 +202,7 @@ async def portal_cancelar_cita(
 ) -> CitaResponse:
     paciente = await _get_portal_paciente(db, current_user, paciente_id)
     cita = await _ensure_cita_de_paciente(db, cita_id, paciente, current_user)
+    _ensure_cita_modificable_desde_portal(cita)
     old = _snapshot_cita(cita)
     cita.estado = "anulada"
     cita.motivo_cancelacion = data.motivo_cancelacion
@@ -194,6 +232,60 @@ async def portal_cancelar_cita(
         old_values=old,
         new_values=_snapshot_cita(cita),
         motivo=data.motivo_cancelacion,
+        request=request,
+    )
+    await db.commit()
+    return await _to_response(db, await _get_cita_or_404(db, cita_id))
+
+
+@router.post("/citas/{cita_id}/solicitar-cambio", response_model=CitaResponse)
+async def portal_solicitar_cambio_cita(
+    cita_id: UUID,
+    data: PortalSolicitarCambioCita,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    paciente_id: UUID | None = Query(default=None),
+) -> CitaResponse:
+    paciente = await _get_portal_paciente(db, current_user, paciente_id)
+    cita = await _ensure_cita_de_paciente(db, cita_id, paciente, current_user)
+    _ensure_cita_modificable_desde_portal(cita, allow_reschedule_requested=True)
+
+    old = _snapshot_cita(cita)
+    motivo = data.motivo.strip() or "Solicita cambiar la cita desde portal paciente"
+    if cita.estado != "reschedule_requested":
+        cita.estado = "reschedule_requested"
+    cita.recordatorio_estado = "solicita_cambio"
+    cita.observaciones = f"{cita.observaciones or ''}\nPortal paciente: {motivo}".strip()
+
+    existing_request = await db.scalar(
+        select(CitaTelefonear).where(
+            CitaTelefonear.cita_original_id == cita.id,
+            CitaTelefonear.reubicada.is_(False),
+        )
+    )
+    if existing_request:
+        existing_request.motivo = "Solicitud de cambio desde portal"
+        existing_request.notas = motivo
+        existing_request.proximo_intento_at = data.proximo_intento_at
+    else:
+        db.add(CitaTelefonear(
+            cita_original_id=cita.id,
+            paciente_id=cita.paciente_id,
+            doctor_id=cita.doctor_id,
+            motivo="Solicitud de cambio desde portal",
+            notas=motivo,
+            proximo_intento_at=data.proximo_intento_at,
+        ))
+
+    await _registrar_cambio_cita(
+        db,
+        cita=cita,
+        current_user=current_user,
+        accion="portal_solicitar_cambio",
+        old_values=old,
+        new_values=_snapshot_cita(cita),
+        motivo=motivo,
         request=request,
     )
     await db.commit()

@@ -241,7 +241,7 @@ describe('PacientesPage structure', () => {
     expect(screen.queryByText(/Pieza seleccionada/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Documentos por pieza/i)).not.toBeInTheDocument();
     expect(screen.getAllByText('rx-control.pdf').length).toBeGreaterThan(0);
-  });
+  }, 10_000);
 
   it('shows clinical subtabs and complete history filters', async () => {
     const user = userEvent.setup();

@@ -174,10 +174,22 @@ export default function HoyPage() {
 
   const activas = citas.filter((c) => !['anulada', 'falta', 'cancelled_by_patient'].includes(c.estado));
   const sinConfirmar = activas.filter((c) => ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'].includes(c.estado));
+  const solicitudesCambio = activas.filter((c) => c.estado === 'reschedule_requested');
   const enClinica = activas.filter((c) => ['en_clinica', 'en_tratamiento'].includes(c.estado));
   const atendidas = citas.filter((c) => c.estado === 'atendida');
   const canceladas = citas.filter((c) => ['anulada', 'falta', 'cancelled_by_patient'].includes(c.estado));
   const pendientesLlamar = telefonear.filter((item) => !item.reubicada);
+  const proximaAccion = [...activas]
+    .filter((cita) => cita.estado !== 'atendida')
+    .sort((a, b) => {
+      const priority = (cita: Cita) => {
+        if (cita.estado === 'en_clinica' || cita.estado === 'en_tratamiento') return 0;
+        if (cita.estado === 'reschedule_requested') return 1;
+        if (sinConfirmar.some((item) => item.id === cita.id)) return 2;
+        return 3;
+      };
+      return priority(a) - priority(b) || a.fecha_hora.localeCompare(b.fecha_hora);
+    })[0] ?? null;
   const reminderCitas = useMemo(
     () => (reminderCitasQuery.data ?? [])
       .filter((cita) => !['anulada', 'falta', 'cancelled_by_patient', 'atendida'].includes(cita.estado))
@@ -190,6 +202,12 @@ export default function HoyPage() {
   function irAPaciente(pacienteId: string) {
     sessionStorage.setItem('dentorg_selected_patient_id', pacienteId);
     void navigate('/pacientes');
+  }
+
+  function abrirCitaAgenda(cita: Cita) {
+    sessionStorage.setItem('dentorg_agenda_focus_date', cita.fecha_hora.slice(0, 10));
+    sessionStorage.setItem('dentorg_agenda_focus_cita_id', cita.id);
+    void navigate('/agenda');
   }
 
   function copiarTelefono(telefono: string) {
@@ -267,6 +285,43 @@ export default function HoyPage() {
         </div>
       </div>
 
+      <div className="clinic-flow-board" aria-label="Trabajo operativo de hoy">
+        <section>
+          <span>Próxima acción</span>
+          <strong>{proximaAccion ? `${citaHora(proximaAccion)} · ${pacienteNombre(proximaAccion)}` : 'Sin acciones abiertas'}</strong>
+          <small>{proximaAccion ? (ESTADO_LABEL[proximaAccion.estado] ?? proximaAccion.estado) : 'Agenda controlada'}</small>
+          {proximaAccion && (
+            <button type="button" onClick={() => abrirCitaAgenda(proximaAccion)}>
+              Abrir cita
+            </button>
+          )}
+        </section>
+        <section>
+          <span>En clínica</span>
+          <strong>{enClinica.length} paciente{enClinica.length === 1 ? '' : 's'}</strong>
+          <div className="clinic-flow-list">
+            {enClinica.slice(0, 3).map((cita) => (
+              <button type="button" key={cita.id} onClick={() => cita.paciente_id && irAPaciente(cita.paciente_id)}>
+                {citaHora(cita)} · {pacienteNombre(cita)}
+              </button>
+            ))}
+            {!enClinica.length && <small>Sin pacientes esperando o en gabinete.</small>}
+          </div>
+        </section>
+        <section>
+          <span>Cambios solicitados</span>
+          <strong>{solicitudesCambio.length}</strong>
+          <div className="clinic-flow-list">
+            {solicitudesCambio.slice(0, 3).map((cita) => (
+              <button type="button" key={cita.id} onClick={() => abrirCitaAgenda(cita)}>
+                {citaHora(cita)} · {pacienteNombre(cita)}
+              </button>
+            ))}
+            {!solicitudesCambio.length && <small>Sin reprogramaciones pendientes.</small>}
+          </div>
+        </section>
+      </div>
+
       <div className="hoy-layout">
         <main className="hoy-agenda">
           <div className="panel-caption">
@@ -318,6 +373,16 @@ export default function HoyPage() {
                     {cita.estado === 'en_clinica' && (
                       <button type="button" disabled={updateEstadoMutation.isPending} onClick={() => updateEstadoMutation.mutate({ citaId: cita.id, estado: 'atendida' })}>
                         Finalizar
+                      </button>
+                    )}
+                    {cita.estado === 'reschedule_requested' && (
+                      <button type="button" onClick={() => abrirCitaAgenda(cita)}>
+                        Reubicar
+                      </button>
+                    )}
+                    {!['programada', 'pending_confirmation', 'reminder_sent', 'confirmada', 'confirmed', 'en_clinica', 'reschedule_requested'].includes(cita.estado) && (
+                      <button type="button" onClick={() => abrirCitaAgenda(cita)}>
+                        Abrir
                       </button>
                     )}
                   </td>

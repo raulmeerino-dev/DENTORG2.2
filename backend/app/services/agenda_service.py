@@ -188,8 +188,8 @@ async def buscar_huecos_libres(
             while slot_inicio + timedelta(minutes=duracion_min) <= fin_bloque:
                 slot_fin = slot_inicio + timedelta(minutes=duracion_min)
 
-                # Filtro de rango: el slot debe solapar con el rango pedido
-                if slot_fin > desde and slot_inicio <= hasta_normalizado:
+                # Filtro de rango: el inicio del hueco debe respetar `desde`.
+                if slot_inicio >= desde and slot_inicio <= hasta_normalizado:
                     # Verificar que no está ocupado
                     ocupado = await hay_solapamiento(
                         db, doctor_id, slot_inicio, duracion_min

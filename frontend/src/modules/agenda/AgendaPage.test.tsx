@@ -58,6 +58,7 @@ const { mocks } = vi.hoisted(() => {
       paciente,
       doctor,
       cita,
+      buscarHuecosLibres: vi.fn().mockResolvedValue([]),
       createCita: vi.fn(async () => cita),
       marcarTelefonearReubicada: vi.fn(async () => ({
         id: 'tel-1',
@@ -79,7 +80,7 @@ const { mocks } = vi.hoisted(() => {
 });
 
 vi.mock('../../lib/api', () => ({
-  buscarHuecosLibres: vi.fn().mockResolvedValue([]),
+  buscarHuecosLibres: mocks.buscarHuecosLibres,
   cancelarCitaAvanzada: vi.fn(),
   confirmarCita: vi.fn(),
   createCita: mocks.createCita,
@@ -132,8 +133,21 @@ function renderAgenda() {
 describe('AgendaPage flujos de cita', () => {
   beforeEach(() => {
     sessionStorage.clear();
+    mocks.buscarHuecosLibres.mockClear();
     mocks.createCita.mockClear();
     mocks.marcarTelefonearReubicada.mockClear();
+  });
+
+  it('muestra resumen operativo del dia y busca huecos al abrir el modal', async () => {
+    const user = userEvent.setup();
+    renderAgenda();
+
+    expect(await screen.findByLabelText(/Resumen operativo de agenda/i)).toHaveTextContent('Huecos visibles');
+
+    await user.click(screen.getByRole('button', { name: /^Buscar hueco$/i }));
+
+    await waitFor(() => expect(mocks.buscarHuecosLibres).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(/Buscar hueco libre/i)).toBeInTheDocument();
   });
 
   it('abre nueva cita desde Pacientes con paciente y tratamiento precargados y llama a createCita', async () => {

@@ -989,6 +989,13 @@ export async function cancelarPortalCita(citaId: string, pacienteId: string | nu
   return data;
 }
 
+export async function solicitarCambioPortalCita(citaId: string, pacienteId: string | null | undefined, motivo: string) {
+  const { data } = await api.post<Cita>(`/portal/citas/${citaId}/solicitar-cambio`, {
+    motivo,
+  }, { params: portalPatientParams(pacienteId) });
+  return data;
+}
+
 export async function getPortalDocumentos(pacienteId?: string | null) {
   const fallback = await getDocumentosPaciente(demoPortalPatient(pacienteId).id);
   return withDemoFallback(api.get<DocumentoPaciente[]>('/portal/documentos', { params: portalPatientParams(pacienteId) }), fallback);

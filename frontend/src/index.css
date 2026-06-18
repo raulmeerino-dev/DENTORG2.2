@@ -5784,6 +5784,10 @@ html[data-theme="dark"] .patient-selector-chip-danger {
   font-weight: 800;
 }
 
+.portal-action-alert {
+  margin: 10px 0 0;
+}
+
 .mobile-portal-tabs {
   margin: 14px 0 4px;
 }
@@ -5899,6 +5903,20 @@ html[data-theme="dark"] .patient-selector-chip-danger {
 
 .mobile-cita-card.status-confirmada {
   border-left-color: #16a34a;
+}
+
+.mobile-cita-card.status-reschedule_requested {
+  border-left-color: #f59e0b;
+}
+
+.mobile-cita-card.status-reschedule_requested .mobile-cita-state {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.mobile-cita-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .58;
 }
 
 @media (max-width: 640px) {
@@ -7647,6 +7665,58 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
   flex: 1;
 }
 
+.clinic-flow-board {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.clinic-flow-board section {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-height: 118px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.clinic-flow-board span,
+.clinic-flow-board small {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.clinic-flow-board strong {
+  color: var(--text);
+  font-size: 0.98rem;
+}
+
+.clinic-flow-board button,
+.clinic-flow-list button {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--primary) 12%);
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.clinic-flow-list {
+  display: grid;
+  gap: 5px;
+}
+
+.clinic-flow-list button {
+  justify-content: start;
+  padding: 6px 8px;
+  text-align: left;
+  background: var(--surface-soft);
+}
+
 .hoy-agenda {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -7673,6 +7743,10 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 
 .hoy-cita-row.estado-confirmada > td:first-child {
   border-left: 3px solid #2a7de1;
+}
+
+.hoy-cita-row.estado-reschedule_requested > td:first-child {
+  border-left: 3px solid #f59e0b;
 }
 
 .hoy-cita-row.estado-atendida > td:first-child {
@@ -7702,6 +7776,12 @@ html[data-theme="dark"] :is(.bi-bars i, .patient-avatar) {
 
 .hoy-sidebar .desk-panel {
   overflow: hidden;
+}
+
+@media (max-width: 1180px) {
+  .clinic-flow-board {
+    grid-template-columns: 1fr;
+  }
 }
 
 .telefonear-item {
@@ -18841,6 +18921,96 @@ button:active {
 }
 
 /* Operativa clinica: acciones directas en agenda sin abrir modal. */
+.patient-flow-strip {
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+}
+
+.patient-flow-strip button.patient-flow-warning {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.patient-flow-strip button.patient-flow-warning strong {
+  color: #c2410c;
+}
+
+.patient-flow-strip button.patient-flow-danger {
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+.patient-flow-strip button.patient-flow-danger strong {
+  color: #be123c;
+}
+
+.agenda-day-brief {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.5fr) repeat(4, minmax(104px, .65fr));
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.agenda-day-brief button {
+  min-width: 0;
+  min-height: 54px;
+  padding: 8px 10px;
+  border: 1px solid #d7e4ea;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #24455a;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agenda-day-brief button:hover {
+  border-color: #8fc4d1;
+  background: #f3fbfd;
+}
+
+.agenda-day-brief span,
+.agenda-day-brief em {
+  display: block;
+  color: #64798a;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.agenda-day-brief strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: #102a43;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agenda-day-brief .agenda-day-brief-main strong {
+  font-size: 17px;
+}
+
+.slot-results-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid #d7e4ea;
+  border-radius: 8px;
+  background: #f8fbfd;
+  color: #486a87;
+  font-size: 12px;
+}
+
+.slot-results-summary strong {
+  color: #102a43;
+}
+
 .agenda-euro .agenda-appointment {
   grid-template-columns: 30px minmax(120px, 1.15fr) minmax(100px, .95fr) 104px 52px minmax(150px, auto) !important;
   align-items: center;
@@ -18905,7 +19075,7 @@ button:active {
 /* Paciente activo: prioridades visibles para recepcion y doctor. */
 .patient-priority-strip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 6px;
   padding: 7px 10px;
   border-bottom: 1px solid #d8e3ea;
@@ -19042,6 +19212,7 @@ button:active {
 
 html[data-theme="dark"] .agenda-appointment-actions button,
 html[data-theme="dark"] .agenda-empty-day button,
+html[data-theme="dark"] .agenda-day-brief button,
 html[data-theme="dark"] .patient-priority-strip button,
 html[data-theme="dark"] .budget-flow-strip span,
 html[data-theme="dark"] .invoice-flow-strip span {
@@ -19051,9 +19222,22 @@ html[data-theme="dark"] .invoice-flow-strip span {
 }
 
 html[data-theme="dark"] .patient-priority-strip,
-html[data-theme="dark"] .agenda-empty-day {
+html[data-theme="dark"] .agenda-empty-day,
+html[data-theme="dark"] .agenda-day-brief button,
+html[data-theme="dark"] .slot-results-summary {
   border-color: #2f4a60;
   background: #0d1722;
+}
+
+html[data-theme="dark"] .agenda-day-brief strong,
+html[data-theme="dark"] .slot-results-summary strong {
+  color: #eaf2f8;
+}
+
+html[data-theme="dark"] .agenda-day-brief span,
+html[data-theme="dark"] .agenda-day-brief em,
+html[data-theme="dark"] .slot-results-summary {
+  color: #9fb3c8;
 }
 
 @media (max-width: 1180px) {
@@ -19071,6 +19255,14 @@ html[data-theme="dark"] .agenda-empty-day {
 }
 
 @media (max-width: 760px) {
+  .agenda-day-brief {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .agenda-day-brief-main {
+    grid-column: 1 / -1;
+  }
+
   .agenda-euro .agenda-appointment {
     grid-template-columns: 28px minmax(0, 1fr) minmax(118px, auto) !important;
   }
