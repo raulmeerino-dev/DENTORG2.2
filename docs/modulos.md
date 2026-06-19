@@ -25,7 +25,6 @@ Flujo diario de recepcion y doctores:
 - Buscar hueco por doctor/general, paciente, turno, rango y duracion.
 - Telefonear/reubicar.
 - Linea de hora actual.
-- Teleconsulta con URL unica.
 
 ## Pacientes
 

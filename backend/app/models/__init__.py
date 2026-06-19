@@ -15,7 +15,6 @@ from app.models.clinica import (
     Producto,
     Proveedor,
     Receta,
-    Teleconsulta,
 )
 from app.models.consentimiento import Consentimiento, ConsentimientoPlantilla
 from app.models.doctor import Doctor
@@ -53,7 +52,6 @@ from app.models.whatsapp import WhatsAppComunicacion
 __all__ = [
     "Doctor",
     "Clinica",
-    "Teleconsulta",
     "Proveedor",
     "Producto",
     "MovimientoInventario",

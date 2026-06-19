@@ -61,7 +61,6 @@ import type {
   TrabajoLaboratorio,
   TratamientoCatalogo,
   UsuarioMe,
-  VideoConsultaResponse,
   WhatsAppInboxItem,
 } from '../types/api';
 
@@ -1010,11 +1009,6 @@ export async function firmarPortalConsentimiento(consentimientoId: string, pacie
   const { data } = await api.post<Consentimiento>(`/portal/consentimientos/${consentimientoId}/firmar`, {
     firma_paciente_base64: firmaPacienteBase64,
   }, { params: portalPatientParams(pacienteId) });
-  return data;
-}
-
-export async function iniciarVideoConsulta(citaId: string) {
-  const { data } = await api.post<VideoConsultaResponse>(`/citas/${citaId}/video`);
   return data;
 }
 

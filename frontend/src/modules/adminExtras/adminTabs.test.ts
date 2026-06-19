@@ -10,7 +10,6 @@ describe('AdminExtras organization', () => {
       'doctores',
       'agenda',
       'tratamientos',
-      'caja',
       'laboratorio',
       'inventario',
       'documentos',

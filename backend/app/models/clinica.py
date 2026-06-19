@@ -21,18 +21,6 @@ class Clinica(UUIDMixin, TimestampMixin, Base):
     activa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
-class Teleconsulta(UUIDMixin, TimestampMixin, Base):
-    __tablename__ = "teleconsultas"
-
-    cita_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("citas.id"), nullable=False, unique=True, index=True
-    )
-    url: Mapped[str] = mapped_column(String(500), nullable=False)
-    estado: Mapped[str] = mapped_column(String(30), nullable=False, default="iniciada")
-
-    cita: Mapped["Cita"] = relationship("Cita")  # noqa: F821
-
-
 class Proveedor(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "proveedores"
 

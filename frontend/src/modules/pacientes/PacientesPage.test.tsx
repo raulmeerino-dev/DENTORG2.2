@@ -244,24 +244,29 @@ describe('PacientesPage structure', () => {
     expect(screen.getAllByText('rx-control.pdf').length).toBeGreaterThan(0);
   }, 10_000);
 
-  it('shows clinical subtabs and complete history filters', async () => {
+  it('shows clinical subtabs and keeps complete history behind a secondary action', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByRole('button', { name: /^Clinica$/i });
     await user.click(screen.getByRole('button', { name: /^Clinica$/i }));
-    expect(screen.getByRole('button', { name: /^Diagnostico$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Diagnóstico$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Pendientes$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Sesion actual$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Sesión actual$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Visitas$/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Realizados$/i })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
+    await waitFor(() => expect(screen.getByText(/Historial de tratamientos/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Clinico/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tratamientos realizados en historial/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /^Mas$/i }));
+    await user.click(screen.getByRole('menuitem', { name: /Actividad completa/i }));
     await waitFor(() => expect(screen.getByText(/Historial completo/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Clinico/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Facturacion/i })).toBeInTheDocument();
-    expect(screen.getByText(/Tratamientos realizados en historial/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
   });
 
   it('creates a new budget from the visible action and selects it', async () => {

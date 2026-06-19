@@ -5,7 +5,6 @@ type AdminTab =
   | 'doctores'
   | 'tratamientos'
   | 'agenda'
-  | 'caja'
   | 'laboratorio'
   | 'inventario'
   | 'documentos'
@@ -22,7 +21,6 @@ export const ADMIN_TABS: Array<{ id: AdminTab; label: string }> = [
   { id: 'doctores', label: 'Doctores' },
   { id: 'agenda', label: 'Agenda/Horarios' },
   { id: 'tratamientos', label: 'Tratamientos' },
-  { id: 'caja', label: 'Caja' },
   { id: 'laboratorio', label: 'Protesicos/Lab.' },
   { id: 'inventario', label: 'Inventario' },
   { id: 'documentos', label: 'Documentos' },

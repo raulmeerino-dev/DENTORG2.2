@@ -29,12 +29,6 @@ class ClinicaResponse(ClinicaCreate):
     model_config = {"from_attributes": True}
 
 
-class VideoResponse(BaseModel):
-    citaId: UUID
-    videoUrl: str
-    estado: str
-
-
 class RecordatorioCreate(BaseModel):
     canal: str = Field(..., pattern=r"^(whatsapp|email|ambos)$")
     mensaje: str | None = Field(None, max_length=800)

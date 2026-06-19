@@ -7,7 +7,7 @@
  * Flujos verificados:
  *  - Menú de acciones rápidas abre Receta + Pedido de laboratorio
  *  - Crear pedido lab desde Trabajo Pendiente preconfigura datos del presupuesto
- *  - Filtro "Cobros" en Historial muestra cobros + anticipos y oculta facturas
+ *  - Actividad completa mantiene el filtro "Cobros" con cobros + anticipos
  *  - Banner de laboratorio vencido aparece en la Ficha cuando hay vencidos
  *  - WhatsApp del paciente abre wa.me con teléfono normalizado
  */
@@ -310,11 +310,16 @@ describe('Flujo integración cross-módulo', () => {
     });
   });
 
-  it('filtro "Cobros" en historial muestra cobros y anticipos, oculta facturas', async () => {
+  it('actividad completa mantiene el filtro "Cobros" con cobros y anticipos', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click((await screen.findAllByRole('button', { name: /^Historial$/i }))[0]);
+    await screen.findByText(/Historial de tratamientos/i);
+    expect(screen.queryByRole('button', { name: 'Cobros' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Mas$/i }));
+    await user.click(screen.getByRole('menuitem', { name: /Actividad completa/i }));
     await screen.findByText(/Historial completo/i);
 
     await user.click(screen.getByRole('button', { name: 'Cobros' }));

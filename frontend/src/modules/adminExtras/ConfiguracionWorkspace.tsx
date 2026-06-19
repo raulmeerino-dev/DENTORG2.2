@@ -242,7 +242,6 @@ export function ConfiguracionWorkspace({
 
   const isAdmin = user?.rol === 'admin';
   const canEditClinical = canRoleAccess(user?.rol, ['admin', 'doctor']);
-  const canEditCaja = canRoleAccess(user?.rol, ['admin', 'recepcion']);
   const canEditTreatments = isAdmin;
   const familias = familiasQuery.data ?? [];
   const tratamientos = tratamientosQuery.data ?? [];
@@ -453,7 +452,6 @@ export function ConfiguracionWorkspace({
             {item === 'tratamientos' && 'Tratamientos'}
             {item === 'agenda' && 'Agenda'}
             {item === 'laboratorio' && 'Protésicos'}
-            {item === 'caja' && 'Caja'}
             {item === 'documentos' && 'Documentos'}
             {item === 'seguridad' && 'Seguridad/Backups'}
             {item === 'roles' && 'Usuarios/Roles'}
@@ -482,6 +480,28 @@ export function ConfiguracionWorkspace({
               <div><strong>Entidades sanitarias</strong><span>Mutuas, pólizas y pagadores.</span></div>
               <div><strong>Datos clínica</strong><span>Empresa, locales, series y documentos.</span></div>
             </div>
+          </section>
+          <section className="desk-panel">
+            <div className="panel-caption">
+              <strong>Formas de pago</strong>
+              <span>Configuracion minima</span>
+            </div>
+            <table className="euro-table compact-table">
+              <thead><tr><th>Metodo</th><th>Estado</th><th>Uso</th></tr></thead>
+              <tbody>
+                {(formasPagoQuery.data ?? []).map((forma) => (
+                  <tr key={forma.id}>
+                    <td>{forma.nombre}</td>
+                    <td>{forma.activo ? 'Activo' : 'Inactivo'}</td>
+                    <td>Cobros y recibos</td>
+                  </tr>
+                ))}
+                {!formasPagoQuery.isLoading && !(formasPagoQuery.data ?? []).length && (
+                  <tr><td colSpan={3}>No hay formas de pago configuradas.</td></tr>
+                )}
+              </tbody>
+            </table>
+            <p className="muted-note">La operativa diaria de cobros y arqueo sigue en el modulo principal Caja.</p>
           </section>
         </div>
       )}
@@ -735,20 +755,6 @@ export function ConfiguracionWorkspace({
                   <td>{lab.nombre}</td><td>{lab.contacto ?? ''}</td><td>{lab.telefono ?? ''}</td>
                   <td>{lab.whatsapp ?? ''}</td><td>{lab.email ?? ''}</td><td>{lab.notas ?? ''}</td><td>{lab.activo ? 'Si' : 'No'}</td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {tab === 'caja' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Formas de pago, recibos y caja</strong><AccessPill allowed={isAdmin || canEditCaja} /></div>
-          <table className="euro-table">
-            <thead><tr><th>Forma de pago</th><th>Activo</th><th>Uso recomendado</th></tr></thead>
-            <tbody>
-              {(formasPagoQuery.data ?? []).map((forma) => (
-                <tr key={forma.id}><td>{forma.nombre}</td><td>{forma.activo ? 'Si' : 'No'}</td><td>Cobros, recibos y arqueo</td></tr>
               ))}
             </tbody>
           </table>

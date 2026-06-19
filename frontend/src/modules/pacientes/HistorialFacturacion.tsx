@@ -1,25 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
-import type { ApiPaciente, Factura, HistorialClinico, PagoAnticipadoPaciente, UserRole } from '../../types/api';
+import type { ApiPaciente, Cobro, Factura, HistorialClinico, UserRole } from '../../types/api';
 import { colorForTreatment, formatDate, money } from '../../lib/utils';
 import type { TreatmentVisual } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { emitirRecetaPdf, facturaPdfUrl } from '../../lib/api';
-import { amount, getBillingTotals, getFacturaPendientePreferida, getPagosParciales } from './billingUtils';
+import { amount, getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 import { PatientOdontogramFlow } from '../odontogram';
 
 type HistoryBillingRow = {
   id: string;
-  kind: 'tratamiento' | 'cobro' | 'factura' | 'anticipo';
   date: string;
   tratamiento: string;
   pieza: string;
-  fp: string;
-  entidad: string;
+  doctor: string;
   factura: string;
   recibo: string;
-  doc: string;
-  gabinete: string;
   importe: number;
   cobrado: number;
   saldo: number;
@@ -27,169 +23,151 @@ type HistoryBillingRow = {
   estado: string;
   treatment?: TreatmentVisual;
   facturaItem?: Factura;
-  anticipoItem?: PagoAnticipadoPaciente;
 };
+
+const FINISHED_HISTORY_STATES = new Set(['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo']);
 
 function sortByDate(a: { date: string }, b: { date: string }) {
   return a.date.localeCompare(b.date);
 }
 
-function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[], anticipos: PagoAnticipadoPaciente[]) {
-  const rows: Omit<HistoryBillingRow, 'saldo'>[] = [];
+function hasFinishedState(estado?: string | null) {
+  const value = (estado ?? '').toLowerCase();
+  return FINISHED_HISTORY_STATES.has(value)
+    || value.includes('realizado')
+    || value.includes('facturado')
+    || value.includes('cobrado')
+    || value.includes('atendido')
+    || value.includes('finalizado');
+}
 
-  historial.forEach((entrada) => {
-    const factura = entrada.factura_id
-      ? facturas.find((item) => item.id === entrada.factura_id)
-      : facturas.find((item) => item.lineas.some((linea) => linea.historial_id === entrada.id));
-    rows.push({
-      id: `hist-${entrada.id}`,
-      kind: 'tratamiento',
-      date: entrada.fecha,
-      tratamiento: entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental',
-      pieza: entrada.pieza_dental ? String(entrada.pieza_dental) : '',
-      fp: 'TC',
-      entidad: '',
-      factura: factura ? `${factura.serie}/${factura.numero}` : entrada.factura_id ? 'Si' : 'No',
-      recibo: 'No',
-      doc: entrada.doctor?.nombre?.replace(/\D/g, '').slice(-3).padStart(3, '0') || '',
-      gabinete: entrada.gabinete_id ? String(entrada.gabinete_id).slice(0, 3) : '',
-      importe: amount(entrada.importe),
-      cobrado: 0,
-      comentario: entrada.observaciones || entrada.diagnostico || '',
-      estado: entrada.estado,
-      treatment: entrada.tratamiento,
-      facturaItem: factura,
-    });
-  });
+function getFacturaForHistorial(entrada: HistorialClinico, facturas: Factura[]) {
+  const factura = entrada.factura_id
+    ? facturas.find((item) => item.id === entrada.factura_id)
+    : facturas.find((item) => item.lineas.some((linea) => linea.historial_id === entrada.id));
+  const linea = factura?.lineas.find((item) => item.historial_id === entrada.id) ?? null;
+  return { factura, linea };
+}
 
-  facturas.forEach((factura) => {
-    const linkedHistory = historial.find((entrada) => entrada.factura_id === factura.id);
-    if (!linkedHistory && factura.lineas.length) {
-      rows.push({
-        id: `fac-${factura.id}`,
-        kind: 'factura',
-        date: factura.fecha,
-        tratamiento: factura.lineas[0]?.concepto ?? 'Factura dental',
-        pieza: '',
-        fp: 'TC',
-        entidad: '',
-        factura: `${factura.serie}/${factura.numero}`,
-        recibo: 'No',
-        doc: '004',
-        gabinete: '',
-        importe: amount(factura.total),
-        cobrado: 0,
-        comentario: factura.estado,
-        estado: factura.estado,
-        treatment: null,
+function formatFactura(factura?: Factura | null) {
+  return factura ? `${factura.serie}/${factura.numero}` : 'No';
+}
+
+function activeCobros(factura?: Factura | null) {
+  return factura?.cobros.filter((cobro) => !cobro.anulado_at) ?? [];
+}
+
+function formatCobros(cobros: Cobro[]) {
+  if (!cobros.length) return 'No';
+  const lastCobro = cobros[cobros.length - 1];
+  const formaPago = lastCobro?.forma_pago?.nombre;
+  return formaPago ? `${cobros.length} - ${formaPago}` : `${cobros.length} cobro${cobros.length === 1 ? '' : 's'}`;
+}
+
+function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[]) {
+  return historial
+    .filter((entrada) => hasFinishedState(entrada.estado))
+    .map((entrada) => {
+      const { factura, linea } = getFacturaForHistorial(entrada, facturas);
+      const cobros = activeCobros(factura);
+      const importeLinea = amount(linea?.subtotal ?? entrada.importe);
+      const importe = importeLinea || amount(entrada.importe);
+      const totalFactura = amount(factura?.total);
+      const totalCobrado = amount(factura?.total_cobrado);
+      const factorLinea = factura && totalFactura > 0 && importe > 0 ? importe / totalFactura : 1;
+      const cobrado = factura ? Math.min(importe, totalCobrado * factorLinea) : 0;
+      const saldo = Math.max(0, importe - cobrado);
+
+      return {
+        id: `hist-${entrada.id}`,
+        date: entrada.fecha,
+        tratamiento: entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental',
+        pieza: [entrada.pieza_dental ? String(entrada.pieza_dental) : '', entrada.caras].filter(Boolean).join(' '),
+        doctor: entrada.doctor?.nombre ?? '',
+        factura: formatFactura(factura),
+        recibo: formatCobros(cobros),
+        importe,
+        cobrado,
+        saldo,
+        comentario: entrada.observaciones || entrada.diagnostico || '',
+        estado: entrada.estado,
+        treatment: entrada.tratamiento,
         facturaItem: factura,
-      });
-    }
+      };
+    })
+    .sort(sortByDate);
+}
 
-    factura.cobros.forEach((cobro) => {
-      rows.push({
-        id: `cobro-${cobro.id}`,
-        kind: 'cobro',
-        date: cobro.fecha,
-        tratamiento: cobro.anulado_at ? 'Cobro anulado' : 'Cobro',
-        pieza: '0',
-        fp: 'TC',
-        entidad: '',
-        factura: `${factura.serie}/${factura.numero}`,
-        recibo: 'No',
-        doc: '004',
-        gabinete: '',
-        importe: 0,
-        cobrado: cobro.anulado_at ? 0 : amount(cobro.importe),
-        comentario: cobro.motivo_anulacion || cobro.notas || '',
-        estado: cobro.anulado_at ? 'anulado' : 'cobrado',
-        treatment: null,
-        facturaItem: factura,
-      });
-    });
-  });
-
-  anticipos.forEach((anticipo) => {
-    rows.push({
-      id: `anticipo-${anticipo.id}`,
-      kind: 'anticipo',
-      date: anticipo.fecha,
-      tratamiento: anticipo.concepto || 'Pago anticipado',
-      pieza: '0',
-      fp: 'PA',
-      entidad: '',
-      factura: 'No',
-      recibo: 'Si',
-      doc: '004',
-      gabinete: '',
-      importe: 0,
-      cobrado: anticipo.anulado_at ? 0 : amount(anticipo.importe),
-      comentario: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta del paciente',
-      estado: anticipo.anulado_at ? 'anulado' : 'anticipo',
-      treatment: null,
-      anticipoItem: anticipo,
-    });
-  });
-
-  let saldo = 0;
-  return rows
-    .sort(sortByDate)
-    .map((row) => {
-      saldo += row.importe - row.cobrado;
-      return { ...row, saldo };
-    });
+function formatStateLabel(estado: string) {
+  const value = estado.toLowerCase();
+  const labels: Record<string, string> = {
+    realizado: 'Realizado',
+    facturado: 'Facturado',
+    cobrado_parcial: 'Cobrado parcial',
+    cobrado_completo: 'Cobrado',
+  };
+  return labels[value] ?? estado;
 }
 
 export function EurodentHistoryBillingPanel({
   paciente,
   historial,
   facturas,
-  anticipos,
   onFacturar,
   onCobrar,
   onHistorialFacturas,
   onAddAnticipo,
-  onEditAnticipo,
   onCobrarImporte,
-  onOrtodoncia,
   onRecibos,
   onContextFactura,
   onCrearReceta,
+  onOpenActivity,
 }: {
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
   facturas: Factura[];
-  anticipos: PagoAnticipadoPaciente[];
   onFacturar: () => void;
   onCobrar: () => void;
   onHistorialFacturas: () => void;
   onAddAnticipo: () => void;
-  onEditAnticipo: (anticipo: PagoAnticipadoPaciente) => void;
   onCobrarImporte: (factura: Factura) => void;
-  onOrtodoncia: () => void;
   onRecibos: () => void;
   onContextFactura: (event: MouseEvent, factura: Factura) => void;
   onCrearReceta?: () => void;
+  onOpenActivity?: () => void;
 }) {
-  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, anticipos), [historial, facturas, anticipos]);
-  const [hideZeros, setHideZeros] = useState(false);
+  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas), [historial, facturas]);
   const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow | null } | null>(null);
   const [invoiceMenuOpen, setInvoiceMenuOpen] = useState(false);
-  const displayRows = useMemo(
-    () => (hideZeros ? rows.filter((row) => row.importe !== 0 || row.cobrado !== 0 || row.saldo !== 0) : rows),
-    [hideZeros, rows],
-  );
+  const [historyActionsOpen, setHistoryActionsOpen] = useState(false);
+  const historyToolbarRef = useRef<HTMLDivElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const defaultSelectedRow = [...displayRows].reverse().find((row) => row.kind === 'tratamiento') ?? displayRows[displayRows.length - 1] ?? null;
-  const selectedRow = displayRows.find((row) => row.id === selectedId) ?? defaultSelectedRow;
-  const selectedFactura = selectedRow?.facturaItem ?? facturas[0] ?? null;
+  const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[rows.length - 1] ?? null;
+  const selectedFactura = selectedRow?.facturaItem ?? null;
   const totals = getBillingTotals(facturas);
-  const pagosParciales = getPagosParciales(facturas);
   const firstPendingFactura = getFacturaPendientePreferida(facturas, selectedFactura);
-  const doctores = Array.from(new Set(historial.map((entrada) => entrada.doctor?.nombre).filter(Boolean))) as string[];
-  const currentDoctor = selectedRow?.kind === 'tratamiento'
-    ? historial.find((entrada) => `hist-${entrada.id}` === selectedRow.id)?.doctor?.nombre
-    : doctores[0];
+
+  useEffect(() => {
+    if (!historyActionsOpen && !invoiceMenuOpen) return;
+    function handlePointerDown(event: globalThis.MouseEvent) {
+      if (!historyToolbarRef.current?.contains(event.target as Node)) {
+        setHistoryActionsOpen(false);
+        setInvoiceMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setHistoryActionsOpen(false);
+        setInvoiceMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [historyActionsOpen, invoiceMenuOpen]);
 
   function openBlankHistoryMenu(event: MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement;
@@ -201,10 +179,6 @@ export function EurodentHistoryBillingPanel({
   function handleCobradoDoubleClick(event: MouseEvent<HTMLTableCellElement>, row: HistoryBillingRow) {
     event.preventDefault();
     event.stopPropagation();
-    if (row.anticipoItem) {
-      onEditAnticipo(row.anticipoItem);
-      return;
-    }
     if (row.facturaItem) {
       onCobrarImporte(row.facturaItem);
       return;
@@ -212,77 +186,111 @@ export function EurodentHistoryBillingPanel({
     onAddAnticipo();
   }
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!selectedId && defaultSelectedRow) setSelectedId(defaultSelectedRow.id);
-    if (selectedId && defaultSelectedRow && !displayRows.some((row) => row.id === selectedId)) setSelectedId(defaultSelectedRow.id);
-  }, [defaultSelectedRow, displayRows, selectedId]);
-
   return (
     <section className="history-billing-eurodent">
-      <div className="billing-operational-strip">
-        <div>
-          <span>Saldo paciente</span>
-          <strong className={totals.pendiente > 0 ? 'debt' : ''}>{money(totals.pendiente)}</strong>
+      <div className="history-ledger-toolbar">
+        <div className="history-ledger-title">
+          <strong>Historial de tratamientos</strong>
+          <span>
+            {paciente ? `${paciente.apellidos}, ${paciente.nombre} - H ${paciente.num_historial}` : 'Paciente sin seleccionar'}
+            {' - '}
+            {rows.length} realizado{rows.length === 1 ? '' : 's'}
+            {' - '}
+            saldo {money(totals.pendiente)}
+          </span>
         </div>
-        <div>
-          <span>Facturado</span>
-          <strong>{money(totals.facturado)}</strong>
+        <div className="history-toolbar-actions" ref={historyToolbarRef}>
+          <button onClick={() => {
+            setHistoryActionsOpen(false);
+            setInvoiceMenuOpen(false);
+            if (firstPendingFactura) {
+              onCobrarImporte(firstPendingFactura);
+            } else {
+              onCobrar();
+            }
+          }}>Cobrar</button>
+          <span className="invoice-split-button">
+            <button onClick={() => {
+              setHistoryActionsOpen(false);
+              setInvoiceMenuOpen((open) => !open);
+            }}>Facturas</button>
+            {invoiceMenuOpen && (
+              <span className="invoice-action-popover">
+                <button onClick={() => { onHistorialFacturas(); setInvoiceMenuOpen(false); }}>Historial de facturas</button>
+                <button onClick={() => { onFacturar(); setInvoiceMenuOpen(false); }}>Generar factura</button>
+              </span>
+            )}
+          </span>
+          <span className="invoice-split-button history-more-button">
+            <button
+              type="button"
+              className="secondary"
+              aria-haspopup="menu"
+              aria-expanded={historyActionsOpen}
+              onClick={() => {
+                setInvoiceMenuOpen(false);
+                setHistoryActionsOpen((open) => !open);
+              }}
+            >
+              Mas
+            </button>
+            {historyActionsOpen && (
+              <span className="invoice-action-popover history-actions-popover" role="menu" aria-label="Mas acciones de historial">
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setHistoryActionsOpen(false);
+                    if (selectedFactura) window.open(facturaPdfUrl(selectedFactura.id), '_blank');
+                  }}
+                  disabled={!selectedFactura}
+                >
+                  Imprimir
+                </button>
+                <button
+                  role="menuitem"
+                  onClick={() => {
+                    setHistoryActionsOpen(false);
+                    if (onCrearReceta) {
+                      onCrearReceta();
+                    } else if (selectedFactura) {
+                      void emitirRecetaPdf(selectedFactura.id);
+                    }
+                  }}
+                  disabled={!onCrearReceta && !selectedFactura}
+                >
+                  Receta
+                </button>
+                <button role="menuitem" onClick={() => { setHistoryActionsOpen(false); onRecibos(); }}>Recibos</button>
+                {onOpenActivity && (
+                  <button role="menuitem" onClick={() => { setHistoryActionsOpen(false); onOpenActivity(); }}>Actividad completa</button>
+                )}
+              </span>
+            )}
+          </span>
         </div>
-        <div>
-          <span>Cobrado</span>
-          <strong>{money(totals.cobrado)}</strong>
-        </div>
-        <div>
-          <span>Parciales</span>
-          <strong>{pagosParciales.length}</strong>
-        </div>
-        <button type="button" onClick={() => firstPendingFactura ? onCobrarImporte(firstPendingFactura) : onAddAnticipo()}>
-          {firstPendingFactura ? 'Registrar cobro' : 'Registrar anticipo'}
-        </button>
-        <button type="button" onClick={onFacturar}>Emitir factura</button>
-      </div>
-      <div className="history-eurodent-head">
-        <label>
-          Nombre
-          <input readOnly value={paciente ? `${paciente.apellidos}, ${paciente.nombre}` : ''} />
-        </label>
-        <label className="short">
-          N Historial
-          <input readOnly value={paciente?.num_historial ?? ''} />
-        </label>
-        <label>
-          Doctor
-          <select value={currentDoctor ?? ''} onChange={() => undefined}>
-            <option value="">Sin doctor</option>
-            {doctores.map((doctor) => <option key={doctor} value={doctor}>{doctor}</option>)}
-          </select>
-        </label>
       </div>
 
-      <div className="history-ledger-scroll" aria-label="Historial y facturacion con desplazamiento" onContextMenu={openBlankHistoryMenu}>
+      <div className="history-ledger-scroll" aria-label="Historial de tratamientos con desplazamiento" onContextMenu={openBlankHistoryMenu}>
         <table className="euro-table history-ledger-table">
           <thead>
             <tr>
               <th>Fecha</th>
+              <th>Tipo</th>
               <th>Tratamiento</th>
               <th>Pieza</th>
-              <th>FP</th>
-              <th>Entidad</th>
+              <th>Doctor</th>
               <th>Factura</th>
-              <th>Recibo</th>
-              <th>Doc.</th>
-              <th>Gab.</th>
+              <th>Recibo/Cobro</th>
               <th>Importe</th>
               <th>Cobrado</th>
               <th>Saldo</th>
             </tr>
           </thead>
           <tbody>
-            {displayRows.map((row) => (
+            {rows.map((row) => (
               <tr
                 key={row.id}
-                className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}${row.kind === 'cobro' ? 'payment-row ' : row.kind === 'anticipo' ? 'advance-payment-row ' : 'treatment-coded-row '}`}
+                className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}treatment-coded-row`}
                 style={{ '--treatment-color': colorForTreatment(row.treatment) } as CSSProperties}
                 onClick={() => setSelectedId(row.id)}
                 onContextMenu={(event) => {
@@ -292,67 +300,39 @@ export function EurodentHistoryBillingPanel({
                 }}
               >
                 <td>{formatDate(row.date)}</td>
+                <td><TreatmentBadge tratamiento={row.treatment} /></td>
                 <td className="history-treatment-cell">
-                  {row.kind === 'cobro' ? <span className="payment-label">Cobro</span> : row.kind === 'anticipo' ? <span className="advance-label">Anticipo</span> : <TreatmentBadge tratamiento={row.treatment} />}
                   <strong>{row.tratamiento}</strong>
-                  {row.comentario && <small>{row.comentario}</small>}
+                  <small>{formatStateLabel(row.estado)}</small>
                 </td>
                 <td>{row.pieza}</td>
-                <td>{row.fp}</td>
-                <td>{row.entidad}</td>
+                <td>{row.doctor}</td>
                 <td>{row.factura}</td>
                 <td>{row.recibo}</td>
-                <td>{row.doc}</td>
-                <td>{row.gabinete}</td>
                 <td className="num">{row.importe ? money(row.importe) : '0,00'}</td>
-                <td className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para añadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
+                <td className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para anadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
                 <td className="num">{money(row.saldo)}</td>
               </tr>
             ))}
-            {!displayRows.length && <tr><td colSpan={12}>Sin movimientos visibles de historial o facturacion.</td></tr>}
+            {!rows.length && <tr><td colSpan={10}>Sin tratamientos realizados en el historial.</td></tr>}
           </tbody>
         </table>
       </div>
 
-      <div className="history-eurodent-footer">
-        <label className="history-comments">
-          <span>Observaciones tratamiento</span>
-          <textarea
-            readOnly
-            value={selectedRow?.comentario || 'Sin observaciones especificas para esta linea.'}
-          />
-        </label>
-        <label className="history-toggle">
-          <input type="checkbox" checked={hideZeros} onChange={(event) => setHideZeros(event.currentTarget.checked)} />
-          Ocultar 0's
-        </label>
-        <div className="history-action-buttons">
-          <button onClick={onOrtodoncia}>C.Ortod.</button>
-          <button onClick={() => selectedFactura && window.open(facturaPdfUrl(selectedFactura.id), '_blank')} disabled={!selectedFactura}>Imprimir</button>
-          <button onClick={() => firstPendingFactura ? onCobrarImporte(firstPendingFactura) : onCobrar()}>Cobrar</button>
-          <span className="invoice-split-button">
-            <button onClick={() => setInvoiceMenuOpen((open) => !open)}>Facturas</button>
-            {invoiceMenuOpen && (
-              <span className="invoice-action-popover">
-                <button onClick={() => { onHistorialFacturas(); setInvoiceMenuOpen(false); }}>Historial de facturas</button>
-                <button onClick={() => { onFacturar(); setInvoiceMenuOpen(false); }}>Generar factura</button>
-              </span>
-            )}
-          </span>
-          <button onClick={() => onCrearReceta ? onCrearReceta() : (selectedFactura && void emitirRecetaPdf(selectedFactura.id))} disabled={!onCrearReceta && !selectedFactura}>Receta</button>
-          <button onClick={onRecibos}>Recibos</button>
-        </div>
-      </div>
+      <label className="history-comments">
+        <span>Observaciones</span>
+        <textarea
+          readOnly
+          value={selectedRow?.comentario || 'Sin observaciones especificas para el tratamiento seleccionado.'}
+        />
+      </label>
       {historyMenu && (
         <div className="context-menu patient-context-menu history-row-context-menu" style={{ left: historyMenu.x, top: historyMenu.y }}>
-          <strong>Historial / facturación</strong>
-          <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Añadir pago / anticipo</button>
-          {historyMenu.row?.anticipoItem && (
-            <button onClick={() => { onEditAnticipo(historyMenu.row!.anticipoItem!); setHistoryMenu(null); }}>Editar anticipo seleccionado</button>
-          )}
+          <strong>Historial / facturacion</strong>
+          <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Anadir pago / anticipo</button>
           {historyMenu.row?.facturaItem && (
             <>
-              <button onClick={() => { onCobrarImporte(historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Añadir cobro a esta factura</button>
+              <button onClick={() => { onCobrarImporte(historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Anadir cobro a esta factura</button>
               <button onClick={(event) => { onContextFactura(event as unknown as MouseEvent, historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Opciones de factura</button>
             </>
           )}

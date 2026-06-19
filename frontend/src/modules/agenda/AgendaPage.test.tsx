@@ -60,6 +60,9 @@ const { mocks } = vi.hoisted(() => {
       cita,
       buscarHuecosLibres: vi.fn().mockResolvedValue([]),
       createCita: vi.fn(async () => cita),
+      getCitas: vi.fn().mockResolvedValue([]),
+      getWhatsAppComunicaciones: vi.fn().mockResolvedValue([]),
+      updateCita: vi.fn(async (_id: string, patch: object) => ({ ...cita, ...patch })),
       marcarTelefonearReubicada: vi.fn(async () => ({
         id: 'tel-1',
         cita_original_id: 'cita-old',
@@ -86,7 +89,7 @@ vi.mock('../../lib/api', () => ({
   createCita: mocks.createCita,
   createPaciente: vi.fn(),
   enviarRecordatorioCita: vi.fn(),
-  getCitas: vi.fn().mockResolvedValue([]),
+  getCitas: mocks.getCitas,
   getDoctores: vi.fn().mockResolvedValue([mocks.doctor]),
   getHorarios: vi.fn().mockResolvedValue(Array.from({ length: 7 }, (_, dia) => ({
     id: `hor-${dia}`,
@@ -112,10 +115,10 @@ vi.mock('../../lib/api', () => ({
     proximo_intento_at: null,
     reubicada: false,
   }]),
-  iniciarVideoConsulta: vi.fn(),
   marcarFaltaCita: vi.fn(),
   marcarTelefonearReubicada: mocks.marcarTelefonearReubicada,
-  updateCita: vi.fn(async (_id: string, patch: object) => ({ ...mocks.cita, ...patch })),
+  getWhatsAppComunicaciones: mocks.getWhatsAppComunicaciones,
+  updateCita: mocks.updateCita,
 }));
 
 function renderAgenda() {
@@ -135,6 +138,11 @@ describe('AgendaPage flujos de cita', () => {
     sessionStorage.clear();
     mocks.buscarHuecosLibres.mockClear();
     mocks.createCita.mockClear();
+    mocks.getCitas.mockReset();
+    mocks.getCitas.mockResolvedValue([]);
+    mocks.getWhatsAppComunicaciones.mockReset();
+    mocks.getWhatsAppComunicaciones.mockResolvedValue([]);
+    mocks.updateCita.mockClear();
     mocks.marcarTelefonearReubicada.mockClear();
   });
 
@@ -183,6 +191,107 @@ describe('AgendaPage flujos de cita', () => {
       motivo: 'Endodoncia 36',
     }));
     expect(sessionStorage.getItem('dentcore_selected_treatment')).toBeNull();
+  });
+
+  it('cambia el estado de cita con botones rapidos sin guardar automaticamente', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem('dentcore_agenda_action', 'new');
+    sessionStorage.setItem('dentcore_selected_patient_id', mocks.paciente.id);
+
+    renderAgenda();
+
+    expect(await screen.findByText('Nueva cita')).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /Estado/i })).not.toBeInTheDocument();
+
+    const statusGroup = screen.getByRole('group', { name: /Estado de la cita/i });
+    const confirmedButton = within(statusGroup).getByRole('button', { name: 'Confirmada' });
+
+    await user.click(confirmedButton);
+
+    expect(confirmedButton).toHaveAttribute('aria-pressed', 'true');
+    expect(mocks.createCita).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /Guardar cita/i }));
+
+    await waitFor(() => expect(mocks.createCita).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.updateCita).toHaveBeenCalledWith('cita-new', expect.objectContaining({
+      estado: 'confirmada',
+    })));
+  });
+
+  it('mantiene En tratamiento compatible con el estado backend de paciente en clinica', async () => {
+    const user = userEvent.setup();
+    sessionStorage.setItem('dentcore_agenda_action', 'new');
+    sessionStorage.setItem('dentcore_selected_patient_id', mocks.paciente.id);
+
+    renderAgenda();
+
+    expect(await screen.findByText('Nueva cita')).toBeInTheDocument();
+
+    const statusGroup = screen.getByRole('group', { name: /Estado de la cita/i });
+    await user.click(within(statusGroup).getByRole('button', { name: 'En tratamiento' }));
+    await user.click(screen.getByRole('button', { name: /Guardar cita/i }));
+
+    await waitFor(() => expect(mocks.createCita).toHaveBeenCalledWith(expect.objectContaining({
+      observaciones: expect.stringContaining('En tratamiento'),
+    })));
+    await waitFor(() => expect(mocks.updateCita).toHaveBeenCalledWith('cita-new', expect.objectContaining({
+      estado: 'en_clinica',
+    })));
+  });
+
+  it('muestra el historial WhatsApp asociado al editar una cita', async () => {
+    const user = userEvent.setup();
+    mocks.getCitas.mockResolvedValueOnce([mocks.cita]);
+    mocks.getWhatsAppComunicaciones.mockResolvedValueOnce([
+      {
+        id: 'wa-1',
+        clinica_id: null,
+        patient_id: mocks.paciente.id,
+        appointment_id: mocks.cita.id,
+        direction: 'outbound',
+        phone: mocks.paciente.telefono,
+        message_body: 'Hola Cesar, le recordamos su cita.',
+        received_at: null,
+        sent_at: '2026-05-20T08:30:00',
+        interpreted_intent: null,
+        processed: true,
+        provider_message_id: null,
+        idempotency_key: null,
+        raw_payload: null,
+        created_at: '2026-05-20T08:30:00',
+        patient: { id: mocks.paciente.id, nombre: mocks.paciente.nombre, apellidos: mocks.paciente.apellidos, num_historial: mocks.paciente.num_historial },
+        appointment: { id: mocks.cita.id, fecha_hora: mocks.cita.fecha_hora, estado: 'reminder_sent', motivo: mocks.cita.motivo, doctor_nombre: mocks.doctor.nombre, doctor_id: mocks.doctor.id, gabinete_id: null, duracion_min: 30 },
+      },
+      {
+        id: 'wa-2',
+        clinica_id: null,
+        patient_id: mocks.paciente.id,
+        appointment_id: mocks.cita.id,
+        direction: 'inbound',
+        phone: mocks.paciente.telefono,
+        message_body: 'confirmo',
+        received_at: '2026-05-20T08:35:00',
+        sent_at: null,
+        interpreted_intent: 'affirmative',
+        processed: true,
+        provider_message_id: 'wamid-1',
+        idempotency_key: 'inbound:provider:wamid-1',
+        raw_payload: null,
+        created_at: '2026-05-20T08:35:00',
+        patient: { id: mocks.paciente.id, nombre: mocks.paciente.nombre, apellidos: mocks.paciente.apellidos, num_historial: mocks.paciente.num_historial },
+        appointment: { id: mocks.cita.id, fecha_hora: mocks.cita.fecha_hora, estado: 'confirmed', motivo: mocks.cita.motivo, doctor_nombre: mocks.doctor.nombre, doctor_id: mocks.doctor.id, gabinete_id: null, duracion_min: 30 },
+      },
+    ]);
+
+    renderAgenda();
+
+    await user.click(await screen.findByText('Cesar Gutierrez Velez'));
+
+    expect(await screen.findByLabelText(/Historial WhatsApp de la cita/i)).toBeInTheDocument();
+    expect(await screen.findByText('Hola Cesar, le recordamos su cita.')).toBeInTheDocument();
+    expect(screen.getByText('confirmo')).toBeInTheDocument();
+    expect(mocks.getWhatsAppComunicaciones).toHaveBeenCalledWith({ appointment_id: mocks.cita.id, limit: 6 });
   });
 
   it('al arrastrar Telefonear a un hueco crea cita real y marca la entrada como reubicada', async () => {
