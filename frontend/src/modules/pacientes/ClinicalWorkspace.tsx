@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, Clock3, FileText, FlaskConical, History, Info, NotebookPen, Pill, Plus, Stethoscope, Trash2, Wallet } from 'lucide-react';
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, FileText, FlaskConical, Info, NotebookPen, Pill, Plus, Trash2 } from 'lucide-react';
 import type {
   ApiPaciente,
   Cita,
@@ -22,7 +22,7 @@ import type {
   TratamientoCatalogo,
   UserRole,
 } from '../../types/api';
-import { formatDate, money } from '../../lib/utils';
+import { formatDate } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { PatientOdontogramFlow, mapSurfaceToCaras } from '../odontogram';
 import type { ToothSelection } from '../odontogram';
@@ -31,16 +31,15 @@ import { LaboratorioPacientePanel } from './Laboratorio';
 import { PrimeraVisitaPanel } from './PrimeraVisita';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { TrabajoPendientePanel } from './TrabajoPendiente';
-import { contarLaboratorioVencidos } from './laboratorioUtils';
 import { buildPatientExitChecklist } from './patientExitChecklist';
 import type { PatientExitActionTarget, PatientExitChecklistItem } from './patientExitChecklist';
 
 export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas' | 'notas';
 
 const CLINICAL_TABS: Array<{ id: ClinicalTab; label: string }> = [
-  { id: 'primera', label: 'Diagnostico' },
+  { id: 'primera', label: 'Diagnóstico' },
   { id: 'pendiente', label: 'Pendientes' },
-  { id: 'sesion', label: 'Sesion actual' },
+  { id: 'sesion', label: 'Sesión actual' },
   { id: 'visitas', label: 'Visitas' },
   { id: 'notas', label: 'Notas / docs' },
 ];
@@ -365,67 +364,6 @@ function buildVisitGroups({
 
 function gruposPorFecha(groups: Map<string, VisitGroup>) {
   return Array.from(groups.values());
-}
-
-function ClinicalOverview({
-  citas,
-  historial,
-  presupuestos,
-  documentos,
-  consentimientos,
-  laboratorio,
-  saldoPendiente,
-}: {
-  citas: Cita[];
-  historial: HistorialClinico[];
-  presupuestos: Presupuesto[];
-  documentos: DocumentoPaciente[];
-  consentimientos: Consentimiento[];
-  laboratorio: TrabajoLaboratorio[];
-  saldoPendiente: number;
-}) {
-  const pendientes = presupuestos.flatMap((presupuesto) => (
-    presupuesto.lineas.filter((linea) => linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
-  ));
-  const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
-  const realizados = historial.filter((entrada) => hasFinishedState(entrada.estado));
-  const consentimientosPendientes = consentimientos.filter((item) => item.estado !== 'firmado' && item.estado !== 'revocado').length;
-  const labVencidos = contarLaboratorioVencidos(laboratorio);
-
-  return (
-    <section className="clinical-overview" aria-label="Resumen clinico operativo">
-      <div className="clinical-overview-item">
-        <span><ClipboardList size={14} aria-hidden="true" /> Pendientes</span>
-        <strong>{pendientes.length}</strong>
-      </div>
-      <div className="clinical-overview-item">
-        <span><Stethoscope size={14} aria-hidden="true" /> Hoy</span>
-        <strong>{previstosHoy.length}</strong>
-      </div>
-      <div className="clinical-overview-item">
-        <span><History size={14} aria-hidden="true" /> Realizados</span>
-        <strong>{realizados.length}</strong>
-      </div>
-      <div className={`clinical-overview-item ${consentimientosPendientes ? 'needs-attention' : ''}`}>
-        <span><FileText size={14} aria-hidden="true" /> CI pte.</span>
-        <strong>{consentimientosPendientes}</strong>
-      </div>
-      <div className={`clinical-overview-item ${labVencidos ? 'needs-attention' : ''}`}>
-        <span><FlaskConical size={14} aria-hidden="true" /> Lab.</span>
-        <strong>{laboratorio.length}</strong>
-      </div>
-      <div className={`clinical-overview-item ${saldoPendiente > 0 ? 'has-debt' : ''}`}>
-        <span><Wallet size={14} aria-hidden="true" /> Saldo</span>
-        <strong>{money(saldoPendiente)}</strong>
-      </div>
-      {documentos.length > 0 && (
-        <div className="clinical-overview-item">
-          <span><FileText size={14} aria-hidden="true" /> Docs</span>
-          <strong>{documentos.length}</strong>
-        </div>
-      )}
-    </section>
-  );
 }
 
 function PatientExitChecklistPanel({
@@ -1265,16 +1203,7 @@ export function ClinicalWorkspace({
 }) {
   return (
     <section className="clinical-workspace">
-      <ClinicalOverview
-        citas={citas}
-        historial={historial}
-        presupuestos={presupuestos}
-        documentos={documentos}
-        consentimientos={consentimientos}
-        laboratorio={laboratorio}
-        saldoPendiente={saldoPendiente}
-      />
-      <nav className="treatment-subtabs clinical-subtabs" aria-label="Secciones de clinica">
+      <nav className="treatment-subtabs clinical-subtabs" aria-label="Secciones de clínica">
         {CLINICAL_TABS.map((item) => (
           <button
             key={item.id}

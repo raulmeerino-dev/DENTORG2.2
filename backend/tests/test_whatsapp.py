@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.cita import Cita, CitaTelefonear
+from app.models.cita import Cita, CitaCambio, CitaTelefonear
 from app.models.doctor import Doctor
 from app.models.horario import HorarioDoctor
 from app.models.paciente import Paciente
@@ -97,6 +97,43 @@ async def test_whatsapp_webhook_confirma_cita(client: AsyncClient, db_session: A
     assert communication is not None
     assert communication.direction == "inbound"
     assert communication.message_body == "confirmo"
+
+
+@pytest.mark.asyncio
+async def test_recordatorio_whatsapp_registra_comunicacion_saliente(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers(client, db_session)
+    cita = await create_patient_cita(client, db_session, phone="600121212")
+
+    response = await client.post(
+        f"/api/citas/{cita.id}/recordatorio",
+        headers=headers,
+        json={"canal": "whatsapp", "mensaje": "Recordatorio de prueba"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["estado"] == "enviado"
+    assert payload["whatsappUrl"]
+
+    await db_session.refresh(cita)
+    assert cita.recordatorio_enviado is True
+    assert cita.recordatorio_canal == "whatsapp"
+    assert cita.estado == "reminder_sent"
+    communication = await db_session.scalar(
+        select(WhatsAppComunicacion).where(
+            WhatsAppComunicacion.appointment_id == cita.id,
+            WhatsAppComunicacion.direction == "outbound",
+        )
+    )
+    assert communication is not None
+    assert communication.patient_id == cita.paciente_id
+    assert communication.message_body == "Recordatorio de prueba"
+    assert communication.processed is True
+    cambio = await db_session.scalar(
+        select(CitaCambio).where(CitaCambio.cita_id == cita.id, CitaCambio.accion == "recordatorio")
+    )
+    assert cambio is not None
+    assert cambio.estado_nuevo == "reminder_sent"
 
 
 @pytest.mark.asyncio

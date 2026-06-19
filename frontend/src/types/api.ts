@@ -130,6 +130,7 @@ export interface Cobro {
   fecha: string;
   importe: string;
   forma_pago_id: string;
+  forma_pago?: FormaPago | null;
   notas: string | null;
   anulado_at: string | null;
   motivo_anulacion: string | null;
@@ -161,10 +162,16 @@ export interface Factura {
   id: string;
   clinica_id?: string | null;
   paciente_id: string;
+  entidad_id?: string | null;
   serie: string;
   numero: number;
   fecha: string;
+  tipo?: string;
   estado: string;
+  forma_pago_id?: string | null;
+  forma_pago?: FormaPago | null;
+  entidad?: { id: string; nombre: string } | null;
+  observaciones?: string | null;
   subtotal: string;
   iva_total: string;
   total: string;
@@ -303,12 +310,6 @@ export interface AuditLogEntry {
   ip_address: string | null;
   user_agent: string | null;
   event_hash: string | null;
-}
-
-export interface VideoConsultaResponse {
-  citaId: string;
-  videoUrl: string;
-  estado: string;
 }
 
 export interface RecordatorioCitaResponse {

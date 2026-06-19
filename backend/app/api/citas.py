@@ -5,7 +5,7 @@ Fase 2: CRUD completo + búsqueda de huecos + panel Telefonear.
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from urllib.parse import quote
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
@@ -22,7 +22,6 @@ from app.core.permissions import (
 )
 from app.database import get_db
 from app.models.cita import Cita, CitaCambio, CitaTelefonear, HistorialFaltas
-from app.models.clinica import Teleconsulta
 from app.models.doctor import Doctor
 from app.models.paciente import Paciente
 from app.schemas.cita import (
@@ -40,7 +39,7 @@ from app.schemas.cita import (
     DisponibilidadDia,
     HuecoLibre,
 )
-from app.schemas.extras import RecordatorioCreate, RecordatorioResponse, VideoResponse
+from app.schemas.extras import RecordatorioCreate, RecordatorioResponse
 from app.services.agenda_service import (
     buscar_huecos_libres,
     esta_dentro_disponibilidad,
@@ -165,6 +164,10 @@ def _snapshot_cita(cita: Cita) -> dict:
         "motivo": cita.motivo,
         "observaciones": cita.observaciones,
         "motivo_cancelacion": cita.motivo_cancelacion,
+        "recordatorio_enviado": cita.recordatorio_enviado,
+        "recordatorio_canal": cita.recordatorio_canal,
+        "recordatorio_estado": cita.recordatorio_estado,
+        "recordatorio_at": cita.recordatorio_at.isoformat() if cita.recordatorio_at else None,
     }
 
 
@@ -645,42 +648,17 @@ async def obtener_cita(
     return await _to_response(db, cita)
 
 
-@router.post("/{cita_id}/video", response_model=VideoResponse)
-async def iniciar_video(
-    cita_id: UUID,
-    db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: CurrentUser,
-) -> VideoResponse:
-    cita = await _get_cita_or_404(db, cita_id)
-    ensure_clinic_access(current_user, cita.clinica_id)
-    result = await db.execute(select(Teleconsulta).where(Teleconsulta.cita_id == cita_id))
-    teleconsulta = result.scalar_one_or_none()
-    if not teleconsulta:
-        token = uuid4().hex
-        teleconsulta = Teleconsulta(
-            cita_id=cita_id,
-            url=f"https://meet.jit.si/dentorg2-{token}",
-            estado="iniciada",
-        )
-        db.add(teleconsulta)
-    else:
-        teleconsulta.estado = "iniciada"
-    if cita.estado == "programada":
-        cita.estado = "confirmada"
-    await db.commit()
-    await db.refresh(teleconsulta)
-    return VideoResponse(citaId=cita_id, videoUrl=teleconsulta.url, estado=teleconsulta.estado)
-
-
 @router.post("/{cita_id}/recordatorio", response_model=RecordatorioResponse)
 async def enviar_recordatorio(
     cita_id: UUID,
     data: RecordatorioCreate,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
 ) -> RecordatorioResponse:
     cita = await _get_cita_or_404(db, cita_id)
     ensure_clinic_access(current_user, cita.clinica_id)
+    old = _snapshot_cita(cita)
     paciente = cita.paciente or await db.get(Paciente, cita.paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -710,6 +688,18 @@ async def enviar_recordatorio(
         await record_outbound_whatsapp(db, cita=cita, message_body=mensaje)
         if cita.estado in {"programada", "pending_confirmation"}:
             cita.estado = "reminder_sent"
+    new = _snapshot_cita(cita)
+    if old != new:
+        await _registrar_cambio_cita(
+            db,
+            cita=cita,
+            current_user=current_user,
+            accion="recordatorio",
+            old_values=old,
+            new_values=new,
+            motivo=f"Recordatorio {data.canal}",
+            request=request,
+        )
     await db.commit()
     return RecordatorioResponse(
         citaId=cita_id,

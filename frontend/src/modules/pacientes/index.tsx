@@ -62,7 +62,6 @@ import type { DocumentDesignerMode } from './Consentimientos';
 import { DocumentosPanel } from './Documentos';
 import { EurodentHistoryBillingPanel, InvoiceHistoryModal } from './HistorialFacturacion';
 import { HistorialCompletoPanel } from './HistorialCompleto';
-import { TratamientosRealizadosPanel } from './Realizados';
 import { CobroModal } from './modals/CobroModal';
 import { AnticipoModal } from './modals/AnticipoModal';
 import type { AnticipoModalMode } from './modals/AnticipoModal';
@@ -73,8 +72,7 @@ import { ComentarioModal } from './modals/ComentarioModal';
 import { PatientFinder, PatientForm, PatientEditModal, PatientFullViewModal, NuevoPacienteModal } from './FichaPaciente';
 import { PresupuestoPanel } from './Presupuestos';
 import { RecetaModal, HistorialRecetasDrawer } from './Recetas';
-import { LaboratorioPacientePanel, NuevoPedidoLaboratorioModal } from './Laboratorio';
-import { contarLaboratorioVencidos } from './laboratorioUtils';
+import { NuevoPedidoLaboratorioModal } from './Laboratorio';
 import { PatientActionsMenu } from './PatientActionsMenu';
 import { buildWhatsAppUrl } from './patientActionUtils';
 import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
@@ -152,9 +150,6 @@ const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'historial', label: 'Historial' },
 ];
 
-const INACTIVE_APPOINTMENT_STATES = new Set(['anulada', 'falta', 'cancelled_by_patient']);
-const COMPLETED_TREATMENT_STATES = new Set(['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo']);
-
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
   return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas' || tab === 'notas';
 }
@@ -174,11 +169,6 @@ function presupuestoEstadoLabel(estado: string) {
   return labels[estado] ?? estado;
 }
 
-function localDateTimeKey(date = new Date()) {
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 16);
-}
-
 export default function PacientesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -188,8 +178,7 @@ export default function PacientesPage() {
   const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>('primera');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
-  const [billingLedgerOpen, setBillingLedgerOpen] = useState(false);
-  const [laboratorioDetailsOpen, setLaboratorioDetailsOpen] = useState(false);
+  const [activityHistoryOpen, setActivityHistoryOpen] = useState(false);
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
   const [editingPatient, setEditingPatient] = useState(false);
   const [fullPatientOpen, setFullPatientOpen] = useState(false);
@@ -312,30 +301,11 @@ export default function PacientesPage() {
   const presupuestos = presupuestosQuery.data ?? [];
   const facturas = facturasQuery.data ?? [];
   const pagosAnticipados = pagosAnticipadosQuery.data ?? [];
-  const citasPaciente = citasPacienteQuery.data ?? [];
-  const historialPaciente = historialQuery.data ?? [];
-  const laboratorioPaciente = laboratorioPacienteQuery.data ?? [];
-  const documentosPaciente = documentosQuery.data ?? [];
-  const consentimientosPaciente = consentimientosQuery.data ?? [];
   const billingTotals = getBillingTotals(facturas);
-  const totalFacturado = Number(saldoQuery.data?.total_facturado ?? billingTotals.facturado);
   const totalPendiente = Number(saldoQuery.data?.pendiente ?? billingTotals.pendiente);
-  const tratamientosRealizados = historialPaciente.filter((item) => COMPLETED_TREATMENT_STATES.has(item.estado)).length;
-  const nextCita = citasPaciente
-    .filter((cita) => !INACTIVE_APPOINTMENT_STATES.has(cita.estado) && cita.fecha_hora.slice(0, 16) >= localDateTimeKey())
-    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
-  const tratamientosPendientes = presupuestos.reduce((total, presupuesto) => total + presupuesto.lineas.filter((linea) => {
-    const alreadyDone = historialPaciente.some((entrada) =>
-      entrada.presupuesto_linea_id === linea.id && COMPLETED_TREATMENT_STATES.has(entrada.estado),
-    );
-    return !alreadyDone && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado');
-  }).length, 0);
-  const consentimientosPendientes = consentimientosPaciente.filter((item) => item.estado !== 'firmado' && item.estado !== 'revocado').length;
-  const laboratorioVencido = contarLaboratorioVencidos(laboratorioPaciente);
   const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
   const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
-  const hasImportantAlerts = Boolean(alergias || laboratorioVencido > 0 || totalPendiente > 0 || tratamientosPendientes > 0 || consentimientosPendientes > 0);
 
   useEffect(() => {
     if (sessionStorage.getItem('dentorg_patient_action') !== 'new') return;
@@ -1015,6 +985,7 @@ export default function PacientesPage() {
             onWhatsApp: abrirWhatsAppPaciente,
             onComentario: () => setComentarioOpen(true),
             onCopiarDatos: copiarDatosPaciente,
+            onVistaCompleta: () => setFullPatientOpen(true),
           }}
         />
         {hasPatientError && (
@@ -1042,45 +1013,6 @@ export default function PacientesPage() {
             </button>
           ))}
         </nav>
-        {activeMainTab !== 'pacientes' && (
-          <aside className="patient-summary-strip" onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
-            <span><b>Paciente</b>{active ? fullName(active) : 'Sin seleccionar'} - H {active?.num_historial ?? '-'}</span>
-            <span><b>Proxima</b>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)} - ${nextCita.motivo ?? ''}` : 'sin cita programada'}</span>
-            <span><b>Realizados</b>{tratamientosRealizados}</span>
-            <span><b>Saldo</b>{money(totalPendiente)} / {money(totalFacturado)}</span>
-            <span><b>Docs</b>{documentosQuery.data?.length ?? 0} - CI {consentimientosQuery.data?.length ?? 0}</span>
-          </aside>
-        )}
-        {active && (
-          <aside className={`patient-priority-strip${hasImportantAlerts ? ' has-alerts' : ''}`} aria-label="Prioridades del paciente activo">
-            <button type="button" className={totalPendiente > 0 ? 'priority-danger' : 'priority-ok'} onClick={() => abrirCobroDesdeFicha()}>
-              <span>Deuda</span>
-              <strong>{totalPendiente > 0 ? money(totalPendiente) : 'Al dia'}</strong>
-              <small>{totalPendiente > 0 ? 'Registrar cobro' : 'Sin saldo pendiente'}</small>
-            </button>
-            <button type="button" className={nextCita ? 'priority-info' : 'priority-muted'} onClick={abrirAgendaPaciente}>
-              <span>Proxima cita</span>
-              <strong>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)}` : 'Sin programar'}</strong>
-              <small>{nextCita?.motivo ?? 'Dar cita'}</small>
-            </button>
-            <button type="button" className={tratamientosPendientes > 0 ? 'priority-warning' : 'priority-ok'} onClick={() => openPatientArea('pendiente')}>
-              <span>Pendientes</span>
-              <strong>{tratamientosPendientes}</strong>
-              <small>{tratamientosPendientes > 0 ? 'Abrir trabajo pendiente' : 'Sin tratamientos pendientes'}</small>
-            </button>
-            <button type="button" className={alergias || laboratorioVencido > 0 ? 'priority-danger' : 'priority-muted'} onClick={() => openPatientArea('notas')}>
-              <span>Alertas</span>
-              <strong>{alergias ? 'Alergia' : laboratorioVencido > 0 ? `${laboratorioVencido} lab vencido` : 'Sin alertas'}</strong>
-              <small>{alergias || laboratorioVencido > 0 ? 'Revisar antes de tratar' : 'Ficha clinica'}</small>
-            </button>
-            <button type="button" className={consentimientosPendientes > 0 ? 'priority-warning' : 'priority-info'} onClick={() => openDocumentsDrawer()}>
-              <span>Docs / CI</span>
-              <strong>{consentimientosPendientes > 0 ? `${consentimientosPendientes} CI pte.` : `${documentosPaciente.length} docs`}</strong>
-              <small>{consentimientosPendientes > 0 ? 'Firmas pendientes' : `${consentimientosPaciente.length} consentimientos`}</small>
-            </button>
-          </aside>
-        )}
-
       <main className="patient-desk">
         {activeMainTab === 'pacientes' && (
           <div onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
@@ -1110,10 +1042,7 @@ export default function PacientesPage() {
               onOpenDocumentos={() => openDocumentsDrawer()}
               onSubirDocumento={() => openDocumentsDrawer({ upload: true })}
               onOpenConsentimientos={() => setDesigner(active ? { mode: 'consentimiento' } : null)}
-              onOpenLaboratorio={() => {
-                setLaboratorioDetailsOpen(true);
-                openPatientArea('notas');
-              }}
+              onOpenLaboratorio={() => openPatientArea('notas')}
               onEmitirFactura={() => setInvoiceCreatorOpen(true)}
               onRegistrarCobro={abrirCobroDesdeFicha}
               onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
@@ -1180,71 +1109,19 @@ export default function PacientesPage() {
               paciente={active}
               historial={historialQuery.data ?? []}
               facturas={facturas}
-              anticipos={pagosAnticipados}
               onFacturar={() => setInvoiceCreatorOpen(true)}
               onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
               onCobrar={() => cobrarFactura.mutate()}
               onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
-              onEditAnticipo={(pago) => setAnticipoModal({ kind: 'editar', pago })}
               onCobrarImporte={(factura) => setCobroFactura(factura)}
-              onOrtodoncia={() => openPatientArea('historial')}
               onRecibos={abrirRecibos}
               onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
               onCrearReceta={() => {
                 setRecetaError(null);
                 setRecetaModalOpen(true);
               }}
+              onOpenActivity={() => setActivityHistoryOpen(true)}
             />
-            <details
-              className="history-ledger-details"
-              open={laboratorioDetailsOpen}
-              onToggle={(event) => setLaboratorioDetailsOpen(event.currentTarget.open)}
-            >
-              <summary>Trabajos de laboratorio del paciente {contarLaboratorioVencidos(laboratorioPacienteQuery.data ?? []) > 0 ? `(${contarLaboratorioVencidos(laboratorioPacienteQuery.data ?? [])} vencido${contarLaboratorioVencidos(laboratorioPacienteQuery.data ?? []) === 1 ? '' : 's'})` : ''}</summary>
-              <LaboratorioPacientePanel
-                trabajos={laboratorioPacienteQuery.data ?? []}
-                onCrearPedido={() => {
-                  setPedidoLabError(null);
-                  setPedidoLabContext({ open: true, linea: null });
-                }}
-                onActualizar={(trabajoId, cambios) => actualizarTrabajoLab.mutate({ trabajoId, cambios })}
-              />
-            </details>
-            <details className="history-ledger-details" open={billingLedgerOpen} onToggle={(event) => setBillingLedgerOpen(event.currentTarget.open)}>
-              <summary>Cronologia agrupada (clinico, citas, WhatsApp, documentos, recetas, laboratorio)</summary>
-              <HistorialCompletoPanel
-                paciente={active}
-                historial={historialQuery.data ?? []}
-                citas={citasPacienteQuery.data ?? []}
-                presupuestos={presupuestos}
-                facturas={facturas}
-                anticipos={pagosAnticipados}
-                documentos={documentosQuery.data ?? []}
-                consentimientos={consentimientosQuery.data ?? []}
-                recetas={recetasPacienteQuery.data ?? []}
-                laboratorio={laboratorioPacienteQuery.data ?? []}
-                notasDentales={notasDentalesQuery.data ?? []}
-                whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
-                onOpenDocumento={abrirDocumento}
-                onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
-                onOpenFactura={abrirPdfFactura}
-                onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
-                userRole={user?.rol}
-              />
-            </details>
-            <details className="history-ledger-details">
-              <summary>Tratamientos realizados en historial</summary>
-              <TratamientosRealizadosPanel
-                historial={historialQuery.data ?? []}
-                consentimientos={consentimientosQuery.data ?? []}
-                presupuestos={presupuestos}
-                paciente={active}
-                doctorName={doctoresQuery.data?.[0]?.nombre ?? 'Doctor'}
-                doctorColor={doctoresQuery.data?.[0]?.color_agenda}
-                tratamientos={tratamientosQuery.data ?? []}
-                userRole={user?.rol}
-              />
-            </details>
           </section>
         )}
       </main>
@@ -1399,6 +1276,35 @@ export default function PacientesPage() {
           facturas={facturas}
           onClose={() => setInvoiceHistoryOpen(false)}
         />
+      )}
+      {activityHistoryOpen && active && (
+        <div className="modal-backdrop" onMouseDown={() => setActivityHistoryOpen(false)}>
+          <section className="patient-documents-drawer patient-activity-drawer" onMouseDown={(event) => event.stopPropagation()}>
+            <header className="modal-titlebar">
+              <strong>Actividad completa del paciente</strong>
+              <button type="button" onClick={() => setActivityHistoryOpen(false)}>Cerrar</button>
+            </header>
+            <HistorialCompletoPanel
+              paciente={active}
+              historial={historialQuery.data ?? []}
+              citas={citasPacienteQuery.data ?? []}
+              presupuestos={presupuestos}
+              facturas={facturas}
+              anticipos={pagosAnticipados}
+              documentos={documentosQuery.data ?? []}
+              consentimientos={consentimientosQuery.data ?? []}
+              recetas={recetasPacienteQuery.data ?? []}
+              laboratorio={laboratorioPacienteQuery.data ?? []}
+              notasDentales={notasDentalesQuery.data ?? []}
+              whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
+              onOpenDocumento={abrirDocumento}
+              onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
+              onOpenFactura={abrirPdfFactura}
+              onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
+              userRole={user?.rol}
+            />
+          </section>
+        </div>
       )}
       {invoiceCreatorOpen && active && (
         <InvoiceCreationModal

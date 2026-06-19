@@ -32,7 +32,7 @@ Roles contemplados:
 La Fase 1 refuerza aislamiento en los flujos más sensibles:
 
 - Pacientes: listado, detalle, edición, datos de salud, citas del paciente, faltas y referencias.
-- Citas: listado, creación, detalle, edición, recordatorios, videollamada, anulación, telefonear y búsqueda de huecos.
+- Citas: listado, creación, detalle, edición, recordatorios, anulación, telefonear y búsqueda de huecos.
 - Doctores y horarios: listado, detalle y horarios filtrados por clínica.
 - Facturas: listado, creación, detalle, receta, edición, anulación, líneas y cobros.
 - Clínicas: CRUD admin y lectura acotada a la clínica del usuario.

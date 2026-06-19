@@ -383,7 +383,6 @@ Endpoints:
 - Reprogramar.
 - Cambiar estado, confirmar, cancelar, marcar falta.
 - Historial de cambios.
-- Teleconsulta.
 - Recordatorios.
 - Cola de telefonear/reubicar.
 
@@ -762,7 +761,7 @@ Funciones API agrupadas:
 - Agenda:
   - `getCitas`, `createCita`, `updateCita`, `reprogramarCita`, `confirmarCita`, `cancelarCitaAvanzada`, `marcarFaltaCita`.
   - `buscarHuecosLibres`, `getDisponibilidadDoctor`, `getCambiosCita`.
-  - `iniciarVideoConsulta`, `enviarRecordatorioCita`.
+  - `enviarRecordatorioCita`.
   - `getTelefonear`, `marcarTelefonearReubicada`.
 - Doctores/horarios:
   - `getDoctores`, `createDoctor`, `updateDoctor`, `getHorarios`, `updateHorarioDoctor`.
@@ -872,9 +871,8 @@ Componentes importantes:
 - `PrimeraVisita.tsx`: estado inicial/primera visita.
 - `Presupuestos.tsx`: presupuesto, lineas y citas del paciente.
 - `TrabajoPendiente.tsx`: tratamientos pendientes derivados de presupuestos.
-- `Realizados.tsx`: tratamientos realizados.
+- `HistorialFacturacion.tsx`: tabla de tratamientos realizados con factura, cobro y saldo.
 - `HistorialCompleto.tsx`: timeline unificado clinico/fiscal/documental.
-- `HistorialFacturacion.tsx`: historial economico y clinico.
 - `Consentimientos.tsx`: plantillas, firmas y documentos/circulares.
 - `Documentos.tsx`: upload y organizacion de documentos.
 - `Laboratorio.tsx`: trabajos de laboratorio por paciente.
@@ -1509,4 +1507,3 @@ La pieza mas importante para entender el sistema completo es la conexion:
 ```text
 Agenda -> Paciente -> Odontograma/Presupuesto -> Trabajo pendiente/Sesion -> Historial -> Factura/Cobro -> Reportes/Auditoria
 ```
-

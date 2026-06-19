@@ -163,14 +163,13 @@ body,
   gap: 8px;
 }
 
-.clinical-workspace > .clinical-overview,
 .clinical-workspace > .treatment-subtabs {
   flex: 0 0 auto;
 }
 
 /* Cualquier hijo del workspace que no sea cabecera o tabs es el contenido
  * de la pestaña activa: ese sí scrollea. */
-.clinical-workspace > :not(.clinical-overview):not(.treatment-subtabs) {
+.clinical-workspace > :not(.treatment-subtabs) {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -674,34 +673,6 @@ body {
   overflow: hidden !important;
 }
 
-.clinical-overview {
-  flex: 0 0 auto;
-  min-height: 32px;
-  margin: 0 0 4px !important;
-  display: flex !important;
-  grid-template-columns: none !important;
-  gap: 5px !important;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-
-.clinical-overview-item {
-  flex: 1 1 120px;
-  min-width: 108px;
-  min-height: 30px;
-  padding: 5px 7px !important;
-}
-
-.clinical-overview-item strong {
-  font-size: 0.84rem !important;
-  line-height: 1;
-}
-
-.clinical-overview-item small {
-  font-size: 0.62rem !important;
-}
-
 .clinical-subtabs,
 .treatment-subtabs {
   flex: 0 0 auto;
@@ -721,7 +692,7 @@ body {
   white-space: nowrap;
 }
 
-.clinical-workspace > :not(.clinical-overview):not(.clinical-subtabs):not(.treatment-subtabs) {
+.clinical-workspace > :not(.clinical-subtabs):not(.treatment-subtabs) {
   min-height: 0;
   overflow: auto;
   scrollbar-width: thin;

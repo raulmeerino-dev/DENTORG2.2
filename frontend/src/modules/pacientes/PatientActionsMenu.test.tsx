@@ -29,6 +29,7 @@ function makeHandlers(overrides: Partial<Parameters<typeof PatientActionsMenu>[0
     onWhatsApp: vi.fn(),
     onComentario: vi.fn(),
     onCopiarDatos: vi.fn(),
+    onVistaCompleta: vi.fn(),
     ...overrides,
   };
 }
@@ -38,10 +39,11 @@ describe('PatientActionsMenu', () => {
     const handlers = makeHandlers();
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
     expect(screen.getByRole('button', { name: 'Nueva cita' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Nuevo ppto/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cobrar' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Subir doc/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Mas acciones/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Nuevo ppto/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Recetas' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Subir doc/i })).not.toBeInTheDocument();
   });
 
   it('deshabilita todo si no hay paciente', () => {
@@ -56,13 +58,9 @@ describe('PatientActionsMenu', () => {
     const handlers = makeHandlers();
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
     await user.click(screen.getByRole('button', { name: 'Nueva cita' }));
-    await user.click(screen.getByRole('button', { name: /Nuevo ppto/ }));
     await user.click(screen.getByRole('button', { name: 'Cobrar' }));
-    await user.click(screen.getByRole('button', { name: /Subir doc/ }));
     expect(handlers.onNuevaCita).toHaveBeenCalledTimes(1);
-    expect(handlers.onNuevoPresupuesto).toHaveBeenCalledTimes(1);
     expect(handlers.onCobrar).toHaveBeenCalledTimes(1);
-    expect(handlers.onSubirDocumento).toHaveBeenCalledTimes(1);
   });
 
   it('abre el dropdown y dispara acciones secundarias', async () => {
@@ -71,18 +69,64 @@ describe('PatientActionsMenu', () => {
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
     const menu = screen.getByRole('menu');
+    expect(menu.parentElement).toBe(document.body);
+    expect(screen.getByRole('group', { name: 'Clinico' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Documentos' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Comunicacion' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Otros' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Nuevo presupuesto' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Subir documento' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Vista completa' })).toBeInTheDocument();
     await user.click(screen.getByRole('menuitem', { name: 'Consentimiento informado' }));
     expect(handlers.onConsentimiento).toHaveBeenCalledTimes(1);
     expect(menu).not.toBeInTheDocument();
+  });
+
+  it('acciones movidas al menu llaman a sus handlers', async () => {
+    const user = userEvent.setup();
+    const onCrearReceta = vi.fn();
+    const handlers = makeHandlers({ onCrearReceta });
+    render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
+
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Nuevo presupuesto' }));
+    expect(handlers.onNuevoPresupuesto).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Recetas' }));
+    expect(onCrearReceta).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Subir documento' }));
+    expect(handlers.onSubirDocumento).toHaveBeenCalledTimes(1);
+
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Vista completa' }));
+    expect(handlers.onVistaCompleta).toHaveBeenCalledTimes(1);
+  });
+
+  it('cierra el dropdown con Escape y al hacer click fuera', async () => {
+    const user = userEvent.setup();
+    const handlers = makeHandlers();
+    render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
+
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    await user.click(document.body);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('receta principal y laboratorio aparecen disabled cuando no se proporcionan handlers', async () => {
     const user = userEvent.setup();
     const handlers = makeHandlers();
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
-    expect(screen.getByRole('button', { name: 'Recetas' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    expect(screen.queryByRole('menuitem', { name: 'Crear receta' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Recetas' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Pedido de laboratorio' })).toBeDisabled();
     // Label cambiado en F1
     expect(screen.getByRole('menuitem', { name: 'Documento cuestionario medico' })).toBeInTheDocument();
@@ -94,10 +138,10 @@ describe('PatientActionsMenu', () => {
     const onPedidoLaboratorio = vi.fn();
     const handlers = makeHandlers({ onCrearReceta, onPedidoLaboratorio });
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
-    await user.click(screen.getByRole('button', { name: 'Recetas' }));
+    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
+    await user.click(screen.getByRole('menuitem', { name: 'Recetas' }));
     expect(onCrearReceta).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    expect(screen.queryByRole('menuitem', { name: 'Crear receta' })).not.toBeInTheDocument();
     const labBtn = screen.getByRole('menuitem', { name: 'Pedido de laboratorio' });
     expect(labBtn).not.toBeDisabled();
     await user.click(labBtn);

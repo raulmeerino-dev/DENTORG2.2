@@ -10,7 +10,7 @@ Software web de gestion dental orientado a clinica, con flujo operativo parecido
 ## Modulos principales
 
 - Inicio: dashboard operativo diario y BI resumido.
-- Agenda: citas por doctor, huecos, telefono, estados visuales, recordatorios y teleconsulta.
+- Agenda: citas por doctor, huecos, telefono, estados visuales y recordatorios.
 - Pacientes: ficha, primera visita, odontograma, presupuestos, pendientes, realizados, historial/facturacion, documentos y consentimientos.
 - Admin: listados, configuracion, clinicas, usuarios/roles, tratamientos, horarios, inventario, laboratorio, auditoria, backups y cumplimiento fiscal.
 - Portal paciente: base para citas, documentos y firma de consentimientos.

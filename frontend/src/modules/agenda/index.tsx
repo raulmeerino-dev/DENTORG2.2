@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, iniciarVideoConsulta, marcarFaltaCita, marcarTelefonearReubicada, updateCita } from '../../lib/api';
-import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente } from '../../types/api';
+import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, getWhatsAppComunicaciones, marcarFaltaCita, marcarTelefonearReubicada, updateCita } from '../../lib/api';
+import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente, WhatsAppInboxItem } from '../../types/api';
 import { CancelCitaModal } from './modals/CancelCitaModal';
 
 type SlotDraft = {
@@ -20,22 +20,6 @@ type HuecoResultado = HuecoLibre & {
   doctorColor: string | null;
 };
 type HorariosPorDoctor = Record<string, HorarioDoctor[]>;
-
-const ESTADOS = [
-  'programada',
-  'pending_confirmation',
-  'reminder_sent',
-  'confirmada',
-  'confirmed',
-  'reschedule_requested',
-  'pending_manual_review',
-  'cancelled_by_patient',
-  'rescheduled',
-  'en_clinica',
-  'atendida',
-  'anulada',
-  'falta',
-];
 
 const STATUS_META: Record<string, { label: string; mark: string; className: string }> = {
   programada: { label: 'Sin confirmar', mark: '?', className: 'state-pending' },
@@ -54,6 +38,44 @@ const STATUS_META: Record<string, { label: string; mark: string; className: stri
   anulada: { label: 'Cancelada', mark: 'X', className: 'state-cancelled' },
   falta: { label: 'No asistio', mark: 'NO', className: 'state-missed' },
 };
+
+type QuickAppointmentStateKey = 'programada' | 'confirmada' | 'en_clinica' | 'en_tratamiento' | 'atendida' | 'anulada' | 'falta';
+
+type QuickAppointmentState = {
+  key: QuickAppointmentStateKey;
+  value: string;
+  label: string;
+  className: string;
+  aliases?: string[];
+};
+
+const QUICK_APPOINTMENT_STATES: QuickAppointmentState[] = [
+  {
+    key: 'programada',
+    value: 'programada',
+    label: 'Sin confirmar',
+    className: 'state-pending',
+    aliases: ['programada', 'pending_confirmation', 'reminder_sent', 'pending_manual_review'],
+  },
+  {
+    key: 'confirmada',
+    value: 'confirmada',
+    label: 'Confirmada',
+    className: 'state-confirmed',
+    aliases: ['confirmada', 'confirmed', 'rescheduled'],
+  },
+  { key: 'en_clinica', value: 'en_clinica', label: 'En clinica', className: 'state-clinic' },
+  { key: 'en_tratamiento', value: 'en_clinica', label: 'En tratamiento', className: 'state-treatment' },
+  { key: 'atendida', value: 'atendida', label: 'Finalizada', className: 'state-done' },
+  {
+    key: 'anulada',
+    value: 'anulada',
+    label: 'Cancelada',
+    className: 'state-cancelled',
+    aliases: ['anulada', 'cancelled_by_patient'],
+  },
+  { key: 'falta', value: 'falta', label: 'No asistio', className: 'state-missed' },
+];
 
 const AGENDA_STATUS_LEGEND = [
   'programada',
@@ -220,6 +242,36 @@ function getVisualStatus(cita: Cita) {
     if (['programada', 'pending_confirmation'].includes(cita.estado) && obs.includes('recordatorio')) return 'mensaje_enviado';
   if (cita.estado === 'en_clinica' && obs.includes('en tratamiento')) return 'en_tratamiento';
   return cita.estado;
+}
+
+function hasTreatmentMarker(value: string) {
+  return value.toLowerCase().split('\n').some((line) => line.trim() === 'en tratamiento');
+}
+
+function setTreatmentMarker(value: string, enabled: boolean) {
+  const lines = value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && line.toLowerCase() !== 'en tratamiento');
+  if (enabled) lines.push('En tratamiento');
+  return lines.join('\n');
+}
+
+function quickAppointmentStateKey(estado: string, observaciones: string): QuickAppointmentStateKey | null {
+  if (estado === 'en_clinica' && hasTreatmentMarker(observaciones)) return 'en_tratamiento';
+  const option = QUICK_APPOINTMENT_STATES.find((item) => (item.aliases ?? [item.value]).includes(estado));
+  return option?.key ?? null;
+}
+
+function whatsappDirectionLabel(item: WhatsAppInboxItem) {
+  return item.direction === 'outbound' ? 'Enviado' : 'Respuesta';
+}
+
+function whatsappIntentLabel(item: WhatsAppInboxItem) {
+  if (item.interpreted_intent === 'affirmative') return 'Confirma';
+  if (item.interpreted_intent === 'reschedule_requested') return 'Pide cambio';
+  if (item.interpreted_intent === 'pending_manual_review') return 'Revisar';
+  return item.processed ? 'Registrado' : 'Pendiente';
 }
 
 function patientName(cita: Cita) {
@@ -412,7 +464,6 @@ function CitaModal({
   onClose,
   onSubmit,
   onCreateTemporaryPaciente,
-  onStartVideo,
 }: {
   cita: Cita | null;
   draft: SlotDraft | null;
@@ -432,7 +483,6 @@ function CitaModal({
     telefonearId?: string;
   }) => void;
   onCreateTemporaryPaciente: (data: { nombreCompleto: string; telefono: string }) => Promise<ApiPaciente>;
-  onStartVideo: (cita: Cita) => Promise<string>;
 }) {
   const [query, setQuery] = useState('');
   const [patientResultsOpen, setPatientResultsOpen] = useState(false);
@@ -452,7 +502,6 @@ function CitaModal({
   const [creatingTemp, setCreatingTemp] = useState(false);
   const [showTempPatient, setShowTempPatient] = useState(false);
   const [tempError, setTempError] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
 
   const filteredPatients = useMemo(() => {
     if (!query.trim()) return pacientes;
@@ -464,6 +513,18 @@ function CitaModal({
     ? [selectedPaciente, ...filteredPatients]
     : filteredPatients;
   const visual = cita ? STATUS_META[getVisualStatus(cita)] : STATUS_META.programada;
+  const whatsappThreadQuery = useQuery({
+    queryKey: ['whatsapp-comunicaciones', 'appointment', cita?.id],
+    queryFn: () => getWhatsAppComunicaciones({ appointment_id: cita!.id, limit: 6 }),
+    enabled: Boolean(cita?.id),
+  });
+  const whatsappThread = whatsappThreadQuery.data ?? [];
+  const activeQuickState = quickAppointmentStateKey(estado, observaciones);
+
+  function selectQuickState(option: QuickAppointmentState) {
+    setEstado(option.value);
+    setObservaciones((prev) => setTreatmentMarker(prev, option.key === 'en_tratamiento'));
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -597,11 +658,22 @@ function CitaModal({
             </select>
           </label>
           <label>Gabinete<input value={gabinete} onChange={(event) => setGabinete(event.target.value)} placeholder="Box / sillon" /></label>
-          <label>Estado
-            <select value={estado} onChange={(event) => setEstado(event.target.value)}>
-              {ESTADOS.map((item) => <option key={item} value={item}>{STATUS_META[item]?.label ?? item}</option>)}
-            </select>
-          </label>
+          <div className="appointment-status-field">
+            <span>Estado</span>
+            <div className="appointment-status-pills" role="group" aria-label="Estado de la cita">
+              {QUICK_APPOINTMENT_STATES.map((option) => (
+                <button
+                  key={option.key}
+                  type="button"
+                  className={`appointment-status-pill ${option.className}${activeQuickState === option.key ? ' active' : ''}`}
+                  aria-pressed={activeQuickState === option.key}
+                  onClick={() => selectQuickState(option)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <label className="wide">Tratamiento previsto<input value={motivo} onChange={(event) => setMotivo(event.target.value)} /></label>
           <label className="wide notes">Observaciones de la cita/tratamiento<textarea value={observaciones} onChange={(event) => setObservaciones(event.target.value)} /></label>
         </div>
@@ -613,12 +685,27 @@ function CitaModal({
           <span>Confirmacion: {['confirmada', 'confirmed'].includes(estado) ? 'Confirmada' : 'Pendiente'}</span>
         </aside>
         {cita && (
-          <div className="video-consult-panel">
-            <button type="button" onClick={async () => setVideoUrl(await onStartVideo(cita))}>Iniciar videollamada</button>
-            {videoUrl && <div><strong>Videoconsulta iniciada</strong><iframe title="Videollamada" src={videoUrl} allow="camera; microphone; fullscreen" /></div>}
-          </div>
+          <section className="appointment-whatsapp-thread" aria-label="Historial WhatsApp de la cita">
+            <header>
+              <strong>WhatsApp</strong>
+              <span>{whatsappThread.length ? `${whatsappThread.length} comunicaciones registradas` : 'Sin comunicaciones registradas'}</span>
+            </header>
+            <div>
+              {whatsappThreadQuery.isLoading && <p>Cargando historial WhatsApp...</p>}
+              {!whatsappThreadQuery.isLoading && whatsappThread.slice(0, 4).map((item) => (
+                <article key={item.id} className={`appointment-whatsapp-item ${item.direction}`}>
+                  <b>{whatsappDirectionLabel(item)}</b>
+                  <span>{dateTimeLabel(item.sent_at ?? item.received_at ?? item.created_at)}</span>
+                  <em>{whatsappIntentLabel(item)}</em>
+                  <p>{item.message_body}</p>
+                </article>
+              ))}
+              {!whatsappThreadQuery.isLoading && !whatsappThread.length && (
+                <p>Al enviar un recordatorio WhatsApp desde Agenda quedara asociado aqui junto a las respuestas del paciente.</p>
+              )}
+            </div>
+          </section>
         )}
-
         <footer>
           <button type="button" onClick={onClose}>Cerrar</button>
           <button type="submit">Guardar cita</button>
@@ -1009,14 +1096,6 @@ export default function AgendaPage() {
     },
   });
 
-  const videoMutation = useMutation({
-    mutationFn: async (cita: Cita) => {
-      const response = await iniciarVideoConsulta(cita.id);
-      void queryClient.invalidateQueries({ queryKey: ['citas'] });
-      return response.videoUrl;
-    },
-  });
-
   const recordatorioMutation = useMutation({
     mutationFn: async ({ cita, canal }: { cita: Cita; canal: 'whatsapp' | 'email' | 'ambos' }) => {
       const response = await enviarRecordatorioCita(cita.id, canal);
@@ -1024,9 +1103,13 @@ export default function AgendaPage() {
       if (response.emailUrl) window.open(response.emailUrl, '_blank');
       return response;
     },
-    onSuccess: () => {
+    onSuccess: (_response, variables) => {
       setContextMenu(null);
       void queryClient.invalidateQueries({ queryKey: ['citas'] });
+      void queryClient.invalidateQueries({ queryKey: ['citas-paciente', variables.cita.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['paciente-detalle', variables.cita.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['whatsapp-comunicaciones'] });
+      void queryClient.invalidateQueries({ queryKey: ['telefonear'] });
     },
   });
 
@@ -1164,12 +1247,6 @@ export default function AgendaPage() {
 
   function reprogramarCita(cita: Cita) {
     setModalCita(cita);
-    setContextMenu(null);
-  }
-
-  async function iniciarVideoDesdeMenu(cita: Cita) {
-    const url = await videoMutation.mutateAsync(cita);
-    window.open(url, '_blank');
     setContextMenu(null);
   }
 
@@ -1527,7 +1604,6 @@ export default function AgendaPage() {
           onClose={() => { setModalCita(null); setSlotDraft(null); }}
           onSubmit={(data) => saveMutation.mutate(data)}
           onCreateTemporaryPaciente={(data) => createTempPatient.mutateAsync(data)}
-          onStartVideo={(cita) => videoMutation.mutateAsync(cita)}
         />
       )}
 
@@ -1579,7 +1655,6 @@ export default function AgendaPage() {
           <button onClick={() => openPatient(contextMenu.cita)}>Abrir ficha del paciente</button>
           <button onClick={() => reprogramarCita(contextMenu.cita)}>Reprogramar / cambiar hora</button>
           <button onClick={() => copiarTelefono(contextMenu.cita)}>Copiar telefono</button>
-          <button onClick={() => void iniciarVideoDesdeMenu(contextMenu.cita)}>Iniciar videollamada</button>
           <span />
           <button onClick={() => confirmMutation.mutate(contextMenu.cita)}>Confirmar cita</button>
           <button onClick={() => setStatus(contextMenu.cita, 'programada')}>Pendiente de confirmar</button>

@@ -38,7 +38,7 @@ const ADMIN_TAB_ALIASES: Record<string, Tab> = {
   roles: 'usuarios',
   doctores: 'doctores',
   agenda: 'agenda',
-  caja: 'caja',
+  caja: 'general',
   laboratorio: 'laboratorio',
   documentos: 'documentos',
   backups: 'seguridad',
@@ -51,7 +51,6 @@ const CONFIG_TAB_BY_ADMIN: Partial<Record<Tab, FicheroTab>> = {
   doctores: 'doctores',
   tratamientos: 'tratamientos',
   agenda: 'agenda',
-  caja: 'caja',
   laboratorio: 'laboratorio',
   documentos: 'documentos',
   seguridad: 'seguridad',
@@ -285,7 +284,7 @@ export default function AdminExtrasPage() {
         </div>
       )}
 
-      {['general', 'usuarios', 'doctores', 'tratamientos', 'agenda', 'caja', 'laboratorio', 'documentos'].includes(tab) && renderConfigTab(tab)}
+      {['general', 'usuarios', 'doctores', 'tratamientos', 'agenda', 'laboratorio', 'documentos'].includes(tab) && renderConfigTab(tab)}
 
       {tab === 'inventario' && (
         <div className="fichero-grid inventory-layout">

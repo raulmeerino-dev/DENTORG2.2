@@ -132,7 +132,6 @@ export default function MainNav() {
                       <strong>{item.label}</strong>
                       <small>{item.description}</small>
                     </span>
-                    {item.shortcut && <span className="module-launcher-shortcut">{item.shortcut}</span>}
                   </NavLink>
                 );
               })}
