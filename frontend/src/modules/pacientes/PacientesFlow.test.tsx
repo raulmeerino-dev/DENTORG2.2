@@ -212,7 +212,6 @@ vi.mock('../../lib/api', () => ({
   updatePagoAnticipadoPaciente: vi.fn(),
   updatePaciente: vi.fn(),
   updatePresupuestoLinea: vi.fn(),
-  updateTrabajoLaboratorio: vi.fn(),
   uploadDocumentoPaciente: vi.fn(),
 }));
 
@@ -271,7 +270,7 @@ describe('Flujo integración cross-módulo', () => {
 
     // Modal abierto con descripción y pieza prepobladas desde linea pres-1
     expect(await screen.findByText(/Nuevo pedido de laboratorio/i)).toBeInTheDocument();
-    const desc = screen.getByLabelText(/Descripción/) as HTMLInputElement;
+    const desc = screen.getByLabelText(/Descripcion/) as HTMLInputElement;
     expect(desc.value).toBe('Corona zirconio');
     const pieza = screen.getByLabelText(/Pieza dental/) as HTMLInputElement;
     expect(pieza.value).toBe('16');
@@ -297,17 +296,18 @@ describe('Flujo integración cross-módulo', () => {
     });
   });
 
-  it('banner de laboratorio vencido aparece en la Ficha y abre la pestaña laboratorio', async () => {
+  it('banner de laboratorio vencido aparece en la Ficha y abre tratamientos pendientes', async () => {
     const user = userEvent.setup();
     renderPage();
 
     const banner = await screen.findByRole('button', { name: /pedido.*sin recibir.*vencida/i });
     expect(banner).toBeInTheDocument();
     await user.click(banner);
-    // Click navega a Clinica, donde laboratorio queda disponible para el doctor.
+    // Click navega a Clinica > Pendientes, donde laboratorio queda asociado al tratamiento.
     await waitFor(() => {
-      expect(screen.getByText(/Laboratorio y protesicos/i)).toBeInTheDocument();
+      expect(screen.getByText(/Tratamientos pendientes/i)).toBeInTheDocument();
     });
+    expect(screen.getByRole('button', { name: /\+ Lab/i })).toBeInTheDocument();
   });
 
   it('actividad completa mantiene el filtro "Cobros" con cobros y anticipos', async () => {

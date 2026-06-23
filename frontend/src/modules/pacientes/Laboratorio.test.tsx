@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiPaciente, Doctor, Laboratorio, PresupuestoLinea, TrabajoLaboratorio } from '../../types/api';
-import { LaboratorioPacientePanel, NuevoPedidoLaboratorioModal } from './Laboratorio';
+import { NuevoPedidoLaboratorioModal } from './Laboratorio';
 import { contarLaboratorioVencidos } from './laboratorioUtils';
 
 const paciente: ApiPaciente = {
@@ -48,46 +48,6 @@ const baseTrabajo: TrabajoLaboratorio = {
   laboratorio: laboratorios[0],
 };
 
-describe('LaboratorioPacientePanel', () => {
-  it('muestra los trabajos con estado, pieza y flags', () => {
-    render(<LaboratorioPacientePanel trabajos={[baseTrabajo]} />);
-    expect(screen.getByText('Corona zirconio')).toBeInTheDocument();
-    expect(screen.getByText('enviado')).toBeInTheDocument();
-    expect(screen.getByText('ME')).toBeInTheDocument();
-  });
-
-  it('boton crear pedido aparece solo si onCrearPedido viene', () => {
-    const { rerender } = render(<LaboratorioPacientePanel trabajos={[]} />);
-    expect(screen.queryByRole('button', { name: /Nuevo pedido/ })).toBeNull();
-    rerender(<LaboratorioPacientePanel trabajos={[]} onCrearPedido={vi.fn()} />);
-    expect(screen.getByRole('button', { name: /Nuevo pedido/ })).toBeInTheDocument();
-  });
-
-  it('marcar recibido llama a onActualizar con estado y fecha_recepcion', async () => {
-    const user = userEvent.setup();
-    const onActualizar = vi.fn();
-    render(<LaboratorioPacientePanel trabajos={[baseTrabajo]} onActualizar={onActualizar} />);
-    await user.click(screen.getByRole('button', { name: /Marcar recibido/ }));
-    expect(onActualizar).toHaveBeenCalledTimes(1);
-    const [trabajoId, cambios] = onActualizar.mock.calls[0];
-    expect(trabajoId).toBe('trab-1');
-    expect(cambios.estado).toBe('recibido');
-    expect(cambios.fecha_recepcion).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(cambios.material_devuelto).toBe(true);
-  });
-
-  it('marcar colocado solo aparece tras recibir', async () => {
-    const user = userEvent.setup();
-    const onActualizar = vi.fn();
-    const recibido = { ...baseTrabajo, estado: 'recibido', fecha_recepcion: '2026-04-01' };
-    render(<LaboratorioPacientePanel trabajos={[recibido]} onActualizar={onActualizar} />);
-    await user.click(screen.getByRole('button', { name: /Marcar colocado/ }));
-    const cambios = onActualizar.mock.calls[0][1];
-    expect(cambios.colocado).toBe(true);
-    expect(cambios.estado).toBe('entregado');
-  });
-});
-
 describe('contarLaboratorioVencidos', () => {
   it('cuenta solo trabajos con fecha pasada, sin recepcion y no entregados', () => {
     const trabajos: TrabajoLaboratorio[] = [
@@ -125,7 +85,7 @@ describe('NuevoPedidoLaboratorioModal', () => {
         onSubmit={vi.fn()}
       />,
     );
-    const desc = screen.getByLabelText(/Descripción/) as HTMLInputElement;
+    const desc = screen.getByLabelText(/Descripcion/) as HTMLInputElement;
     expect(desc.value).toBe('Corona zirconio');
     const pieza = screen.getByLabelText(/Pieza dental/) as HTMLInputElement;
     expect(pieza.value).toBe('16');
@@ -144,7 +104,7 @@ describe('NuevoPedidoLaboratorioModal', () => {
         onSubmit={onSubmit}
       />,
     );
-    await user.type(screen.getByLabelText(/Descripción/), 'Corona prov.');
+    await user.type(screen.getByLabelText(/Descripcion/), 'Corona prov.');
     await user.selectOptions(screen.getByLabelText(/Laboratorio/), 'lab-1');
     await user.selectOptions(screen.getByLabelText(/Doctor/), 'doc-1');
     await user.click(screen.getByRole('button', { name: /Crear pedido/ }));

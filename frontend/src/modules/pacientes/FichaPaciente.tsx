@@ -218,7 +218,6 @@ export function PatientForm({
   onOpenDocumentos,
   onSubirDocumento,
   onOpenConsentimientos,
-  onOpenLaboratorio,
   onEmitirFactura,
   onRegistrarCobro,
   onHistorialFacturas,
@@ -246,7 +245,6 @@ export function PatientForm({
   onOpenDocumentos: () => void;
   onSubirDocumento: () => void;
   onOpenConsentimientos: () => void;
-  onOpenLaboratorio: () => void;
   onEmitirFactura: () => void;
   onRegistrarCobro: (factura?: Factura | null) => void;
   onHistorialFacturas: () => void;
@@ -321,10 +319,10 @@ export function PatientForm({
         </button>
       )}
       {laboratorioVencidos.length > 0 && (
-        <button type="button" className="patient-banner patient-banner-danger" onClick={onOpenLaboratorio}>
+        <button type="button" className="patient-banner patient-banner-danger" onClick={onOpenPendientes}>
           <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
           <span>{laboratorioVencidos.length} pedido{laboratorioVencidos.length === 1 ? '' : 's'} de laboratorio sin recibir con fecha de entrega vencida</span>
-          <em>Revisar</em>
+          <em>Revisar tratamientos</em>
         </button>
       )}
 
@@ -550,7 +548,6 @@ export function PatientForm({
         <footer className="patient-documents-summary-actions">
           <button type="button" onClick={onSubirDocumento} disabled={!paciente}>Subir doc.</button>
           <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo CI</button>
-          <button type="button" onClick={onOpenLaboratorio} disabled={!paciente}>Lab. <span className="link-count">{laboratorio.length}</span></button>
         </footer>
       </section>
       </div>

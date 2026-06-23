@@ -18,6 +18,8 @@ import { useAuth } from '../auth/AuthContext';
 import { GLOBAL_LAUNCHER_IDS, ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../config/workflow';
 import type { AppSection, WorkflowItem } from '../config/workflow';
 import dentorgLogo from '../assets/branding/dentorg-clinic-logo-64.png';
+import DoctorNotificationsBell from './DoctorNotificationsBell';
+import DoctorQuickScheduleDropdown from './DoctorQuickScheduleDropdown';
 
 const ICON_SIZE = 18;
 
@@ -143,6 +145,8 @@ export default function MainNav() {
           <span className="title-clock app-launcher-clock">{nowLabel}</span>
           <span className="clinic-chip"><Building2 size={13} strokeWidth={2} aria-hidden="true" /> Clinica Dental</span>
           <span className="role-chip"><ShieldCheck size={13} strokeWidth={2} aria-hidden="true" /> {user?.nombre} - {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
+          <DoctorQuickScheduleDropdown />
+          <DoctorNotificationsBell />
           <button
             type="button"
             className={`theme-toggle ${isDark ? 'is-dark' : ''}`}

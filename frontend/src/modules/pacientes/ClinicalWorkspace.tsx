@@ -9,7 +9,6 @@ import type {
   HistorialClinico,
   NotaDental,
   NotaDentalCreateInput,
-  PlantillaConsentimiento,
   Presupuesto,
   PresupuestoLinea,
   RecetaClinica,
@@ -18,7 +17,6 @@ import type {
   SesionClinicaItemUpdateInput,
   SesionTratamientoRealizadoInput,
   TrabajoLaboratorio,
-  TrabajoLaboratorioUpdateInput,
   TratamientoCatalogo,
   UserRole,
 } from '../../types/api';
@@ -26,22 +24,19 @@ import { formatDate } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { PatientOdontogramFlow, mapSurfaceToCaras } from '../odontogram';
 import type { ToothSelection } from '../odontogram';
-import { ConsentimientosPanel } from './Consentimientos';
-import { LaboratorioPacientePanel } from './Laboratorio';
 import { PrimeraVisitaPanel } from './PrimeraVisita';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { TrabajoPendientePanel } from './TrabajoPendiente';
 import { buildPatientExitChecklist } from './patientExitChecklist';
 import type { PatientExitActionTarget, PatientExitChecklistItem } from './patientExitChecklist';
 
-export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas' | 'notas';
+export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
 
 const CLINICAL_TABS: Array<{ id: ClinicalTab; label: string }> = [
   { id: 'primera', label: 'Diagnóstico' },
   { id: 'pendiente', label: 'Pendientes' },
   { id: 'sesion', label: 'Sesión actual' },
   { id: 'visitas', label: 'Visitas' },
-  { id: 'notas', label: 'Notas / docs' },
 ];
 
 function isToday(value?: string | null) {
@@ -487,6 +482,18 @@ function SessionWorkspace({
 }) {
   const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
   const recientes = recentClinicalHistory(historial);
+  const [sessionStartedAt] = useState(() => new Date().toISOString());
+  const proximaCita = useMemo(() => {
+    const now = Date.parse(sessionStartedAt);
+    return citas
+      .filter((cita) => {
+        const timestamp = Date.parse(cita.fecha_hora);
+        return Number.isFinite(timestamp)
+          && timestamp >= now
+          && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado);
+      })
+      .sort((a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora))[0] ?? null;
+  }, [citas, sessionStartedAt]);
   const baseSessionItems = useMemo(
     () => buildSessionTreatments(citas, presupuestos, historial, sesionItems),
     [citas, historial, presupuestos, sesionItems],
@@ -728,11 +735,13 @@ function SessionWorkspace({
     <div className="clinical-session-stack">
       <div className="clinical-session-workbench">
         <section className="desk-panel clinical-session-board">
-        <div className="panel-caption">
-          <strong>Tratamientos de la sesion</strong>
-          <span>Plan de trabajo editable para el doctor en gabinete. Al finalizar, queda registrado en el historial clinico.</span>
+        <div className="session-board-head">
+          <div>
+            <span>Sesion actual</span>
+            <strong>{draftItems.length} tratamientos</strong>
+          </div>
           <button type="button" className="primary-action" onClick={() => setAdding((open) => !open)} disabled={!paciente}>
-            <Plus size={14} aria-hidden="true" /> Anadir tratamiento
+            <Plus size={14} aria-hidden="true" /> Anadir
           </button>
         </div>
         {adding && (
@@ -767,9 +776,14 @@ function SessionWorkspace({
               className={`session-treatment-row ${selected?.id === item.id ? 'active' : ''} session-status-${item.status}`}
               onClick={() => setSelectedId(item.id)}
             >
-              <span className="session-treatment-source">{item.sourceLabel}</span>
-              <strong>{item.title}</strong>
-              <em>{item.piezaDental ? `Pieza ${item.piezaDental}${item.caras ? ` - ${item.caras}` : ''}` : 'Sin pieza'}</em>
+              <span className={`session-treatment-source source-${item.source}`}>
+                {item.source === 'pendiente' ? 'Ppto.' : item.source === 'cita' ? 'Cita' : 'Manual'}
+              </span>
+              <span className="session-treatment-copy">
+                <strong>{item.title}</strong>
+                <em>{item.piezaDental ? `Pieza ${item.piezaDental}${item.caras ? ` - ${item.caras}` : ''}` : 'Sin pieza'}</em>
+                <span className="session-treatment-origin">{item.sourceLabel}</span>
+              </span>
               <small>{item.historialId ? 'En historial' : SESSION_STATUS_LABELS[item.status]}</small>
             </button>
           ))}
@@ -782,16 +796,15 @@ function SessionWorkspace({
         </div>
         </section>
         <section className="desk-panel clinical-session-detail">
-        <div className="panel-caption">
-          <strong>Detalle clinico</strong>
-          <span>Pieza, caras y observacion pertenecen al tratamiento seleccionado, no a la observacion general del paciente.</span>
-        </div>
         {selected ? (
           <>
             <div className="session-detail-head">
-              <div>
-                <span>{selected.sourceLabel}</span>
+              <div className="session-detail-title">
+                <span className={`session-treatment-source source-${selected.source}`}>
+                  {selected.source === 'pendiente' ? 'Presupuesto' : selected.source === 'cita' ? 'Cita' : 'Manual'}
+                </span>
                 <strong>{selected.title}</strong>
+                <small>{selected.piezaDental ? `Pieza ${selected.piezaDental}${selected.caras ? ` - ${selected.caras}` : ''}` : 'Sin pieza asignada'} - {selected.sourceLabel}</small>
                 {selected.tratamiento && <TreatmentBadge tratamiento={selected.tratamiento} />}
               </div>
               <select
@@ -917,7 +930,7 @@ function SessionWorkspace({
             </div>
             {sessionError && <p className="session-save-error" role="alert">{sessionError}</p>}
             <details className="session-secondary-actions">
-              <summary>Acciones secundarias del tratamiento</summary>
+              <summary>Mas acciones del tratamiento</summary>
               <div>
                 <button type="button" onClick={onCrearReceta} disabled={!paciente}><Pill size={14} aria-hidden="true" /> Receta</button>
                 <button type="button" onClick={onOpenConsentimiento} disabled={!paciente}><FileText size={14} aria-hidden="true" /> Consentimiento</button>
@@ -943,44 +956,55 @@ function SessionWorkspace({
             items={exitChecklist.items}
             onAction={handleExitChecklistAction}
           />
-          <section className="desk-panel clinical-today-panel">
-          <div className="panel-caption">
-            <strong>Tratamientos previstos hoy</strong>
-            <span>Citas activas del paciente para esta fecha.</span>
-          </div>
-          <div className="clinical-list">
-            {previstosHoy.map((cita) => (
-              <article key={cita.id}>
-                <time>{cita.fecha_hora.slice(11, 16)}</time>
-                <strong>{cita.motivo || 'Cita sin motivo'}</strong>
-                <span>{cita.estado}</span>
-                {cita.observaciones && <small>{cita.observaciones}</small>}
-              </article>
-            ))}
-            {!previstosHoy.length && <p>No hay tratamientos previstos hoy.</p>}
-          </div>
+          <section className="session-context-card">
+            <span>Proxima cita</span>
+            {proximaCita ? (
+              <>
+                <strong>{formatDate(proximaCita.fecha_hora)} {getTime(proximaCita.fecha_hora)}</strong>
+                <small>{proximaCita.motivo || 'Cita sin motivo'} - {proximaCita.estado}</small>
+              </>
+            ) : (
+              <>
+                <strong>Sin cita programada</strong>
+                <small>Agenda una revision antes de cerrar la sesion si procede.</small>
+              </>
+            )}
+            {onSchedulePatient && (
+              <button type="button" onClick={onSchedulePatient}>Abrir agenda</button>
+            )}
           </section>
-          <section className="desk-panel clinical-today-panel">
-          <div className="panel-caption">
-            <strong>Historial clinico reciente</strong>
-            <span>Ultimas entradas utiles durante la consulta.</span>
-          </div>
-          <div className="clinical-list">
-            {recientes.map((entrada) => (
-              <article key={entrada.id}>
-                <time>{formatDate(entrada.fecha)}</time>
-                <strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong>
-                <span>Pieza {entrada.pieza_dental ?? '-'} - {entrada.estado}</span>
-                <small>{entrada.observaciones || entrada.diagnostico || 'Sin comentario.'}</small>
-              </article>
-            ))}
-            {!recientes.length && <p>Sin historial clinico reciente.</p>}
-          </div>
+          <section className="session-context-card">
+            <span>Historial reciente</span>
+            <div className="session-context-list">
+              {recientes.slice(0, 2).map((entrada) => (
+                <article key={entrada.id}>
+                  <time>{formatDate(entrada.fecha)}</time>
+                  <strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong>
+                  <small>Pieza {entrada.pieza_dental ?? '-'} - {entrada.estado}</small>
+                </article>
+              ))}
+              {!recientes.length && <p>Sin historial clinico reciente.</p>}
+            </div>
+            <button type="button" onClick={onOpenHistorial}>Abrir historial</button>
           </section>
+          <details className="session-context-details">
+            <summary>Informacion secundaria</summary>
+            <div className="clinical-list">
+              {previstosHoy.map((cita) => (
+                <article key={cita.id}>
+                  <time>{cita.fecha_hora.slice(11, 16)}</time>
+                  <strong>{cita.motivo || 'Cita sin motivo'}</strong>
+                  <span>{cita.estado}</span>
+                  {cita.observaciones && <small>{cita.observaciones}</small>}
+                </article>
+              ))}
+              {!previstosHoy.length && <p>No hay tratamientos previstos hoy.</p>}
+            </div>
+          </details>
         </aside>
       </div>
-      <details className="secondary-clinic-panel session-odontogram-support" open>
-        <summary>Odontograma clinico de trabajo</summary>
+      <details className="secondary-clinic-panel session-odontogram-support">
+        <summary>Abrir odontograma de trabajo</summary>
         <PatientOdontogramFlow
           paciente={paciente}
           mode="current"
@@ -1129,7 +1153,6 @@ export function ClinicalWorkspace({
   consentimientos,
   recetas,
   notasDentales,
-  plantillas,
   laboratorio,
   saldoPendiente,
   doctorId,
@@ -1140,11 +1163,8 @@ export function ClinicalWorkspace({
   onContextLinea,
   onCrearPedidoLab,
   onCrearPedidoLabGeneral,
-  onActualizarTrabajoLab,
   onCrearReceta,
   onOpenConsentimiento,
-  onOpenConsentimientoPdf,
-  onRevocarConsentimiento,
   onOpenDocumentos,
   onOpenPresupuestos,
   onOpenHistorial,
@@ -1170,7 +1190,6 @@ export function ClinicalWorkspace({
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
   notasDentales: NotaDental[];
-  plantillas: PlantillaConsentimiento[];
   laboratorio: TrabajoLaboratorio[];
   saldoPendiente: number;
   doctorId?: string | null;
@@ -1181,11 +1200,8 @@ export function ClinicalWorkspace({
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
   onCrearPedidoLab: (linea: PresupuestoLinea) => void;
   onCrearPedidoLabGeneral: () => void;
-  onActualizarTrabajoLab: (trabajoId: string, cambios: TrabajoLaboratorioUpdateInput) => void;
   onCrearReceta: () => void;
   onOpenConsentimiento: (tipo?: string) => void;
-  onOpenConsentimientoPdf: (consentimiento: Consentimiento) => void;
-  onRevocarConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenDocumentos: () => void;
   onOpenPresupuestos: () => void;
   onOpenHistorial: () => void;
@@ -1284,45 +1300,6 @@ export function ClinicalWorkspace({
           notasDentales={notasDentales}
           onOpenHistorial={onOpenHistorial}
         />
-      )}
-      {activeTab === 'notas' && (
-        <div className="clinical-notes-grid">
-          <details className="secondary-clinic-panel" open>
-            <summary>Consentimientos necesarios</summary>
-            <ConsentimientosPanel
-              consentimientos={consentimientos}
-              plantillas={plantillas}
-              onDisenar={onOpenConsentimiento}
-              onAbrirPdf={onOpenConsentimientoPdf}
-              onRevocar={onRevocarConsentimiento}
-            />
-          </details>
-          <details className="secondary-clinic-panel" open={laboratorio.length > 0}>
-            <summary>Laboratorio y protesicos</summary>
-            <LaboratorioPacientePanel
-              trabajos={laboratorio}
-              onCrearPedido={onCrearPedidoLabGeneral}
-              onActualizar={onActualizarTrabajoLab}
-            />
-          </details>
-          <section className="desk-panel clinical-documents-panel">
-            <div className="panel-caption">
-              <strong>Documentos y fotos relevantes</strong>
-              <span>Radiografias, fotos, informes y adjuntos siguen en el gestor documental del paciente.</span>
-              <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Abrir documentos</button>
-            </div>
-            <div className="clinical-list">
-              {documentos.slice(0, 6).map((documento) => (
-                <article key={documento.id}>
-                  <time>{formatDate(documento.fecha_documento || documento.created_at)}</time>
-                  <strong>{documento.descripcion || documento.nombre_original}</strong>
-                  <span>{documento.categoria}</span>
-                </article>
-              ))}
-              {!documentos.length && <p>Sin documentos clinicos adjuntos.</p>}
-            </div>
-          </section>
-        </div>
       )}
     </section>
   );

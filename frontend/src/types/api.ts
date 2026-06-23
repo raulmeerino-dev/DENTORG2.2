@@ -388,6 +388,22 @@ export interface Cita {
   doctor?: { nombre: string; color_agenda: string | null };
 }
 
+export interface DoctorNotification {
+  id: string;
+  recipient_doctor_id: string;
+  appointment_id: string;
+  patient_id: string;
+  clinica_id: string | null;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  read_at: string | null;
+  created_at: string;
+  patient_name: string;
+  appointment_time: string;
+}
+
 export interface HuecoLibre {
   doctor_id: string;
   fecha_hora_inicio: string;
@@ -741,17 +757,6 @@ export interface TrabajoLaboratorioCreateInput {
   presupuesto_linea_id?: string | null;
   tratamiento_id?: string | null;
   material_enviado?: boolean | null;
-}
-
-export interface TrabajoLaboratorioUpdateInput {
-  estado?: string;
-  fecha_recepcion?: string | null;
-  fecha_entrega_paciente?: string | null;
-  colocado?: boolean;
-  material_enviado?: boolean;
-  material_devuelto?: boolean;
-  referencia_proveedor?: string | null;
-  observaciones?: string | null;
 }
 
 export interface ReportKpis {

@@ -10,6 +10,7 @@ import type {
   Consentimiento,
   CumplimientoSif,
   DocumentoPaciente,
+  DoctorNotification,
   DisponibilidadDia,
   Doctor,
   FamiliaTratamiento,
@@ -41,7 +42,6 @@ import type {
   SesionClinicaItemUpdateInput,
   SesionTratamientoRealizadoInput,
   TrabajoLaboratorioCreateInput,
-  TrabajoLaboratorioUpdateInput,
   ReportCitasDoctor,
   ReportDashboard,
   ReportKpis,
@@ -1204,6 +1204,17 @@ export async function getCambiosCita(citaId: string) {
   return withDemoFallback(api.get<CitaCambio[]>(`/citas/${citaId}/cambios`), []);
 }
 
+export async function getMyDoctorNotifications(unreadOnly = false) {
+  return withDemoFallback(api.get<DoctorNotification[]>('/notificaciones/mias', {
+    params: { unread_only: unreadOnly },
+  }), []);
+}
+
+export async function markDoctorNotificationRead(notificationId: string) {
+  const { data } = await api.post<DoctorNotification>(`/notificaciones/${notificationId}/leer`);
+  return data;
+}
+
 export async function getTelefonear() {
   return withDemoFallback(api.get<TelefonearPendiente[]>('/citas/panel/telefonear/pendientes'), [
     { id: 'demo-tel-1', cita_original_id: 'demo-cita-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', nueva_cita_id: null, paciente: { nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', telefono: '942503186' }, doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda }, motivo: 'Confirmar cita', notas: 'Prefiere tarde', estado_contacto: 'pendiente', ultimo_intento_at: null, proximo_intento_at: new Date().toISOString(), reubicada: false },
@@ -1497,11 +1508,6 @@ export async function getLaboratorios(params: { solo_activos?: boolean } = {}) {
 
 export async function createTrabajoLaboratorio(data: TrabajoLaboratorioCreateInput) {
   const { data: trabajo } = await api.post<TrabajoLaboratorio>('/laboratorio/trabajos', data);
-  return trabajo;
-}
-
-export async function updateTrabajoLaboratorio(trabajoId: string, data: TrabajoLaboratorioUpdateInput) {
-  const { data: trabajo } = await api.patch<TrabajoLaboratorio>(`/laboratorio/trabajos/${trabajoId}`, data);
   return trabajo;
 }
 

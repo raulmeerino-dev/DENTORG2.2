@@ -32,6 +32,7 @@ from app.models.gabinete import Gabinete
 from app.models.historial import HistorialClinico, NotaDental
 from app.models.horario import HorarioDoctor, HorarioExcepcion
 from app.models.laboratorio import Laboratorio, TrabajoLaboratorio
+from app.models.notificacion import DoctorNotification
 from app.models.odontograma import (
     Odontograma,
     OdontogramaEvento,
@@ -92,6 +93,7 @@ __all__ = [
     "DocumentoPaciente",
     "Laboratorio",
     "TrabajoLaboratorio",
+    "DoctorNotification",
     "Odontograma",
     "OdontogramaPieza",
     "OdontogramaSuperficie",

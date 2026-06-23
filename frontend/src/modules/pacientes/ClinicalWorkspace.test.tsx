@@ -157,7 +157,6 @@ function renderClinical(
       consentimientos={[]}
       recetas={[]}
       notasDentales={[]}
-      plantillas={[]}
       laboratorio={[]}
       saldoPendiente={0}
       doctorId="doc-1"
@@ -168,11 +167,8 @@ function renderClinical(
       onContextLinea={vi.fn()}
       onCrearPedidoLab={vi.fn()}
       onCrearPedidoLabGeneral={vi.fn()}
-      onActualizarTrabajoLab={vi.fn()}
       onCrearReceta={vi.fn()}
       onOpenConsentimiento={vi.fn()}
-      onOpenConsentimientoPdf={vi.fn()}
-      onRevocarConsentimiento={vi.fn()}
       onOpenDocumentos={vi.fn()}
       onOpenPresupuestos={vi.fn()}
       onOpenHistorial={vi.fn()}
@@ -246,7 +242,6 @@ function renderVisits(overrides: Partial<{
       consentimientos={overrides.consentimientos ?? []}
       recetas={overrides.recetas ?? []}
       notasDentales={[]}
-      plantillas={[]}
       laboratorio={overrides.laboratorio ?? []}
       saldoPendiente={0}
       doctorId="doc-1"
@@ -257,11 +252,8 @@ function renderVisits(overrides: Partial<{
       onContextLinea={vi.fn()}
       onCrearPedidoLab={vi.fn()}
       onCrearPedidoLabGeneral={vi.fn()}
-      onActualizarTrabajoLab={vi.fn()}
       onCrearReceta={vi.fn()}
       onOpenConsentimiento={vi.fn()}
-      onOpenConsentimientoPdf={vi.fn()}
-      onRevocarConsentimiento={vi.fn()}
       onOpenDocumentos={vi.fn()}
       onOpenPresupuestos={vi.fn()}
       onOpenHistorial={onOpenHistorial}
@@ -280,6 +272,15 @@ function renderVisits(overrides: Partial<{
 }
 
 describe('ClinicalWorkspace sesion actual', () => {
+  it('muestra solo las secciones clinicas principales sin Notas / docs', () => {
+    renderClinical();
+
+    expect(screen.getByRole('button', { name: 'Pendientes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sesión actual' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Visitas' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Notas / docs' })).not.toBeInTheDocument();
+  });
+
   it('finaliza un pendiente aceptado guardando observacion, pieza/caras y vinculo a presupuesto_linea', async () => {
     const user = userEvent.setup();
     const { onFinalizar, onCreateSesionItem, onUpdateSesionItem } = renderClinical();
@@ -339,7 +340,7 @@ describe('ClinicalWorkspace sesion actual', () => {
     renderClinical(undefined, undefined, { initialSesionItems: [persisted] });
 
     expect((await screen.findAllByText('Empaste manual pieza 24')).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Pieza 24/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Pieza 24/).length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue('Anestesia infiltrativa')).toBeInTheDocument();
   });
 

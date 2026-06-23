@@ -154,7 +154,6 @@ describe('PatientForm', () => {
           onOpenDocumentos={noop}
           onSubirDocumento={noop}
           onOpenConsentimientos={noop}
-          onOpenLaboratorio={noop}
           onEmitirFactura={noop}
           onRegistrarCobro={noop}
           onHistorialFacturas={noop}
