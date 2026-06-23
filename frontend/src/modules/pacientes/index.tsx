@@ -51,10 +51,9 @@ import {
   updatePaciente,
   updatePresupuestoLinea,
   updateSesionItem,
-  updateTrabajoLaboratorio,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput, TrabajoLaboratorioUpdateInput } from '../../types/api';
+import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
@@ -79,7 +78,7 @@ import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 import { ClinicalWorkspace } from './ClinicalWorkspace';
 import type { ClinicalTab } from './ClinicalWorkspace';
 
-export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'notas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
+export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type MainPatientTab = 'pacientes' | 'clinica' | 'historial';
 type TreatmentTab = ClinicalTab;
 type PatientContextMenu =
@@ -108,9 +107,6 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
   ),
   sesion: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2.5" y="3" width="13" height="12" rx="2" stroke="currentColor" strokeWidth="1.6"/><path d="M6 9h6M9 6v6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-  ),
-  notas: (
-    <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4 2.5h8l2 2V15a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 3 15V4A1.5 1.5 0 0 1 4.5 2.5z" stroke="currentColor" strokeWidth="1.6"/><path d="M6 8h6M6 11h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
   ),
   presupuestos: (
     <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.6"/><line x1="5" y1="6" x2="13" y2="6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="5" y1="9" x2="13" y2="9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/><line x1="5" y1="12" x2="9" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>
@@ -151,7 +147,7 @@ const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
 ];
 
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
-  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas' || tab === 'notas';
+  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
 }
 
 function isPresupuestoCerrado(estado?: string | null) {
@@ -626,19 +622,6 @@ export default function PacientesPage() {
     },
   });
 
-  const actualizarTrabajoLab = useMutation({
-    mutationFn: ({ trabajoId, cambios }: { trabajoId: string; cambios: TrabajoLaboratorioUpdateInput }) =>
-      updateTrabajoLaboratorio(trabajoId, cambios),
-    onSuccess: (trabajo) => {
-      invalidatePatientWorkspace(trabajo.paciente_id);
-      toast.success('Trabajo de laboratorio actualizado');
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : 'No se pudo actualizar el trabajo de laboratorio';
-      toast.error(message);
-    },
-  });
-
   const crearReceta = useMutation({
     mutationFn: async (data: RecetaCreateInput) => {
       if (!active) throw new Error('Sin paciente');
@@ -1042,7 +1025,6 @@ export default function PacientesPage() {
               onOpenDocumentos={() => openDocumentsDrawer()}
               onSubirDocumento={() => openDocumentsDrawer({ upload: true })}
               onOpenConsentimientos={() => setDesigner(active ? { mode: 'consentimiento' } : null)}
-              onOpenLaboratorio={() => openPatientArea('notas')}
               onEmitirFactura={() => setInvoiceCreatorOpen(true)}
               onRegistrarCobro={abrirCobroDesdeFicha}
               onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
@@ -1062,7 +1044,6 @@ export default function PacientesPage() {
             consentimientos={consentimientosQuery.data ?? []}
             recetas={recetasPacienteQuery.data ?? []}
             notasDentales={notasDentalesQuery.data ?? []}
-            plantillas={plantillasQuery.data ?? []}
             laboratorio={laboratorioPacienteQuery.data ?? []}
             saldoPendiente={totalPendiente}
             doctorId={doctoresQuery.data?.[0]?.id ?? null}
@@ -1079,14 +1060,11 @@ export default function PacientesPage() {
               setPedidoLabError(null);
               setPedidoLabContext({ open: true, linea: null });
             }}
-            onActualizarTrabajoLab={(trabajoId, cambios) => actualizarTrabajoLab.mutate({ trabajoId, cambios })}
             onCrearReceta={() => {
               setRecetaError(null);
               setRecetaModalOpen(true);
             }}
             onOpenConsentimiento={(tipo) => setDesigner(active ? { mode: 'consentimiento', tipo } : null)}
-            onOpenConsentimientoPdf={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
-            onRevocarConsentimiento={revocarConsentimientoPaciente}
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenPresupuestos={() => openPatientArea('presupuestos')}
             onOpenHistorial={() => openPatientArea('historial')}

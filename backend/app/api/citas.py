@@ -48,6 +48,7 @@ from app.services.agenda_service import (
     hay_solapamiento_gabinete,
 )
 from app.services.audit import write_audit_log
+from app.services.notificaciones import create_patient_waiting_notification
 from app.services.whatsapp_service import record_outbound_whatsapp
 
 router = APIRouter()
@@ -253,6 +254,17 @@ async def _registrar_falta_si_procede(
         fecha=datetime.now(timezone.utc),
     )
     db.add(falta)
+
+
+async def _notificar_llegada_si_procede(
+    db: AsyncSession,
+    cita: Cita,
+    estado_anterior: str | None,
+    estado_nuevo: str,
+) -> None:
+    if estado_nuevo != "en_clinica" or estado_anterior == "en_clinica":
+        return
+    await create_patient_waiting_notification(db, cita)
 
 
 # ─── CITAS ────────────────────────────────────────────────────────────────────
@@ -485,6 +497,7 @@ async def cambiar_estado_cita(
     nuevo_estado = data.estado.value
     if nuevo_estado != cita.estado:
         await _registrar_falta_si_procede(db, cita, nuevo_estado)
+        await _notificar_llegada_si_procede(db, cita, cita.estado, nuevo_estado)
     cita.estado = nuevo_estado
     if nuevo_estado == "confirmada" and cita.confirmado_at is None:
         cita.confirmado_at = datetime.now(timezone.utc)
@@ -751,6 +764,7 @@ async def actualizar_cita(
     nuevo_estado = data.estado.value if data.estado else None
     if nuevo_estado and nuevo_estado != cita.estado:
         await _registrar_falta_si_procede(db, cita, nuevo_estado)
+        await _notificar_llegada_si_procede(db, cita, cita.estado, nuevo_estado)
         if nuevo_estado == "confirmada" and cita.confirmado_at is None:
             cita.confirmado_at = datetime.now(timezone.utc)
         if nuevo_estado in {"anulada", "falta"} and data.motivo_cancelacion and not cita.motivo_cancelacion:

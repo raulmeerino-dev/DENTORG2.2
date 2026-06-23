@@ -195,7 +195,6 @@ vi.mock('../../lib/api', () => ({
   updatePagoAnticipadoPaciente: vi.fn(),
   updatePaciente: vi.fn(),
   updatePresupuestoLinea: vi.fn(),
-  updateTrabajoLaboratorio: vi.fn(),
   uploadDocumentoPaciente: vi.fn(),
 }));
 

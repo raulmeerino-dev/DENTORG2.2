@@ -5,128 +5,9 @@ import type {
   Doctor,
   Laboratorio,
   PresupuestoLinea,
-  TrabajoLaboratorio,
   TrabajoLaboratorioCreateInput,
-  TrabajoLaboratorioUpdateInput,
 } from '../../types/api';
-import { formatDate, fullName, money } from '../../lib/utils';
-import { isLaboratorioVencido } from './laboratorioUtils';
-
-const ESTADO_BADGE: Record<string, string> = {
-  pendiente: 'estado-pendiente',
-  pendiente_enviar: 'estado-pendiente',
-  enviado: 'estado-enviado',
-  en_proceso: 'estado-proceso',
-  en_fabricacion: 'estado-proceso',
-  recibido: 'estado-recibido',
-  probado: 'estado-recibido',
-  finalizado: 'estado-recibido',
-  entregado: 'estado-entregado',
-  repetir_corregir: 'estado-incidencia',
-  incidencia: 'estado-incidencia',
-  cancelado: 'estado-cancelado',
-};
-
-export function LaboratorioPacientePanel({
-  trabajos,
-  onCrearPedido,
-  onActualizar,
-}: {
-  trabajos: TrabajoLaboratorio[];
-  onCrearPedido?: () => void;
-  onActualizar?: (trabajoId: string, cambios: TrabajoLaboratorioUpdateInput) => void;
-}) {
-  return (
-    <section className="desk-panel laboratorio-panel">
-      <div className="panel-caption">
-        <strong>Trabajos de laboratorio</strong>
-        <span>Pedidos prot&eacute;sicos, estados, fechas y acciones operativas</span>
-      </div>
-      {onCrearPedido && (
-        <div className="laboratorio-actions-top">
-          <button type="button" className="primary-action" onClick={onCrearPedido}>+ Nuevo pedido</button>
-        </div>
-      )}
-      <table className="euro-table laboratorio-table">
-        <thead>
-          <tr>
-            <th>N&deg;</th>
-            <th>Trabajo</th>
-            <th>Lab.</th>
-            <th>Pieza</th>
-            <th>Estado</th>
-            <th>Prevista</th>
-            <th>Recepci&oacute;n</th>
-            <th>Coste</th>
-            <th>Flags</th>
-            <th>Acci&oacute;n</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trabajos.map((trabajo) => {
-            const vencido = isLaboratorioVencido(trabajo);
-            const badge = ESTADO_BADGE[trabajo.estado] ?? 'estado-pendiente';
-            return (
-              <tr key={trabajo.id} className={vencido ? 'trabajo-vencido' : ''}>
-                <td>{trabajo.numero_orden ?? '-'}</td>
-                <td>
-                  <strong>{trabajo.descripcion}</strong>
-                  {trabajo.tipo_trabajo && <em>{trabajo.tipo_trabajo}</em>}
-                  {(trabajo.referencia_proveedor || trabajo.referencia) && (
-                    <small>Ref. {trabajo.referencia_proveedor ?? trabajo.referencia}</small>
-                  )}
-                </td>
-                <td>{trabajo.laboratorio?.nombre ?? ''}</td>
-                <td>{trabajo.pieza_dental ?? ''}{trabajo.color ? ` · ${trabajo.color}` : ''}</td>
-                <td>
-                  <span className={`laboratorio-badge ${badge}`}>{trabajo.estado.replace(/_/g, ' ')}</span>
-                  {vencido && <span className="laboratorio-vencido-chip">Vencido</span>}
-                </td>
-                <td>{formatDate(trabajo.fecha_entrega_prevista)}</td>
-                <td>{formatDate(trabajo.fecha_recepcion)}</td>
-                <td className="num">{money(trabajo.coste_laboratorio ?? trabajo.precio ?? 0)}</td>
-                <td className="laboratorio-flags">
-                  {trabajo.material_enviado && <span title="Material enviado al lab">ME</span>}
-                  {trabajo.material_devuelto && <span title="Material devuelto">MD</span>}
-                  {trabajo.colocado && <span title="Colocado al paciente">COL</span>}
-                </td>
-                <td>
-                  {onActualizar && trabajo.estado !== 'entregado' && (
-                    <div className="laboratorio-row-actions">
-                      {!trabajo.fecha_recepcion && (
-                        <button
-                          type="button"
-                          onClick={() => onActualizar(trabajo.id, {
-                            estado: 'recibido',
-                            fecha_recepcion: new Date().toISOString().slice(0, 10),
-                            material_devuelto: true,
-                          })}
-                        >
-                          Marcar recibido
-                        </button>
-                      )}
-                      {!trabajo.colocado && trabajo.fecha_recepcion && (
-                        <button
-                          type="button"
-                          onClick={() => onActualizar(trabajo.id, { colocado: true, estado: 'entregado', fecha_entrega_paciente: new Date().toISOString().slice(0, 10) })}
-                        >
-                          Marcar colocado
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-          {!trabajos.length && (
-            <tr><td colSpan={10} className="laboratorio-empty">Sin trabajos de laboratorio asociados.</td></tr>
-          )}
-        </tbody>
-      </table>
-    </section>
-  );
-}
+import { fullName } from '../../lib/utils';
 
 interface PedidoFormState {
   doctor_id: string;
@@ -223,19 +104,19 @@ export function NuevoPedidoLaboratorioModal({
         onSubmit={submit}
       >
         <header className="modal-titlebar">
-          <strong>Nuevo pedido de laboratorio — {fullName(paciente)}</strong>
+          <strong>Nuevo pedido de laboratorio - {fullName(paciente)}</strong>
           <button type="button" onClick={onClose}>Cerrar</button>
         </header>
 
         {presupuestoLinea && (
           <p className="laboratorio-context-hint">
             Vinculado al tratamiento del presupuesto: <strong>{presupuestoLinea.tratamiento?.nombre ?? 'Tratamiento'}</strong>
-            {presupuestoLinea.pieza_dental ? ` · pieza ${presupuestoLinea.pieza_dental}` : ''}
+            {presupuestoLinea.pieza_dental ? ` - pieza ${presupuestoLinea.pieza_dental}` : ''}
           </p>
         )}
 
         <div className="laboratorio-grid">
-          <label className="wide">Descripci&oacute;n *
+          <label className="wide">Descripcion *
             <input
               autoFocus
               value={form.descripcion}
@@ -245,7 +126,7 @@ export function NuevoPedidoLaboratorioModal({
             />
           </label>
           <label>Tipo de trabajo
-            <input value={form.tipo_trabajo} onChange={(event) => setField('tipo_trabajo', event.target.value)} placeholder="Corona, prótesis..." />
+            <input value={form.tipo_trabajo} onChange={(event) => setField('tipo_trabajo', event.target.value)} placeholder="Corona, protesis..." />
           </label>
           <label>Pieza dental
             <input type="number" min="11" max="48" value={form.pieza_dental} onChange={(event) => setField('pieza_dental', event.target.value)} />
@@ -259,7 +140,7 @@ export function NuevoPedidoLaboratorioModal({
               onChange={(event) => setField('laboratorio_id', event.target.value)}
               required
             >
-              <option value="">—</option>
+              <option value="">-</option>
               {laboratorios.map((lab) => (
                 <option key={lab.id} value={lab.id}>{lab.nombre}</option>
               ))}
@@ -271,7 +152,7 @@ export function NuevoPedidoLaboratorioModal({
               onChange={(event) => setField('doctor_id', event.target.value)}
               required
             >
-              <option value="">—</option>
+              <option value="">-</option>
               {doctores.map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
               ))}
