@@ -409,6 +409,7 @@ async def crear_nota_dental(
         caras=_normalize_caras(data.caras),
         texto=texto,
         fecha=data.fecha or date_type.today(),
+        origen="manual",
     )
     db.add(nota)
     await db.commit()

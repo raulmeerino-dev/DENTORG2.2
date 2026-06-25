@@ -27,6 +27,7 @@ Cobertura actual:
 - Citas: crear, bloquear solapamiento, buscar hueco, recordatorio, reprogramar y anulacion.
 - Portal paciente: resumen, citas, documentos, consentimientos y firma.
 - Tratamientos/historial: registrar tratamiento clinico y filtrar por pieza.
+- Dictado clinico: permisos, multi-clinica, tamano de audio, proveedor no configurado, transcripcion y guardado como nota.
 - Presupuestos: crear, lineas, aceptar y facturar.
 - Facturas/pagos: factura, pago parcial/completo y saldo.
 - Inventario: productos, movimientos, proveedores, pedidos y alertas.
@@ -63,6 +64,7 @@ Cobertura actual:
 - Login y 2FA opcional.
 - Odontograma principal.
 - Estado global de aplicacion.
+- Dictado clinico: modal, estados de grabacion, error de microfono, transcripcion editable, guardado y descarte.
 
 ## CI
 

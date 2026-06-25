@@ -4,9 +4,9 @@ Puede ser una radiografía, implante, consentimiento, medicación escaneada, etc
 Los ficheros se guardan en disco bajo uploads/pacientes/{paciente_id}/.
 """
 import uuid
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,9 +54,15 @@ class DocumentoPaciente(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("doctores.id"), nullable=True
     )
     etiquetas: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True
+    )
+    delete_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relaciones
     paciente: Mapped["Paciente"] = relationship("Paciente")  # noqa: F821
     tratamiento: Mapped["TratamientoCatalogo | None"] = relationship("TratamientoCatalogo")  # noqa: F821
     historial: Mapped["HistorialClinico | None"] = relationship("HistorialClinico")  # noqa: F821
     doctor: Mapped["Doctor | None"] = relationship("Doctor")  # noqa: F821
+    deleted_by: Mapped["Usuario | None"] = relationship("Usuario")  # noqa: F821

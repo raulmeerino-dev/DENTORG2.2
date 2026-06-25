@@ -71,10 +71,11 @@ class NotaDental(UUIDMixin, TimestampMixin, Base):
     historial_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("historial_clinico.id"), nullable=True, index=True
     )
-    pieza_dental: Mapped[int] = mapped_column(SmallInteger, nullable=False, index=True)
+    pieza_dental: Mapped[int | None] = mapped_column(SmallInteger, nullable=True, index=True)
     caras: Mapped[str | None] = mapped_column(String(10), nullable=True)
     texto: Mapped[str] = mapped_column(Text, nullable=False)
     fecha: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    origen: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
 
     paciente: Mapped["Paciente"] = relationship("Paciente")  # noqa: F821
     doctor: Mapped["Doctor | None"] = relationship("Doctor")  # noqa: F821

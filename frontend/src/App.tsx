@@ -14,6 +14,7 @@ import ListadosPage from './modules/listados';
 import LoginPage from './modules/auth/LoginPage';
 import AdminExtrasPage from './modules/adminExtras';
 import MisCitasPage from './modules/misCitas';
+import PortalInvitePage from './modules/portalInvite';
 import WhatsAppPage from './modules/whatsapp';
 
 const queryClient = new QueryClient({
@@ -63,6 +64,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/portal/invite/:token" element={<PortalInvitePage />} />
             <Route path="/" element={<Protected><Layout /></Protected>}>
               <Route index element={<HomeRedirect />} />
               <Route path="hoy" element={<RoleProtected roles={STAFF_ROLES}><HoyPage /></RoleProtected>} />

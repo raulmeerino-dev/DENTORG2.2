@@ -3,26 +3,36 @@ Router de documentos de paciente.
 Subida, listado, descarga y borrado de archivos adjuntos.
 Los ficheros se guardan en: uploads/pacientes/{paciente_id}/{uuid}{ext}
 """
-import os
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from io import BytesIO
 from pathlib import Path
 from typing import Annotated
 from zipfile import BadZipFile, ZipFile
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.permissions import CurrentUser, ensure_clinic_access
+from app.core.permissions import CurrentUser, TokenData, ensure_clinic_access, require_admin
 from app.core.throttling import ensure_upload_allowed
 from app.database import get_db
 from app.models.documento import CATEGORIAS_DOCUMENTO, DocumentoPaciente
 from app.models.paciente import Paciente
+from app.services.audit import write_audit_log
 from app.services.pdf_service import generar_documento_clinico_pdf
 
 router = APIRouter()
@@ -153,6 +163,7 @@ async def listar_documentos(
     )
     if categoria:
         q = q.where(DocumentoPaciente.categoria == categoria)
+    q = q.where(DocumentoPaciente.deleted_at.is_(None))
 
     result = await db.execute(q)
     docs = result.scalars().all()
@@ -219,6 +230,22 @@ async def subir_documento(
         etiquetas=etiquetas or None,
     )
     db.add(doc)
+    await db.flush()
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="DOCUMENTO_SUBIR",
+        entity_type="documentos_paciente",
+        entity_id=doc.id,
+        new_values={
+            "paciente_id": str(paciente_id),
+            "categoria": categoria,
+            "mime_type": mime,
+            "tamano_bytes": len(contenido),
+        },
+        clinica_id=pac.clinica_id,
+        request=request,
+    )
     await db.commit()
     await db.refresh(doc)
     return _doc_to_dict(doc)
@@ -230,6 +257,7 @@ async def generar_documento_pdf(
     data: DocumentoPdfCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
+    request: Request,
 ):
     pac = await db.get(Paciente, paciente_id)
     if not pac:
@@ -273,6 +301,17 @@ async def generar_documento_pdf(
         etiquetas=data.etiquetas or None,
     )
     db.add(doc)
+    await db.flush()
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="DOCUMENTO_GENERAR_PDF",
+        entity_type="documentos_paciente",
+        entity_id=doc.id,
+        new_values={"paciente_id": str(paciente_id), "categoria": data.categoria},
+        clinica_id=pac.clinica_id,
+        request=request,
+    )
     await db.commit()
     await db.refresh(doc)
     return _doc_to_dict(doc)
@@ -286,7 +325,7 @@ async def descargar_documento(
     current_user: CurrentUser,
 ):
     doc = await db.get(DocumentoPaciente, doc_id)
-    if not doc or doc.paciente_id != paciente_id:
+    if not doc or doc.paciente_id != paciente_id or doc.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     pac = await db.get(Paciente, paciente_id)
     if not pac:
@@ -314,21 +353,37 @@ async def eliminar_documento(
     paciente_id: uuid.UUID,
     doc_id: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: CurrentUser,
+    current_user: Annotated[TokenData, Depends(require_admin)],
+    request: Request,
+    motivo: str | None = Query(None, max_length=500),
 ):
     doc = await db.get(DocumentoPaciente, doc_id)
-    if not doc or doc.paciente_id != paciente_id:
+    if not doc or doc.paciente_id != paciente_id or doc.deleted_at is not None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
     pac = await db.get(Paciente, paciente_id)
     if not pac:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, pac.clinica_id)
 
-    ruta_abs = UPLOAD_ROOT / str(paciente_id) / doc.nombre_guardado
-    if ruta_abs.exists():
-        os.remove(ruta_abs)
-
-    await db.delete(doc)
+    doc.deleted_at = datetime.now(UTC)
+    doc.deleted_by_id = current_user.user_id
+    doc.delete_reason = motivo or "Baja logica solicitada desde la aplicacion"
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="DOCUMENTO_BAJA_LOGICA",
+        entity_type="documentos_paciente",
+        entity_id=doc.id,
+        old_values={
+            "paciente_id": str(paciente_id),
+            "nombre_original": doc.nombre_original,
+            "categoria": doc.categoria,
+            "ruta_retenida": doc.ruta,
+        },
+        new_values={"deleted_at": doc.deleted_at.isoformat(), "motivo": doc.delete_reason},
+        clinica_id=pac.clinica_id,
+        request=request,
+    )
     await db.commit()
 
 
@@ -348,4 +403,5 @@ def _doc_to_dict(d: DocumentoPaciente) -> dict:
         "doctor_id": str(d.doctor_id) if d.doctor_id else None,
         "etiquetas": d.etiquetas,
         "created_at": d.created_at.isoformat() if d.created_at else None,
+        "deleted_at": d.deleted_at.isoformat() if d.deleted_at else None,
     }

@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,10 +7,12 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api import (
     admin,
+    assistant,
     auth,
     citas,
     clinicas,
     consentimientos,
+    dictado,
     doctores,
     documentos,
     facturas,
@@ -71,6 +74,7 @@ app.add_middleware(AuditLogMiddleware)
 
 # Routers
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(assistant.router, prefix="/api/assistant", tags=["assistant"])
 app.include_router(pacientes.router, prefix="/api/pacientes", tags=["pacientes"])
 app.include_router(citas.router, prefix="/api/citas", tags=["citas"])
 app.include_router(doctores.router, prefix="/api/doctores", tags=["doctores"])
@@ -81,6 +85,7 @@ app.include_router(reportes.router, prefix="/api/reportes", tags=["reportes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(pdf.router, prefix="/api/pdf", tags=["pdf"])
 app.include_router(documentos.router, prefix="/api/pacientes", tags=["documentos"])
+app.include_router(dictado.router, prefix="/api/dictado", tags=["dictado"])
 app.include_router(laboratorio.router, prefix="/api", tags=["laboratorio"])
 app.include_router(notificaciones.router, prefix="/api/notificaciones", tags=["notificaciones"])
 app.include_router(consentimientos.router, prefix="/api", tags=["consentimientos"])
@@ -96,4 +101,8 @@ app.include_router(whatsapp.router, prefix="/api/whatsapp", tags=["whatsapp"])
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "version": "0.1.0"}
+    return {
+        "ok": True,
+        "service": "DentOrg backend",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }

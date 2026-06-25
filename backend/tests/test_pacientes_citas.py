@@ -1,12 +1,17 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.security import hash_password
+from app.models.audit_log import AuditLog
+from app.models.backup import BackupRegistro
 from app.models.cita import Cita
 from app.models.clinica import Clinica
 from app.models.consentimiento import Consentimiento
@@ -16,10 +21,13 @@ from app.models.factura import Cobro, Factura, FormaPago
 from app.models.historial import HistorialClinico
 from app.models.horario import HorarioDoctor
 from app.models.paciente import Paciente
+from app.models.portal_invitation import PortalInvitation
 from app.models.presupuesto import Presupuesto
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
 from app.models.usuario import Usuario
 from app.services.audit import write_audit_log
+from app.services.backup_service import extraer_backup_file
+from app.services.portal_invitation_service import hash_portal_token
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:
@@ -366,6 +374,10 @@ async def test_portal_paciente_citas_documentos_y_firma(client: AsyncClient, db_
     consentimientos = await client.get("/api/portal/consentimientos", headers=headers, params=params)
     assert consentimientos.status_code == 200
     assert consentimientos.json()[0]["estado"] == "pendiente_firma"
+    audit = await db_session.scalar(
+        select(AuditLog).where(AuditLog.accion == "PORTAL_CONSENTIMIENTOS_LISTAR")
+    )
+    assert audit is not None
 
     firma_png_1x1 = (
         "data:image/png;base64,"
@@ -379,6 +391,29 @@ async def test_portal_paciente_citas_documentos_y_firma(client: AsyncClient, db_
     )
     assert firmado.status_code == 200
     assert firmado.json()["estado"] == "firmado"
+
+
+@pytest.mark.asyncio
+async def test_portal_preview_interno_restringido(client: AsyncClient, db_session: AsyncSession):
+    paciente = Paciente(nombre="Paula", apellidos="Preview")
+    db_session.add(paciente)
+    await db_session.commit()
+
+    auxiliar_headers = await auth_headers_for_user(client, db_session, rol="auxiliar")
+    denied = await client.get(
+        "/api/portal/me",
+        headers=auxiliar_headers,
+        params={"paciente_id": str(paciente.id)},
+    )
+    assert denied.status_code == 403
+
+    recepcion_headers = await auth_headers_for_user(client, db_session, rol="recepcion")
+    allowed = await client.get(
+        "/api/portal/me",
+        headers=recepcion_headers,
+        params={"paciente_id": str(paciente.id)},
+    )
+    assert allowed.status_code == 200
 
 
 @pytest.mark.asyncio
@@ -405,6 +440,90 @@ async def test_portal_rol_paciente_solo_accede_a_su_ficha(client: AsyncClient, d
         params={"paciente_id": str(paciente_ajeno.id)},
     )
     assert ajeno.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_portal_publico_invitacion_token_y_acceso_cruzado(client: AsyncClient, db_session: AsyncSession):
+    admin_headers = await auth_headers(client, db_session)
+    paciente_a = Paciente(nombre="Alba", apellidos="Token")
+    paciente_b = Paciente(nombre="Bruno", apellidos="Ajeno")
+    db_session.add_all([paciente_a, paciente_b])
+    await db_session.flush()
+    doc_b = DocumentoPaciente(
+        paciente_id=paciente_b.id,
+        nombre_original="ajeno.pdf",
+        nombre_guardado="ajeno.pdf",
+        ruta=f"pacientes/{paciente_b.id}/ajeno.pdf",
+        mime_type="application/pdf",
+        tamano_bytes=12,
+        categoria="informe",
+    )
+    db_session.add(doc_b)
+    await db_session.commit()
+
+    invitation = await client.post(
+        "/api/admin/portal-invitations",
+        headers=admin_headers,
+        json={"paciente_id": str(paciente_a.id), "expires_in_hours": 24},
+    )
+    assert invitation.status_code == 201
+    token = invitation.json()["token"]
+    assert token
+    assert str(paciente_a.id) not in token
+
+    valid = await client.post("/api/portal/public/validate", json={"token": token})
+    assert valid.status_code == 200
+    assert valid.json()["paciente"]["nombre"] == "Alba"
+
+    cross_doc = await client.post(
+        f"/api/portal/public/documentos/{doc_b.id}/descargar",
+        json={"token": token},
+    )
+    assert cross_doc.status_code == 404
+
+    audit = await db_session.scalar(
+        select(AuditLog).where(AuditLog.accion == "PORTAL_PUBLIC_VALIDAR")
+    )
+    assert audit is not None
+
+
+@pytest.mark.asyncio
+async def test_portal_publico_tokens_invalidos_caducados_y_revocados(client: AsyncClient, db_session: AsyncSession):
+    paciente = Paciente(nombre="Clara", apellidos="Portal")
+    db_session.add(paciente)
+    await db_session.flush()
+    expired_token = "expired-" + uuid4().hex + uuid4().hex
+    revoked_token = "revoked-" + uuid4().hex + uuid4().hex
+    db_session.add_all([
+        PortalInvitation(
+            paciente_id=paciente.id,
+            clinica_id=paciente.clinica_id,
+            token_hash=hash_portal_token(expired_token),
+            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            estado="activa",
+        ),
+        PortalInvitation(
+            paciente_id=paciente.id,
+            clinica_id=paciente.clinica_id,
+            token_hash=hash_portal_token(revoked_token),
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            estado="revocada",
+            revoked_at=datetime.now(timezone.utc),
+        ),
+    ])
+    await db_session.commit()
+
+    invalid = await client.post("/api/portal/public/validate", json={"token": "invalid-" + uuid4().hex + uuid4().hex})
+    assert invalid.status_code == 404
+    assert invalid.json()["detail"]["code"] == "invalid"
+
+    expired = await client.post("/api/portal/public/validate", json={"token": expired_token})
+    assert expired.status_code == 410
+    assert expired.json()["detail"]["code"] == "expired"
+
+    revoked = await client.post("/api/portal/public/validate", json={"token": revoked_token})
+    assert revoked.status_code == 410
+    assert revoked.json()["detail"]["code"] == "revoked"
 
 
 @pytest.mark.asyncio
@@ -487,6 +606,44 @@ async def test_portal_paciente_no_modifica_citas_ajenas_pasadas_o_cerradas(
         json={"motivo": "Necesito otra fecha"},
     )
     assert cambiar_ajena.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_documento_paciente_baja_logica_y_oculto(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers(client, db_session)
+    paciente = Paciente(nombre="Diana", apellidos="Documental")
+    db_session.add(paciente)
+    await db_session.flush()
+    documento = DocumentoPaciente(
+        paciente_id=paciente.id,
+        nombre_original="informe.pdf",
+        nombre_guardado="informe.pdf",
+        ruta=f"pacientes/{paciente.id}/informe.pdf",
+        mime_type="application/pdf",
+        tamano_bytes=12,
+        categoria="informe",
+    )
+    db_session.add(documento)
+    await db_session.commit()
+
+    deleted = await client.delete(
+        f"/api/pacientes/{paciente.id}/documentos/{documento.id}",
+        headers=headers,
+        params={"motivo": "Duplicado"},
+    )
+    assert deleted.status_code == 204
+    await db_session.refresh(documento)
+    assert documento.deleted_at is not None
+    assert documento.delete_reason == "Duplicado"
+
+    listado = await client.get(f"/api/pacientes/{paciente.id}/documentos", headers=headers)
+    assert listado.status_code == 200
+    assert listado.json() == []
+
+    audit = await db_session.scalar(
+        select(AuditLog).where(AuditLog.accion == "DOCUMENTO_BAJA_LOGICA")
+    )
+    assert audit is not None
 
 
 @pytest.mark.asyncio
@@ -1105,7 +1262,103 @@ async def test_backup_cifrado_y_verificable(client: AsyncClient, db_session: Asy
     assert backup["estado"] == "correcto"
     assert backup["cifrado"] is True
     assert backup["hash_sha256"]
+    assert backup["alcance"] == "full"
+    assert backup["incluye_bd"] is True
+    assert backup["incluye_uploads"] is True
+
+    denied_headers = await auth_headers_for_user(client, db_session, rol="recepcion")
+    denied = await client.post("/api/admin/backups", headers=denied_headers)
+    assert denied.status_code == 403
 
     verified = await client.get(f"/api/admin/backups/{backup['id']}/verificar", headers=headers)
     assert verified.status_code == 200
     assert verified.json()["ok"] is True
+    assert "uploads" in verified.json()
+
+    restore_test = await client.get(
+        f"/api/admin/backups/{backup['id']}/simular-restauracion",
+        headers=headers,
+    )
+    assert restore_test.status_code == 200
+    assert restore_test.json()["ok"] is True
+    assert restore_test.json()["dry_run"] is True
+
+    restore_proof = await client.post(
+        f"/api/admin/backups/{backup['id']}/registrar-prueba-restauracion",
+        headers=headers,
+        json={"resultado": "ok", "notas": "Restaurado en entorno de prueba"},
+    )
+    assert restore_proof.status_code == 200
+    assert restore_proof.json()["estado"] == "restauracion_probada"
+    assert restore_proof.json()["restauracion_resultado"] == "ok"
+
+    audit = await db_session.scalar(
+        select(AuditLog).where(AuditLog.accion == "BACKUP_VERIFICAR")
+    )
+    assert audit is not None
+
+
+@pytest.mark.asyncio
+async def test_backup_copia_externa_y_extraccion_offline(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    import app.api.admin as admin_api
+
+    old_admin_settings = admin_api.settings
+    external_dir = tmp_path / "custodia-externa"
+    restore_dir = tmp_path / "restore-kit"
+    monkeypatch.setenv("BACKUP_EXTERNAL_COPY_DIR", str(external_dir))
+    monkeypatch.setenv("BACKUP_EXTERNAL_LOCATION", "NAS test cifrado")
+    get_settings.cache_clear()
+    admin_api.settings = get_settings()
+
+    try:
+        headers = await auth_headers(client, db_session)
+        created = await client.post("/api/admin/backups", headers=headers)
+        assert created.status_code == 201
+        backup = created.json()
+        assert backup["ubicacion"] == "local+external"
+        assert backup["destino_externo"] == "NAS test cifrado"
+
+        copied_files = list(external_dir.glob("*.dentorg2bak"))
+        assert len(copied_files) == 1
+        copied_hash = copied_files[0].read_bytes()
+        import hashlib
+
+        assert hashlib.sha256(copied_hash).hexdigest() == backup["hash_sha256"]
+
+        registro = await db_session.get(BackupRegistro, UUID(backup["id"]))
+        assert registro and registro.ruta
+        extracted = extraer_backup_file(Path(registro.ruta), restore_dir, backup["hash_sha256"])
+        assert extracted["ok"] is True
+        assert (restore_dir / "database.json").exists()
+        assert (restore_dir / "restore-summary.json").exists()
+
+        preflight = await client.get("/api/admin/produccion/preflight", headers=headers)
+        assert preflight.status_code == 200
+        checks = preflight.json()["checks"]
+        assert any(
+            check["status"] == "ok" and check["titulo"] == "Copia externa verificada"
+            for check in checks
+        )
+    finally:
+        admin_api.settings = old_admin_settings
+        get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_preflight_falla_si_no_hay_backup_reciente(client: AsyncClient, db_session: AsyncSession):
+    headers = await auth_headers(client, db_session)
+    await db_session.execute(delete(BackupRegistro))
+    await db_session.commit()
+
+    preflight = await client.get("/api/admin/produccion/preflight", headers=headers)
+    assert preflight.status_code == 200
+    checks = preflight.json()["checks"]
+    assert any(
+        check["status"] == "fail" and check["titulo"] == "Sin backups registrados"
+        for check in checks
+    )

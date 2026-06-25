@@ -16,6 +16,7 @@ import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
 import { PatientOdontogramSummary } from './PatientOdontogramSummary';
 import { buildPatientStatus, type PatientStatusSeverity } from './patientStatus';
+import { ClinicalDictationButton } from './ClinicalDictation';
 
 const STATUS_SEVERITY_TONE: Record<PatientStatusSeverity, 'success' | 'info' | 'warning' | 'danger'> = {
   ok: 'success',
@@ -206,6 +207,8 @@ export function PatientForm({
   onEdit,
   onOpenFull,
   onOpenCitas,
+  onDictarNota = () => undefined,
+  canDictarNota = false,
   onNuevoPresupuesto,
   onCrearReceta,
   onWhatsApp,
@@ -233,6 +236,8 @@ export function PatientForm({
   onEdit: () => void;
   onOpenFull: () => void;
   onOpenCitas: () => void;
+  onDictarNota?: () => void;
+  canDictarNota?: boolean;
   onNuevoPresupuesto: () => void;
   onCrearReceta: () => void;
   onWhatsApp: () => void;
@@ -359,6 +364,7 @@ export function PatientForm({
         <div className="patient-hub-head-actions">
           <button type="button" onClick={onEdit} disabled={!paciente}>Editar datos</button>
           <button type="button" onClick={onOpenCitas} disabled={!paciente}>Nueva cita</button>
+          <ClinicalDictationButton label="Dictar nota" onClick={onDictarNota} disabled={!paciente || !canDictarNota} compact />
           <button type="button" onClick={onCrearReceta} disabled={!paciente}>Nueva receta</button>
           <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Documentos</button>
           <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>CI / circular</button>

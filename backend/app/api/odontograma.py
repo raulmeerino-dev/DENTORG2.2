@@ -495,7 +495,7 @@ async def obtener_odontograma_contexto(
         result = await db.execute(
             select(DocumentoPaciente)
             .options(selectinload(DocumentoPaciente.historial), selectinload(DocumentoPaciente.tratamiento))
-            .where(DocumentoPaciente.paciente_id == paciente.id)
+            .where(DocumentoPaciente.paciente_id == paciente.id, DocumentoPaciente.deleted_at.is_(None))
             .order_by(DocumentoPaciente.created_at.desc())
         )
         documentos = result.scalars().all()

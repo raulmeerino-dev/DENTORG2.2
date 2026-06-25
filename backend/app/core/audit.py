@@ -26,6 +26,8 @@ AUDITED_PREFIXES = (
     "/api/facturas",
     "/api/consentimientos",
     "/api/documentos",
+    "/api/dictado",
+    "/api/assistant",
     "/api/laboratorio",
     "/api/admin/backups",
     "/api/admin/usuarios",
