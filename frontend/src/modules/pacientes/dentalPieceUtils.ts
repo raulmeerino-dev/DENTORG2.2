@@ -23,7 +23,9 @@ export function collectDentalPieces({
   presupuestos.forEach((presupuesto) => presupuesto.lineas.forEach((linea) => {
     if (linea.pieza_dental) pieces.add(linea.pieza_dental);
   }));
-  notasDentales.forEach((nota) => pieces.add(nota.pieza_dental));
+  notasDentales.forEach((nota) => {
+    if (nota.pieza_dental) pieces.add(nota.pieza_dental);
+  });
   documentos.forEach((documento) => {
     const match = `${documento.descripcion ?? ''} ${documento.nombre_original} ${documento.etiquetas ?? ''}`.match(/(^|\D)([1-4][1-8])(\D|$)/);
     if (match?.[2]) pieces.add(Number(match[2]));

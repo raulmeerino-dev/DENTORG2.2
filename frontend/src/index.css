@@ -5714,6 +5714,23 @@ html[data-theme="dark"] .patient-selector-chip-danger {
   justify-content: flex-end;
 }
 
+.portal-consent-copy {
+  max-height: 160px;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 .portal-sign-actions .primary {
   border-color: #0f89b8;
   background: linear-gradient(135deg, #0f89b8, #1b9b84);
@@ -20327,5 +20344,228 @@ html[data-theme="dark"] .patient-screen .patient-exit-item button {
   .clinical-subtabs .clinical-subtab-action {
     position: static;
     margin-left: auto;
+  }
+}
+
+.clinical-dictation-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #eef6ff;
+  color: #1d4ed8;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.clinical-dictation-trigger.compact {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.clinical-dictation-trigger:hover:not(:disabled) {
+  border-color: rgba(37, 99, 235, 0.36);
+  background: #dbeafe;
+}
+
+.clinical-dictation-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.session-board-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clinical-dictation-modal {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+}
+
+.dictation-flow {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.dictation-recorder {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.dictation-recorder-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dictation-recorder-status > span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.dictation-recorder.is-recording .dictation-recorder-status > span {
+  background: #dc2626;
+  box-shadow: 0 0 0 6px rgba(220, 38, 38, 0.1);
+}
+
+.dictation-recorder-status strong {
+  color: #0f172a;
+}
+
+.dictation-recorder-status time {
+  margin-left: auto;
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.dictation-recorder-actions,
+.dictation-recorder-actions button,
+.dictation-review-panel .modal-actions button,
+.dictation-processing {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.dictation-recorder-actions button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 0 14px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.dictation-recorder-actions button.danger {
+  background: #dc2626;
+}
+
+.dictation-recorder small {
+  color: #64748b;
+}
+
+.dictation-processing {
+  min-height: 48px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.dictation-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 700;
+}
+
+.dictation-review-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.dictation-review-panel label {
+  display: grid;
+  gap: 8px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dictation-review-panel textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 10px;
+  padding: 12px;
+  color: #0f172a;
+  font: inherit;
+  line-height: 1.5;
+  text-transform: none;
+}
+
+.dictation-review-panel textarea:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.18);
+  border-color: #2563eb;
+}
+
+.spin {
+  animation: dentcore-spin 0.8s linear infinite;
+}
+
+@keyframes dentcore-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+html[data-theme="dark"] .clinical-dictation-trigger {
+  border-color: rgba(96, 165, 250, 0.22);
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+}
+
+html[data-theme="dark"] .clinical-dictation-modal {
+  background: #111827;
+}
+
+html[data-theme="dark"] .dictation-recorder,
+html[data-theme="dark"] .dictation-review-panel textarea {
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e5e7eb;
+}
+
+html[data-theme="dark"] .dictation-recorder-status strong,
+html[data-theme="dark"] .dictation-review-panel textarea {
+  color: #e5e7eb;
+}
+
+html[data-theme="dark"] .dictation-processing {
+  background: rgba(37, 99, 235, 0.18);
+  color: #bfdbfe;
+}
+
+@media (max-width: 700px) {
+  .clinical-dictation-modal {
+    width: calc(100vw - 18px);
+  }
+
+  .session-board-actions,
+  .dictation-recorder-actions {
+    width: 100%;
+  }
+
+  .session-board-actions > *,
+  .dictation-recorder-actions button {
+    flex: 1 1 auto;
   }
 }

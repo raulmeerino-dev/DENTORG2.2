@@ -57,6 +57,12 @@ function dayKey(date: string) {
   return date?.slice(0, 10) || 'sin-fecha';
 }
 
+function noteMeta(nota: NotaDental) {
+  if (nota.origen === 'dictado_clinico') return 'Dictado clinico';
+  if (nota.pieza_dental) return [`Pieza ${nota.pieza_dental}`, nota.caras].filter(Boolean).join(' · ');
+  return 'Nota general';
+}
+
 function getLedgerIdentity(event: TimelineEvent) {
   if (event.ledgerId) {
     return {
@@ -356,6 +362,24 @@ export function HistorialCompletoPanel({
       });
     });
 
+    notasDentales.forEach((nota) => {
+      const isPieceNote = Boolean(nota.pieza_dental);
+      const detail = isPieceNote ? 'Nota clinica registrada' : nota.texto;
+      next.push({
+        id: `nota-${nota.id}`,
+        date: nota.fecha,
+        filter: 'clinico',
+        label: nota.origen === 'dictado_clinico' ? 'Dictado clinico' : 'Nota clinica',
+        title: nota.origen === 'dictado_clinico' ? 'Nota por dictado' : 'Nota clinica',
+        detail,
+        meta: [noteMeta(nota), nota.doctor?.nombre].filter(Boolean).join(' · '),
+        ledgerId: `nota-${nota.id}`,
+        ledgerLabel: nota.origen === 'dictado_clinico' ? 'Dictado clinico' : 'Nota clinica',
+        ledgerTitle: nota.origen === 'dictado_clinico' ? 'Nota por dictado' : 'Nota clinica',
+        ledgerSummary: detail,
+      });
+    });
+
     laboratorio.forEach((trabajo) => {
       const fecha = trabajo.fecha_recepcion ?? trabajo.fecha_salida ?? trabajo.fecha_entrega_prevista ?? '';
       if (!fecha) return;
@@ -376,7 +400,7 @@ export function HistorialCompletoPanel({
     });
 
     return next.sort(sortDesc);
-  }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
+  }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, notasDentales, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
 
   const visibleEvents = filter === 'todo' ? events : events.filter((event) => event.filter === filter);
   const ledgerGroups = buildLedgerGroups(visibleEvents);

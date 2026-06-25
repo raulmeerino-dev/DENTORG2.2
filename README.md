@@ -13,7 +13,7 @@ Software web de gestion dental orientado a clinica, con flujo operativo parecido
 - Agenda: citas por doctor, huecos, telefono, estados visuales y recordatorios.
 - Pacientes: ficha, primera visita, odontograma, presupuestos, pendientes, realizados, historial/facturacion, documentos y consentimientos.
 - Admin: listados, configuracion, clinicas, usuarios/roles, tratamientos, horarios, inventario, laboratorio, auditoria, backups y cumplimiento fiscal.
-- Portal paciente: base para citas, documentos y firma de consentimientos.
+- Portal paciente: invitaciones publicas con token expirado/revocable, citas, documentos y firma de consentimientos.
 
 ## Arranque local
 
@@ -25,6 +25,8 @@ cd backend
 $env:DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2"
 $env:JWT_SECRET_KEY="dev-secret-change-me"
 $env:DB_ENCRYPTION_KEY="dev-encryption-key-min-32-chars"
+$env:BACKUP_ENCRYPTION_KEY="dev-backup-key-min-32-chars-change-me"
+$env:BACKUP_EXTERNAL_COPY_DIR="C:\backups-dentcore-externos"
 .\.venv\Scripts\python.exe -m alembic upgrade head
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8011 --reload
 ```
@@ -54,6 +56,7 @@ npm run build
 cd backend
 .\.venv\Scripts\python.exe -m py_compile app\main.py
 .\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m scripts.backup_tool verify --file <backup.dentcorebak> --expected-hash <sha256>
 ```
 
 Nota: los tests backend necesitan PostgreSQL accesible segun `TEST_DATABASE_URL`. En este entorno local ha fallado cuando el host `postgres:5432` no resuelve.
@@ -80,7 +83,7 @@ Se han completado las fases principales hasta UX general:
 6. Consentimientos y firma.
 7. Facturacion y pagos.
 8. Dashboard/BI.
-9. Portal paciente basico.
+9. Portal paciente con invitacion segura.
 10. Limpieza UX general.
 
 Para preparar una salida comercial, revisar `Ajustes generales > Seguridad/Backups > Preflight comercial` y cerrar los puntos legales/fiscales indicados en la documentacion.

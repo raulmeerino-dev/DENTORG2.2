@@ -29,6 +29,7 @@ import type { PrimeraVisitaData } from './PrimeraVisita';
 import { TrabajoPendientePanel } from './TrabajoPendiente';
 import { buildPatientExitChecklist } from './patientExitChecklist';
 import type { PatientExitActionTarget, PatientExitChecklistItem } from './patientExitChecklist';
+import { ClinicalDictationButton } from './ClinicalDictation';
 
 export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
 
@@ -62,6 +63,12 @@ function getDateKey(value?: string | null) {
 
 function getTime(value?: string | null) {
   return value && value.length >= 16 ? value.slice(11, 16) : null;
+}
+
+function clinicalNoteLabel(nota: NotaDental) {
+  if (nota.origen === 'dictado_clinico') return 'Dictado clinico';
+  if (nota.pieza_dental) return `Pieza ${nota.pieza_dental}${nota.caras ? ` - ${nota.caras}` : ''}`;
+  return 'Nota general';
 }
 
 type VisitGroup = {
@@ -336,7 +343,7 @@ function buildVisitGroups({
   notasDentales.forEach((nota) => {
     const group = ensure(nota.fecha, nota.fecha);
     group.notasDentales.push(nota);
-    group.comentarios.push(`Pieza ${nota.pieza_dental}${nota.caras ? ` - ${nota.caras}` : ''}: ${nota.texto}`);
+    group.comentarios.push(`${clinicalNoteLabel(nota)}: ${nota.texto}`);
   });
   laboratorio.forEach((trabajo) => {
     // Sin relacion directa de visita/sesion para laboratorio: se agrupa por fecha operativa disponible.
@@ -445,6 +452,8 @@ function SessionWorkspace({
   onCrearPedidoLabForLine,
   onOpenDocumentos,
   onOpenHistorial,
+  onDictarNotaSesion,
+  canDictarNota = false,
   onSchedulePatient,
   onOpenCobro,
   onFinalizarTratamientoSesion,
@@ -475,6 +484,8 @@ function SessionWorkspace({
   onCrearPedidoLabForLine: (linea: PresupuestoLinea) => void;
   onOpenDocumentos: () => void;
   onOpenHistorial: () => void;
+  onDictarNotaSesion: () => void;
+  canDictarNota?: boolean;
   onSchedulePatient?: () => void;
   onOpenCobro?: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
@@ -740,9 +751,12 @@ function SessionWorkspace({
             <span>Sesion actual</span>
             <strong>{draftItems.length} tratamientos</strong>
           </div>
-          <button type="button" className="primary-action" onClick={() => setAdding((open) => !open)} disabled={!paciente}>
-            <Plus size={14} aria-hidden="true" /> Anadir
-          </button>
+          <div className="session-board-actions">
+            <ClinicalDictationButton label="Dictar nota de sesion" onClick={onDictarNotaSesion} disabled={!paciente || !canDictarNota} compact />
+            <button type="button" className="primary-action" onClick={() => setAdding((open) => !open)} disabled={!paciente}>
+              <Plus size={14} aria-hidden="true" /> Anadir
+            </button>
+          </div>
         </div>
         {adding && (
           <div className="session-add-panel">
@@ -1168,6 +1182,8 @@ export function ClinicalWorkspace({
   onOpenDocumentos,
   onOpenPresupuestos,
   onOpenHistorial,
+  onDictarNotaSesion = () => undefined,
+  canDictarNota = false,
   onSchedulePatient,
   onOpenCobro,
   onFinalizarTratamientoSesion,
@@ -1205,6 +1221,8 @@ export function ClinicalWorkspace({
   onOpenDocumentos: () => void;
   onOpenPresupuestos: () => void;
   onOpenHistorial: () => void;
+  onDictarNotaSesion?: () => void;
+  canDictarNota?: boolean;
   onSchedulePatient?: () => void;
   onOpenCobro?: () => void;
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
@@ -1282,6 +1300,8 @@ export function ClinicalWorkspace({
           onCrearPedidoLabForLine={onCrearPedidoLab}
           onOpenDocumentos={onOpenDocumentos}
           onOpenHistorial={onOpenHistorial}
+          onDictarNotaSesion={onDictarNotaSesion}
+          canDictarNota={canDictarNota}
           onSchedulePatient={onSchedulePatient}
           onOpenCobro={onOpenCobro}
           onFinalizarTratamientoSesion={onFinalizarTratamientoSesion}

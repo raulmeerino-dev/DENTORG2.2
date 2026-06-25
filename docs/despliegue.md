@@ -28,6 +28,9 @@ AUTH_COOKIE_SECURE=true
 AUTH_COOKIE_SAMESITE=lax
 CORS_ALLOWED_METHODS=GET,POST,PUT,PATCH,DELETE,OPTIONS
 CORS_ALLOWED_HEADERS=Authorization,Content-Type,Accept,X-Request-ID
+BACKUP_ENCRYPTION_KEY=clave-backup-larga-y-aleatoria
+BACKUP_EXTERNAL_COPY_DIR=/mnt/backup-dentcore
+BACKUP_EXTERNAL_LOCATION=NAS cifrado clinica
 ```
 
 Clinica/PDF:
@@ -47,9 +50,11 @@ Seguridad:
 - No dejar CORS abierto.
 - Configurar `ALLOWED_HOSTS` con el host real del backend.
 - En produccion `AUTH_COOKIE_SECURE=true` es obligatorio porque el refresh token viaja en cookie HttpOnly.
-- Mantener backups fuera del mismo servidor si es posible.
+- Definir `BACKUP_ENCRYPTION_KEY` fuerte y diferente de `DB_ENCRYPTION_KEY`.
+- Mantener backups fuera del mismo servidor mediante `BACKUP_EXTERNAL_COPY_DIR`.
+- Configurar `BACKUP_EXTERNAL_LOCATION` como etiqueta visible de custodia externa, sin exponer rutas internas.
 - Proteger `uploads` y `backups` contra acceso publico directo.
-- Los usuarios con rol `paciente` deben tener `paciente_id` vinculado antes de activar el portal.
+- El portal paciente debe activarse mediante invitaciones con token expirado/revocable o usuarios `paciente` con `paciente_id` vinculado.
 
 ## Backend produccion
 
@@ -97,7 +102,9 @@ El sistema tiene registro de backups, pero la estrategia de produccion debe incl
 - Backup diario automatico.
 - Backup completo periodico.
 - Copia cifrada fuera del servidor.
-- Prueba de restauracion.
+- Verificacion offline con `python -m scripts.backup_tool verify`.
+- Extraccion de prueba con `python -m scripts.backup_tool extract`.
+- Simulacion y prueba real de restauracion registradas.
 - Retencion definida.
 - Permisos para impedir borrado masivo por un atacante.
 
@@ -107,8 +114,11 @@ El sistema tiene registro de backups, pero la estrategia de produccion debe incl
 - CORS limitado al frontend real.
 - `ENVIRONMENT=production`.
 - `AUTH_COOKIE_SECURE=true`.
-- `JWT_SECRET_KEY` y `DB_ENCRYPTION_KEY` fuertes.
-- Usuarios con rol `paciente` vinculados a su ficha.
+- `JWT_SECRET_KEY`, `DB_ENCRYPTION_KEY` y `BACKUP_ENCRYPTION_KEY` fuertes.
+- `BACKUP_EXTERNAL_COPY_DIR` apuntando a volumen/NAS externo y probado.
+- Portal paciente probado con invitacion caducada, revocada e invalida.
+- Backup `full` reciente con base de datos y uploads.
+- Restauracion probada en entorno aislado y registrada.
 - PostgreSQL protegido y sin exposicion innecesaria.
 - Usuarios admin revisados.
 - Migraciones aplicadas.

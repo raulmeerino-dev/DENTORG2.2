@@ -3,18 +3,25 @@ Router de administración — gestión de usuarios, entidades y configuración.
 Solo accesible para rol 'admin'.
 """
 import json
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import Response
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import FileResponse, Response
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.permissions import CurrentUser, RequireAdmin
+from app.core.permissions import (
+    ROLE_ADMIN,
+    ROLE_RECEPCION,
+    CurrentUser,
+    RequireAdmin,
+    ensure_clinic_access,
+)
 from app.core.security import hash_password
 from app.database import get_db
 from app.models.audit_log import AuditLog
@@ -22,17 +29,65 @@ from app.models.backup import BackupRegistro
 from app.models.entidad import Entidad
 from app.models.factura import Factura
 from app.models.paciente import Paciente
+from app.models.portal_invitation import PortalInvitation
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
 from app.models.usuario import Usuario
 from app.schemas.extras import BackupRegistroResponse
 from app.schemas.usuario import UsuarioCreate, UsuarioResponse, UsuarioUpdate
-from app.services.backup_service import crear_backup_cifrado, verificar_backup_archivo
+from app.services.audit import write_audit_log
+from app.services.backup_service import (
+    BACKUP_DIR,
+    crear_backup_cifrado,
+    registrar_prueba_restauracion_backup,
+    simular_restauracion_backup,
+    verificar_backup_archivo,
+)
+from app.services.portal_invitation_service import generate_portal_token, hash_portal_token
 from app.services.production_readiness import build_production_readiness_report
 from app.services.verifactu_service import obtener_resumen_cumplimiento_sif, registrar_evento_sif
 
 router = APIRouter()
 settings = get_settings()
+
+
+class BackupCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    alcance: str = Field("full", pattern=r"^(database|uploads|full)$")
+    retention_days: int | None = Field(None, ge=1, le=3650)
+
+
+class BackupRestoreProofRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    resultado: str = Field(..., pattern=r"^(ok|fallido)$")
+    notas: str | None = Field(None, min_length=3, max_length=2000)
+
+
+class PortalInvitationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    paciente_id: UUID
+    expires_in_hours: int = Field(168, ge=1, le=720)
+    proposito: str = Field("portal_access", pattern=r"^(portal_access|documentos|consentimientos|citas)$")
+    uso_unico: bool = False
+    nota: str | None = Field(None, max_length=500)
+
+
+class PortalInvitationResponse(BaseModel):
+    id: UUID
+    paciente_id: UUID
+    clinica_id: UUID | None
+    proposito: str
+    estado: str
+    expires_at: datetime
+    used_at: datetime | None
+    revoked_at: datetime | None
+    token: str | None = None
+    invite_url: str | None = None
+
+    model_config = {"from_attributes": True}
 
 
 async def _validate_patient_user_link(
@@ -395,8 +450,31 @@ async def listar_backups(
 async def crear_backup(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
+    request: Request,
+    data: BackupCreateRequest | None = None,
 ) -> BackupRegistroResponse:
-    registro = await crear_backup_cifrado(db, created_by_id=current_user.user_id)
+    payload = data or BackupCreateRequest()
+    registro = await crear_backup_cifrado(
+        db,
+        created_by_id=current_user.user_id,
+        alcance=payload.alcance,
+        retention_days=payload.retention_days,
+    )
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="BACKUP_CREAR",
+        entity_type="backup_registros",
+        entity_id=registro.id,
+        new_values={
+            "estado": registro.estado,
+            "alcance": registro.alcance,
+            "cifrado": registro.cifrado,
+            "incluye_bd": registro.incluye_bd,
+            "incluye_uploads": registro.incluye_uploads,
+        },
+        request=request,
+    )
     await db.commit()
     await db.refresh(registro)
     return BackupRegistroResponse.model_validate(registro)
@@ -406,11 +484,193 @@ async def crear_backup(
 async def verificar_backup(
     backup_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    request: Request,
 ) -> dict:
     registro = await db.get(BackupRegistro, backup_id)
     if not registro:
         raise HTTPException(status_code=404, detail="Backup no encontrado")
-    return verificar_backup_archivo(registro)
+    resultado = verificar_backup_archivo(registro)
+    if resultado.get("ok"):
+        registro.verificado_por_id = current_user.user_id
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="BACKUP_VERIFICAR" if resultado.get("ok") else "BACKUP_VERIFICAR_FALLO",
+        entity_type="backup_registros",
+        entity_id=registro.id,
+        new_values={k: v for k, v in resultado.items() if k != "filas_por_tabla"},
+        request=request,
+    )
+    await db.commit()
+    return resultado
+
+
+@router.get("/backups/{backup_id}/descargar", dependencies=[RequireAdmin])
+async def descargar_backup(
+    backup_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    request: Request,
+) -> FileResponse:
+    registro = await db.get(BackupRegistro, backup_id)
+    if not registro or not registro.ruta:
+        raise HTTPException(status_code=404, detail="Backup no encontrado")
+    path = Path(registro.ruta)
+    if not path.exists() or not path.is_file():
+        raise HTTPException(status_code=404, detail="Archivo de backup no encontrado")
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="BACKUP_DESCARGAR",
+        entity_type="backup_registros",
+        entity_id=registro.id,
+        new_values={"alcance": registro.alcance, "tamano_bytes": registro.tamano_bytes},
+        request=request,
+    )
+    await db.commit()
+    return FileResponse(
+        path=str(path),
+        media_type="application/octet-stream",
+        filename=f"dentcore-backup-{registro.id}.dentcorebak",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+@router.get("/backups/{backup_id}/simular-restauracion", dependencies=[RequireAdmin])
+async def simular_restauracion(
+    backup_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    request: Request,
+) -> dict:
+    registro = await db.get(BackupRegistro, backup_id)
+    if not registro:
+        raise HTTPException(status_code=404, detail="Backup no encontrado")
+    resultado = simular_restauracion_backup(registro)
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="BACKUP_SIMULAR_RESTAURACION" if resultado.get("ok") else "BACKUP_SIMULAR_RESTAURACION_FALLO",
+        entity_type="backup_registros",
+        entity_id=registro.id,
+        new_values={k: v for k, v in resultado.items() if k != "filas_por_tabla"},
+        request=request,
+    )
+    await db.commit()
+    return resultado
+
+
+@router.post("/backups/{backup_id}/registrar-prueba-restauracion", response_model=BackupRegistroResponse, dependencies=[RequireAdmin])
+async def registrar_prueba_restauracion(
+    backup_id: UUID,
+    data: BackupRestoreProofRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    request: Request,
+) -> BackupRegistroResponse:
+    registro = await db.get(BackupRegistro, backup_id)
+    if not registro:
+        raise HTTPException(status_code=404, detail="Backup no encontrado")
+    registrar_prueba_restauracion_backup(
+        registro,
+        usuario_id=current_user.user_id,
+        resultado=data.resultado,
+        notas=data.notas,
+    )
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="BACKUP_RESTAURACION_PROBADA" if data.resultado == "ok" else "BACKUP_RESTAURACION_FALLIDA",
+        entity_type="backup_registros",
+        entity_id=registro.id,
+        new_values={"resultado": data.resultado, "notas": data.notas},
+        request=request,
+    )
+    await db.commit()
+    await db.refresh(registro)
+    return BackupRegistroResponse.model_validate(registro)
+
+
+@router.post("/portal-invitations", response_model=PortalInvitationResponse, status_code=201)
+async def crear_portal_invitation(
+    data: PortalInvitationCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    request: Request,
+) -> PortalInvitationResponse:
+    if current_user.rol not in {ROLE_ADMIN, ROLE_RECEPCION}:
+        raise HTTPException(status_code=403, detail="Solo admin o recepcion pueden crear invitaciones de portal.")
+    paciente = await db.get(Paciente, data.paciente_id)
+    if not paciente or getattr(paciente, "deleted_at", None) is not None or paciente.activo is False:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    ensure_clinic_access(current_user, paciente.clinica_id)
+
+    token = generate_portal_token()
+    invitation = PortalInvitation(
+        paciente_id=paciente.id,
+        clinica_id=paciente.clinica_id,
+        token_hash=hash_portal_token(token),
+        proposito=data.proposito,
+        expires_at=datetime.now(UTC) + timedelta(hours=data.expires_in_hours),
+        uso_unico=data.uso_unico,
+        created_by_id=current_user.user_id,
+        nota=data.nota,
+    )
+    db.add(invitation)
+    await db.flush()
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="PORTAL_INVITATION_CREAR",
+        entity_type="portal_invitations",
+        entity_id=invitation.id,
+        new_values={
+            "paciente_id": str(paciente.id),
+            "proposito": invitation.proposito,
+            "expires_at": invitation.expires_at.isoformat(),
+            "uso_unico": invitation.uso_unico,
+        },
+        clinica_id=paciente.clinica_id,
+        request=request,
+    )
+    await db.commit()
+    await db.refresh(invitation)
+    invite_url = f"{settings.frontend_url.rstrip('/')}/portal/invite/{token}"
+    return PortalInvitationResponse.model_validate(invitation).model_copy(
+        update={"token": token, "invite_url": invite_url}
+    )
+
+
+@router.post("/portal-invitations/{invitation_id}/revocar", response_model=PortalInvitationResponse)
+async def revocar_portal_invitation(
+    invitation_id: UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+    request: Request,
+) -> PortalInvitationResponse:
+    if current_user.rol not in {ROLE_ADMIN, ROLE_RECEPCION}:
+        raise HTTPException(status_code=403, detail="Solo admin o recepcion pueden revocar invitaciones.")
+    invitation = await db.get(PortalInvitation, invitation_id)
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitacion no encontrada")
+    ensure_clinic_access(current_user, invitation.clinica_id)
+    invitation.estado = "revocada"
+    invitation.revoked_at = datetime.now(UTC)
+    invitation.revoked_by_id = current_user.user_id
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="PORTAL_INVITATION_REVOCAR",
+        entity_type="portal_invitations",
+        entity_id=invitation.id,
+        new_values={"paciente_id": str(invitation.paciente_id), "revoked_at": invitation.revoked_at.isoformat()},
+        clinica_id=invitation.clinica_id,
+        request=request,
+    )
+    await db.commit()
+    await db.refresh(invitation)
+    return PortalInvitationResponse.model_validate(invitation)
 
 
 @router.get("/produccion/preflight", dependencies=[RequireAdmin])
@@ -429,11 +689,26 @@ async def obtener_preflight_produccion(
             Usuario.paciente_id.is_(None),
         )
     ) or 0
+    admin_users = await db.scalar(select(func.count()).select_from(Usuario).where(Usuario.rol == "admin")) or 0
+    admin_without_2fa = await db.scalar(
+        select(func.count()).select_from(Usuario).where(
+            Usuario.rol == "admin",
+            Usuario.two_factor_secret.is_(None),
+        )
+    ) or 0
+    active_portal_invitations = await db.scalar(
+        select(func.count()).select_from(PortalInvitation).where(
+            PortalInvitation.estado == "activa",
+            PortalInvitation.expires_at > datetime.now(UTC),
+            PortalInvitation.revoked_at.is_(None),
+        )
+    ) or 0
     ultimo_backup = (
         await db.execute(
             select(BackupRegistro).order_by(BackupRegistro.started_at.desc()).limit(1)
         )
     ).scalar_one_or_none()
+    backup_restore_test = simular_restauracion_backup(ultimo_backup) if ultimo_backup else None
 
     return build_production_readiness_report(
         settings,
@@ -442,11 +717,23 @@ async def obtener_preflight_produccion(
         sif_event_count=sif_event_count,
         patient_portal_users=patient_portal_users,
         patient_portal_unlinked_users=patient_portal_unlinked_users,
+        admin_users=admin_users,
+        admin_without_2fa=admin_without_2fa,
+        backup_restore_test=backup_restore_test,
+        backup_directory=str(BACKUP_DIR),
+        active_portal_invitations=active_portal_invitations,
         last_backup={
             "estado": ultimo_backup.estado,
             "started_at": ultimo_backup.started_at,
             "cifrado": ultimo_backup.cifrado,
             "hash_sha256": ultimo_backup.hash_sha256,
+            "incluye_bd": ultimo_backup.incluye_bd,
+            "incluye_uploads": ultimo_backup.incluye_uploads,
+            "destino_externo": ultimo_backup.destino_externo,
+            "retention_days": ultimo_backup.retention_days,
+            "retention_expires_at": ultimo_backup.retention_expires_at,
+            "restauracion_resultado": ultimo_backup.restauracion_resultado,
+            "restauracion_probada_at": ultimo_backup.restauracion_probada_at,
         }
         if ultimo_backup
         else None,

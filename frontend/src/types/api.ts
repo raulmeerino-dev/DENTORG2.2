@@ -58,6 +58,50 @@ export interface PortalMe {
   };
 }
 
+export interface PortalPublicMe {
+  paciente: {
+    nombre: string;
+    apellidos: string;
+  };
+  resumen: {
+    proximas_citas: number;
+    documentos: number;
+    consentimientos_pendientes: number;
+  };
+  expires_at: string;
+}
+
+export interface PortalPublicCita {
+  id: string;
+  fecha_hora: string;
+  duracion_min: number;
+  estado: string;
+  motivo: string | null;
+  doctor_nombre: string | null;
+}
+
+export interface PortalPublicDocumento {
+  id: string;
+  nombre_original: string;
+  mime_type: string;
+  tamano_bytes: number;
+  categoria: string;
+  descripcion: string | null;
+  fecha_documento: string | null;
+  created_at: string | null;
+}
+
+export interface PortalPublicConsentimiento {
+  id: string;
+  tipo: string;
+  estado: string;
+  fecha_firma: string;
+  firmado_at: string | null;
+  contenido: string | null;
+  hash_documento: string | null;
+  revocado: boolean;
+}
+
 export interface TratamientoResumen {
   id: string;
   nombre: string;
@@ -270,11 +314,20 @@ export interface IngresosReporte {
 export interface BackupRegistro {
   id: string;
   tipo: string;
+  alcance: string;
   estado: string;
   ubicacion: string | null;
+  destino_externo: string | null;
   hash_sha256: string | null;
   tamano_bytes: number | null;
   cifrado: boolean;
+  incluye_bd: boolean;
+  incluye_uploads: boolean;
+  verificado_at: string | null;
+  restauracion_probada_at: string | null;
+  restauracion_resultado: string | null;
+  retention_expires_at: string | null;
+  retention_days: number | null;
   error: string | null;
   created_by_id: string | null;
   started_at: string;
@@ -652,13 +705,14 @@ export interface RecetaClinica {
 export interface NotaDental {
   id: string;
   paciente_id: string;
-  pieza_dental: number;
+  pieza_dental: number | null;
   caras: string | null;
   texto: string;
   fecha: string;
   doctor_id: string | null;
   cita_id: string | null;
   historial_id: string | null;
+  origen?: string | null;
   doctor?: { id: string; nombre: string } | null;
 }
 
@@ -671,6 +725,32 @@ export interface NotaDentalCreateInput {
   doctor_id?: string | null;
   cita_id?: string | null;
   historial_id?: string | null;
+}
+
+export interface DictadoTranscripcionResponse {
+  dictado_id: string;
+  paciente_id: string;
+  transcripcion: string;
+  estado: 'transcrito';
+  proveedor: string | null;
+  audio_conservado: boolean;
+}
+
+export interface DictadoGuardarNotaInput {
+  dictado_id?: string | null;
+  texto: string;
+  fecha?: string | null;
+  cita_id?: string | null;
+  historial_id?: string | null;
+}
+
+export interface DictadoNotaGuardadaResponse {
+  dictado_id: string | null;
+  nota_id: string;
+  paciente_id: string;
+  texto: string;
+  fecha: string;
+  origen: 'dictado_clinico';
 }
 
 export interface RecetaCreateInput {

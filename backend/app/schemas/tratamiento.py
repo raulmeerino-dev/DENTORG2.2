@@ -172,13 +172,14 @@ class NotaDentalCreate(BaseModel):
 class NotaDentalResponse(BaseModel):
     id: UUID
     paciente_id: UUID
-    pieza_dental: int
+    pieza_dental: int | None
     caras: str | None
     texto: str
     fecha: date
     doctor_id: UUID | None
     cita_id: UUID | None
     historial_id: UUID | None
+    origen: str | None = None
     doctor: DoctorResumen | None = None
 
     model_config = {"from_attributes": True}

@@ -10,6 +10,9 @@ import type {
   Consentimiento,
   CumplimientoSif,
   DocumentoPaciente,
+  DictadoGuardarNotaInput,
+  DictadoNotaGuardadaResponse,
+  DictadoTranscripcionResponse,
   DoctorNotification,
   DisponibilidadDia,
   Doctor,
@@ -55,6 +58,10 @@ import type {
   NotaDentalCreateInput,
   PedidoProveedorInventario,
   PortalMe,
+  PortalPublicCita,
+  PortalPublicConsentimiento,
+  PortalPublicDocumento,
+  PortalPublicMe,
   ProductoInventario,
   ProveedorInventario,
   TelefonearPendiente,
@@ -64,8 +71,23 @@ import type {
   WhatsAppInboxItem,
 } from '../types/api';
 
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8011/api';
+const API_LOG_PREFIX = '[DentCore API]';
+
+function normalizeApiBaseUrl(url: string) {
+  return url.trim().replace(/\/+$/, '');
+}
+
+const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL;
+export const API_BASE_URL = normalizeApiBaseUrl(configuredApiBaseUrl ?? DEFAULT_API_BASE_URL);
+export const API_HEALTH_URL = `${API_BASE_URL}/health`;
+
+if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+  console.info(`${API_LOG_PREFIX} base URL usada`, { baseURL: API_BASE_URL });
+}
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8011/api',
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
@@ -419,6 +441,60 @@ const DEMO_FORMAS_PAGO: FormaPago[] = [
   { id: 'demo-fp-3', nombre: 'Transferencia', activo: true },
 ];
 
+type BackendHealthPayload = {
+  ok?: boolean;
+  service?: string;
+  timestamp?: string;
+};
+
+let backendHealthPromise: Promise<boolean> | null = null;
+let lastBackendHealthOk: boolean | null = null;
+
+export async function checkBackendHealth({ force = false, timeoutMs = 2500 } = {}) {
+  if (!force && lastBackendHealthOk === true) return true;
+  if (backendHealthPromise) return backendHealthPromise;
+
+  backendHealthPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(API_HEALTH_URL, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      const contentType = response.headers?.get?.('content-type') ?? '';
+      const payload = contentType.includes('application/json')
+        ? ((await response.json().catch(() => null)) as BackendHealthPayload | null)
+        : null;
+      const ok = response.ok && payload?.ok === true;
+      lastBackendHealthOk = ok;
+      if (!ok) {
+        console.warn(`${API_LOG_PREFIX} healthcheck fallido`, {
+          healthURL: API_HEALTH_URL,
+          status: response.status,
+          payload,
+        });
+      }
+      return ok;
+    } catch (error) {
+      lastBackendHealthOk = false;
+      console.warn(`${API_LOG_PREFIX} fallo de conexion`, {
+        baseURL: API_BASE_URL,
+        healthURL: API_HEALTH_URL,
+        error,
+      });
+      return false;
+    } finally {
+      clearTimeout(timeoutId);
+      backendHealthPromise = null;
+    }
+  })();
+
+  return backendHealthPromise;
+}
+
 api.interceptors.request.use((config) => {
   const token = getStoredAuthToken();
   if (token) {
@@ -427,10 +503,27 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-function describeAxiosError(error: AxiosError): string {
+function logEndpointFailure(error: AxiosError) {
+  const endpoint = error.config?.url ?? 'endpoint desconocido';
+  const method = error.config?.method?.toUpperCase() ?? 'GET';
+  console.warn(`${API_LOG_PREFIX} endpoint fallido`, {
+    method,
+    endpoint,
+    baseURL: API_BASE_URL,
+    status: error.response?.status,
+    code: error.code,
+  });
+}
+
+async function describeAxiosError(error: AxiosError): Promise<string> {
   if (!error.response) {
     const code = error.code ?? 'NETWORK';
-    return `No se pudo conectar con el servidor (${code}). Verifica que el backend este ejecutandose en ${api.defaults.baseURL}.`;
+    const endpoint = error.config?.url ?? 'endpoint desconocido';
+    const backendConnected = await checkBackendHealth({ force: true });
+    if (!backendConnected) {
+      return `Backend no conectado (${code}). Verifica que el backend este ejecutandose en ${API_BASE_URL}.`;
+    }
+    return `No se pudo completar la peticion (${code}) en ${endpoint}. Backend conectado; revisa el endpoint que fallo.`;
   }
   const { status, data } = error.response;
   const detail = (data as { detail?: unknown } | null | undefined)?.detail;
@@ -451,10 +544,11 @@ function describeAxiosError(error: AxiosError): string {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const axiosError = error as AxiosError;
     if (axiosError?.isAxiosError) {
-      axiosError.message = describeAxiosError(axiosError);
+      logEndpointFailure(axiosError);
+      axiosError.message = await describeAxiosError(axiosError);
     }
     return Promise.reject(error);
   },
@@ -647,6 +741,31 @@ export async function createNotaDental(data: NotaDentalCreateInput) {
   return saved;
 }
 
+export async function transcribeClinicalDictation(
+  pacienteId: string,
+  audio: Blob,
+  options: { durationSeconds?: number | null; contexto?: 'ficha' | 'sesion' | 'historial' } = {},
+) {
+  const form = new FormData();
+  const extension = audio.type.includes('wav') ? 'wav' : audio.type.includes('mpeg') || audio.type.includes('mp3') ? 'mp3' : 'webm';
+  form.append('audio', audio, `dictado-clinico.${extension}`);
+  if (options.durationSeconds != null) form.append('duracion_segundos', String(Math.round(options.durationSeconds)));
+  form.append('contexto', options.contexto ?? 'ficha');
+  const { data } = await api.post<DictadoTranscripcionResponse>(
+    `/dictado/pacientes/${pacienteId}/transcribir`,
+    form,
+  );
+  return data;
+}
+
+export async function saveClinicalDictationNote(pacienteId: string, payload: DictadoGuardarNotaInput) {
+  const { data } = await api.post<DictadoNotaGuardadaResponse>(
+    `/dictado/pacientes/${pacienteId}/guardar-nota`,
+    payload,
+  );
+  return data;
+}
+
 export async function getDocumentosPaciente(pacienteId: string, categoria?: string) {
   const docs = DEMO_DOCUMENTOS.filter((item) => {
     if (!(item.paciente_id === pacienteId || pacienteId.startsWith('demo-'))) return false;
@@ -803,12 +922,24 @@ export async function getFormasPago() {
   return withDemoFallback(api.get<FormaPago[]>('/facturas/formas-pago'), DEMO_FORMAS_PAGO);
 }
 
-export async function createPresupuesto(pacienteId: string, doctorId: string) {
+export async function createPresupuesto(pacienteId: string, doctorId: string, lineas: Array<{
+  tratamiento_id: string;
+  pieza_dental?: number | null;
+  caras?: string | null;
+  precio_unitario: string | number;
+  descuento_porcentaje?: string | number;
+}> = []) {
   const { data: created } = await api.post<Presupuesto>('/presupuestos', {
     paciente_id: pacienteId,
     doctor_id: doctorId,
     fecha: new Date().toISOString().slice(0, 10),
-    lineas: [],
+    lineas: lineas.map((linea) => ({
+      tratamiento_id: linea.tratamiento_id,
+      pieza_dental: linea.pieza_dental ?? null,
+      caras: linea.caras || null,
+      precio_unitario: Number(linea.precio_unitario),
+      descuento_porcentaje: Number(linea.descuento_porcentaje ?? 0),
+    })),
   });
   return created;
 }
@@ -1012,6 +1143,74 @@ export async function firmarPortalConsentimiento(consentimientoId: string, pacie
   return data;
 }
 
+export async function validatePortalInvitation(token: string) {
+  const { data } = await api.post<PortalPublicMe>('/portal/public/validate', { token });
+  return data;
+}
+
+export async function getPortalPublicMe(token: string) {
+  const { data } = await api.post<PortalPublicMe>('/portal/public/me', { token });
+  return data;
+}
+
+export async function getPortalPublicCitas(token: string) {
+  const { data } = await api.post<PortalPublicCita[]>('/portal/public/citas', { token });
+  return data;
+}
+
+export async function confirmarPortalPublicCita(token: string, citaId: string) {
+  const { data } = await api.post<PortalPublicCita>(`/portal/public/citas/${citaId}/confirmar`, { token });
+  return data;
+}
+
+export async function cancelarPortalPublicCita(token: string, citaId: string, motivo: string, reprogramar = false) {
+  const { data } = await api.post<PortalPublicCita>(`/portal/public/citas/${citaId}/cancelar`, {
+    token,
+    motivo_cancelacion: motivo,
+    reprogramar,
+  });
+  return data;
+}
+
+export async function solicitarCambioPortalPublicCita(token: string, citaId: string, motivo: string) {
+  const { data } = await api.post<PortalPublicCita>(`/portal/public/citas/${citaId}/solicitar-cambio`, {
+    token,
+    motivo,
+  });
+  return data;
+}
+
+export async function getPortalPublicDocumentos(token: string) {
+  const { data } = await api.post<PortalPublicDocumento[]>('/portal/public/documentos', { token });
+  return data;
+}
+
+export async function openPortalPublicDocumento(token: string, documentoId: string, filename = 'documento.pdf') {
+  const { data } = await api.post<Blob>(`/portal/public/documentos/${documentoId}/descargar`, { token }, { responseType: 'blob' });
+  const url = URL.createObjectURL(data);
+  const opened = window.open(url, '_blank');
+  if (!opened) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+  }
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export async function getPortalPublicConsentimientos(token: string) {
+  const { data } = await api.post<PortalPublicConsentimiento[]>('/portal/public/consentimientos', { token });
+  return data;
+}
+
+export async function firmarPortalPublicConsentimiento(token: string, consentimientoId: string, firmaPacienteBase64: string) {
+  const { data } = await api.post<PortalPublicConsentimiento>(`/portal/public/consentimientos/${consentimientoId}/firmar`, {
+    token,
+    firma_paciente_base64: firmaPacienteBase64,
+  });
+  return data;
+}
+
 export async function enviarRecordatorioCita(citaId: string, canal: 'whatsapp' | 'email' | 'ambos', mensaje?: string) {
   const { data } = await api.post<RecordatorioCitaResponse>(`/citas/${citaId}/recordatorio`, { canal, mensaje });
   return data;
@@ -1145,8 +1344,22 @@ export async function createCita(data: {
   recordatorio_estado?: string | null;
   motivo_cancelacion?: string | null;
 }) {
-  const { data: created } = await api.post<Cita>('/citas', data);
-  return created;
+  return withDemoFallback(api.post<Cita>('/citas', data), {
+    id: `demo-cita-${Date.now()}`,
+    paciente_id: data.paciente_id,
+    doctor_id: data.doctor_id,
+    gabinete_id: data.gabinete_id ?? null,
+    fecha_hora: data.fecha_hora,
+    duracion_min: data.duracion_min,
+    estado: 'programada',
+    motivo: data.motivo ?? null,
+    observaciones: data.observaciones ?? null,
+    recordatorio_enviado: data.recordatorio_enviado ?? false,
+    recordatorio_canal: data.recordatorio_canal ?? null,
+    recordatorio_estado: data.recordatorio_estado ?? null,
+    confirmado_at: null,
+    motivo_cancelacion: data.motivo_cancelacion ?? null,
+  });
 }
 
 export async function updateCita(citaId: string, data: Partial<{
@@ -1174,8 +1387,18 @@ export async function reprogramarCita(citaId: string, data: {
   forzar_fuera_horario?: boolean;
   motivo?: string | null;
 }) {
-  const { data: updated } = await api.patch<Cita>(`/citas/${citaId}/reprogramar`, data);
-  return updated;
+  return withDemoFallback(api.patch<Cita>(`/citas/${citaId}/reprogramar`, data), {
+    id: citaId,
+    paciente_id: 'demo-pac-1',
+    doctor_id: data.doctor_id ?? 'demo-doc-1',
+    gabinete_id: data.gabinete_id ?? null,
+    fecha_hora: data.fecha_hora,
+    duracion_min: data.duracion_min ?? 30,
+    estado: 'programada',
+    motivo: data.motivo ?? 'Cita reprogramada',
+    observaciones: 'Reprogramada en modo demo',
+    motivo_cancelacion: null,
+  });
 }
 
 export async function confirmarCita(citaId: string) {
@@ -1188,16 +1411,36 @@ export async function cancelarCitaAvanzada(citaId: string, data: {
   tipo?: 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro';
   crear_telefonear?: boolean;
 }) {
-  const { data: cancelled } = await api.post<Cita>(`/citas/${citaId}/cancelar`, data);
-  return cancelled;
+  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/cancelar`, data), {
+    id: citaId,
+    paciente_id: 'demo-pac-1',
+    doctor_id: 'demo-doc-1',
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString().slice(0, 19),
+    duracion_min: 30,
+    estado: 'anulada',
+    motivo: null,
+    observaciones: null,
+    motivo_cancelacion: data.motivo_cancelacion,
+  });
 }
 
 export async function marcarFaltaCita(citaId: string, motivo: string) {
-  const { data: marked } = await api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
+  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
     motivo_cancelacion: motivo,
     tipo: 'no_vino',
+  }), {
+    id: citaId,
+    paciente_id: 'demo-pac-1',
+    doctor_id: 'demo-doc-1',
+    gabinete_id: null,
+    fecha_hora: new Date().toISOString().slice(0, 19),
+    duracion_min: 30,
+    estado: 'falta',
+    motivo: null,
+    observaciones: null,
+    motivo_cancelacion: motivo,
   });
-  return marked;
 }
 
 export async function getCambiosCita(citaId: string) {
@@ -1456,14 +1699,37 @@ export async function getAuditLog(params: {
   return withDemoFallback(api.get<AuditLogEntry[]>('/admin/auditoria', { params }), []);
 }
 
-export async function crearBackup() {
-  const { data } = await api.post<BackupRegistro>('/admin/backups');
+export async function crearBackup(alcance: 'database' | 'uploads' | 'full' = 'full') {
+  const { data } = await api.post<BackupRegistro>('/admin/backups', { alcance });
   return data;
 }
 
 export async function verificarBackup(backupId: string) {
-  const { data } = await api.get<{ ok: boolean; motivo?: string; hash_actual?: string; tamano_bytes?: number; tablas?: number; created_at?: string }>(`/admin/backups/${backupId}/verificar`);
+  const { data } = await api.get<{ ok: boolean; motivo?: string; hash_actual?: string; tamano_bytes?: number; tablas?: number; uploads?: number; created_at?: string }>(`/admin/backups/${backupId}/verificar`);
   return data;
+}
+
+export async function simularRestauracionBackup(backupId: string) {
+  const { data } = await api.get<{ ok: boolean; motivo?: string; dry_run?: boolean; tablas?: number; uploads?: number; advertencias?: string[] }>(`/admin/backups/${backupId}/simular-restauracion`);
+  return data;
+}
+
+export async function registrarPruebaRestauracionBackup(backupId: string, resultado: 'ok' | 'fallido', notas?: string) {
+  const { data } = await api.post<BackupRegistro>(`/admin/backups/${backupId}/registrar-prueba-restauracion`, {
+    resultado,
+    notas,
+  });
+  return data;
+}
+
+export async function descargarBackup(backupId: string) {
+  const { data } = await api.get<Blob>(`/admin/backups/${backupId}/descargar`, { responseType: 'blob' });
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `dentcore-backup-${backupId}.dentcorebak`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export function recetaPdfUrl(facturaId: string) {
@@ -1781,9 +2047,7 @@ function shouldUseDemo(error?: unknown) {
 }
 
 function demoLogin(username: string, password: string, error?: unknown) {
-  const axiosError = error as AxiosError | undefined;
-  const backendRejectedInDev = import.meta.env.DEV && DEMO_FALLBACK_ENABLED && Boolean(axiosError?.isAxiosError && axiosError.response && [401, 403, 404].includes(axiosError.response.status));
-  if (!shouldUseDemo(error) && !backendRejectedInDev) return null;
+  if (!shouldUseDemo(error)) return null;
   const users: Record<string, { password: string; role: UsuarioMe['rol']; nombre: string; doctor_id: string | null }> = {
     admin: { password: 'admin1234', role: 'admin', nombre: 'Administrador', doctor_id: null },
     doctor: { password: 'doctor123', role: 'doctor', nombre: 'Dr. Garcia Ruiz', doctor_id: 'demo-doc-1' },

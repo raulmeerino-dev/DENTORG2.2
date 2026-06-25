@@ -10,6 +10,7 @@ import {
   createFamiliaTratamiento,
   createTratamientoCatalogo,
   deactivateTratamientoCatalogo,
+  descargarBackup,
   getDoctores,
   getBackups,
   getFamiliasTratamiento,
@@ -18,6 +19,8 @@ import {
   getLaboratorios,
   getProductionReadiness,
   getTratamientosCatalogo,
+  registrarPruebaRestauracionBackup,
+  simularRestauracionBackup,
   updateDoctor,
   updateHorarioDoctor,
   updateTratamientoCatalogo,
@@ -225,6 +228,7 @@ export function ConfiguracionWorkspace({
   const [tratamientoSearch, setTratamientoSearch] = useState('');
   const [familiaModalOpen, setFamiliaModalOpen] = useState(false);
   const [familiaForm, setFamiliaForm] = useState({ nombre: '', icono: '' });
+  const [backupActionMessage, setBackupActionMessage] = useState('');
 
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
   const activeDoctor = doctorId || doctoresQuery.data?.[0]?.id || '';
@@ -414,13 +418,42 @@ export function ConfiguracionWorkspace({
   });
 
   const crearBackupMutation = useMutation({
-    mutationFn: crearBackup,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['backups'] }),
+    mutationFn: () => crearBackup('full'),
+    onSuccess: () => {
+      setBackupActionMessage('Backup completo cifrado creado.');
+      void queryClient.invalidateQueries({ queryKey: ['backups'] });
+      void queryClient.invalidateQueries({ queryKey: ['production-readiness'] });
+    },
   });
 
   const verificarBackupMutation = useMutation({
     mutationFn: verificarBackup,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['backups'] }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['backups'] });
+      void queryClient.invalidateQueries({ queryKey: ['production-readiness'] });
+    },
+  });
+
+  const simularRestauracionMutation = useMutation({
+    mutationFn: simularRestauracionBackup,
+    onSuccess: (result) => {
+      setBackupActionMessage(result.ok ? `Simulacion correcta: ${result.tablas ?? 0} tablas y ${result.uploads ?? 0} ficheros.` : `Simulacion con incidencias: ${result.motivo ?? 'revise el backup'}`);
+      void queryClient.invalidateQueries({ queryKey: ['production-readiness'] });
+    },
+  });
+
+  const registrarRestauracionMutation = useMutation({
+    mutationFn: (backupId: string) => registrarPruebaRestauracionBackup(backupId, 'ok', 'Restauracion probada en entorno aislado.'),
+    onSuccess: () => {
+      setBackupActionMessage('Prueba de restauracion registrada.');
+      void queryClient.invalidateQueries({ queryKey: ['backups'] });
+      void queryClient.invalidateQueries({ queryKey: ['production-readiness'] });
+    },
+  });
+
+  const descargarBackupMutation = useMutation({
+    mutationFn: descargarBackup,
+    onSuccess: () => setBackupActionMessage('Descarga de backup iniciada.'),
   });
 
   function selectTab(nextTab: FicheroTab) {
@@ -786,7 +819,7 @@ export function ConfiguracionWorkspace({
             <div><strong>Accesos</strong><span>Usuarios por rol, sesiones con caducidad, bloqueo por intentos y permisos por modulo.</span><em>Activo</em></div>
             <div><strong>Historia clinica</strong><span>Acceso restringido, auditoria de lectura y separacion entre notas generales y clinicas.</span><em>Reforzado</em></div>
             <div><strong>Archivos medicos</strong><span>Subida validada por firma real de archivo, limite de tamano y descarga sin cache.</span><em>Protegido</em></div>
-            <div><strong>Backups</strong><span>Backup automatico diario, archivo cifrado, hash SHA-256, registro de estado y verificacion.</span><em>Activo</em></div>
+            <div><strong>Backups</strong><span>Backup completo cifrado, hash SHA-256, uploads incluidos, retencion y restauracion probada.</span><em>Preflight</em></div>
             <div><strong>Facturacion</strong><span>Facturas selladas sin borrado destructivo, RF encadenado y PDF fiscal persistido.</span><em>SIF</em></div>
             <div><strong>Auditoria</strong><span>Registro de acciones criticas, accesos a datos sensibles y cambios de agenda/documentos.</span><em>Activo</em></div>
           </div>
@@ -821,21 +854,31 @@ export function ConfiguracionWorkspace({
             </table>
           </div>
           <table className="euro-table backup-table">
-            <thead><tr><th>Inicio</th><th>Estado</th><th>Tamaño</th><th>Cifrado</th><th>Hash</th><th></th></tr></thead>
+            <thead><tr><th>Inicio</th><th>Estado</th><th>Alcance</th><th>Tamano</th><th>Cifrado</th><th>Verificacion</th><th>Restauracion</th><th>Retencion</th><th>Destino</th><th></th></tr></thead>
             <tbody>
               {(backupsQuery.data ?? []).map((backup) => (
                 <tr key={backup.id}>
                   <td>{new Date(backup.started_at).toLocaleString('es-ES')}</td>
                   <td>{backup.estado}</td>
+                  <td>{backup.alcance}{backup.incluye_bd && backup.incluye_uploads ? ' completo' : ''}</td>
                   <td>{backup.tamano_bytes ? `${Math.round(backup.tamano_bytes / 1024)} KB` : '-'}</td>
                   <td>{backup.cifrado ? 'Si' : 'No'}</td>
-                  <td>{backup.hash_sha256 ? backup.hash_sha256.slice(0, 12) : backup.error ?? '-'}</td>
-                  <td><button disabled={!isAdmin || verificarBackupMutation.isPending} onClick={() => verificarBackupMutation.mutate(backup.id)}>Verificar</button></td>
+                  <td>{backup.verificado_at ? new Date(backup.verificado_at).toLocaleDateString('es-ES') : backup.hash_sha256 ? backup.hash_sha256.slice(0, 12) : '-'}</td>
+                  <td>{backup.restauracion_probada_at ? new Date(backup.restauracion_probada_at).toLocaleDateString('es-ES') : 'Pendiente'}</td>
+                  <td>{backup.retention_days ? `${backup.retention_days} dias` : '-'}</td>
+                  <td>{backup.destino_externo ?? 'Local'}</td>
+                  <td className="inline-actions">
+                    <button disabled={!isAdmin || verificarBackupMutation.isPending} onClick={() => verificarBackupMutation.mutate(backup.id)}>Verificar</button>
+                    <button disabled={!isAdmin || simularRestauracionMutation.isPending} onClick={() => simularRestauracionMutation.mutate(backup.id)}>Simular</button>
+                    <button disabled={!isAdmin || registrarRestauracionMutation.isPending} onClick={() => registrarRestauracionMutation.mutate(backup.id)}>Registrar restore</button>
+                    <button disabled={!isAdmin || descargarBackupMutation.isPending} onClick={() => descargarBackupMutation.mutate(backup.id)}>Descargar</button>
+                  </td>
                 </tr>
               ))}
-              {!backupsQuery.isLoading && !(backupsQuery.data ?? []).length && <tr><td colSpan={6}>No hay copias registradas.</td></tr>}
+              {!backupsQuery.isLoading && !(backupsQuery.data ?? []).length && <tr><td colSpan={10}>No hay copias registradas.</td></tr>}
             </tbody>
           </table>
+          {backupActionMessage && <p className="form-success">{backupActionMessage}</p>}
           {verificarBackupMutation.data && (
             <p className={verificarBackupMutation.data.ok ? 'form-success' : 'form-error'}>
               {verificarBackupMutation.data.ok ? `Backup correcto: ${verificarBackupMutation.data.tablas} tablas verificadas.` : `Backup no válido: ${verificarBackupMutation.data.motivo}`}

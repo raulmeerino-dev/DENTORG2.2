@@ -131,6 +131,8 @@ class ConsentimientoUpdate(BaseModel):
 
 
 class ConsentimientoFirmar(BaseModel):
+    model_config = {"extra": "forbid"}
+
     firma_paciente_base64: str = Field(..., min_length=30)
     firma_doctor_base64: str | None = None
 
@@ -566,7 +568,7 @@ async def descargar_pdf_consentimiento(
     paciente = await _get_paciente(db, consentimiento.paciente_id, current_user)
     if consentimiento.documento_id:
         documento = await db.get(DocumentoPaciente, consentimiento.documento_id)
-        if documento:
+        if documento and documento.deleted_at is None:
             path = UPLOAD_ROOT / str(consentimiento.paciente_id) / documento.nombre_guardado
             if path.exists():
                 return FileResponse(

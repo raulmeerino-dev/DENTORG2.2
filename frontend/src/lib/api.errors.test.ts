@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AxiosError } from 'axios';
-import { AUTH_TOKEN_KEY, api, clearStoredAuthToken, getApiErrorMessage, getStoredAuthToken } from './api';
+import { API_HEALTH_URL, AUTH_TOKEN_KEY, api, clearStoredAuthToken, getApiErrorMessage, getStoredAuthToken } from './api';
 
 function makeAxiosError(overrides: Partial<AxiosError> = {}): AxiosError {
   const error = new Error('Network Error') as AxiosError;
@@ -27,12 +27,39 @@ async function rejectThroughInterceptor(error: AxiosError) {
   return error;
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
 describe('api response interceptor', () => {
-  it('reescribe Network Error con mensaje accionable', async () => {
+  it('reescribe Network Error como backend no conectado si falla healthcheck', async () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Backend down')));
+
     const error = makeAxiosError();
     const enhanced = await rejectThroughInterceptor(error);
-    expect(enhanced.message).toMatch(/No se pudo conectar con el servidor/i);
+    expect(enhanced.message).toMatch(/Backend no conectado/i);
     expect(enhanced.message).toContain(String(api.defaults.baseURL));
+    expect(globalThis.fetch).toHaveBeenCalledWith(API_HEALTH_URL, expect.objectContaining({ method: 'GET' }));
+    expect(consoleWarn).toHaveBeenCalled();
+  });
+
+  it('mantiene el endpoint en el mensaje si healthcheck responde', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ ok: true, service: 'DentCore backend', timestamp: '2026-06-24T10:00:00+00:00' }),
+    }));
+
+    const error = makeAxiosError({
+      config: { url: '/citas', method: 'get' } as never,
+    });
+    const enhanced = await rejectThroughInterceptor(error);
+    expect(enhanced.message).toContain('Backend conectado');
+    expect(enhanced.message).toContain('/citas');
   });
 
   it('extrae detail string de FastAPI cuando viene en response', async () => {

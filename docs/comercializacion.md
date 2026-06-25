@@ -9,7 +9,10 @@ Antes de vender o desplegar en una clinica real debe existir evidencia de:
 - Seguridad tecnica revisada.
 - Aislamiento multi-clinica verificado.
 - Auditoria de acciones sensibles.
+- Dictado clinico configurado solo con proveedor validado contractualmente para datos de salud, o desactivado.
 - Backups cifrados y restaurables.
+- Copia externa y restauracion real registrada.
+- Portal paciente por invitacion segura o usuario vinculado.
 - Flujo fiscal SIF/VERI*FACTU validado por asesor fiscal.
 - Documentacion RGPD/LOPDGDD validada por asesor juridico.
 - Manual de usuario y soporte operativo.
@@ -29,6 +32,8 @@ El informe revisa:
 - Cookies de autenticacion.
 - Eventos de auditoria.
 - Backups.
+- Portal paciente e invitaciones.
+- Dictado clinico por IA: proveedor, limites, politica de no conservacion de audio y auditoria.
 - Modo VERI*FACTU, datos fiscales, RF y eventos SIF.
 
 Estados:
@@ -73,9 +78,14 @@ Checklist recomendado:
 
 - Preflight sin `fail`.
 - Backup cifrado reciente y restauracion probada.
+- Backup de alcance `full` con uploads/documentos incluidos.
+- Copia externa verificada mediante `BACKUP_EXTERNAL_COPY_DIR` y hash coincidente.
+- Extraccion offline probada con `python -m scripts.backup_tool extract`.
+- Portal por invitacion probado con enlace valido, caducado y revocado.
 - HTTPS/TLS configurado.
 - 2FA activo para admin.
 - Usuarios reales con roles revisados.
+- Proveedor de dictado clinico revisado como encargado/subencargado de tratamiento si se activa IA externa.
 - Migraciones aplicadas en copia de datos.
 - Prueba de importacion de pacientes.
 - Prueba completa de agenda, presupuesto, tratamiento, factura, cobro y PDF.

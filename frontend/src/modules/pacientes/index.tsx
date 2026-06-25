@@ -77,6 +77,7 @@ import { buildWhatsAppUrl } from './patientActionUtils';
 import { getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 import { ClinicalWorkspace } from './ClinicalWorkspace';
 import type { ClinicalTab } from './ClinicalWorkspace';
+import { ClinicalDictationModal } from './ClinicalDictation';
 
 export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type MainPatientTab = 'pacientes' | 'clinica' | 'historial';
@@ -192,6 +193,7 @@ export default function PacientesPage() {
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
   const [recetasDrawerOpen, setRecetasDrawerOpen] = useState(false);
   const [recetaError, setRecetaError] = useState<string | null>(null);
+  const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion' } | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -302,6 +304,7 @@ export default function PacientesPage() {
   const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
   const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
+  const canDictarNota = user?.rol === 'admin' || user?.rol === 'doctor';
 
   useEffect(() => {
     if (sessionStorage.getItem('dentcore_patient_action') !== 'new') return;
@@ -1011,6 +1014,8 @@ export default function PacientesPage() {
               onEdit={() => setEditingPatient(true)}
               onOpenFull={() => setFullPatientOpen(true)}
               onOpenCitas={abrirAgendaPaciente}
+              onDictarNota={() => setDictationContext({ contexto: 'ficha' })}
+              canDictarNota={canDictarNota}
               onNuevoPresupuesto={() => nuevoPresupuesto.mutate()}
               onCrearReceta={() => {
                 setRecetaError(null);
@@ -1068,6 +1073,8 @@ export default function PacientesPage() {
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenPresupuestos={() => openPatientArea('presupuestos')}
             onOpenHistorial={() => openPatientArea('historial')}
+            onDictarNotaSesion={() => setDictationContext({ contexto: 'sesion' })}
+            canDictarNota={canDictarNota}
             onSchedulePatient={abrirAgendaPaciente}
             onOpenCobro={() => abrirCobroDesdeFicha()}
             onFinalizarTratamientoSesion={(data) => finalizarSesionClinica.mutateAsync(data)}
@@ -1283,6 +1290,19 @@ export default function PacientesPage() {
             />
           </section>
         </div>
+      )}
+      {dictationContext && active && (
+        <ClinicalDictationModal
+          pacienteId={active.id}
+          pacienteNombre={fullName(active)}
+          contexto={dictationContext.contexto}
+          onClose={() => setDictationContext(null)}
+          onSaved={(result) => {
+            setDictationContext(null);
+            invalidatePatientWorkspace(result.paciente_id);
+            toast.success('Nota clinica guardada desde dictado.');
+          }}
+        />
       )}
       {invoiceCreatorOpen && active && (
         <InvoiceCreationModal

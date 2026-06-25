@@ -37,6 +37,11 @@ def build_production_readiness_report(
     sif_event_count: int,
     patient_portal_users: int = 0,
     patient_portal_unlinked_users: int = 0,
+    admin_users: int = 0,
+    admin_without_2fa: int = 0,
+    backup_restore_test: dict[str, Any] | None = None,
+    backup_directory: str | None = None,
+    active_portal_invitations: int = 0,
 ) -> dict[str, Any]:
     checks: list[dict[str, str]] = []
 
@@ -55,8 +60,21 @@ def build_production_readiness_report(
     else:
         checks.append(_check("ok", "seguridad", "Cifrado de datos", "La clave configurada no parece ser la de desarrollo.", "Documentar rotacion y recuperacion de claves."))
 
+    if not settings.backup_encryption_key or len(settings.backup_encryption_key) < 32:
+        checks.append(_check("fail", "backups", "Clave de backup no dedicada", "BACKUP_ENCRYPTION_KEY no esta definida o es demasiado corta.", "Configurar una clave dedicada, larga y custodiada fuera del servidor."))
+    else:
+        checks.append(_check("ok", "backups", "Clave de backup dedicada", "Hay una clave especifica para cifrar backups.", "Custodiarla fuera del servidor y probar recuperacion."))
+
+    if not settings.backup_external_copy_dir.strip():
+        status = "fail" if settings.environment == "production" else "warn"
+        checks.append(_check(status, "backups", "Destino externo no configurado", "No hay directorio/volumen externo para copiar backups automaticamente.", "Configurar BACKUP_EXTERNAL_COPY_DIR con un volumen externo, NAS o montaje cifrado."))
+    else:
+        checks.append(_check("ok", "backups", "Destino externo configurado", "Hay un destino privado configurado para copia externa automatica.", "Verificar permisos, cifrado del soporte y monitorizacion de espacio."))
+
     if "*" in settings.allowed_hosts_list or not settings.allowed_hosts_list:
         checks.append(_check("fail", "red", "Hosts permitidos abiertos", "ALLOWED_HOSTS no restringe hosts explicitos.", "Definir solo dominios/IPs reales de la instalacion."))
+    elif settings.environment == "production" and any(host in {"localhost", "127.0.0.1", "::1", "test"} for host in settings.allowed_hosts_list):
+        checks.append(_check("fail", "red", "Hosts locales en produccion", "ALLOWED_HOSTS contiene hosts de desarrollo.", "Dejar solo dominios/IPs reales de produccion."))
     else:
         checks.append(_check("ok", "red", "Hosts permitidos", "ALLOWED_HOSTS esta acotado.", "Revisarlo al anadir nuevas sedes o dominios."))
 
@@ -74,7 +92,29 @@ def build_production_readiness_report(
     else:
         checks.append(_check("ok", "auth", "Cookies de sesion", "La configuracion de cookie es coherente para el entorno actual.", "Endurecer a secure/strict si el flujo lo permite."))
 
-    if patient_portal_unlinked_users > 0:
+    if settings.environment == "production" and settings.sql_echo:
+        checks.append(_check("fail", "logs", "SQL echo activo", "SQL_ECHO puede volcar datos sensibles en logs.", "Desactivar SQL_ECHO en produccion y revisar retencion de logs."))
+    elif settings.sql_echo:
+        checks.append(_check("warn", "logs", "SQL echo activo en desarrollo", "Las consultas pueden incluir datos personales en logs locales.", "Usarlo solo para depuracion puntual."))
+    else:
+        checks.append(_check("ok", "logs", "SQL echo desactivado", "No se imprimen consultas SQL por configuracion.", "Mantener logs sanitizados y con retencion definida."))
+
+    if admin_users <= 0:
+        checks.append(_check("fail", "auth", "Sin usuarios admin", "No hay administradores configurados.", "Crear al menos un admin nominal con credenciales fuertes y 2FA."))
+    elif admin_without_2fa > 0:
+        checks.append(_check("fail", "auth", "Admins sin 2FA", f"Hay {admin_without_2fa} administrador(es) sin segundo factor.", "Activar 2FA para todos los administradores antes de produccion."))
+    else:
+        checks.append(_check("ok", "auth", "2FA admin", "Los administradores tienen 2FA activado.", "Extender 2FA a roles clinicos si el despliegue lo permite."))
+
+    if active_portal_invitations > 0:
+        checks.append(_check(
+            "ok",
+            "portal paciente",
+            "Invitaciones de portal activas",
+            f"Hay {active_portal_invitations} invitacion(es) activas con token.",
+            "Usar expiracion corta, revocar enlaces no utilizados y evitar enviar datos por canales inseguros.",
+        ))
+    elif patient_portal_unlinked_users > 0:
         checks.append(_check(
             "fail",
             "portal paciente",
@@ -99,6 +139,13 @@ def build_production_readiness_report(
             "Crear usuarios paciente solo cuando exista flujo seguro de invitacion y vinculacion.",
         ))
 
+    if settings.environment == "production" and not settings.whatsapp_webhook_token.strip():
+        checks.append(_check("fail", "integraciones", "Webhook WhatsApp sin token", "El endpoint de webhook existe y no hay token configurado.", "Configurar WHATSAPP_WEBHOOK_TOKEN largo y aleatorio o bloquear la ruta en el proxy."))
+    elif not settings.whatsapp_webhook_token.strip():
+        checks.append(_check("warn", "integraciones", "Webhook WhatsApp sin token", "En desarrollo se permite, pero en produccion quedara bloqueado.", "Definir token antes de probar integraciones reales."))
+    else:
+        checks.append(_check("ok", "integraciones", "Webhook WhatsApp protegido", "Hay token configurado para validar el webhook.", "Rotarlo si se expone y evitar tokens en query string."))
+
     if audit_events <= 0:
         checks.append(_check("warn", "auditoria", "Auditoria sin eventos", "No hay eventos de auditoria registrados todavia.", "Verificar accesos a historia clinica, documentos, facturacion y cambios de agenda."))
     else:
@@ -112,14 +159,50 @@ def build_production_readiness_report(
         if isinstance(last_started, datetime) and last_started.tzinfo is None:
             last_started = last_started.replace(tzinfo=UTC)
         is_recent = isinstance(last_started, datetime) and last_started >= datetime.now(UTC) - timedelta(days=2)
-        if last_status != "correcto":
+        if last_status not in {"correcto", "verificado", "restauracion_probada"}:
             checks.append(_check("fail", "backups", "Ultimo backup incorrecto", f"El ultimo backup tiene estado {last_status or 'desconocido'}.", "Resolver el error y repetir/verificar copia."))
         elif not last_backup.get("cifrado"):
             checks.append(_check("fail", "backups", "Backup sin cifrar", "El ultimo backup no consta como cifrado.", "Usar backups cifrados y proteger clave fuera del servidor."))
+        elif not (last_backup.get("incluye_bd") and last_backup.get("incluye_uploads")):
+            checks.append(_check("fail", "backups", "Backup no completo", "El ultimo backup no incluye base de datos y uploads/documentos a la vez.", "Crear backups de alcance full para entorno comercial."))
         elif not is_recent:
             checks.append(_check("warn", "backups", "Backup antiguo", "El ultimo backup correcto no es reciente.", "Activar y vigilar backup automatico diario."))
         else:
             checks.append(_check("ok", "backups", "Backup reciente", "Existe un backup correcto, cifrado y reciente.", "Mantener prueba de restauracion periodica."))
+
+        if not last_backup.get("destino_externo"):
+            status = "fail" if settings.environment == "production" else "warn"
+            checks.append(_check(status, "backups", "Sin copia externa verificada", "El ultimo backup no consta como copiado a destino externo.", "Configurar BACKUP_EXTERNAL_COPY_DIR, repetir backup y verificar hash de la copia."))
+        else:
+            checks.append(_check("ok", "backups", "Copia externa verificada", "El ultimo backup fue copiado a un destino externo con hash coincidente.", "Verificar permisos, retencion y recuperacion desde esa custodia."))
+
+        if not last_backup.get("retention_days") or not last_backup.get("retention_expires_at"):
+            checks.append(_check("fail", "backups", "Retencion no definida", "El backup no tiene caducidad/retencion registrada.", "Definir retencion minima y calendario de purga segura."))
+        else:
+            checks.append(_check("ok", "backups", "Retencion registrada", f"Retencion de {last_backup.get('retention_days')} dias registrada.", "Revisar politica segun contrato y normativa aplicable."))
+
+    if not backup_restore_test:
+        checks.append(_check("fail", "backups", "Restauracion no simulada", "No hay resultado de prueba de restauracion.", "Ejecutar la simulacion y una restauracion real en entorno aislado."))
+    elif not backup_restore_test.get("ok"):
+        checks.append(_check("fail", "backups", "Restauracion simulada con incidencias", str(backup_restore_test.get("motivo") or "La simulacion no fue correcta."), "Corregir estructura/clave/fichero y repetir la prueba."))
+    else:
+        checks.append(_check("ok", "backups", "Restauracion simulada", "El ultimo backup se descifra y valida en modo dry-run.", "Programar restauracion real periodica en una BD aislada."))
+
+    if last_backup and last_backup.get("restauracion_resultado") == "ok" and last_backup.get("restauracion_probada_at"):
+        checks.append(_check("ok", "backups", "Restauracion real registrada", "Hay una prueba de restauracion marcada como correcta.", "Repetir la prueba de forma periodica y conservar evidencias."))
+    else:
+        checks.append(_check("fail", "backups", "Sin restauracion real registrada", "No consta una restauracion probada en entorno aislado.", "Restaurar un backup en una BD de prueba y registrar el resultado."))
+
+    public_backup_dir = False
+    normalized_backup_dir = (backup_directory or "").replace("\\", "/").lower()
+    if normalized_backup_dir:
+        public_backup_dir = any(part in normalized_backup_dir for part in {"/uploads/", "/public/", "/static/", "/dist/"})
+    if public_backup_dir:
+        checks.append(_check("fail", "backups", "Directorio de backups publico", "La ruta de backups parece estar bajo un directorio servible.", "Mover backups fuera de static/uploads/public y servirlos solo por endpoint admin."))
+    else:
+        checks.append(_check("ok", "backups", "Directorio de backups no publico", "La ruta configurada no parece estar bajo static/uploads/public.", "Confirmar permisos de filesystem y bloqueo en proxy."))
+
+    checks.append(_check("ok", "documentos", "Baja logica documental", "Los documentos de paciente se ocultan mediante baja logica y conservan trazabilidad.", "Definir plazos de conservacion y procedimiento de bloqueo/borrado validado externamente."))
 
     if settings.verifactu_mode != "verifactu":
         checks.append(_check("fail", "fiscal", "VERI*FACTU no activo", "La modalidad SIF no esta en verifactu.", "Mantener VERIFACTU_MODE=verifactu salvo validacion fiscal expresa."))

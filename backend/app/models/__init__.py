@@ -17,6 +17,7 @@ from app.models.clinica import (
     Receta,
 )
 from app.models.consentimiento import Consentimiento, ConsentimientoPlantilla
+from app.models.dictado import DictadoClinico
 from app.models.doctor import Doctor
 from app.models.documento import DocumentoPaciente
 from app.models.entidad import Entidad
@@ -40,6 +41,7 @@ from app.models.odontograma import (
     OdontogramaSuperficie,
 )
 from app.models.paciente import Paciente
+from app.models.portal_invitation import PortalInvitation
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
 from app.models.receta import RecetaClinica
 from app.models.referencia import Referencia, paciente_referencias
@@ -66,6 +68,7 @@ __all__ = [
     "HorarioDoctor",
     "HorarioExcepcion",
     "Paciente",
+    "PortalInvitation",
     "Cita",
     "CitaCambio",
     "CitaTelefonear",
@@ -90,6 +93,7 @@ __all__ = [
     "paciente_referencias",
     "Consentimiento",
     "ConsentimientoPlantilla",
+    "DictadoClinico",
     "DocumentoPaciente",
     "Laboratorio",
     "TrabajoLaboratorio",

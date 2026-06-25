@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://eurodent:eurodent_dev_pass@localhost:5432/eurodent2"
 DEFAULT_DB_ENCRYPTION_KEY = "dev-encryption-key-change-in-prod-32ch"
+DEFAULT_BACKUP_ENCRYPTION_KEY = ""
 DEFAULT_JWT_SECRET_KEY = "dev-jwt-secret-change-in-prod"
 DEFAULT_FRONTEND_URL = "http://localhost:5173"
 
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     # Base de datos
     database_url: str = DEFAULT_DATABASE_URL
     db_encryption_key: str = DEFAULT_DB_ENCRYPTION_KEY
+    backup_encryption_key: str = DEFAULT_BACKUP_ENCRYPTION_KEY
 
     # Auth
     jwt_secret_key: str = DEFAULT_JWT_SECRET_KEY
@@ -39,7 +41,7 @@ class Settings(BaseSettings):
 
     # Server
     backend_host: str = "0.0.0.0"
-    backend_port: int = 8000
+    backend_port: int = 8011
     frontend_url: str = DEFAULT_FRONTEND_URL
     allowed_hosts: str = "localhost,127.0.0.1,::1,test"
     cors_allowed_methods: str = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
@@ -52,7 +54,22 @@ class Settings(BaseSettings):
     login_rate_limit_block_seconds: int = 900
     upload_rate_limit_per_minute: int = 30
     max_upload_size_mb: int = 50
+    clinical_dictation_provider: str = ""
+    clinical_dictation_endpoint: str = ""
+    clinical_dictation_api_key: str = ""
+    clinical_dictation_timeout_seconds: int = 45
+    clinical_dictation_max_audio_mb: int = 15
+    clinical_dictation_max_duration_seconds: int = 180
+    clinical_dictation_allowed_mime_types: str = "audio/webm,audio/wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/m4a"
+    clinical_dictation_keep_audio: bool = False
+    openai_api_key: str = ""
+    openai_model: str = ""
+    openai_timeout_seconds: int = 12
+    openai_responses_endpoint: str = "https://api.openai.com/v1/responses"
     whatsapp_webhook_token: str = ""
+    backup_retention_days: int = 180
+    backup_external_location: str = ""
+    backup_external_copy_dir: str = ""
 
     # Entorno
     environment: Literal["development", "production"] = "development"
@@ -90,6 +107,14 @@ class Settings(BaseSettings):
         return [header.strip() for header in self.cors_allowed_headers.split(",") if header.strip()]
 
     @property
+    def clinical_dictation_allowed_mime_types_list(self) -> list[str]:
+        return [
+            item.strip().lower()
+            for item in self.clinical_dictation_allowed_mime_types.split(",")
+            if item.strip()
+        ]
+
+    @property
     def cors_allowed_origins(self) -> list[str]:
         origins = [self.frontend_url.strip()]
 
@@ -120,6 +145,10 @@ class Settings(BaseSettings):
             errores.append("JWT_SECRET_KEY debe ser unico y tener al menos 32 caracteres")
         if self.db_encryption_key == DEFAULT_DB_ENCRYPTION_KEY or len(self.db_encryption_key) < 32:
             errores.append("DB_ENCRYPTION_KEY debe ser unica y tener al menos 32 caracteres")
+        if not self.backup_encryption_key or len(self.backup_encryption_key) < 32:
+            errores.append("BACKUP_ENCRYPTION_KEY debe estar definida y tener al menos 32 caracteres")
+        if not self.backup_external_copy_dir.strip():
+            errores.append("BACKUP_EXTERNAL_COPY_DIR debe apuntar a un destino externo o volumen montado")
         if not self.allowed_hosts_list or "*" in self.allowed_hosts_list:
             errores.append("ALLOWED_HOSTS debe listar hosts explicitos en produccion")
         if not self.auth_cookie_secure:
