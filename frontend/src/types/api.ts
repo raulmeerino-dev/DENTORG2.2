@@ -11,6 +11,39 @@ export interface UsuarioMe {
   two_factor_enabled?: boolean;
 }
 
+export type TipoFichaje = 'entrada' | 'salida';
+export type OrigenTrabajadorFichaje = 'trabajador' | 'usuario';
+
+export interface TrabajadorFichaje {
+  id: string;
+  nombre: string;
+  origen: OrigenTrabajadorFichaje;
+  codigo: string | null;
+  rol: string | null;
+  clinica_id: string | null;
+  pin_configurado: boolean;
+}
+
+export interface FichajeTrabajador {
+  id: string;
+  trabajador_id: string;
+  trabajador_origen: OrigenTrabajadorFichaje;
+  trabajador_nombre: string;
+  clinica_id: string | null;
+  fecha: string;
+  hora_exacta: string;
+  tipo: TipoFichaje;
+  equipo: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  registrado_por_usuario_id: string | null;
+}
+
+export interface FichajeRegistroResponse {
+  fichaje: FichajeTrabajador;
+  ultimo_fichaje: FichajeTrabajador;
+}
+
 export type PacienteSexo = 'M' | 'F' | 'otro';
 
 export interface ApiPaciente {
@@ -411,11 +444,37 @@ export interface WhatsAppInboxItem {
   appointment: WhatsAppAppointmentSummary | null;
 }
 
+export interface TrabajoLaboratorioCitaResumen {
+  id: string;
+  paciente_id: string;
+  doctor_id: string;
+  laboratorio_id: string;
+  cita_id: string | null;
+  tratamiento_id?: string | null;
+  presupuesto_linea_id?: string | null;
+  tipo_trabajo?: string | null;
+  descripcion: string;
+  pieza_dental: number | null;
+  observaciones: string | null;
+  fecha_salida: string | null;
+  fecha_entrega_prevista: string | null;
+  fecha_recepcion: string | null;
+  fecha_revision: string | null;
+  fecha_entrega_paciente: string | null;
+  ubicacion_clinica: string | null;
+  estado: string;
+  colocado?: boolean;
+  material_enviado?: boolean;
+  material_devuelto?: boolean;
+  laboratorio: { id: string; nombre: string; contacto?: string | null } | null;
+}
+
 export interface Cita {
   id: string;
   paciente_id: string;
   doctor_id: string;
   gabinete_id: string | null;
+  presupuesto_linea_id?: string | null;
   fecha_hora: string;
   duracion_min: number;
   estado: string;
@@ -428,6 +487,7 @@ export interface Cita {
   recordatorio_at?: string | null;
   confirmado_at?: string | null;
   motivo_cancelacion?: string | null;
+  laboratorio?: TrabajoLaboratorioCitaResumen[];
   paciente?: {
     nombre: string;
     apellidos: string;
@@ -678,11 +738,42 @@ export interface Doctor {
   activo: boolean;
 }
 
+export type RecetaEstado =
+  | 'borrador'
+  | 'pendiente_validacion'
+  | 'emitida_local'
+  | 'enviada_proveedor'
+  | 'certificada'
+  | 'rechazada'
+  | 'anulada'
+  | 'dispensada';
+
+export interface RecetaPlantilla {
+  id: string;
+  clinica_id: string | null;
+  nombre: string;
+  nombre_original: string;
+  mime_type: string;
+  tamano_bytes: number;
+  campos_config: Record<string, unknown> | null;
+  requiere_dni: boolean;
+  requiere_fecha_nacimiento: boolean;
+  created_at: string;
+}
+
+export interface RecetaProviderStatus {
+  mode: 'disabled' | 'mock' | 'real';
+  provider_available: boolean;
+  real_certification_enabled: boolean;
+  warning: string | null;
+}
+
 export interface RecetaClinica {
   id: string;
   paciente_id: string;
   doctor_id: string;
   clinica_id: string | null;
+  plantilla_id: string | null;
   medicamento: string;
   principio_activo: string | null;
   forma_farmaceutica: string | null;
@@ -694,12 +785,35 @@ export interface RecetaClinica {
   diagnostico: string | null;
   instrucciones_paciente: string | null;
   instrucciones_farmacia: string | null;
+  prescriptor_nombre: string | null;
+  prescriptor_num_colegiado: string | null;
+  prescriptor_colegio: string | null;
+  prescriptor_provincia: string | null;
+  prescriptor_especialidad: string | null;
+  prescriptor_nif: string | null;
   fecha_prescripcion: string;
   fecha_dispensacion: string | null;
+  estado: RecetaEstado;
+  provider_mode: string;
+  external_id: string | null;
+  provider_status: string | null;
+  provider_error: string | null;
+  verification_code: string | null;
+  pdf_documento_id: string | null;
+  pdf_path: string | null;
+  pdf_hash_sha256: string | null;
   firma_data_url: string | null;
   pdf_generado_at: string | null;
+  emitida_at: string | null;
+  enviada_proveedor_at: string | null;
+  certificada_at: string | null;
+  rechazada_at: string | null;
+  anulada_at: string | null;
+  dispensada_at: string | null;
+  certificada_real: boolean;
   created_at: string;
   doctor?: { id: string; nombre: string } | null;
+  plantilla?: RecetaPlantilla | null;
 }
 
 export interface NotaDental {
@@ -755,8 +869,9 @@ export interface DictadoNotaGuardadaResponse {
 
 export interface RecetaCreateInput {
   doctor_id: string;
-  medicamento: string;
-  posologia: string;
+  plantilla_id?: string | null;
+  medicamento?: string | null;
+  posologia?: string | null;
   principio_activo?: string | null;
   forma_farmaceutica?: string | null;
   via_administracion?: string | null;
@@ -768,7 +883,18 @@ export interface RecetaCreateInput {
   instrucciones_farmacia?: string | null;
   fecha_prescripcion?: string | null;
   fecha_dispensacion?: string | null;
+  prescriptor_num_colegiado?: string | null;
+  prescriptor_colegio?: string | null;
+  prescriptor_provincia?: string | null;
+  prescriptor_especialidad?: string | null;
+  prescriptor_nif?: string | null;
   firma_data_url?: string | null;
+}
+
+export type RecetaUpdateInput = Partial<RecetaCreateInput>;
+
+export interface RecetaEmitirInput {
+  plantilla_id?: string | null;
 }
 
 export interface Laboratorio {
@@ -788,6 +914,7 @@ export interface TrabajoLaboratorio {
   doctor_id: string;
   laboratorio_id: string;
   historial_id: string | null;
+  cita_id?: string | null;
   tratamiento_id?: string | null;
   presupuesto_id?: string | null;
   presupuesto_linea_id?: string | null;
@@ -804,7 +931,9 @@ export interface TrabajoLaboratorio {
   fecha_salida: string | null;
   fecha_entrega_prevista: string | null;
   fecha_recepcion: string | null;
+  fecha_revision?: string | null;
   fecha_entrega_paciente: string | null;
+  ubicacion_clinica?: string | null;
   estado: string;
   precio: number | null;
   coste_laboratorio?: number | null;
@@ -825,12 +954,15 @@ export interface TrabajoLaboratorioCreateInput {
   paciente_id: string;
   doctor_id: string;
   laboratorio_id: string;
+  cita_id?: string | null;
   descripcion: string;
   tipo_trabajo?: string | null;
   pieza_dental?: number | null;
   color?: string | null;
   observaciones?: string | null;
   fecha_entrega_prevista?: string | null;
+  estado?: string | null;
+  ubicacion_clinica?: string | null;
   referencia_interna?: string | null;
   referencia_proveedor?: string | null;
   presupuesto_id?: string | null;

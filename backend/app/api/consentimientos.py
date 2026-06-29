@@ -1,17 +1,12 @@
 ﻿"""Consentimientos informados versionados, firmables y archivables."""
-import base64
-import binascii
 import hashlib
 import uuid
 from datetime import date, datetime, timezone
-from io import BytesIO
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, Response
-from PIL import Image as PILImage
-from PIL import ImageFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +24,15 @@ from app.models.consentimiento import Consentimiento, ConsentimientoPlantilla
 from app.models.documento import DocumentoPaciente
 from app.models.paciente import Paciente
 from app.services.audit import write_audit_log
-from app.services.pdf_service import generar_documento_clinico_pdf, pdf_response_headers
+from app.services.pdf_service import (
+    InvalidSignatureError,
+    generar_documento_clinico_pdf,
+    pdf_response_headers,
+    safe_pdf_filename,
+    signature_png_data_url,
+    validate_pdf_bytes,
+    validate_signature_data_url,
+)
 
 router = APIRouter()
 
@@ -133,8 +136,8 @@ class ConsentimientoUpdate(BaseModel):
 class ConsentimientoFirmar(BaseModel):
     model_config = {"extra": "forbid"}
 
-    firma_paciente_base64: str = Field(..., min_length=30)
-    firma_doctor_base64: str | None = None
+    firma_paciente_base64: str = Field(..., min_length=30, max_length=3_000_000)
+    firma_doctor_base64: str | None = Field(None, max_length=3_000_000)
 
 
 class ConsentimientoRevocar(BaseModel):
@@ -175,35 +178,32 @@ def _client_ip(request: Request) -> str | None:
 
 
 def _firma_png_bytes(data_url: str | None) -> bytes | None:
-    if not data_url:
-        return None
-    prefix = "data:image/png;base64,"
-    if not data_url.startswith(prefix):
-        raise HTTPException(status_code=422, detail="La firma debe ser una imagen PNG en data URL")
     try:
-        return base64.b64decode(data_url[len(prefix):], validate=True)
-    except (ValueError, binascii.Error) as exc:
-        raise HTTPException(status_code=422, detail="Firma digital no vÃ¡lida") from exc
+        return validate_signature_data_url(data_url, require_visible=False)
+    except InvalidSignatureError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-def _firma_png_normalizada(data_url: str | None) -> bytes | None:
-    raw = _firma_png_bytes(data_url)
-    if not raw:
-        return None
+def _firma_png_normalizada(data_url: str | None, *, require_visible: bool = False) -> bytes | None:
     try:
-        ImageFile.LOAD_TRUNCATED_IMAGES = True
-        image = PILImage.open(BytesIO(raw))
-        image.load()
-        output = BytesIO()
-        image.convert("RGBA").save(output, format="PNG")
-        return output.getvalue()
-    except OSError as exc:
-        raise HTTPException(status_code=422, detail="Firma digital no valida") from exc
+        return validate_signature_data_url(data_url, require_visible=require_visible)
+    except InvalidSignatureError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def _ruta_paciente(paciente_id: uuid.UUID) -> Path:
     path = UPLOAD_ROOT / str(paciente_id)
     path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _safe_patient_file(paciente_id: uuid.UUID, stored_name: str) -> Path:
+    if Path(stored_name).name != stored_name:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+    base = (UPLOAD_ROOT / str(paciente_id)).resolve()
+    path = (base / stored_name).resolve()
+    if path.parent != base:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
     return path
 
 
@@ -221,28 +221,56 @@ def _render_template(contenido: str, paciente: Paciente, tipo: str) -> str:
     return rendered
 
 
+def _hash_trazabilidad_consentimiento(
+    consentimiento: Consentimiento,
+    paciente: Paciente,
+    firma_paciente_png: bytes | None,
+) -> str:
+    payload = "\n".join(
+        [
+            str(consentimiento.id),
+            str(paciente.id),
+            str(paciente.clinica_id or ""),
+            consentimiento.tipo,
+            consentimiento.fecha_firma.isoformat(),
+            consentimiento.firmado_at.isoformat() if consentimiento.firmado_at else "",
+            consentimiento.contenido or "",
+            hashlib.sha256(firma_paciente_png or b"").hexdigest(),
+        ]
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 def _generar_pdf_consentimiento(consentimiento: Consentimiento, paciente: Paciente) -> bytes:
     nombre = " ".join(part for part in [paciente.nombre, paciente.apellidos] if part).strip()
     version = consentimiento.plantilla_version or consentimiento.version_plantilla or "personalizada"
     firmado = consentimiento.firmado_at.isoformat() if consentimiento.firmado_at else ""
+    firma_png = _firma_png_normalizada(consentimiento.firma_paciente_base64) if consentimiento.firma_paciente_base64 else None
+    hash_trazabilidad = consentimiento.hash_documento or _hash_trazabilidad_consentimiento(
+        consentimiento,
+        paciente,
+        firma_png,
+    )
     contenido = (
         f"Fecha: {consentimiento.fecha_firma.isoformat()}\n"
         f"Version plantilla: {version}\n"
-        f"Firmado digitalmente: {firmado}\n\n"
+        f"Estado: {consentimiento.estado}\n"
+        f"Firmado digitalmente: {firmado or 'pendiente'}\n"
+        f"ID consentimiento: {consentimiento.id}\n"
+        f"ID paciente: {paciente.id}\n"
+        f"IP firma: {consentimiento.ip_firma or '-'}\n"
+        f"Hash trazabilidad SHA-256: {hash_trazabilidad}\n\n"
         f"{consentimiento.contenido or ''}"
     )
-    firma_data_url = None
-    if consentimiento.firma_paciente_base64:
-        firma_data_url = "data:image/png;base64," + base64.b64encode(
-            _firma_png_normalizada(consentimiento.firma_paciente_base64)
-        ).decode("ascii")
-    return generar_documento_clinico_pdf(
+    pdf_bytes = generar_documento_clinico_pdf(
         titulo=f"Consentimiento informado - {consentimiento.tipo}",
         contenido=contenido,
         paciente_nombre=nombre,
         fecha_documento=consentimiento.fecha_firma,
-        firma_data_url=firma_data_url,
+        firma_data_url=signature_png_data_url(firma_png),
     )
+    validate_pdf_bytes(pdf_bytes)
+    return pdf_bytes
 
 
 async def _get_paciente(db: AsyncSession, paciente_id: uuid.UUID, current_user: TokenData) -> Paciente:
@@ -372,6 +400,8 @@ async def crear_consentimiento_paciente(
     request: Request,
 ) -> ConsentimientoResponse:
     paciente = await _get_paciente(db, paciente_id, current_user)
+    if data.estado == "firmado":
+        raise HTTPException(status_code=422, detail="Use el endpoint de firma para marcar un consentimiento como firmado")
     plantilla = await db.get(ConsentimientoPlantilla, data.plantilla_id) if data.plantilla_id else None
     if plantilla:
         ensure_clinic_access(current_user, plantilla.clinica_id)
@@ -388,7 +418,6 @@ async def crear_consentimiento_paciente(
         plantilla_version = plantilla_version or (base_item["version"] if base_item else "personalizada")
         version_plantilla = version_plantilla or (base_item["version_num"] if base_item else None)
 
-    firmado_at = datetime.now(timezone.utc) if data.estado == "firmado" else None
     consentimiento = Consentimiento(
         paciente_id=paciente_id,
         clinica_id=paciente.clinica_id,
@@ -400,7 +429,7 @@ async def crear_consentimiento_paciente(
         documento_id=data.documento_id,
         estado=data.estado,
         fecha_firma=data.fecha_firma or date.today(),
-        firmado_at=firmado_at,
+        firmado_at=None,
         documento_path=data.documento_path,
         plantilla_version=plantilla_version,
         version_plantilla=version_plantilla,
@@ -436,8 +465,8 @@ async def actualizar_consentimiento_paciente(
     consentimiento = await _get_consentimiento(db, consentimiento_id, current_user)
     if consentimiento.paciente_id != paciente_id:
         raise HTTPException(status_code=404, detail="Consentimiento no encontrado")
-    if consentimiento.estado == "firmado":
-        raise HTTPException(status_code=409, detail="Un consentimiento firmado no se puede modificar")
+    if consentimiento.estado in {"firmado", "revocado"}:
+        raise HTTPException(status_code=409, detail="Un consentimiento firmado o revocado no se puede modificar")
     cambios = data.model_dump(exclude_none=True)
     if cambios.get("estado") == "firmado":
         raise HTTPException(status_code=409, detail="Use el endpoint de firma")
@@ -476,21 +505,24 @@ async def firmar_consentimiento(
     if consentimiento.estado == "revocado":
         raise HTTPException(status_code=409, detail="No se puede firmar un consentimiento revocado")
     paciente = await _get_paciente(db, consentimiento.paciente_id, current_user)
-    _firma_png_bytes(data.firma_paciente_base64)
+    firma_paciente_png = _firma_png_normalizada(data.firma_paciente_base64, require_visible=True)
+    firma_doctor_png = _firma_png_normalizada(data.firma_doctor_base64, require_visible=True) if data.firma_doctor_base64 else None
 
-    consentimiento.firma_paciente_base64 = data.firma_paciente_base64
-    consentimiento.firma_doctor_base64 = data.firma_doctor_base64
+    consentimiento.firma_paciente_base64 = signature_png_data_url(firma_paciente_png)
+    consentimiento.firma_doctor_base64 = signature_png_data_url(firma_doctor_png)
     consentimiento.estado = "firmado"
     consentimiento.firmado_at = datetime.now(timezone.utc)
     consentimiento.fecha_firma = date.today()
     consentimiento.ip_firma = _client_ip(request)
     consentimiento.user_agent_firma = request.headers.get("User-Agent", "")[:500] or None
+    consentimiento.hash_documento = _hash_trazabilidad_consentimiento(consentimiento, paciente, firma_paciente_png)
 
     pdf_bytes = _generar_pdf_consentimiento(consentimiento, paciente)
     pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
-    consentimiento.hash_documento = pdf_hash
 
-    filename = f"consentimiento_{consentimiento.tipo.lower().replace(' ', '_')}_{consentimiento.id}.pdf"
+    filename = safe_pdf_filename(
+        f"consentimiento_{consentimiento.tipo.lower().replace(' ', '_')}_{consentimiento.id}.pdf"
+    )
     stored_name = f"{uuid.uuid4()}.pdf"
     path = _ruta_paciente(paciente.id) / stored_name
     path.write_bytes(pdf_bytes)
@@ -508,7 +540,7 @@ async def firmar_consentimiento(
         tratamiento_id=consentimiento.tratamiento_id,
         historial_id=consentimiento.historial_id,
         doctor_id=consentimiento.doctor_id,
-        etiquetas=f"consentimiento,{consentimiento.tipo}",
+        etiquetas=f"consentimiento,{consentimiento.tipo},hash_trazabilidad:{consentimiento.hash_documento},sha256_pdf:{pdf_hash}",
     )
     db.add(documento)
     await db.flush()
@@ -521,7 +553,12 @@ async def firmar_consentimiento(
         action="CONSENTIMIENTO_FIRMAR",
         entity_type="consentimientos",
         entity_id=consentimiento.id,
-        new_values={"estado": "firmado", "hash_documento": pdf_hash, "documento_id": str(documento.id)},
+        new_values={
+            "estado": "firmado",
+            "hash_documento": consentimiento.hash_documento,
+            "sha256_pdf": pdf_hash,
+            "documento_id": str(documento.id),
+        },
         clinica_id=consentimiento.clinica_id,
         request=request,
     )
@@ -569,15 +606,16 @@ async def descargar_pdf_consentimiento(
     if consentimiento.documento_id:
         documento = await db.get(DocumentoPaciente, consentimiento.documento_id)
         if documento and documento.deleted_at is None:
-            path = UPLOAD_ROOT / str(consentimiento.paciente_id) / documento.nombre_guardado
+            path = _safe_patient_file(consentimiento.paciente_id, documento.nombre_guardado)
             if path.exists():
                 return FileResponse(
                     path=str(path),
                     media_type="application/pdf",
                     filename=documento.nombre_original,
-                    headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+                    headers=pdf_response_headers(documento.nombre_original),
                 )
     pdf_bytes = _generar_pdf_consentimiento(consentimiento, paciente)
+    validate_pdf_bytes(pdf_bytes)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

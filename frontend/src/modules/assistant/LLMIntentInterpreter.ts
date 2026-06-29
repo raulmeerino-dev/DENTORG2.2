@@ -18,6 +18,7 @@ import type {
   AssistantInterpreterInput,
   AssistantRiskLevel,
   AssistantSessionMemory,
+  AssistantTurnDebug,
   AssistantTurnResult,
   DraftPatch,
 } from './types';
@@ -55,11 +56,43 @@ type LLMIntentPayload = {
 
 type LLMInterpretResponse = {
   intent: LLMIntentPayload;
+  debug?: AssistantTurnDebug;
 };
 
 type DraftPatchResponse = {
   patch: DraftPatch;
+  debug?: AssistantTurnDebug;
 };
+
+function mockDebug(intentFinal = 'unknown'): AssistantTurnDebug {
+  return {
+    route: 'mock',
+    providerUsed: 'mock',
+    modelUsed: 'MockIntentInterpreter',
+    intentFinal,
+  };
+}
+
+function safeBackendLLMMessage(error: unknown) {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+  if (typeof detail !== 'string') return null;
+  if (detail.includes('Ollama no está ejecutándose')) return detail;
+  if (detail.includes('No se ha ejecutado nada')) return detail;
+  if (detail.includes('No hay motor de IA disponible')) return detail;
+  return null;
+}
+
+function safeErrorIntent(input: AssistantInterpreterInput, message: string): AssistantIntent {
+  const intent = createIntent('unknown', { taskText: input.text }, 0.75, input.text);
+  return {
+    ...intent,
+    status: 'needs_clarification',
+    needsClarification: true,
+    clarificationQuestion: message,
+    spokenSummary: message,
+    summary: message,
+  };
+}
 
 function safeContextFromSnapshot(context: AssistantContextSnapshot) {
   return {
@@ -225,16 +258,28 @@ function intentFromLLM(payload: LLMIntentPayload, input: AssistantInterpreterInp
 }
 
 export async function interpretLLMAssistantInput(input: AssistantInterpreterInput): Promise<AssistantIntent> {
+  return (await interpretLLMAssistantInputWithDebug(input)).intent;
+}
+
+async function interpretLLMAssistantInputWithDebug(input: AssistantInterpreterInput): Promise<{ intent: AssistantIntent; debug?: AssistantTurnDebug }> {
   const { data } = await api.post<LLMInterpretResponse>('/assistant/interpret', {
     userText: input.text,
     context: safeContextFromSnapshot(input.context),
     currentDraft: draftForLLM(input.currentDraft ?? input.sessionMemory?.lastDraft ?? null),
     lastAssistantQuestion: input.sessionMemory?.lastQuestion ?? null,
   });
-  return intentFromLLM(data.intent, input);
+  const intent = intentFromLLM(data.intent, input);
+  return {
+    intent,
+    debug: data.debug ? { ...data.debug, intentFinal: intent.intent } : undefined,
+  };
 }
 
 export async function interpretDraftPatchInput(input: AssistantInterpreterInput): Promise<DraftPatch> {
+  return (await interpretDraftPatchInputWithDebug(input)).patch;
+}
+
+async function interpretDraftPatchInputWithDebug(input: AssistantInterpreterInput): Promise<{ patch: DraftPatch; debug?: AssistantTurnDebug }> {
   const currentDraft = input.currentDraft ?? input.sessionMemory?.lastDraft;
   if (!currentDraft) throw new Error('No hay borrador activo para aplicar un patch.');
   const { data } = await api.post<DraftPatchResponse>('/assistant/patch', {
@@ -244,27 +289,35 @@ export async function interpretDraftPatchInput(input: AssistantInterpreterInput)
     lastAssistantQuestion: input.sessionMemory?.lastQuestion ?? null,
     visibleOptions: visibleOptionsForDraft(currentDraft),
   });
-  return data.patch;
+  return {
+    patch: data.patch,
+    debug: data.debug ? { ...data.debug, intentFinal: data.patch.action } : undefined,
+  };
 }
 
 export async function interpretAssistantTurnWithLLM(input: AssistantInterpreterInput): Promise<AssistantTurnResult> {
   const activeDraft = input.currentDraft ?? input.sessionMemory?.lastDraft ?? null;
   if (activeDraft) {
     try {
-      const patch = await interpretDraftPatchInput(input);
+      const patchResult = await interpretDraftPatchInputWithDebug(input);
+      const { patch } = patchResult;
+      const debug = patchResult.debug;
       if (patch.action === 'cancel') {
         return {
           kind: 'cancelled',
           intent: cancelIntent(activeDraft),
           responseText: patch.spokenSummary || 'Borrador cancelado. No se ha guardado nada.',
+          debug,
         };
       }
       if (patch.action === 'start_new') {
-        const intent = await interpretLLMAssistantInput({ ...input, currentDraft: null, sessionMemory: { ...input.sessionMemory, lastDraft: null } });
+        const intentResult = await interpretLLMAssistantInputWithDebug({ ...input, currentDraft: null, sessionMemory: { ...input.sessionMemory, lastDraft: null } });
+        const { intent } = intentResult;
         return {
           kind: 'intent',
           intent,
           responseText: intent.clarificationQuestion ?? intent.spokenSummary ?? intent.summary,
+          debug: intentResult.debug,
         };
       }
       if (patch.action === 'ask_clarification' || patch.action === 'unknown') {
@@ -272,6 +325,7 @@ export async function interpretAssistantTurnWithLLM(input: AssistantInterpreterI
           kind: 'intent',
           intent: activeDraft,
           responseText: patch.clarificationQuestion ?? patch.spokenSummary ?? 'No estoy seguro de como modificar el borrador. Puedes corregir un campo concreto.',
+          debug,
         };
       }
 
@@ -289,12 +343,14 @@ export async function interpretAssistantTurnWithLLM(input: AssistantInterpreterI
             kind: 'intent',
             intent: patched,
             responseText: patched.clarificationQuestion ?? 'No puedo confirmar todavia. Faltan datos.',
+            debug,
           };
         }
         return {
           kind: 'confirm',
           intent: patched,
           responseText: patch.spokenSummary || 'Confirmacion recibida. Valido permisos y preparo la ejecucion.',
+          debug,
         };
       }
 
@@ -302,23 +358,37 @@ export async function interpretAssistantTurnWithLLM(input: AssistantInterpreterI
         kind: 'intent',
         intent: patched,
         responseText: patched.clarificationQuestion ?? patch.spokenSummary ?? patched.spokenSummary ?? patched.summary,
+        debug,
       };
-    } catch {
+    } catch (error) {
+      const safeMessage = safeBackendLLMMessage(error);
+      if (safeMessage) {
+        return {
+          kind: 'intent',
+          intent: activeDraft,
+          responseText: safeMessage,
+          debug: mockDebug(activeDraft.intent),
+        };
+      }
       return {
         kind: 'intent',
         intent: activeDraft,
         responseText: 'No he podido interpretar la modificacion con seguridad. El borrador sigue igual; puedes editar un campo manualmente.',
+        debug: mockDebug(activeDraft.intent),
       };
     }
   }
 
   try {
-    const intent = await interpretLLMAssistantInput(input);
+    const intentResult = await interpretLLMAssistantInputWithDebug(input);
+    const { intent } = intentResult;
+    const debug = intentResult.debug;
     if (intent.intent === 'cancel_current_draft') {
       return {
         kind: 'cancelled',
         intent: cancelIntent(input.currentDraft ?? input.sessionMemory?.lastDraft ?? null),
         responseText: 'Borrador cancelado. No se ha guardado nada.',
+        debug,
       };
     }
 
@@ -329,12 +399,14 @@ export async function interpretAssistantTurnWithLLM(input: AssistantInterpreterI
           kind: 'intent',
           intent: draft,
           responseText: draft.clarificationQuestion ?? 'No puedo confirmar todavia. Faltan datos.',
+          debug,
         };
       }
       return {
         kind: 'confirm',
         intent: draft,
         responseText: intent.spokenSummary || 'Confirmacion recibida. Valido permisos y preparo la ejecucion.',
+        debug,
       };
     }
 
@@ -342,8 +414,22 @@ export async function interpretAssistantTurnWithLLM(input: AssistantInterpreterI
       kind: 'intent',
       intent,
       responseText: intent.clarificationQuestion ?? intent.spokenSummary ?? intent.summary,
+      debug,
     };
-  } catch {
-    return interpretAssistantTurn(input);
+  } catch (error) {
+    const safeMessage = safeBackendLLMMessage(error);
+    if (safeMessage) {
+      const intent = safeErrorIntent(input, safeMessage);
+      return {
+        kind: 'intent',
+        intent,
+        responseText: safeMessage,
+        debug: mockDebug(intent.intent),
+      };
+    }
+    const result = interpretAssistantTurn(input);
+    return result.kind === 'cancelled'
+      ? { ...result, debug: mockDebug('cancel_current_draft') }
+      : { ...result, debug: mockDebug(result.intent.intent) };
   }
 }

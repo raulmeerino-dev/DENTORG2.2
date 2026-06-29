@@ -10,16 +10,23 @@ from __future__ import annotations
 import base64
 import binascii
 import io
+import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from html import escape
+from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
+from PIL import Image as PILImage
+from PIL import ImageChops, UnidentifiedImageError
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas as pdf_canvas
 from reportlab.platypus import (
     HRFlowable,
     Image,
@@ -42,6 +49,11 @@ ROJO = colors.HexColor("#b4232e")
 
 PAGE_WIDTH = A4[0] - 30 * mm
 PDF_TEMPLATE_VERSION = "reportlab-clinica-v3"
+MAX_SIGNATURE_BYTES = 1_500_000
+
+
+class InvalidSignatureError(ValueError):
+    """Raised when a provided signature data URL is not a usable image."""
 
 
 def _clean(value: Any, fallback: str = "") -> str:
@@ -258,16 +270,65 @@ def _generar_qr_image(url: str) -> object | None:
         return None
 
 
-def _firma_png_bytes(data_url: str | None) -> bytes | None:
+def validate_signature_data_url(data_url: str | None, *, require_visible: bool = False) -> bytes | None:
     if not data_url:
         return None
     prefix = "data:image/png;base64,"
     if not data_url.startswith(prefix):
-        return None
+        raise InvalidSignatureError("La firma debe ser una imagen PNG en data URL")
     try:
-        return base64.b64decode(data_url[len(prefix):], validate=True)
+        raw = base64.b64decode(data_url[len(prefix):], validate=True)
     except (ValueError, binascii.Error):
+        raise InvalidSignatureError("Firma digital no valida") from None
+    if not raw or len(raw) > MAX_SIGNATURE_BYTES:
+        raise InvalidSignatureError("Firma digital vacia o demasiado grande")
+
+    try:
+        image = PILImage.open(io.BytesIO(raw))
+        image.verify()
+        image = PILImage.open(io.BytesIO(raw)).convert("RGBA")
+    except (OSError, UnidentifiedImageError, ValueError):
+        raise InvalidSignatureError("Firma digital corrupta o no legible") from None
+
+    if image.width < 2 or image.height < 2:
+        raise InvalidSignatureError("Firma digital vacia")
+    if image.width > 2000 or image.height > 1000:
+        raise InvalidSignatureError("Firma digital demasiado grande")
+
+    if require_visible:
+        alpha = image.getchannel("A")
+        visible_bbox = alpha.getbbox()
+        if visible_bbox is None:
+            raise InvalidSignatureError("La firma esta vacia")
+
+        visible = image.crop(visible_bbox)
+        opaque_mask = alpha.crop(visible_bbox).point(lambda value: 255 if value > 20 else 0)
+        white = PILImage.new("RGBA", visible.size, (255, 255, 255, 255))
+        ink_diff = ImageChops.difference(visible, white).convert("L")
+        ink_mask = ImageChops.multiply(ink_diff.point(lambda value: 255 if value > 10 else 0), opaque_mask)
+        ink_bbox = ink_mask.getbbox()
+        ink_pixels = ink_mask.point(lambda value: 1 if value else 0).convert("L")
+        if ink_bbox is None or sum(ink_pixels.getdata()) < 10:
+            raise InvalidSignatureError("La firma esta vacia")
+
+        bbox_width = ink_bbox[2] - ink_bbox[0]
+        bbox_height = ink_bbox[3] - ink_bbox[1]
+        if bbox_width < 8 and bbox_height < 8:
+            raise InvalidSignatureError("La firma esta vacia")
+
+    output = io.BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()
+
+
+def signature_png_data_url(signature_png: bytes | None) -> str | None:
+    if not signature_png:
         return None
+    return "data:image/png;base64," + base64.b64encode(signature_png).decode("ascii")
+
+
+def _firma_png_bytes(data_url: str | None) -> bytes | None:
+    return validate_signature_data_url(data_url, require_visible=False)
 
 
 def _draw_footer(canvas, doc) -> None:
@@ -302,11 +363,28 @@ def validate_pdf_bytes(data: bytes) -> None:
         raise ValueError("El PDF generado esta incompleto")
 
 
+def safe_pdf_filename(filename: str | None, fallback: str = "documento.pdf") -> str:
+    raw = _clean(filename, fallback)
+    cleaned = raw.replace("\\", "_").replace("/", "_").replace('"', "")
+    cleaned = re.sub(r"[\x00-\x1f\x7f]+", "_", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
+    if not cleaned:
+        cleaned = fallback
+    if not cleaned.lower().endswith(".pdf"):
+        cleaned = f"{cleaned}.pdf"
+    if len(cleaned) > 180:
+        cleaned = f"{cleaned[:176].rstrip(' .')}.pdf"
+    return cleaned
+
+
 def pdf_response_headers(filename: str, *, inline: bool = True) -> dict[str, str]:
     disposition = "inline" if inline else "attachment"
-    safe_filename = _clean(filename, "documento.pdf").replace('"', "")
+    safe_filename = safe_pdf_filename(filename)
+    ascii_filename = "".join(char if 32 <= ord(char) < 127 else "_" for char in safe_filename)
+    ascii_filename = ascii_filename.replace("\\", "_").replace("/", "_").replace('"', "") or "documento.pdf"
+    encoded_filename = quote(safe_filename)
     return {
-        "Content-Disposition": f'{disposition}; filename="{safe_filename}"',
+        "Content-Disposition": f'{disposition}; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}',
         "Cache-Control": "no-store",
         "Pragma": "no-cache",
         "X-Content-Type-Options": "nosniff",
@@ -738,6 +816,153 @@ def generar_receta_clinica_pdf(
         story.append(image)
 
     return _build_pdf(story, title=f"Receta clinica {receta_id[:8]}")
+
+
+DEFAULT_RECETA_TEMPLATE_FIELDS = {
+    "paciente": {"x": 22 * mm, "y": 245 * mm, "font_size": 9, "max_chars": 58},
+    "paciente_dni": {"x": 22 * mm, "y": 237 * mm, "font_size": 8, "max_chars": 34},
+    "paciente_fecha_nacimiento": {"x": 92 * mm, "y": 237 * mm, "font_size": 8, "max_chars": 24},
+    "medicamento": {"x": 22 * mm, "y": 214 * mm, "font_size": 10, "max_chars": 68},
+    "principio_activo": {"x": 22 * mm, "y": 203 * mm, "font_size": 8, "max_chars": 70},
+    "forma_farmaceutica": {"x": 22 * mm, "y": 194 * mm, "font_size": 8, "max_chars": 32},
+    "via_administracion": {"x": 90 * mm, "y": 194 * mm, "font_size": 8, "max_chars": 32},
+    "unidades": {"x": 150 * mm, "y": 194 * mm, "font_size": 8, "max_chars": 22},
+    "posologia": {"x": 22 * mm, "y": 176 * mm, "font_size": 8, "max_chars": 82, "line_height": 10},
+    "duracion": {"x": 22 * mm, "y": 144 * mm, "font_size": 8, "max_chars": 40},
+    "diagnostico": {"x": 22 * mm, "y": 132 * mm, "font_size": 7, "max_chars": 95},
+    "fecha_prescripcion": {"x": 22 * mm, "y": 108 * mm, "font_size": 8, "max_chars": 30},
+    "doctor": {"x": 22 * mm, "y": 88 * mm, "font_size": 8, "max_chars": 55},
+    "num_colegiado": {"x": 22 * mm, "y": 80 * mm, "font_size": 8, "max_chars": 35},
+    "colegio": {"x": 82 * mm, "y": 80 * mm, "font_size": 8, "max_chars": 55},
+    "especialidad": {"x": 22 * mm, "y": 72 * mm, "font_size": 7, "max_chars": 55},
+    "codigo_verificacion": {"x": 22 * mm, "y": 54 * mm, "font_size": 7, "max_chars": 70},
+}
+
+
+def _draw_wrapped_canvas_text(c, text: str, *, x: float, y: float, font_size: int, max_chars: int, line_height: int | None = None) -> None:
+    cleaned = _clean(text, "-")
+    words = cleaned.replace("\r\n", "\n").split()
+    lines: list[str] = []
+    current = ""
+    for word in words:
+        candidate = f"{current} {word}".strip()
+        if len(candidate) > max_chars and current:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    if not lines:
+        lines = ["-"]
+    c.setFont("Helvetica", font_size)
+    for index, line in enumerate(lines[:4]):
+        c.drawString(x, y - index * (line_height or font_size + 2), line)
+
+
+def _merge_receta_overlay_with_pdf_template(template_path: Path, overlay_bytes: bytes) -> bytes:
+    try:
+        from pypdf import PdfReader, PdfWriter
+    except ImportError:
+        return overlay_bytes
+
+    try:
+        template_reader = PdfReader(str(template_path))
+        overlay_reader = PdfReader(io.BytesIO(overlay_bytes))
+        if not template_reader.pages or not overlay_reader.pages:
+            return overlay_bytes
+        page = template_reader.pages[0]
+        page.merge_page(overlay_reader.pages[0])
+        writer = PdfWriter()
+        writer.add_page(page)
+        output = io.BytesIO()
+        writer.write(output)
+        merged = output.getvalue()
+        validate_pdf_bytes(merged)
+        return merged
+    except Exception:
+        return overlay_bytes
+
+
+def generar_receta_local_desde_plantilla_pdf(
+    *,
+    plantilla_path: str | Path | None,
+    plantilla_mime: str | None,
+    campos_config: dict[str, Any] | None,
+    data: dict[str, Any],
+) -> bytes:
+    """Genera una receta local sobre plantilla importada, sin certificar."""
+    buffer = io.BytesIO()
+    c = pdf_canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+    template_path = Path(plantilla_path) if plantilla_path else None
+    is_pdf_template = bool(template_path and template_path.exists() and plantilla_mime == "application/pdf")
+
+    if template_path and template_path.exists() and (plantilla_mime or "").startswith("image/"):
+        try:
+            c.drawImage(ImageReader(str(template_path)), 0, 0, width=width, height=height, preserveAspectRatio=True, anchor="c")
+        except Exception:
+            c.setFillColor(GRIS_CLARO)
+            c.rect(0, 0, width, height, fill=1, stroke=0)
+    elif is_pdf_template:
+        pass
+    else:
+        c.setFillColor(GRIS_CLARO)
+        c.rect(0, 0, width, height, fill=1, stroke=0)
+        c.setFillColor(GRIS)
+        c.setFont("Helvetica", 8)
+        template_name = template_path.name if template_path else "sin plantilla"
+        c.drawString(18 * mm, 276 * mm, f"Plantilla registrada: {template_name}")
+
+    c.setFillColor(ROJO)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(18 * mm, 286 * mm, "RECETA LOCAL NO CERTIFICADA")
+    c.setFont("Helvetica", 7)
+    c.drawString(18 * mm, 281 * mm, "Documento interno generado sin validacion colegial/proveedor real.")
+    c.setFillColor(NEGRO)
+
+    fields = {**DEFAULT_RECETA_TEMPLATE_FIELDS, **(campos_config or {})}
+    values = {
+        "paciente": data.get("paciente_nombre"),
+        "paciente_dni": f"DNI/NIE: {_clean(data.get('paciente_dni'), '-')}",
+        "paciente_fecha_nacimiento": f"Nac.: {_format_date(data.get('paciente_fecha_nacimiento'))}",
+        "medicamento": data.get("medicamento"),
+        "principio_activo": f"Principio activo: {_clean(data.get('principio_activo'), '-')}",
+        "forma_farmaceutica": f"Forma: {_clean(data.get('forma_farmaceutica'), '-')}",
+        "via_administracion": f"Via: {_clean(data.get('via_administracion'), '-')}",
+        "unidades": f"Envases: {_clean(data.get('unidades'), '-')}",
+        "posologia": data.get("posologia"),
+        "duracion": f"Duracion: {_clean(data.get('duracion'), '-')}",
+        "diagnostico": f"Diagnostico/instr.: {_clean(data.get('diagnostico') or data.get('instrucciones_paciente'), '-')}",
+        "fecha_prescripcion": f"Fecha prescripcion: {_format_date(data.get('fecha_prescripcion'))}",
+        "doctor": f"Prescriptor: {_clean(data.get('doctor_nombre'), '-')}",
+        "num_colegiado": f"Col. num.: {_clean(data.get('num_colegiado'), '-')}",
+        "colegio": f"{_clean(data.get('colegio'), '-')}/{_clean(data.get('provincia'), '-')}",
+        "especialidad": f"Especialidad: {_clean(data.get('especialidad'), '-')}",
+        "codigo_verificacion": f"Codigo interno: {_clean(data.get('verification_code'), '-')}",
+    }
+    for key, value in values.items():
+        cfg = fields.get(key, {})
+        _draw_wrapped_canvas_text(
+            c,
+            _clean(value, "-"),
+            x=float(cfg.get("x", 20 * mm)),
+            y=float(cfg.get("y", 200 * mm)),
+            font_size=int(cfg.get("font_size", 8)),
+            max_chars=int(cfg.get("max_chars", 80)),
+            line_height=int(cfg["line_height"]) if cfg.get("line_height") else None,
+        )
+
+    c.setFillColor(GRIS)
+    c.setFont("Helvetica", 6)
+    c.drawRightString(width - 15 * mm, 11 * mm, f"ID interno receta: {_clean(data.get('receta_id'), '-')}")
+    c.showPage()
+    c.save()
+    pdf_bytes = buffer.getvalue()
+    if is_pdf_template and template_path:
+        pdf_bytes = _merge_receta_overlay_with_pdf_template(template_path, pdf_bytes)
+    validate_pdf_bytes(pdf_bytes)
+    return pdf_bytes
 
 
 def generar_receta_pdf(

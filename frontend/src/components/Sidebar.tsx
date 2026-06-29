@@ -20,6 +20,7 @@ import type { AppSection, WorkflowItem } from '../config/workflow';
 import dentcoreLogo from '../assets/branding/dentcore-clinic-logo-64.png';
 import DoctorNotificationsBell from './DoctorNotificationsBell';
 import DoctorQuickScheduleDropdown from './DoctorQuickScheduleDropdown';
+import StaffClockPopover from './StaffClockPopover';
 
 const ICON_SIZE = 18;
 
@@ -142,7 +143,9 @@ export default function MainNav() {
         </div>
 
         <div className="euro-titlebar-context">
-          <span className="title-clock app-launcher-clock">{nowLabel}</span>
+          {user?.rol === 'paciente'
+            ? <span className="title-clock app-launcher-clock">{nowLabel}</span>
+            : <StaffClockPopover label={nowLabel} />}
           <span className="clinic-chip"><Building2 size={13} strokeWidth={2} aria-hidden="true" /> Clinica Dental</span>
           <span className="role-chip"><ShieldCheck size={13} strokeWidth={2} aria-hidden="true" /> {user?.nombre} - {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
           <DoctorQuickScheduleDropdown />

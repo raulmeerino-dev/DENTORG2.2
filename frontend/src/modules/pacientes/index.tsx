@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
+import { useDeferredValue } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -16,8 +17,9 @@ import {
   createSesionItem,
   createTrabajoLaboratorio,
   deleteSesionItem,
+  emitirRecetaLocal,
   emitirRecetaPdf,
-  facturaPdfUrl,
+  enviarRecetaProveedor,
   finalizarTratamientoSesion,
   firmarConsentimiento,
   generarDocumentoPdfPaciente,
@@ -36,14 +38,18 @@ import {
   getPacientes,
   getPlantillasConsentimiento,
   getPresupuestos,
+  getRecetaPlantillas,
+  getRecetaProviderStatus,
   getRecetasPaciente,
   getSaldoPaciente,
   getSesionItemsPaciente,
   getTratamientosCatalogo,
   getTrabajosLaboratorio,
   getWhatsAppComunicaciones,
+  importRecetaPlantilla,
   openConsentimientoPdf,
   openDocumentoPaciente,
+  openFacturaPdf,
   openRecetaClinicaPdf,
   registrarCobro,
   revocarConsentimiento,
@@ -53,7 +59,7 @@ import {
   updateSesionItem,
   uploadDocumentoPaciente,
 } from '../../lib/api';
-import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, RecetaCreateInput, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput } from '../../types/api';
+import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
@@ -71,6 +77,7 @@ import { ComentarioModal } from './modals/ComentarioModal';
 import { PatientFinder, PatientForm, PatientEditModal, PatientFullViewModal, NuevoPacienteModal } from './FichaPaciente';
 import { PresupuestoPanel } from './Presupuestos';
 import { RecetaModal, HistorialRecetasDrawer } from './Recetas';
+import type { RecetaSubmitPayload } from './Recetas';
 import { NuevoPedidoLaboratorioModal } from './Laboratorio';
 import { PatientActionsMenu } from './PatientActionsMenu';
 import { buildWhatsAppUrl } from './patientActionUtils';
@@ -92,6 +99,13 @@ type PatientContextDraft =
   | { kind: 'linea'; linea: PresupuestoLinea }
   | { kind: 'factura'; factura: Factura }
   | { kind: 'documento'; documento: DocumentoPaciente };
+type PatientFastActionName = 'new' | 'budgets' | 'documents' | 'upload_document';
+
+const PATIENT_FAST_ACTIONS = new Set<PatientFastActionName>(['new', 'budgets', 'documents', 'upload_document']);
+
+function isPatientFastAction(value: string | null | undefined): value is PatientFastActionName {
+  return Boolean(value && PATIENT_FAST_ACTIONS.has(value as PatientFastActionName));
+}
 
 const TAB_ICONS: Record<WorkTab, ReactNode> = {
   pacientes: (
@@ -146,6 +160,7 @@ const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'clinica', label: 'Clinica' },
   { id: 'historial', label: 'Historial' },
 ];
+const PATIENT_PAGE_SIZE = 50;
 
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
   return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
@@ -196,6 +211,9 @@ export default function PacientesPage() {
   const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion' } | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
+  const [patientSearch, setPatientSearch] = useState('');
+  const [patientOffset, setPatientOffset] = useState(0);
+  const deferredPatientSearch = useDeferredValue(patientSearch);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeMainTab: MainPatientTab = isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
       ? 'clinica'
@@ -203,17 +221,28 @@ export default function PacientesPage() {
       ? 'historial'
       : 'pacientes';
   const activeTreatmentTab = isTreatmentTab(tab) ? tab : treatmentTab;
-  const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
+  const patientSearchTerm = deferredPatientSearch.trim();
+  const pacientesQuery = useQuery({
+    queryKey: ['pacientes', { q: patientSearchTerm, limit: PATIENT_PAGE_SIZE, offset: patientOffset }],
+    queryFn: () => getPacientes({
+      q: patientSearchTerm || undefined,
+      limit: PATIENT_PAGE_SIZE,
+      offset: patientOffset,
+    }),
+  });
   const pacientes = pacientesQuery.data ?? [];
   const urlPatientId = searchParams.get('paciente_id');
   const cachedPatientId = sessionStorage.getItem('dentcore_selected_patient_id');
   const requestedPatientId = urlPatientId ?? cachedPatientId;
   const selectedMatchesRequest = selected && (!requestedPatientId || selected.id === requestedPatientId) ? selected : null;
-  const activeSummary = selectedMatchesRequest ?? pacientes.find((paciente) => paciente.id === requestedPatientId) ?? pacientes[0] ?? null;
+  const requestedPatientSummary = pacientes.find((paciente) => paciente.id === requestedPatientId) ?? null;
+  const firstPatient = !requestedPatientId ? (pacientes[0] ?? null) : null;
+  const activeSummary = selectedMatchesRequest ?? requestedPatientSummary ?? firstPatient;
+  const activePatientId = selectedMatchesRequest?.id ?? requestedPatientSummary?.id ?? requestedPatientId ?? firstPatient?.id ?? null;
   const pacienteDetalleQuery = useQuery({
-    queryKey: ['paciente-detalle', activeSummary?.id],
-    queryFn: () => getPaciente(activeSummary!.id),
-    enabled: Boolean(activeSummary),
+    queryKey: ['paciente-detalle', activePatientId],
+    queryFn: () => getPaciente(activePatientId!),
+    enabled: Boolean(activePatientId),
   });
   const active = pacienteDetalleQuery.data ?? activeSummary;
 
@@ -266,6 +295,8 @@ export default function PacientesPage() {
     enabled: Boolean(active),
   });
   const plantillasQuery = useQuery({ queryKey: ['plantillas-consentimiento'], queryFn: getPlantillasConsentimiento });
+  const recetaPlantillasQuery = useQuery({ queryKey: ['receta-plantillas'], queryFn: getRecetaPlantillas });
+  const recetaProviderStatusQuery = useQuery({ queryKey: ['receta-provider-status'], queryFn: getRecetaProviderStatus });
   const consentimientosQuery = useQuery({
     queryKey: ['consentimientos-paciente', active?.id],
     queryFn: () => getConsentimientosPaciente(active!.id),
@@ -305,23 +336,59 @@ export default function PacientesPage() {
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
   const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
   const canDictarNota = user?.rol === 'admin' || user?.rol === 'doctor';
+  const hasPreviousPatientPage = patientOffset > 0;
+  const hasNextPatientPage = pacientes.length === PATIENT_PAGE_SIZE;
+  const patientPageLabel = pacientes.length
+    ? `${patientOffset + 1}-${patientOffset + pacientes.length}${patientSearchTerm ? ' filtrados' : ''}`
+    : 'Sin resultados';
 
   useEffect(() => {
-    if (sessionStorage.getItem('dentcore_patient_action') !== 'new') return;
-    sessionStorage.removeItem('dentcore_patient_action');
-    const timeout = window.setTimeout(() => setNuevoPacienteOpen(true), 0);
-    return () => window.clearTimeout(timeout);
+    function runPatientFastAction(action: PatientFastActionName) {
+      if (action === 'new') {
+        setNuevoPacienteOpen(true);
+        return;
+      }
+      if (action === 'budgets') {
+        setPresupuestoPanelOpen(true);
+        return;
+      }
+      if (action === 'documents' || action === 'upload_document') {
+        setDocumentsDrawerOpen(true);
+        setDocumentsUploadOpen(action === 'upload_document');
+      }
+    }
+
+    const storedAction = sessionStorage.getItem('dentcore_patient_action');
+    const timeout = isPatientFastAction(storedAction)
+      ? window.setTimeout(() => {
+          sessionStorage.removeItem('dentcore_patient_action');
+          runPatientFastAction(storedAction);
+        }, 0)
+      : null;
+
+    function handlePatientFastAction(event: Event) {
+      const action = (event as CustomEvent<{ action?: string }>).detail?.action;
+      if (!isPatientFastAction(action)) return;
+      sessionStorage.removeItem('dentcore_patient_action');
+      runPatientFastAction(action);
+    }
+
+    window.addEventListener('dentcore:patient-fast-action', handlePatientFastAction);
+    return () => {
+      if (timeout !== null) window.clearTimeout(timeout);
+      window.removeEventListener('dentcore:patient-fast-action', handlePatientFastAction);
+    };
   }, []);
 
   useEffect(() => {
-    if (!activeSummary?.id) return;
-    sessionStorage.setItem('dentcore_selected_patient_id', activeSummary.id);
-    sessionStorage.setItem('dentcore_selected_patient_name', fullName(activeSummary));
-    if (urlPatientId === activeSummary.id) return;
+    if (!active?.id) return;
+    sessionStorage.setItem('dentcore_selected_patient_id', active.id);
+    sessionStorage.setItem('dentcore_selected_patient_name', fullName(active));
+    if (urlPatientId === active.id) return;
     const next = new URLSearchParams(searchParams);
-    next.set('paciente_id', activeSummary.id);
+    next.set('paciente_id', active.id);
     setSearchParams(next, { replace: true });
-  }, [activeSummary, searchParams, setSearchParams, urlPatientId]);
+  }, [active, searchParams, setSearchParams, urlPatientId]);
 
   function setActivePatient(paciente: ApiPaciente, options: { replace?: boolean } = {}) {
     setSelected(paciente);
@@ -457,7 +524,9 @@ export default function PacientesPage() {
       setInvoiceCreatorOpen(false);
       openPatientArea('historial');
       invalidatePatientWorkspace(factura.paciente_id);
-      window.open(facturaPdfUrl(factura.id), '_blank');
+      void openFacturaPdf(factura.id).catch((error) => {
+        toast.error(error instanceof Error ? error.message : 'Factura creada, pero no se pudo abrir el PDF.');
+      });
     },
   });
 
@@ -542,6 +611,10 @@ export default function PacientesPage() {
       setDocumentsDrawerOpen(true);
       setDocumentsUploadOpen(false);
       setTab('pacientes');
+      toast.success('Documento guardado en la ficha.');
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo subir el documento.');
     },
   });
 
@@ -550,16 +623,17 @@ export default function PacientesPage() {
       if (!active) throw new Error('Sin paciente');
       if (!designer) throw new Error('Sin editor');
       if (designer.mode === 'consentimiento') {
+        if (!data.firmaDataUrl) {
+          throw new Error('Firma el consentimiento antes de guardar el PDF en la ficha.');
+        }
         const plantilla = (plantillasQuery.data ?? []).find((item) => item.nombre === data.tipo);
         const consentimiento = await createConsentimientoPaciente(active.id, data.tipo, doctoresQuery.data?.[0]?.id, {
           plantilla_id: plantilla?.id ?? null,
-          estado: data.firmaDataUrl ? 'firmado' : 'pendiente_firma',
+          estado: 'pendiente_firma',
           plantilla_version: plantilla?.version ?? 'personalizada',
           contenido: data.contenido,
         });
-        const firmado = data.firmaDataUrl
-          ? await firmarConsentimiento(consentimiento.id, data.firmaDataUrl)
-          : consentimiento;
+        const firmado = await firmarConsentimiento(consentimiento.id, data.firmaDataUrl);
         return { kind: 'consentimiento' as const, consentimiento: firmado };
       }
       const categoria = 'circular';
@@ -580,13 +654,22 @@ export default function PacientesPage() {
         invalidatePatientWorkspace(result.consentimiento.paciente_id);
         setDocumentsDrawerOpen(true);
         setTab('pacientes');
-        void openConsentimientoPdf(result.consentimiento.id);
+        void openConsentimientoPdf(result.consentimiento.id).catch((error) => {
+          toast.error(error instanceof Error ? error.message : 'Consentimiento guardado, pero no se pudo abrir el PDF.');
+        });
         return;
       }
       invalidatePatientWorkspace(result.doc.paciente_id);
       setDocumentsDrawerOpen(true);
       setTab('pacientes');
-      if (active && result.doc.id) void openDocumentoPaciente(active.id, result.doc.id, result.doc.nombre_original);
+      if (active && result.doc.id) {
+        void openDocumentoPaciente(active.id, result.doc.id, result.doc.nombre_original).catch((error) => {
+          toast.error(error instanceof Error ? error.message : 'Documento guardado, pero no se pudo abrir.');
+        });
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo guardar el documento.');
     },
   });
 
@@ -625,23 +708,52 @@ export default function PacientesPage() {
     },
   });
 
-  const crearReceta = useMutation({
-    mutationFn: async (data: RecetaCreateInput) => {
+  const guardarReceta = useMutation({
+    mutationFn: async ({ data, action }: RecetaSubmitPayload) => {
       if (!active) throw new Error('Sin paciente');
-      return createRecetaClinica(active.id, data);
+      const borrador = await createRecetaClinica(active.id, data);
+      if (action === 'draft') return { receta: borrador, action };
+      const emitirPayload = { plantilla_id: data.plantilla_id ?? null };
+      const receta = action === 'send_provider'
+        ? await enviarRecetaProveedor(borrador.id, emitirPayload)
+        : await emitirRecetaLocal(borrador.id, emitirPayload);
+      return { receta, action };
     },
-    onSuccess: (receta) => {
+    onSuccess: ({ receta, action }) => {
       setRecetaModalOpen(false);
       setRecetaError(null);
       invalidatePatientWorkspace(receta.paciente_id);
-      toast.success('Receta creada. Abriendo PDF...');
-      void openRecetaClinicaPdf(receta.id).catch(() => {
-        toast.error('Receta creada pero el navegador bloqueó el PDF. Búscala en el historial.');
-      });
+      if (action === 'draft') {
+        toast.success('Borrador de receta guardado.');
+        return;
+      }
+      const message = action === 'send_provider'
+        ? 'Receta enviada a proveedor.'
+        : 'Receta local no certificada emitida.';
+      toast.success(receta.pdf_documento_id ? `${message} Abriendo PDF...` : `${message} PDF final pendiente.`);
+      if (receta.pdf_documento_id) {
+        void openRecetaClinicaPdf(receta.id).catch((error) => {
+          toast.error(error instanceof Error ? error.message : 'Receta emitida, pero no se pudo abrir el PDF.');
+        });
+      }
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : 'No se pudo crear la receta';
+      const message = error instanceof Error ? error.message : 'No se pudo guardar la receta';
       setRecetaError(message);
+    },
+  });
+
+  const importarPlantillaReceta = useMutation({
+    mutationFn: importRecetaPlantilla,
+    onSuccess: () => {
+      setRecetaError(null);
+      void queryClient.invalidateQueries({ queryKey: ['receta-plantillas'] });
+      toast.success('Plantilla de receta importada.');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'No se pudo importar la plantilla de receta';
+      setRecetaError(message);
+      toast.error(message);
     },
   });
 
@@ -752,12 +864,15 @@ export default function PacientesPage() {
     setRevocarConsentimientoTarget(null);
     void revocarConsentimiento(id, motivo).then(() => {
       if (active?.id) invalidatePatientWorkspace(active.id);
+      toast.success('Consentimiento revocado.');
+    }).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo revocar el consentimiento.');
     });
   }
 
   function abrirRecibos() {
     openPatientArea('historial');
-    if (facturas[0]) window.open(facturaPdfUrl(facturas[0].id), '_blank');
+    if (facturas[0]) abrirPdfFactura(facturas[0]);
   }
 
   function openContext(event: MouseEvent, menu: PatientContextDraft) {
@@ -805,19 +920,37 @@ export default function PacientesPage() {
   }
 
   function abrirPdfFactura(factura: Factura) {
-    window.open(facturaPdfUrl(factura.id), '_blank');
+    void openFacturaPdf(factura.id).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir la factura.');
+    });
     setContextMenu(null);
   }
 
   function emitirRecetaFactura(factura: Factura) {
-    void emitirRecetaPdf(factura.id);
+    void emitirRecetaPdf(factura.id).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo emitir la receta.');
+    });
     setContextMenu(null);
   }
 
   function abrirDocumento(documento: DocumentoPaciente) {
     if (!active) return;
-    void openDocumentoPaciente(active.id, documento.id, documento.nombre_original);
+    void openDocumentoPaciente(active.id, documento.id, documento.nombre_original).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir el documento.');
+    });
     setContextMenu(null);
+  }
+
+  function abrirConsentimiento(consentimiento: Consentimiento) {
+    void openConsentimientoPdf(consentimiento.id).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir el consentimiento.');
+    });
+  }
+
+  function abrirRecetaClinica(recetaId: string) {
+    void openRecetaClinicaPdf(recetaId).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir la receta.');
+    });
   }
 
   function darCitaParaTratamiento(linea: PresupuestoLinea) {
@@ -920,6 +1053,17 @@ export default function PacientesPage() {
         <PatientFinder
           pacientes={pacientes}
           selectedId={active?.id ?? null}
+          query={patientSearch}
+          onQueryChange={(value) => {
+            setPatientSearch(value);
+            setPatientOffset(0);
+          }}
+          loading={pacientesQuery.isFetching}
+          pageLabel={patientPageLabel}
+          hasPreviousPage={hasPreviousPatientPage}
+          hasNextPage={hasNextPatientPage}
+          onPreviousPage={() => setPatientOffset((current) => Math.max(0, current - PATIENT_PAGE_SIZE))}
+          onNextPage={() => setPatientOffset((current) => current + PATIENT_PAGE_SIZE)}
           onNew={() => setNuevoPacienteOpen(true)}
           onSelect={(paciente) => {
             setActivePatient(paciente);
@@ -1194,13 +1338,17 @@ export default function PacientesPage() {
         <RecetaModal
           paciente={active}
           doctores={doctoresQuery.data ?? []}
-          saving={crearReceta.isPending}
+          plantillas={recetaPlantillasQuery.data ?? []}
+          providerStatus={recetaProviderStatusQuery.data}
+          saving={guardarReceta.isPending}
+          importingPlantilla={importarPlantillaReceta.isPending}
           errorMessage={recetaError}
           onClose={() => {
             setRecetaModalOpen(false);
             setRecetaError(null);
           }}
-          onSubmit={(data) => crearReceta.mutate(data)}
+          onSubmit={(payload) => guardarReceta.mutate(payload)}
+          onImportPlantilla={(input) => importarPlantillaReceta.mutate(input)}
         />
       )}
       {pedidoLabContext.open && active && (
@@ -1228,7 +1376,7 @@ export default function PacientesPage() {
           recetas={recetasPacienteQuery.data ?? []}
           loading={recetasPacienteQuery.isLoading}
           onClose={() => setRecetasDrawerOpen(false)}
-          onAbrirPdf={(receta) => void openRecetaClinicaPdf(receta.id)}
+          onAbrirPdf={(receta) => abrirRecetaClinica(receta.id)}
           onCrearNueva={() => {
             setRecetasDrawerOpen(false);
             setRecetaError(null);
@@ -1283,9 +1431,9 @@ export default function PacientesPage() {
               notasDentales={notasDentalesQuery.data ?? []}
               whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
               onOpenDocumento={abrirDocumento}
-              onOpenConsentimiento={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
+              onOpenConsentimiento={abrirConsentimiento}
               onOpenFactura={abrirPdfFactura}
-              onOpenReceta={(receta) => void openRecetaClinicaPdf(receta.id)}
+              onOpenReceta={(receta) => abrirRecetaClinica(receta.id)}
               userRole={user?.rol}
             />
           </section>
@@ -1343,7 +1491,8 @@ export default function PacientesPage() {
               documentos={documentosQuery.data ?? []}
               uploadOpen={documentsUploadOpen}
               onUploadOpenChange={setDocumentsUploadOpen}
-              onSubir={(data) => subirDocumento.mutate(data)}
+              onSubir={(data) => subirDocumento.mutateAsync(data)}
+              onAbrirDocumento={abrirDocumento}
               onContextDocumento={(event, documento) => openContext(event, { kind: 'documento', documento })}
             />
             <ConsentimientosPanel
@@ -1353,7 +1502,7 @@ export default function PacientesPage() {
                 setDocumentsDrawerOpen(false);
                 setDesigner(active ? { mode: 'consentimiento', tipo } : null);
               }}
-              onAbrirPdf={(consentimiento) => void openConsentimientoPdf(consentimiento.id)}
+              onAbrirPdf={abrirConsentimiento}
               onRevocar={revocarConsentimientoPaciente}
             />
           </section>

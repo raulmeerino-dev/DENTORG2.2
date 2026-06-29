@@ -53,11 +53,36 @@ const { mocks } = vi.hoisted(() => {
     paciente: { nombre: paciente.nombre, apellidos: paciente.apellidos, telefono: paciente.telefono },
     doctor: { nombre: doctor.nombre, color_agenda: doctor.color_agenda },
   };
+  const trabajoLab = {
+    id: 'lab-work-1',
+    paciente_id: paciente.id,
+    doctor_id: doctor.id,
+    laboratorio_id: 'lab-1',
+    cita_id: cita.id,
+    tratamiento_id: null,
+    presupuesto_linea_id: null,
+    tipo_trabajo: 'Corona',
+    descripcion: 'Corona zirconio 16',
+    pieza_dental: 16,
+    observaciones: 'Revisar ajuste antes de cementar',
+    fecha_salida: '2026-05-15',
+    fecha_entrega_prevista: '2026-05-20',
+    fecha_recepcion: '2026-05-20',
+    fecha_revision: null,
+    fecha_entrega_paciente: null,
+    ubicacion_clinica: 'Recepcion',
+    estado: 'received_in_clinic',
+    colocado: false,
+    material_enviado: true,
+    material_devuelto: false,
+    laboratorio: { id: 'lab-1', nombre: 'Lab Dental X', contacto: 'Laura' },
+  };
   return {
     mocks: {
       paciente,
       doctor,
       cita,
+      trabajoLab,
       buscarHuecosLibres: vi.fn().mockResolvedValue([]),
       createCita: vi.fn(async () => cita),
       getCitas: vi.fn().mockResolvedValue([]),
@@ -171,11 +196,65 @@ describe('AgendaPage flujos de cita', () => {
     expect(within(legend).getAllByText('Mensaje enviado')).toHaveLength(1);
   });
 
+  it('muestra laboratorio en la tarjeta y en el detalle rapido de cita', async () => {
+    const user = userEvent.setup();
+    mocks.getCitas.mockResolvedValueOnce([
+      {
+        ...mocks.cita,
+        motivo: 'Prueba corona',
+        laboratorio: [mocks.trabajoLab],
+      },
+    ]);
+
+    renderAgenda();
+
+    expect(await screen.findByText(/Lab: Corona zirconio 16/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Resumen laboratorio agenda/i)).toHaveTextContent('Trabajos de laboratorio hoy1');
+
+    await user.click(screen.getByText('Cesar Gutierrez Velez'));
+
+    expect(await screen.findByLabelText(/Laboratorio asociado a la cita/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Lab Dental X/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Recibido en clinica, pendiente de revisar/i).length).toBeGreaterThan(0);
+  });
+
+  it('filtra citas con laboratorio o motivo compatible con laboratorio', async () => {
+    const user = userEvent.setup();
+    mocks.getCitas.mockResolvedValueOnce([
+      {
+        ...mocks.cita,
+        id: 'cita-lab',
+        fecha_hora: '2026-05-20T09:00:00',
+        motivo: 'Prueba corona',
+        laboratorio: [mocks.trabajoLab],
+      },
+      {
+        ...mocks.cita,
+        id: 'cita-normal',
+        fecha_hora: '2026-05-20T09:30:00',
+        motivo: 'Revision general',
+        laboratorio: [],
+      },
+    ]);
+
+    renderAgenda();
+
+    expect(await screen.findByText('Prueba corona')).toBeInTheDocument();
+    expect(screen.getByText('Revision general')).toBeInTheDocument();
+
+    const toolbar = screen.getByLabelText(/Filtros y acciones de agenda/i);
+    await user.click(within(toolbar).getByRole('button', { name: /Citas con laboratorio/i }));
+
+    expect(screen.getByText('Prueba corona')).toBeInTheDocument();
+    expect(screen.queryByText('Revision general')).not.toBeInTheDocument();
+  });
+
   it('abre nueva cita desde Pacientes con paciente y tratamiento precargados y llama a createCita', async () => {
     const user = userEvent.setup();
     sessionStorage.setItem('dentcore_agenda_action', 'new');
     sessionStorage.setItem('dentcore_selected_patient_id', mocks.paciente.id);
     sessionStorage.setItem('dentcore_selected_treatment', 'Endodoncia 36');
+    sessionStorage.setItem('dentcore_selected_presupuesto_linea_id', 'linea-pres-36');
 
     renderAgenda();
 
@@ -188,9 +267,11 @@ describe('AgendaPage flujos de cita', () => {
     expect(mocks.createCita).toHaveBeenCalledWith(expect.objectContaining({
       paciente_id: mocks.paciente.id,
       doctor_id: mocks.doctor.id,
+      presupuesto_linea_id: 'linea-pres-36',
       motivo: 'Endodoncia 36',
     }));
     expect(sessionStorage.getItem('dentcore_selected_treatment')).toBeNull();
+    expect(sessionStorage.getItem('dentcore_selected_presupuesto_linea_id')).toBeNull();
   });
 
   it('cambia el estado de cita con botones rapidos sin guardar automaticamente', async () => {

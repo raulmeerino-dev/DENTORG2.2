@@ -88,15 +88,34 @@ export function PatientFinder({
   selectedId,
   onSelect,
   onNew,
+  query: controlledQuery,
+  onQueryChange,
+  loading = false,
+  pageLabel,
+  hasPreviousPage = false,
+  hasNextPage = false,
+  onPreviousPage,
+  onNextPage,
 }: {
   pacientes: ApiPaciente[];
   selectedId: string | null;
   onSelect: (paciente: ApiPaciente) => void;
   onNew: () => void;
+  query?: string;
+  onQueryChange?: (query: string) => void;
+  loading?: boolean;
+  pageLabel?: string;
+  hasPreviousPage?: boolean;
+  hasNextPage?: boolean;
+  onPreviousPage?: () => void;
+  onNextPage?: () => void;
 }) {
-  const [query, setQuery] = useState('');
+  const [localQuery, setLocalQuery] = useState('');
   const [resultsOpen, setResultsOpen] = useState(false);
+  const query = controlledQuery ?? localQuery;
+  const usesServerSearch = Boolean(onQueryChange);
   const filtered = useMemo(() => {
+    if (usesServerSearch) return pacientes;
     const q = normalizePatientFinderText(query).trim();
     if (!q) return pacientes.slice(0, 12);
     const tokens = q.split(/\s+/).filter(Boolean);
@@ -113,12 +132,20 @@ export function PatientFinder({
       ].filter(Boolean).join(' '));
       return tokens.every((token) => haystack.includes(token));
     }).slice(0, 10);
-  }, [pacientes, query]);
+  }, [pacientes, query, usesServerSearch]);
+
+  function updateQuery(value: string) {
+    if (onQueryChange) {
+      onQueryChange(value);
+    } else {
+      setLocalQuery(value);
+    }
+  }
 
   function selectPaciente(paciente: ApiPaciente) {
     onSelect(paciente);
     setResultsOpen(false);
-    setQuery('');
+    updateQuery('');
   }
 
   return (
@@ -142,7 +169,7 @@ export function PatientFinder({
           id="patient-search-input"
           value={query}
           onChange={(event) => {
-            setQuery(event.target.value);
+            updateQuery(event.target.value);
             setResultsOpen(true);
           }}
           onFocus={() => setResultsOpen(true)}
@@ -153,6 +180,7 @@ export function PatientFinder({
       </label>
       {resultsOpen && (
         <div className="patient-live-results patient-finder-results">
+          {loading && <span>Buscando pacientes...</span>}
           {filtered.map((paciente) => (
             <button
               type="button"
@@ -164,7 +192,32 @@ export function PatientFinder({
               <span>{paciente.telefono ?? 'sin telefono'} · H{String(paciente.num_historial).padStart(4, '0')}</span>
             </button>
           ))}
-          {!filtered.length && <span>No hay pacientes con ese criterio. Revisa telefono, DNI o crea una ficha nueva.</span>}
+          {!loading && !filtered.length && <span>No hay pacientes con ese criterio. Revisa telefono, DNI o crea una ficha nueva.</span>}
+          {(pageLabel || hasPreviousPage || hasNextPage) && (
+            <div className="patient-finder-pagination" aria-label="Paginacion de pacientes">
+              <button
+                type="button"
+                disabled={!hasPreviousPage}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onPreviousPage?.();
+                }}
+              >
+                Anterior
+              </button>
+              {pageLabel && <small>{pageLabel}</small>}
+              <button
+                type="button"
+                disabled={!hasNextPage}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onNextPage?.();
+                }}
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -289,7 +342,7 @@ export function PatientForm({
   const laboratorioVencidos = laboratorio.filter((trabajo) => (
     !!trabajo.fecha_entrega_prevista
     && !trabajo.fecha_recepcion
-    && !['entregado', 'cancelado'].includes(trabajo.estado)
+    && !['entregado', 'cancelado', 'cancelled', 'delivered_or_placed'].includes(trabajo.estado)
     && trabajo.fecha_entrega_prevista < today
   ));
 

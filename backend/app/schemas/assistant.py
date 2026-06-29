@@ -36,6 +36,7 @@ AssistantPhase = Literal[
 AssistantRiskLevel = Literal["low", "medium", "high"]
 AssistantTimePreference = Literal["morning", "afternoon", "first_available", "last_available"]
 AssistantBudgetStatus = Literal["draft", "pending", "accepted", "rejected", "cancelled"]
+AssistantLLMRoute = Literal["llm/ollama", "llm/openai", "mock"]
 DraftPatchAction = Literal[
     "update_fields",
     "clear_fields",
@@ -122,8 +123,19 @@ class AssistantInterpretRequest(BaseModel):
     last_assistant_question: str | None = Field(default=None, alias="lastAssistantQuestion")
 
 
+class AssistantLLMDebug(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    route: AssistantLLMRoute
+    provider_used: str = Field(alias="providerUsed")
+    model_used: str = Field(alias="modelUsed")
+    response_ms: float = Field(alias="responseMs")
+    intent_final: str = Field(alias="intentFinal")
+
+
 class AssistantInterpretResponse(BaseModel):
     intent: AssistantIntentPayload
+    debug: AssistantLLMDebug | None = None
 
 
 class DraftPatchUpdates(BaseModel):
@@ -195,3 +207,19 @@ class DraftPatchInterpretRequest(BaseModel):
 
 class DraftPatchInterpretResponse(BaseModel):
     patch: DraftPatch
+    debug: AssistantLLMDebug | None = None
+
+
+class AssistantProviderHealth(BaseModel):
+    available: bool
+    model: str
+    message: str
+
+
+class AssistantLLMHealthResponse(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    mode: str
+    active_provider: Literal["ollama", "openai", "mock", "none"] = Field(alias="activeProvider")
+    ollama: AssistantProviderHealth
+    openai: AssistantProviderHealth

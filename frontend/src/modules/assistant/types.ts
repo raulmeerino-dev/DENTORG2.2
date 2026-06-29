@@ -320,9 +320,9 @@ export interface AssistantInterpreterInput {
 }
 
 export type AssistantTurnResult =
-  | { kind: 'intent'; intent: AssistantIntent; responseText: string }
-  | { kind: 'confirm'; intent: AssistantIntent; responseText: string }
-  | { kind: 'cancelled'; intent: AssistantIntent | null; responseText: string };
+  | { kind: 'intent'; intent: AssistantIntent; responseText: string; debug?: AssistantTurnDebug }
+  | { kind: 'confirm'; intent: AssistantIntent; responseText: string; debug?: AssistantTurnDebug }
+  | { kind: 'cancelled'; intent: AssistantIntent | null; responseText: string; debug?: AssistantTurnDebug };
 
 export interface AssistantMessage {
   id: string;
@@ -339,6 +339,16 @@ export interface AssistantActionResult {
   simulated?: boolean;
 }
 
+export type AssistantRouteDebugRoute = 'fast/local' | 'llm/ollama' | 'llm/openai' | 'mock' | 'llm';
+
+export interface AssistantTurnDebug {
+  route: AssistantRouteDebugRoute;
+  providerUsed: string;
+  modelUsed: string;
+  responseMs?: number;
+  intentFinal?: string;
+}
+
 export interface AssistantAuditEntry {
   userId: string | null;
   role: UserRole | null;
@@ -349,4 +359,7 @@ export interface AssistantAuditEntry {
   actionLabel?: string;
   confirmed: boolean;
   result?: string;
+  route?: AssistantRouteDebugRoute;
+  responseMs?: number;
+  actionExecuted?: string;
 }

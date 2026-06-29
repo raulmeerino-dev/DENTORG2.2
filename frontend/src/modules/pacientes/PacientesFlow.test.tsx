@@ -178,8 +178,12 @@ vi.mock('../../lib/api', () => ({
   createPresupuesto: vi.fn(),
   createRecetaClinica: mocks.createRecetaClinica,
   createTrabajoLaboratorio: mocks.createTrabajoLaboratorio,
+  emitirRecetaLocal: vi.fn(),
   emitirRecetaPdf: vi.fn(),
+  enviarRecetaProveedor: vi.fn(),
   facturaPdfUrl: (id: string) => `http://facturas/${id}.pdf`,
+  openFacturaPdf: vi.fn(),
+  openPresupuestoPdf: vi.fn(),
   finalizarTratamientoSesion: vi.fn(),
   firmarConsentimiento: vi.fn(),
   firmarRecetaClinica: vi.fn(),
@@ -200,6 +204,24 @@ vi.mock('../../lib/api', () => ({
   getPagosAnticipadosPaciente: vi.fn().mockResolvedValue(mocks.anticipos),
   getPlantillasConsentimiento: vi.fn().mockResolvedValue([]),
   getPresupuestos: vi.fn().mockResolvedValue(mocks.presupuestos),
+  getRecetaPlantillas: vi.fn().mockResolvedValue([{
+    id: 'tpl-rec-1',
+    clinica_id: null,
+    nombre: 'Receta privada test',
+    nombre_original: 'receta-test.png',
+    mime_type: 'image/png',
+    tamano_bytes: 1200,
+    campos_config: null,
+    requiere_dni: false,
+    requiere_fecha_nacimiento: false,
+    created_at: '2026-05-18T10:00:00',
+  }]),
+  getRecetaProviderStatus: vi.fn().mockResolvedValue({
+    mode: 'disabled',
+    provider_available: false,
+    real_certification_enabled: false,
+    warning: 'Receta no certificada. Modo local/mock o proveedor real no configurado.',
+  }),
   getRecetasPaciente: vi.fn().mockResolvedValue([]),
   getSaldoPaciente: vi.fn().mockResolvedValue({ total_facturado: '200', total_cobrado: '120', pendiente: '80' }),
   getTratamientosCatalogo: vi.fn().mockResolvedValue([]),
@@ -212,6 +234,7 @@ vi.mock('../../lib/api', () => ({
   updatePagoAnticipadoPaciente: vi.fn(),
   updatePaciente: vi.fn(),
   updatePresupuestoLinea: vi.fn(),
+  importRecetaPlantilla: vi.fn(),
   uploadDocumentoPaciente: vi.fn(),
 }));
 
@@ -243,16 +266,21 @@ describe('Flujo integración cross-módulo', () => {
 
     expect(await screen.findByLabelText(/Medicamento/)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/Medicamento/), 'Ibuprofeno 600');
-    await user.type(screen.getByLabelText(/Posología/), '1 cada 8h');
-    await user.click(screen.getByRole('button', { name: /Crear receta/ }));
+    await user.type(screen.getByLabelText(/Posolog/), '1 cada 8h');
+    await user.click(screen.getByRole('button', { name: /Guardar borrador/ }));
 
     await waitFor(() => {
       expect(mocks.createRecetaClinica).toHaveBeenCalledTimes(1);
     });
     const [pacienteId, payload] = mocks.createRecetaClinica.mock.calls[0];
     expect(pacienteId).toBe('pac-1');
-    expect(payload).toMatchObject({ medicamento: 'Ibuprofeno 600', posologia: '1 cada 8h', doctor_id: 'doc-1' });
-    await waitFor(() => expect(mocks.openRecetaClinicaPdf).toHaveBeenCalledWith('rec-1'));
+    expect(payload).toMatchObject({
+      plantilla_id: 'tpl-rec-1',
+      medicamento: 'Ibuprofeno 600',
+      posologia: '1 cada 8h',
+      doctor_id: 'doc-1',
+    });
+    expect(mocks.openRecetaClinicaPdf).not.toHaveBeenCalled();
   });
 
   it('crear pedido lab desde Pendientes preconfigura la línea del presupuesto', async () => {

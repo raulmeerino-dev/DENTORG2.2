@@ -43,6 +43,29 @@ npm run dev
 
 Frontend local: `http://127.0.0.1:5173`.
 
+## IA local con Ollama
+
+DentCore Voice Assistant puede usar Ollama como proveedor LLM local gratuito. Descarga Ollama desde su web oficial: [ollama.com/download](https://ollama.com/download).
+
+Configura el backend en modo automatico:
+
+```powershell
+$env:LLM_PROVIDER="auto"
+$env:LLM_FALLBACK_ORDER="ollama,openai,mock"
+$env:OLLAMA_BASE_URL="http://127.0.0.1:11434"
+$env:OLLAMA_MODEL="qwen2.5:14b-instruct"
+$env:OPENAI_MODEL="gpt-4o-mini"
+```
+
+Prepara el modelo:
+
+```powershell
+ollama pull qwen2.5:14b-instruct
+ollama run qwen2.5:14b-instruct
+```
+
+El estado interno se puede comprobar en `GET /api/assistant/llm-health`. En `auto`, DentCore prueba Ollama local, despues OpenAI si `OPENAI_API_KEY` existe, y finalmente muestra un error seguro si no hay motor disponible: `No hay motor de IA disponible. Revisa Ollama u OpenAI.`
+
 ## Verificacion
 
 ```powershell

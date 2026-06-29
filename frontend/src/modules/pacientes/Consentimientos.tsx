@@ -83,7 +83,8 @@ export function ConsentimientosPanel({
 export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
-  const signed = useRef(false);
+  const hasInk = useRef(false);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
 
   function point(event: ReactPointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -95,8 +96,8 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     drawing.current = true;
-    signed.current = true;
     const p = point(event);
+    lastPoint.current = p;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
   }
@@ -107,18 +108,25 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const p = point(event);
+    const previous = lastPoint.current;
+    const distance = previous ? Math.hypot(p.x - previous.x, p.y - previous.y) : 0;
     ctx.lineTo(p.x, p.y);
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.strokeStyle = '#111827';
     ctx.stroke();
-    onChange(canvas.toDataURL('image/png'));
+    lastPoint.current = p;
+    if (distance >= 1) {
+      hasInk.current = true;
+      onChange(canvas.toDataURL('image/png'));
+    }
   }
 
   function stop() {
     drawing.current = false;
     const canvas = canvasRef.current;
-    onChange(canvas && signed.current ? canvas.toDataURL('image/png') : null);
+    lastPoint.current = null;
+    onChange(canvas && hasInk.current ? canvas.toDataURL('image/png') : null);
   }
 
   function clear() {
@@ -126,7 +134,8 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    signed.current = false;
+    hasInk.current = false;
+    lastPoint.current = null;
     onChange(null);
   }
 
@@ -169,6 +178,7 @@ export function DocumentDesignerModal({
   const [contenido, setContenido] = useState(renderTemplate(initialPlantilla?.contenido ?? textos[defaultTipo] ?? '', paciente));
   const [firmaDataUrl, setFirmaDataUrl] = useState<string | null>(null);
   const [templateMsg, setTemplateMsg] = useState('');
+  const [saveError, setSaveError] = useState('');
 
   function loadTemplate(nextTipo: string) {
     const plantilla = mode === 'consentimiento' ? plantillas.find((item) => item.nombre === nextTipo) : null;
@@ -187,6 +197,15 @@ export function DocumentDesignerModal({
     const saved = localStorage.getItem(`dentcore_template_${mode}_${tipo}`);
     if (saved) { setContenido(saved); setTemplateMsg('Plantilla cargada.'); }
     else setTemplateMsg('No hay plantilla personalizada guardada para este tipo.');
+  }
+
+  function saveDocument() {
+    if (mode === 'consentimiento' && !firmaDataUrl) {
+      setSaveError('Firma el consentimiento antes de guardar el PDF en la ficha.');
+      return;
+    }
+    setSaveError('');
+    onSave({ tipo, titulo, contenido, firmaDataUrl });
   }
 
   const options = mode === 'consentimiento'
@@ -219,9 +238,13 @@ export function DocumentDesignerModal({
             <label>Texto del documento
               <textarea value={contenido} onChange={(event) => setContenido(event.target.value)} />
             </label>
-            <SignaturePad onChange={setFirmaDataUrl} />
+            <SignaturePad onChange={(dataUrl) => {
+              setFirmaDataUrl(dataUrl);
+              if (dataUrl) setSaveError('');
+            }} />
+            {saveError && <div className="inline-alert" role="alert">{saveError}</div>}
             <div className="modal-actions">
-              <button onClick={() => onSave({ tipo, titulo, contenido, firmaDataUrl })}>Guardar PDF en ficha</button>
+              <button onClick={saveDocument}>Guardar PDF en ficha</button>
               <button onClick={onClose}>Cancelar</button>
             </div>
           </main>

@@ -46,6 +46,9 @@ class Cita(UUIDMixin, TimestampMixin, Base):
     gabinete_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("gabinetes.id"), nullable=True
     )
+    presupuesto_linea_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("presupuesto_lineas.id"), nullable=True, index=True
+    )
     fecha_hora: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
     )
@@ -65,6 +68,12 @@ class Cita(UUIDMixin, TimestampMixin, Base):
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="citas")  # noqa: F821
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="citas")  # noqa: F821
     gabinete: Mapped["Gabinete"] = relationship("Gabinete", back_populates="citas")  # noqa: F821
+    presupuesto_linea: Mapped["PresupuestoLinea | None"] = relationship("PresupuestoLinea")  # noqa: F821
+    trabajos_laboratorio: Mapped[list["TrabajoLaboratorio"]] = relationship(  # noqa: F821
+        "TrabajoLaboratorio",
+        back_populates="cita",
+        order_by="TrabajoLaboratorio.created_at",
+    )
     cambios: Mapped[list["CitaCambio"]] = relationship(
         "CitaCambio",
         back_populates="cita",

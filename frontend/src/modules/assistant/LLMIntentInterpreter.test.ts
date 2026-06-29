@@ -329,6 +329,41 @@ describe('LLMIntentInterpreter', () => {
     expect(result.intent.fields.patientQuery).toBe('Carmen');
   });
 
+  it('does not fall back to local execution when backend reports an unsafe LLM response', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: 'No he podido interpretar eso con seguridad. No se ha ejecutado nada.',
+        },
+      },
+    });
+
+    const result = await interpretAssistantTurnWithLLM(input('Abre la ficha de Carmen Gomez.'));
+
+    expect(result.kind).toBe('intent');
+    if (result.kind !== 'intent') return;
+    expect(result.intent.intent).toBe('unknown');
+    expect(result.intent.needsClarification).toBe(true);
+    expect(result.responseText).toMatch(/No se ha ejecutado nada/);
+  });
+
+  it('shows the Ollama setup message instead of silently using the local interpreter', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce({
+      response: {
+        data: {
+          detail: 'Ollama no está ejecutándose. Instálalo y ejecuta: ollama pull qwen2.5:14b-instruct',
+        },
+      },
+    });
+
+    const result = await interpretAssistantTurnWithLLM(input('Busca a Carmen.'));
+
+    expect(result.kind).toBe('intent');
+    if (result.kind !== 'intent') return;
+    expect(result.intent.intent).toBe('unknown');
+    expect(result.responseText).toContain('ollama pull qwen2.5:14b-instruct');
+  });
+
   it('cleans trailing availability clauses from LLM entity fields', async () => {
     vi.mocked(api.post).mockResolvedValueOnce(llmIntent({
       patientQuery: null,

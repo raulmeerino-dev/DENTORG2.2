@@ -146,6 +146,47 @@ def _surfaces_from_caras(caras: str | None) -> list[str]:
     return surfaces or ["oclusal_incisal"]
 
 
+def _budget_line_identity(data: PresupuestoLineaCreate | dict) -> tuple[UUID, int | None, str | None]:
+    payload = data.model_dump() if isinstance(data, PresupuestoLineaCreate) else data
+    return (
+        payload["tratamiento_id"],
+        payload.get("pieza_dental"),
+        _normalize_caras(payload.get("caras")),
+    )
+
+
+async def _ensure_no_duplicate_budget_line(
+    db: AsyncSession,
+    *,
+    presupuesto_id: UUID,
+    tratamiento_id: UUID,
+    pieza_dental: int | None,
+    caras: str | None,
+    exclude_linea_id: UUID | None = None,
+) -> None:
+    stmt = select(PresupuestoLinea.id).where(
+        PresupuestoLinea.presupuesto_id == presupuesto_id,
+        PresupuestoLinea.tratamiento_id == tratamiento_id,
+    )
+    if pieza_dental is None:
+        stmt = stmt.where(PresupuestoLinea.pieza_dental.is_(None))
+    else:
+        stmt = stmt.where(PresupuestoLinea.pieza_dental == pieza_dental)
+    if caras is None:
+        stmt = stmt.where(PresupuestoLinea.caras.is_(None))
+    else:
+        stmt = stmt.where(PresupuestoLinea.caras == caras)
+    if exclude_linea_id:
+        stmt = stmt.where(PresupuestoLinea.id != exclude_linea_id)
+
+    duplicate_id = await db.scalar(stmt.limit(1))
+    if duplicate_id:
+        raise HTTPException(
+            status_code=409,
+            detail="Ya existe una linea activa igual en este presupuesto.",
+        )
+
+
 async def _active_odontograma_for_patient(db: AsyncSession, paciente_id: UUID) -> Odontograma | None:
     result = await db.execute(
         select(Odontograma)
@@ -457,8 +498,18 @@ async def crear_presupuesto(
     db.add(presupuesto)
     await db.flush()
 
+    seen_lineas: set[tuple[UUID, int | None, str | None]] = set()
     for linea_data in data.lineas:
-        db.add(PresupuestoLinea(presupuesto_id=presupuesto.id, **linea_data.model_dump()))
+        payload = linea_data.model_dump()
+        payload["caras"] = _normalize_caras(payload.get("caras"))
+        identity = _budget_line_identity(payload)
+        if identity in seen_lineas:
+            raise HTTPException(
+                status_code=409,
+                detail="El presupuesto contiene lineas duplicadas para el mismo tratamiento, pieza y caras.",
+            )
+        seen_lineas.add(identity)
+        db.add(PresupuestoLinea(presupuesto_id=presupuesto.id, **payload))
 
     await db.commit()
     return PresupuestoResponse.model_validate(await _get_presupuesto_or_404(db, presupuesto.id))
@@ -693,18 +744,13 @@ async def anadir_linea(
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     payload = data.model_dump()
     payload["caras"] = _normalize_caras(payload.get("caras"))
-    duplicate_stmt = select(PresupuestoLinea).options(selectinload(PresupuestoLinea.tratamiento)).where(
-        PresupuestoLinea.presupuesto_id == presupuesto_id,
-        PresupuestoLinea.tratamiento_id == payload["tratamiento_id"],
-        PresupuestoLinea.pieza_dental == payload.get("pieza_dental"),
+    await _ensure_no_duplicate_budget_line(
+        db,
+        presupuesto_id=presupuesto_id,
+        tratamiento_id=payload["tratamiento_id"],
+        pieza_dental=payload.get("pieza_dental"),
+        caras=payload.get("caras"),
     )
-    if payload.get("caras") is None:
-        duplicate_stmt = duplicate_stmt.where(PresupuestoLinea.caras.is_(None))
-    else:
-        duplicate_stmt = duplicate_stmt.where(PresupuestoLinea.caras == payload["caras"])
-    duplicate = await db.scalar(duplicate_stmt)
-    if duplicate:
-        return PresupuestoLineaResponse.model_validate(duplicate)
     linked_line = await _find_linked_budget_line_for_surfaces(
         db,
         paciente_id=presupuesto.paciente_id,
@@ -712,8 +758,6 @@ async def anadir_linea(
         caras=payload.get("caras"),
     )
     if linked_line:
-        if linked_line.presupuesto_id == presupuesto_id:
-            return PresupuestoLineaResponse.model_validate(linked_line)
         raise HTTPException(
             status_code=409,
             detail="La superficie ya tiene una linea de presupuesto vinculada.",
@@ -755,6 +799,14 @@ async def actualizar_linea(
     old_tratamiento_id = linea.tratamiento_id
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(linea, field, _normalize_caras(value) if field == "caras" else value)
+    await _ensure_no_duplicate_budget_line(
+        db,
+        presupuesto_id=presupuesto_id,
+        tratamiento_id=linea.tratamiento_id,
+        pieza_dental=linea.pieza_dental,
+        caras=linea.caras,
+        exclude_linea_id=linea.id,
+    )
     if (
         old_pieza != linea.pieza_dental
         or old_caras != linea.caras

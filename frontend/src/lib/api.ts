@@ -16,6 +16,8 @@ import type {
   DoctorNotification,
   DisponibilidadDia,
   Doctor,
+  FichajeRegistroResponse,
+  FichajeTrabajador,
   FamiliaTratamiento,
   Factura,
   FormaPago,
@@ -40,6 +42,10 @@ import type {
   PresupuestoLinea,
   RecetaClinica,
   RecetaCreateInput,
+  RecetaEmitirInput,
+  RecetaPlantilla,
+  RecetaProviderStatus,
+  RecetaUpdateInput,
   SesionClinicaItem,
   SesionClinicaItemCreateInput,
   SesionClinicaItemUpdateInput,
@@ -67,6 +73,8 @@ import type {
   TelefonearPendiente,
   TrabajoLaboratorio,
   TratamientoCatalogo,
+  TipoFichaje,
+  TrabajadorFichaje,
   UsuarioMe,
   WhatsAppInboxItem,
 } from '../types/api';
@@ -90,6 +98,24 @@ export const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
 });
+
+export async function getAssistantLLMHealth() {
+  const { data } = await api.get<{
+    mode: string;
+    activeProvider: 'ollama' | 'openai' | 'mock' | 'none';
+    ollama: {
+      available: boolean;
+      model: string;
+      message: string;
+    };
+    openai: {
+      available: boolean;
+      model: string;
+      message: string;
+    };
+  }>('/assistant/llm-health');
+  return data;
+}
 
 export const AUTH_TOKEN_KEY = 'dentcore_token';
 const DEMO_TOKEN_PREFIX = 'demo:';
@@ -526,6 +552,10 @@ async function describeAxiosError(error: AxiosError): Promise<string> {
     return `No se pudo completar la peticion (${code}) en ${endpoint}. Backend conectado; revisa el endpoint que fallo.`;
   }
   const { status, data } = error.response;
+  if (data instanceof Blob) {
+    const blobDetail = await readBlobErrorDetail(data);
+    if (blobDetail) return blobDetail;
+  }
   const detail = (data as { detail?: unknown } | null | undefined)?.detail;
   if (typeof detail === 'string' && detail.trim()) return detail;
   if (Array.isArray(detail) && detail.length) {
@@ -560,6 +590,65 @@ export function getApiErrorMessage(error: unknown, fallback = 'Error inesperado.
   return fallback;
 }
 
+async function readBlobErrorDetail(data: Blob): Promise<string | null> {
+  if (!data.size) return null;
+  const text = await data.text();
+  if (!text.trim()) return null;
+  try {
+    const parsed = JSON.parse(text) as { detail?: unknown };
+    if (typeof parsed.detail === 'string' && parsed.detail.trim()) return parsed.detail;
+    if (Array.isArray(parsed.detail) && parsed.detail.length) {
+      const first = parsed.detail[0] as { msg?: string } | undefined;
+      if (first?.msg) return first.msg;
+    }
+  } catch {
+    // Not a JSON error payload.
+  }
+  return text.slice(0, 200);
+}
+
+async function ensurePdfBlob(blob: Blob) {
+  if (blob.size < 5) throw new Error('El PDF generado esta vacio.');
+  const header = await blob.slice(0, 5).text();
+  if (header !== '%PDF-') throw new Error('El servidor no devolvio un PDF valido.');
+  if (blob.type && !blob.type.toLowerCase().includes('pdf')) {
+    throw new Error('El servidor devolvio un tipo de archivo inesperado para el PDF.');
+  }
+}
+
+function triggerDownload(url: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener noreferrer';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+export async function openOrDownloadBlob(
+  blob: Blob,
+  filename: string,
+  options: { requirePdf?: boolean } = {},
+) {
+  if (!blob.size) throw new Error('El archivo descargado esta vacio.');
+  if (options.requirePdf) await ensurePdfBlob(blob);
+  const url = URL.createObjectURL(blob);
+  let opened: Window | null = null;
+  try {
+    try {
+      opened = window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      opened = null;
+    }
+    if (!opened) triggerDownload(url, filename);
+    return { opened: Boolean(opened), downloaded: !opened };
+  } finally {
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+}
+
 export async function login(username: string, password: string, otp?: string) {
   try {
     const { data } = await api.post<{ access_token: string }>('/auth/login', { username, password, otp });
@@ -591,8 +680,35 @@ export async function getMe() {
   return data;
 }
 
-export async function getPacientes() {
-  return withDemoFallback(api.get<ApiPaciente[]>('/pacientes'), DEMO_PACIENTES);
+export async function getPacientes(params: {
+  q?: string;
+  solo_activos?: boolean;
+  limit?: number;
+  offset?: number;
+} = {}) {
+  const normalizedQuery = params.q?.trim() ?? '';
+  const fallback = DEMO_PACIENTES.filter((paciente) => {
+    if (params.solo_activos === true && paciente.activo === false) return false;
+    if (!normalizedQuery) return true;
+    const haystack = [
+      paciente.num_historial,
+      paciente.codigo,
+      paciente.nombre,
+      paciente.apellidos,
+      paciente.telefono,
+      paciente.telefono2,
+      paciente.dni_nie,
+      paciente.email,
+    ].filter(Boolean).join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return normalizedQuery
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .every((token) => haystack.includes(token));
+  }).slice(params.offset ?? 0, (params.offset ?? 0) + (params.limit ?? DEMO_PACIENTES.length));
+  return withDemoFallback(api.get<ApiPaciente[]>('/pacientes', { params }), fallback);
 }
 
 export async function getClinicas() {
@@ -780,15 +896,9 @@ export function documentoDownloadUrl(pacienteId: string, documentoId: string) {
 
 export async function openDocumentoPaciente(pacienteId: string, documentoId: string, filename = 'documento.pdf') {
   const { data } = await api.get<Blob>(`/pacientes/${pacienteId}/documentos/${documentoId}/descargar`, { responseType: 'blob' });
-  const url = URL.createObjectURL(data);
-  const opened = window.open(url, '_blank');
-  if (!opened) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return openOrDownloadBlob(data, filename, {
+    requirePdf: filename.toLowerCase().endsWith('.pdf') || data.type.toLowerCase().includes('pdf'),
+  });
 }
 
 export async function uploadDocumentoPaciente(pacienteId: string, data: {
@@ -877,15 +987,7 @@ export async function revocarConsentimiento(consentimientoId: string, motivo: st
 
 export async function openConsentimientoPdf(consentimientoId: string) {
   const { data } = await api.get<Blob>(`/consentimientos/${consentimientoId}/pdf`, { responseType: 'blob' });
-  const url = URL.createObjectURL(data);
-  const opened = window.open(url, '_blank');
-  if (!opened) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `consentimiento_${consentimientoId}.pdf`;
-    link.click();
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return openOrDownloadBlob(data, `consentimiento_${consentimientoId}.pdf`, { requirePdf: true });
 }
 
 export async function getRecetasPaciente(pacienteId: string) {
@@ -895,8 +997,46 @@ export async function getRecetasPaciente(pacienteId: string) {
   );
 }
 
+export async function getRecetaProviderStatus() {
+  return withDemoFallback(
+    api.get<RecetaProviderStatus>('/recetas/provider-status'),
+    {
+      mode: 'disabled',
+      provider_available: false,
+      real_certification_enabled: false,
+      warning: 'Receta no certificada. Modo local/mock o proveedor real no configurado.',
+    } satisfies RecetaProviderStatus,
+  );
+}
+
+export async function getRecetaPlantillas() {
+  return withDemoFallback(api.get<RecetaPlantilla[]>('/recetas/plantillas'), [] as RecetaPlantilla[]);
+}
+
+export async function importRecetaPlantilla(input: {
+  archivo: File;
+  nombre: string;
+  campos_config?: Record<string, unknown> | null;
+  requiere_dni?: boolean;
+  requiere_fecha_nacimiento?: boolean;
+}) {
+  const formData = new FormData();
+  formData.append('archivo', input.archivo);
+  formData.append('nombre', input.nombre);
+  if (input.campos_config) formData.append('campos_config', JSON.stringify(input.campos_config));
+  formData.append('requiere_dni', String(input.requiere_dni ?? true));
+  formData.append('requiere_fecha_nacimiento', String(input.requiere_fecha_nacimiento ?? false));
+  const { data } = await api.post<RecetaPlantilla>('/recetas/plantillas', formData);
+  return data;
+}
+
 export async function createRecetaClinica(pacienteId: string, data: RecetaCreateInput) {
   const { data: receta } = await api.post<RecetaClinica>(`/recetas/pacientes/${pacienteId}`, data);
+  return receta;
+}
+
+export async function updateRecetaClinica(recetaId: string, data: RecetaUpdateInput) {
+  const { data: receta } = await api.patch<RecetaClinica>(`/recetas/${recetaId}`, data);
   return receta;
 }
 
@@ -905,17 +1045,24 @@ export async function firmarRecetaClinica(recetaId: string, firmaDataUrl: string
   return data;
 }
 
+export async function emitirRecetaLocal(recetaId: string, data: RecetaEmitirInput = {}) {
+  const { data: receta } = await api.post<RecetaClinica>(`/recetas/${recetaId}/emitir-local`, data);
+  return receta;
+}
+
+export async function enviarRecetaProveedor(recetaId: string, data: RecetaEmitirInput = {}) {
+  const { data: receta } = await api.post<RecetaClinica>(`/recetas/${recetaId}/enviar-proveedor`, data);
+  return receta;
+}
+
+export async function anularRecetaClinica(recetaId: string, motivo: string) {
+  const { data } = await api.post<RecetaClinica>(`/recetas/${recetaId}/anular`, { motivo });
+  return data;
+}
+
 export async function openRecetaClinicaPdf(recetaId: string) {
   const { data } = await api.get<Blob>(`/recetas/${recetaId}/pdf`, { responseType: 'blob' });
-  const url = URL.createObjectURL(data);
-  const opened = window.open(url, '_blank');
-  if (!opened) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `receta_${recetaId}.pdf`;
-    link.click();
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return openOrDownloadBlob(data, `receta_${recetaId}.pdf`, { requirePdf: true });
 }
 
 export async function getFormasPago() {
@@ -1063,7 +1210,7 @@ export async function registrarCobro(facturaId: string, formaPagoId: string, imp
 export async function getCitas(params: Record<string, string>) {
   const day = params.fecha_desde?.slice(0, 10) || new Date().toISOString().slice(0, 10);
   const demoCitas: Cita[] = [
-    { id: 'demo-cita-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', gabinete_id: 'gab-1', fecha_hora: `${day}T15:00:00`, duracion_min: 30, estado: 'confirmada', motivo: 'Revision', observaciones: 'Confirmada por WhatsApp', recordatorio_enviado: true, recordatorio_canal: 'whatsapp', recordatorio_estado: 'confirmado', recordatorio_at: `${day}T09:15:00`, confirmado_at: `${day}T09:18:00`, motivo_cancelacion: null, paciente: { nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', telefono: '942503186' }, doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda } },
+    { id: 'demo-cita-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', gabinete_id: 'gab-1', fecha_hora: `${day}T15:00:00`, duracion_min: 30, estado: 'confirmada', motivo: 'Prueba corona 24', observaciones: 'Confirmada por WhatsApp', recordatorio_enviado: true, recordatorio_canal: 'whatsapp', recordatorio_estado: 'confirmado', recordatorio_at: `${day}T09:15:00`, confirmado_at: `${day}T09:18:00`, motivo_cancelacion: null, paciente: { nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', telefono: '942503186' }, doctor: { nombre: DEMO_DOCTORES[0].nombre, color_agenda: DEMO_DOCTORES[0].color_agenda }, laboratorio: [{ id: 'demo-labtrab-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', laboratorio_id: 'demo-lab-1', cita_id: 'demo-cita-1', tratamiento_id: 't-impl', presupuesto_linea_id: null, tipo_trabajo: 'Corona', descripcion: 'Corona zirconio 24', pieza_dental: 24, observaciones: 'Probar estructura antes de cementar', fecha_salida: `${day}T00:00:00`.slice(0, 10), fecha_entrega_prevista: `${day}T00:00:00`.slice(0, 10), fecha_recepcion: `${day}T00:00:00`.slice(0, 10), fecha_revision: null, fecha_entrega_paciente: null, ubicacion_clinica: 'Recepcion', estado: 'received_in_clinic', colocado: false, material_enviado: true, material_devuelto: false, laboratorio: { id: 'demo-lab-1', nombre: 'Laboratorio Norte', contacto: 'Laura' } }] },
     { id: 'demo-cita-2', paciente_id: 'demo-pac-2', doctor_id: 'demo-doc-2', gabinete_id: 'gab-2', fecha_hora: `${day}T16:10:00`, duracion_min: 40, estado: 'programada', motivo: 'Ortodoncia', observaciones: 'Pendiente de confirmar', recordatorio_enviado: true, recordatorio_canal: 'whatsapp_email', recordatorio_estado: 'sin_respuesta', recordatorio_at: `${day}T08:30:00`, confirmado_at: null, motivo_cancelacion: null, paciente: { nombre: 'PILAR', apellidos: 'OJEDA CALVO', telefono: '600000001' }, doctor: { nombre: DEMO_DOCTORES[1].nombre, color_agenda: DEMO_DOCTORES[1].color_agenda } },
   ];
   const filtered = demoCitas.filter((item) => {
@@ -1187,15 +1334,9 @@ export async function getPortalPublicDocumentos(token: string) {
 
 export async function openPortalPublicDocumento(token: string, documentoId: string, filename = 'documento.pdf') {
   const { data } = await api.post<Blob>(`/portal/public/documentos/${documentoId}/descargar`, { token }, { responseType: 'blob' });
-  const url = URL.createObjectURL(data);
-  const opened = window.open(url, '_blank');
-  if (!opened) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.click();
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return openOrDownloadBlob(data, filename, {
+    requirePdf: filename.toLowerCase().endsWith('.pdf') || data.type.toLowerCase().includes('pdf'),
+  });
 }
 
 export async function getPortalPublicConsentimientos(token: string) {
@@ -1335,6 +1476,7 @@ export async function createCita(data: {
   paciente_id: string;
   doctor_id: string;
   gabinete_id?: string | null;
+  presupuesto_linea_id?: string | null;
   fecha_hora: string;
   duracion_min: number;
   motivo?: string | null;
@@ -1344,27 +1486,14 @@ export async function createCita(data: {
   recordatorio_estado?: string | null;
   motivo_cancelacion?: string | null;
 }) {
-  return withDemoFallback(api.post<Cita>('/citas', data), {
-    id: `demo-cita-${Date.now()}`,
-    paciente_id: data.paciente_id,
-    doctor_id: data.doctor_id,
-    gabinete_id: data.gabinete_id ?? null,
-    fecha_hora: data.fecha_hora,
-    duracion_min: data.duracion_min,
-    estado: 'programada',
-    motivo: data.motivo ?? null,
-    observaciones: data.observaciones ?? null,
-    recordatorio_enviado: data.recordatorio_enviado ?? false,
-    recordatorio_canal: data.recordatorio_canal ?? null,
-    recordatorio_estado: data.recordatorio_estado ?? null,
-    confirmado_at: null,
-    motivo_cancelacion: data.motivo_cancelacion ?? null,
-  });
+  const { data: created } = await api.post<Cita>('/citas', data);
+  return created;
 }
 
 export async function updateCita(citaId: string, data: Partial<{
   doctor_id: string;
   gabinete_id: string | null;
+  presupuesto_linea_id: string | null;
   fecha_hora: string;
   duracion_min: number;
   estado: string;
@@ -1387,18 +1516,8 @@ export async function reprogramarCita(citaId: string, data: {
   forzar_fuera_horario?: boolean;
   motivo?: string | null;
 }) {
-  return withDemoFallback(api.patch<Cita>(`/citas/${citaId}/reprogramar`, data), {
-    id: citaId,
-    paciente_id: 'demo-pac-1',
-    doctor_id: data.doctor_id ?? 'demo-doc-1',
-    gabinete_id: data.gabinete_id ?? null,
-    fecha_hora: data.fecha_hora,
-    duracion_min: data.duracion_min ?? 30,
-    estado: 'programada',
-    motivo: data.motivo ?? 'Cita reprogramada',
-    observaciones: 'Reprogramada en modo demo',
-    motivo_cancelacion: null,
-  });
+  const { data: updated } = await api.patch<Cita>(`/citas/${citaId}/reprogramar`, data);
+  return updated;
 }
 
 export async function confirmarCita(citaId: string) {
@@ -1411,36 +1530,16 @@ export async function cancelarCitaAvanzada(citaId: string, data: {
   tipo?: 'anulacion_paciente' | 'anulacion_clinica' | 'no_vino' | 'reprogramada' | 'otro';
   crear_telefonear?: boolean;
 }) {
-  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/cancelar`, data), {
-    id: citaId,
-    paciente_id: 'demo-pac-1',
-    doctor_id: 'demo-doc-1',
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString().slice(0, 19),
-    duracion_min: 30,
-    estado: 'anulada',
-    motivo: null,
-    observaciones: null,
-    motivo_cancelacion: data.motivo_cancelacion,
-  });
+  const { data: cancelled } = await api.post<Cita>(`/citas/${citaId}/cancelar`, data);
+  return cancelled;
 }
 
 export async function marcarFaltaCita(citaId: string, motivo: string) {
-  return withDemoFallback(api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
+  const { data: missed } = await api.post<Cita>(`/citas/${citaId}/marcar-falta`, {
     motivo_cancelacion: motivo,
     tipo: 'no_vino',
-  }), {
-    id: citaId,
-    paciente_id: 'demo-pac-1',
-    doctor_id: 'demo-doc-1',
-    gabinete_id: null,
-    fecha_hora: new Date().toISOString().slice(0, 19),
-    duracion_min: 30,
-    estado: 'falta',
-    motivo: null,
-    observaciones: null,
-    motivo_cancelacion: motivo,
   });
+  return missed;
 }
 
 export async function getCambiosCita(citaId: string) {
@@ -1456,6 +1555,28 @@ export async function getMyDoctorNotifications(unreadOnly = false) {
 export async function markDoctorNotificationRead(notificationId: string) {
   const { data } = await api.post<DoctorNotification>(`/notificaciones/${notificationId}/leer`);
   return data;
+}
+
+export async function getTrabajadoresFichaje() {
+  return withDemoFallback(api.get<TrabajadorFichaje[]>('/fichajes/trabajadores'), demoTrabajadoresFichaje());
+}
+
+export async function getUltimoFichajeTrabajador(trabajadorId: string) {
+  return withDemoFallback(
+    api.get<FichajeTrabajador | null>(`/fichajes/ultimo/${trabajadorId}`),
+    demoFichajeUltimo[trabajadorId] ?? null,
+  );
+}
+
+export async function registrarFichaje(data: {
+  trabajador_id: string;
+  pin: string;
+  tipo: TipoFichaje;
+}) {
+  return withDemoFallback(
+    api.post<FichajeRegistroResponse>('/fichajes', data),
+    demoRegistrarFichaje(data.trabajador_id, data.tipo),
+  );
 }
 
 export async function getTelefonear() {
@@ -1738,15 +1859,7 @@ export function recetaPdfUrl(facturaId: string) {
 
 export async function emitirRecetaPdf(facturaId: string) {
   const { data } = await api.post<Blob>(`/facturas/${facturaId}/receta`, undefined, { responseType: 'blob' });
-  const url = URL.createObjectURL(data);
-  const opened = window.open(url, '_blank');
-  if (!opened) {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `receta-${facturaId}.pdf`;
-    link.click();
-  }
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return openOrDownloadBlob(data, `receta-${facturaId}.pdf`, { requirePdf: true });
 }
 
 export async function enableTwoFactor() {
@@ -1777,14 +1890,51 @@ export async function createTrabajoLaboratorio(data: TrabajoLaboratorioCreateInp
   return trabajo;
 }
 
-export async function getTrabajosLaboratorio(params: { pendientes?: boolean; proximos?: boolean; vencidos?: boolean; estado?: string; paciente_id?: string } = {}) {
+export async function asociarTrabajoLaboratorioCita(trabajoId: string, citaId: string | null) {
+  const { data: trabajo } = await api.patch<TrabajoLaboratorio>(`/laboratorio/trabajos/${trabajoId}/asociar-cita`, {
+    cita_id: citaId,
+  });
+  return trabajo;
+}
+
+export async function marcarTrabajoLaboratorioRecibido(
+  trabajoId: string,
+  payload: { fecha?: string | null; ubicacion_clinica?: string | null; observaciones?: string | null } = {},
+) {
+  const { data: trabajo } = await api.post<TrabajoLaboratorio>(`/laboratorio/trabajos/${trabajoId}/recibir`, payload);
+  return trabajo;
+}
+
+export async function marcarTrabajoLaboratorioRevisado(
+  trabajoId: string,
+  payload: { fecha?: string | null; ubicacion_clinica?: string | null; observaciones?: string | null } = {},
+) {
+  const { data: trabajo } = await api.post<TrabajoLaboratorio>(`/laboratorio/trabajos/${trabajoId}/revisar`, payload);
+  return trabajo;
+}
+
+export async function marcarTrabajoLaboratorioEntregado(
+  trabajoId: string,
+  payload: { fecha?: string | null; observaciones?: string | null } = {},
+) {
+  const { data: trabajo } = await api.post<TrabajoLaboratorio>(`/laboratorio/trabajos/${trabajoId}/entregar`, payload);
+  return trabajo;
+}
+
+export async function getTrabajosLaboratorioCita(citaId: string) {
+  const { data: trabajos } = await api.get<TrabajoLaboratorio[]>(`/laboratorio/citas/${citaId}/trabajos`);
+  return trabajos;
+}
+
+export async function getTrabajosLaboratorio(params: { pendientes?: boolean; proximos?: boolean; vencidos?: boolean; estado?: string; paciente_id?: string; cita_id?: string } = {}) {
   const trabajos: TrabajoLaboratorio[] = [
-    { id: 'demo-labtrab-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', laboratorio_id: 'demo-lab-1', historial_id: null, tratamiento_id: 't-impl', presupuesto_id: 'demo-pres-1', factura_id: null, referencia: 'LAB-24-ZIR', tipo_trabajo: 'Corona', descripcion: 'Corona zirconio 24', pieza_dental: 24, color: 'A2', observaciones: 'Probar estructura', fecha_salida: '2026-04-20', fecha_entrega_prevista: '2026-04-28', fecha_recepcion: null, fecha_entrega_paciente: null, estado: 'enviado', precio: 120, coste_laboratorio: 120, precio_paciente: 290, margen: 170, comision_doctor_pct: 0, estado_pago_laboratorio: 'pendiente', estado_cobro_paciente: 'pendiente', paciente: { id: 'demo-pac-1', nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', num_historial: 91312 }, doctor: { id: 'demo-doc-1', nombre: DEMO_DOCTORES[0].nombre }, laboratorio: { id: 'demo-lab-1', nombre: 'Laboratorio Norte', telefono: '942000001', whatsapp: '600100100', email: 'lab@example.test', contacto: 'Laura', notas: null, activo: true } },
+    { id: 'demo-labtrab-1', paciente_id: 'demo-pac-1', doctor_id: 'demo-doc-1', laboratorio_id: 'demo-lab-1', historial_id: null, cita_id: 'demo-cita-1', tratamiento_id: 't-impl', presupuesto_id: 'demo-pres-1', factura_id: null, referencia: 'LAB-24-ZIR', tipo_trabajo: 'Corona', descripcion: 'Corona zirconio 24', pieza_dental: 24, color: 'A2', observaciones: 'Probar estructura', fecha_salida: '2026-04-20', fecha_entrega_prevista: '2026-04-28', fecha_recepcion: null, fecha_revision: null, fecha_entrega_paciente: null, ubicacion_clinica: null, estado: 'enviado', precio: 120, coste_laboratorio: 120, precio_paciente: 290, margen: 170, comision_doctor_pct: 0, estado_pago_laboratorio: 'pendiente', estado_cobro_paciente: 'pendiente', paciente: { id: 'demo-pac-1', nombre: 'CESAR', apellidos: 'GUTIERREZ VELEZ', num_historial: 91312 }, doctor: { id: 'demo-doc-1', nombre: DEMO_DOCTORES[0].nombre }, laboratorio: { id: 'demo-lab-1', nombre: 'Laboratorio Norte', telefono: '942000001', whatsapp: '600100100', email: 'lab@example.test', contacto: 'Laura', notas: null, activo: true } },
   ];
   const filtered = trabajos.filter((item) => {
     if (params.paciente_id && item.paciente_id !== params.paciente_id && !params.paciente_id.startsWith('demo-')) return false;
+    if (params.cita_id && item.cita_id !== params.cita_id && !params.cita_id.startsWith('demo-')) return false;
     if (params.estado && item.estado !== params.estado) return false;
-    if (params.pendientes && !['pendiente', 'pendiente_enviar', 'enviado', 'en_proceso', 'en_fabricacion'].includes(item.estado)) return false;
+    if (params.pendientes && !['pendiente', 'pendiente_enviar', 'enviado', 'en_proceso', 'en_fabricacion', 'pending_to_send', 'sent_to_lab', 'in_progress_at_lab', 'ready_at_lab'].includes(item.estado)) return false;
     return true;
   });
   return withDemoFallback(api.get<TrabajoLaboratorio[]>('/laboratorio/trabajos', { params }), filtered);
@@ -2041,6 +2191,20 @@ export function facturaPdfUrl(facturaId: string) {
   return `${api.defaults.baseURL}/pdf/facturas/${facturaId}`;
 }
 
+export function presupuestoPdfUrl(presupuestoId: string) {
+  return `${api.defaults.baseURL}/pdf/presupuestos/${presupuestoId}`;
+}
+
+export async function openFacturaPdf(facturaId: string) {
+  const { data } = await api.get<Blob>(`/pdf/facturas/${facturaId}`, { responseType: 'blob' });
+  return openOrDownloadBlob(data, `factura_${facturaId}.pdf`, { requirePdf: true });
+}
+
+export async function openPresupuestoPdf(presupuestoId: string) {
+  const { data } = await api.get<Blob>(`/pdf/presupuestos/${presupuestoId}`, { responseType: 'blob' });
+  return openOrDownloadBlob(data, `presupuesto_${presupuestoId}.pdf`, { requirePdf: true });
+}
+
 function shouldUseDemo(error?: unknown) {
   const axiosError = error as AxiosError | undefined;
   return import.meta.env.DEV && DEMO_FALLBACK_ENABLED && Boolean(axiosError?.isAxiosError && !axiosError.response);
@@ -2072,6 +2236,45 @@ function getDemoUser(): UsuarioMe | null {
 
 function isDemoSession() {
   return Boolean(getStoredAuthToken()?.startsWith(DEMO_TOKEN_PREFIX));
+}
+
+let demoFichajeUltimo: Record<string, FichajeTrabajador> = {};
+
+function demoTrabajadoresFichaje(): TrabajadorFichaje[] {
+  const user = getDemoUser();
+  if (!user || user.rol === 'paciente') return [];
+  return [
+    {
+      id: user.id,
+      nombre: user.nombre,
+      origen: 'usuario',
+      codigo: user.username,
+      rol: user.rol,
+      clinica_id: user.clinica_id ?? null,
+      pin_configurado: true,
+    },
+  ];
+}
+
+function demoRegistrarFichaje(trabajadorId: string, tipo: TipoFichaje): FichajeRegistroResponse {
+  const worker = demoTrabajadoresFichaje().find((item) => item.id === trabajadorId) ?? demoTrabajadoresFichaje()[0];
+  const now = new Date();
+  const fichaje: FichajeTrabajador = {
+    id: `demo-fichaje-${now.getTime()}`,
+    trabajador_id: trabajadorId,
+    trabajador_origen: worker?.origen ?? 'usuario',
+    trabajador_nombre: worker?.nombre ?? 'Trabajador demo',
+    clinica_id: worker?.clinica_id ?? null,
+    fecha: now.toISOString().slice(0, 10),
+    hora_exacta: now.toISOString(),
+    tipo,
+    equipo: 'Demo local',
+    ip_address: null,
+    user_agent: navigator.userAgent,
+    registrado_por_usuario_id: getDemoUser()?.id ?? null,
+  };
+  demoFichajeUltimo = { ...demoFichajeUltimo, [trabajadorId]: fichaje };
+  return { fichaje, ultimo_fichaje: fichaje };
 }
 
 function demoResponse<T>(data: T) {

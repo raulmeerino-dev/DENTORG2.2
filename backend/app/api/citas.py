@@ -8,7 +8,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import or_, select
+from sqlalchemy import inspect, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -23,7 +23,9 @@ from app.core.permissions import (
 from app.database import get_db
 from app.models.cita import Cita, CitaCambio, CitaTelefonear, HistorialFaltas
 from app.models.doctor import Doctor
+from app.models.laboratorio import TrabajoLaboratorio
 from app.models.paciente import Paciente
+from app.models.presupuesto import PresupuestoLinea
 from app.schemas.cita import (
     BuscarHuecoRequest,
     CitaCambioResponse,
@@ -62,6 +64,7 @@ async def _get_cita_or_404(db: AsyncSession, cita_id: UUID) -> Cita:
         .options(
             selectinload(Cita.paciente),
             selectinload(Cita.doctor),
+            selectinload(Cita.trabajos_laboratorio).selectinload(TrabajoLaboratorio.laboratorio),
         )
         .where(Cita.id == cita_id)
     )
@@ -98,6 +101,43 @@ def _doctor_resumen(doctor: Doctor | None) -> dict | None:
     }
 
 
+def _laboratorio_trabajo_resumen(trabajo: TrabajoLaboratorio) -> dict:
+    return {
+        "id": trabajo.id,
+        "paciente_id": trabajo.paciente_id,
+        "doctor_id": trabajo.doctor_id,
+        "laboratorio_id": trabajo.laboratorio_id,
+        "cita_id": trabajo.cita_id,
+        "tratamiento_id": trabajo.tratamiento_id,
+        "presupuesto_linea_id": trabajo.presupuesto_linea_id,
+        "tipo_trabajo": trabajo.tipo_trabajo,
+        "descripcion": trabajo.descripcion,
+        "pieza_dental": trabajo.pieza_dental,
+        "observaciones": trabajo.observaciones,
+        "fecha_salida": trabajo.fecha_salida,
+        "fecha_entrega_prevista": trabajo.fecha_entrega_prevista,
+        "fecha_recepcion": trabajo.fecha_recepcion,
+        "fecha_revision": trabajo.fecha_revision,
+        "fecha_entrega_paciente": trabajo.fecha_entrega_paciente,
+        "ubicacion_clinica": trabajo.ubicacion_clinica,
+        "estado": trabajo.estado,
+        "colocado": trabajo.colocado,
+        "material_enviado": trabajo.material_enviado,
+        "material_devuelto": trabajo.material_devuelto,
+        "laboratorio": {
+            "id": trabajo.laboratorio.id,
+            "nombre": trabajo.laboratorio.nombre,
+            "contacto": trabajo.laboratorio.contacto,
+        } if trabajo.laboratorio else None,
+    }
+
+
+def _trabajos_laboratorio_de_cita(cita: Cita) -> list[dict]:
+    if "trabajos_laboratorio" in inspect(cita).unloaded:
+        return []
+    return [_laboratorio_trabajo_resumen(trabajo) for trabajo in cita.trabajos_laboratorio]
+
+
 async def _to_response(db: AsyncSession, cita: Cita) -> CitaResponse:
     return CitaResponse.model_validate(
         {
@@ -106,6 +146,7 @@ async def _to_response(db: AsyncSession, cita: Cita) -> CitaResponse:
             "clinica_id": cita.clinica_id,
             "doctor_id": cita.doctor_id,
             "gabinete_id": cita.gabinete_id,
+            "presupuesto_linea_id": cita.presupuesto_linea_id,
             "fecha_hora": cita.fecha_hora,
             "duracion_min": cita.duracion_min,
             "estado": cita.estado,
@@ -120,6 +161,7 @@ async def _to_response(db: AsyncSession, cita: Cita) -> CitaResponse:
             "motivo_cancelacion": cita.motivo_cancelacion,
             "paciente": await _paciente_resumen(db, cita.paciente),
             "doctor": _doctor_resumen(cita.doctor),
+            "laboratorio": _trabajos_laboratorio_de_cita(cita),
         }
     )
 
@@ -159,6 +201,7 @@ def _snapshot_cita(cita: Cita) -> dict:
     return {
         "doctor_id": str(cita.doctor_id),
         "gabinete_id": str(cita.gabinete_id) if cita.gabinete_id else None,
+        "presupuesto_linea_id": str(cita.presupuesto_linea_id) if cita.presupuesto_linea_id else None,
         "fecha_hora": cita.fecha_hora.isoformat(),
         "duracion_min": cita.duracion_min,
         "estado": cita.estado,
@@ -209,6 +252,32 @@ async def _registrar_cambio_cita(
         clinica_id=cita.clinica_id,
         request=request,
     )
+
+
+async def _validate_presupuesto_linea_for_cita(
+    db: AsyncSession,
+    *,
+    paciente_id: UUID,
+    presupuesto_linea_id: UUID | None,
+    current_user: CurrentUser,
+) -> None:
+    if not presupuesto_linea_id:
+        return
+    result = await db.execute(
+        select(PresupuestoLinea)
+        .options(selectinload(PresupuestoLinea.presupuesto))
+        .where(PresupuestoLinea.id == presupuesto_linea_id)
+    )
+    linea = result.scalar_one_or_none()
+    if not linea:
+        raise HTTPException(status_code=404, detail="Linea de presupuesto no encontrada")
+    presupuesto = linea.presupuesto
+    if not presupuesto or presupuesto.paciente_id != paciente_id:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="La linea de presupuesto no pertenece al paciente de la cita",
+        )
+    ensure_clinic_access(current_user, presupuesto.clinica_id)
 
 
 async def _validar_cita_operativa(
@@ -281,7 +350,11 @@ async def listar_citas(
 ) -> list[CitaResponse]:
     q = (
         select(Cita)
-        .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
+        .options(
+            selectinload(Cita.paciente),
+            selectinload(Cita.doctor),
+            selectinload(Cita.trabajos_laboratorio).selectinload(TrabajoLaboratorio.laboratorio),
+        )
         .order_by(Cita.fecha_hora)
     )
     q = scope_select_by_clinic(q, Cita, current_user)
@@ -324,6 +397,12 @@ async def crear_cita(
     ensure_clinic_access(current_user, doc.clinica_id)
     if pac.clinica_id and doc.clinica_id and pac.clinica_id != doc.clinica_id:
         raise HTTPException(status_code=409, detail="Paciente y doctor pertenecen a clínicas distintas")
+    await _validate_presupuesto_linea_for_cita(
+        db,
+        paciente_id=data.paciente_id,
+        presupuesto_linea_id=data.presupuesto_linea_id,
+        current_user=current_user,
+    )
 
     await _validar_cita_operativa(
         db,
@@ -734,6 +813,13 @@ async def actualizar_cita(
     cita = await _get_cita_or_404(db, cita_id)
     ensure_clinic_access(current_user, cita.clinica_id)
     old = _snapshot_cita(cita)
+    if "presupuesto_linea_id" in data.model_fields_set:
+        await _validate_presupuesto_linea_for_cita(
+            db,
+            paciente_id=cita.paciente_id,
+            presupuesto_linea_id=data.presupuesto_linea_id,
+            current_user=current_user,
+        )
 
     # Si cambia fecha/hora o duración, re-verificar solapamiento
     nueva_fecha = data.fecha_hora or cita.fecha_hora

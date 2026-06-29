@@ -49,7 +49,7 @@ export default function MisCitasPage() {
 
   const pacientesQuery = useQuery({
     queryKey: ['pacientes'],
-    queryFn: getPacientes,
+    queryFn: () => getPacientes(),
     enabled: user?.rol !== 'paciente',
   });
   const activePacienteId = user?.rol === 'paciente' ? (user.paciente_id ?? '') : (pacienteId || pacientesQuery.data?.[0]?.id || '');

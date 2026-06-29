@@ -33,6 +33,11 @@ Garantizar que una clinica puede recuperar datos tras error, borrado accidental,
 ## Comprobacion por API
 
 ```bash
+curl -X POST -H "Authorization: Bearer <token_admin>" \
+  -H "Content-Type: application/json" \
+  -d '{"alcance":"full"}' \
+  https://api.example.com/api/admin/backups
+
 curl -H "Authorization: Bearer <token_admin>" \
   https://api.example.com/api/admin/backups
 
@@ -76,6 +81,15 @@ python -m scripts.backup_tool extract \
   --file /custodia/dentcore-20260623.dentcorebak \
   --expected-hash <sha256> \
   --output-dir /tmp/dentcore-restore-kit
+
+python -m scripts.backup_tool restore-check \
+  --file /custodia/dentcore-20260623.dentcorebak \
+  --expected-hash <sha256>
+
+python -m scripts.backup_tool restore-check \
+  --file /custodia/dentcore-20260623.dentcorebak \
+  --expected-hash <sha256> \
+  --output-dir /tmp/dentcore-restore-kit
 ```
 
 La extraccion genera:
@@ -85,6 +99,10 @@ La extraccion genera:
 - `restore-summary.json`: hash, alcance, fecha y conteos.
 
 El directorio de salida debe estar vacio; la herramienta falla si detecta contenido previo para evitar mezclar restauraciones.
+
+`restore-check` ensaya la preparacion de restauracion: descifra, extrae y valida que `database.json`, `restore-summary.json` y `uploads/` sean coherentes. Si no se pasa `--output-dir`, usa un temporal y lo elimina al terminar. Si se pasa `--output-dir`, conserva el kit para una restauracion manual controlada.
+
+La herramienta offline no crea ni lista backups porque no debe necesitar credenciales de aplicacion ni acceso a base de datos. La creacion/listado se hace desde Admin o API autenticada; la verificacion/extraccion/restore-check se puede hacer fuera del servidor de aplicacion con el fichero cifrado y la clave custodiada.
 
 ## Restauracion en entorno de prueba
 

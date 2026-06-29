@@ -11,7 +11,12 @@ from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.models.factura import Cobro, DocumentoFiscal, Factura
-from app.services.pdf_service import PDF_TEMPLATE_VERSION, generar_factura_pdf, validate_pdf_bytes
+from app.services.pdf_service import (
+    PDF_TEMPLATE_VERSION,
+    generar_factura_pdf,
+    safe_pdf_filename,
+    validate_pdf_bytes,
+)
 from app.services.verifactu_service import (
     _get_nif_emisor,
     generar_identificador_fiscal,
@@ -99,9 +104,8 @@ def build_factura_pdf_bytes(factura: Factura) -> bytes:
 
 
 def _path_for_factura(factura: Factura) -> Path:
-    return Path("uploads") / "fiscales" / "facturas" / str(factura.paciente_id) / (
-        f"{factura.serie}-{factura.numero:04d}-{factura.id}.pdf"
-    )
+    filename = safe_pdf_filename(f"{factura.serie}-{factura.numero:04d}-{factura.id}.pdf")
+    return Path("uploads") / "fiscales" / "facturas" / str(factura.paciente_id) / filename
 
 
 async def archivar_pdf_factura(
@@ -144,8 +148,10 @@ async def archivar_pdf_factura(
 
 def read_archived_pdf(documento: DocumentoFiscal) -> bytes | None:
     settings = get_settings()
-    base_path = Path(getattr(settings, "storage_root", "."))
-    path = base_path / documento.ruta
+    base_path = Path(getattr(settings, "storage_root", ".")).resolve()
+    path = (base_path / documento.ruta).resolve()
+    if base_path not in path.parents and path != base_path:
+        return None
     if not path.exists():
         return None
     return path.read_bytes()

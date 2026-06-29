@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
+import { toast } from 'sonner';
 import type { ApiPaciente, Cobro, Factura, HistorialClinico, UserRole } from '../../types/api';
 import { colorForTreatment, formatDate, money } from '../../lib/utils';
 import type { TreatmentVisual } from '../../lib/utils';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
-import { emitirRecetaPdf, facturaPdfUrl } from '../../lib/api';
+import { emitirRecetaPdf, openFacturaPdf } from '../../lib/api';
 import { amount, getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
 import { PatientOdontogramFlow } from '../odontogram';
 
@@ -147,6 +148,12 @@ export function EurodentHistoryBillingPanel({
   const totals = getBillingTotals(facturas);
   const firstPendingFactura = getFacturaPendientePreferida(facturas, selectedFactura);
 
+  function abrirFacturaPdf(factura: Factura) {
+    void openFacturaPdf(factura.id).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir la factura.');
+    });
+  }
+
   useEffect(() => {
     if (!historyActionsOpen && !invoiceMenuOpen) return;
     function handlePointerDown(event: globalThis.MouseEvent) {
@@ -240,7 +247,7 @@ export function EurodentHistoryBillingPanel({
                   role="menuitem"
                   onClick={() => {
                     setHistoryActionsOpen(false);
-                    if (selectedFactura) window.open(facturaPdfUrl(selectedFactura.id), '_blank');
+                    if (selectedFactura) abrirFacturaPdf(selectedFactura);
                   }}
                   disabled={!selectedFactura}
                 >
@@ -253,7 +260,9 @@ export function EurodentHistoryBillingPanel({
                     if (onCrearReceta) {
                       onCrearReceta();
                     } else if (selectedFactura) {
-                      void emitirRecetaPdf(selectedFactura.id);
+                      void emitirRecetaPdf(selectedFactura.id).catch((error) => {
+                        toast.error(error instanceof Error ? error.message : 'No se pudo emitir la receta.');
+                      });
                     }
                   }}
                   disabled={!onCrearReceta && !selectedFactura}
@@ -350,6 +359,12 @@ export function InvoiceHistoryModal({
   facturas: Factura[];
   onClose: () => void;
 }) {
+  function abrirFacturaPdf(factura: Factura) {
+    void openFacturaPdf(factura.id).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir la factura.');
+    });
+  }
+
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <section className="document-modal invoice-history-modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -369,7 +384,7 @@ export function InvoiceHistoryModal({
                   <td className="num">{money(factura.total)}</td>
                   <td className="num">{money(factura.total_cobrado)}</td>
                   <td className="num">{money(factura.pendiente)}</td>
-                  <td><button onClick={() => window.open(facturaPdfUrl(factura.id), '_blank')}>Abrir</button></td>
+                  <td><button onClick={() => abrirFacturaPdf(factura)}>Abrir</button></td>
                 </tr>
               ))}
               {!facturas.length && <tr><td colSpan={7}>Este paciente no tiene facturas emitidas.</td></tr>}

@@ -48,6 +48,11 @@ const RECEIVED_LAB_STATES = new Set([
   'finalizado',
   'completado',
   'cancelado',
+  'received_in_clinic',
+  'checked_in_clinic',
+  'tried_in_patient',
+  'delivered_or_placed',
+  'cancelled',
 ]);
 
 const REVISION_THRESHOLD_MONTHS = 12;

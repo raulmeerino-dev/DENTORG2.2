@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAuth } from '../../auth/AuthContext';
 import { canRoleAccess } from '../../config/workflow';
 import {
-  facturaPdfUrl,
   getFacturas,
   getReportCitasDoctor,
   getReportKpis,
   getReportPacientes,
   getReportTopTratamientos,
   getTrabajosLaboratorio,
+  openFacturaPdf,
 } from '../../lib/api';
 
 const LISTADOS = ['caja', 'pacientes', 'agenda', 'clinica', 'laboratorio', 'control'] as const;
@@ -39,6 +40,12 @@ export default function ListadosPage() {
   const kpis = kpisQuery.data;
   const canSeeCaja = canRoleAccess(user?.rol, ['admin', 'recepcion']);
   const canSeeClinica = canRoleAccess(user?.rol, ['admin', 'doctor']);
+
+  function abrirFacturaPdf(facturaId: string) {
+    void openFacturaPdf(facturaId).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir la factura.');
+    });
+  }
 
   return (
     <section className="page listados-screen">
@@ -85,7 +92,7 @@ export default function ListadosPage() {
                   <td className="num">{canSeeCaja ? money(factura.total_cobrado) : '***'}</td>
                   <td className="num">{canSeeCaja ? money(factura.pendiente) : '***'}</td>
                   <td className="hash-cell">{factura.huella?.slice(0, 14) ?? '-'}</td>
-                  <td><a href={facturaPdfUrl(factura.id)} target="_blank" rel="noreferrer">Abrir</a></td>
+                  <td><button type="button" onClick={() => abrirFacturaPdf(factura.id)}>Abrir</button></td>
                 </tr>
               ))}
               {!facturas.length && <tr><td colSpan={8}>Sin facturas en el listado.</td></tr>}

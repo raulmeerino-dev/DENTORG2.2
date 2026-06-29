@@ -2,6 +2,8 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import {
   api,
   confirmarPortalCita,
+  cancelarCitaAvanzada,
+  createCita,
   createClinica,
   createOdontogramaPaciente,
   createProductoInventario,
@@ -9,6 +11,8 @@ import {
   duplicateOdontogramaVersion,
   saveOdontograma,
   solicitarCambioPortalCita,
+  marcarFaltaCita,
+  reprogramarCita,
   updateHorarioDoctor,
   updateOdontogramaPieza,
   updateOdontogramaSuperficie,
@@ -119,6 +123,45 @@ describe('otras escrituras reales sin demo fallback', () => {
       nombre: 'Guantes',
       stock_min: 10,
       stock_act: 4,
+    });
+  });
+
+  it('createCita propaga el error real y envia la linea de presupuesto', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Agenda no disponible'));
+    await expect(createCita({
+      paciente_id: 'pac-1',
+      doctor_id: 'doc-1',
+      presupuesto_linea_id: 'linea-1',
+      fecha_hora: '2026-06-25T09:00:00',
+      duracion_min: 30,
+      motivo: 'Endodoncia',
+    })).rejects.toThrow('Agenda no disponible');
+    expect(spy).toHaveBeenCalledWith('/citas', expect.objectContaining({
+      presupuesto_linea_id: 'linea-1',
+    }));
+  });
+
+  it('reprogramar y cancelar cita propagan el error real', async () => {
+    const patchSpy = vi.spyOn(api, 'patch').mockRejectedValueOnce(new Error('Hueco ocupado'));
+    await expect(reprogramarCita('cita-1', {
+      fecha_hora: '2026-06-25T10:00:00',
+    })).rejects.toThrow('Hueco ocupado');
+    expect(patchSpy).toHaveBeenCalled();
+
+    const postSpy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('No se pudo cancelar'));
+    await expect(cancelarCitaAvanzada('cita-1', {
+      motivo_cancelacion: 'Paciente avisa',
+      tipo: 'anulacion_paciente',
+    })).rejects.toThrow('No se pudo cancelar');
+    expect(postSpy).toHaveBeenCalled();
+  });
+
+  it('marcar falta propaga el error real', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('No se pudo registrar falta'));
+    await expect(marcarFaltaCita('cita-1', 'No acude')).rejects.toThrow('No se pudo registrar falta');
+    expect(spy).toHaveBeenCalledWith('/citas/cita-1/marcar-falta', {
+      motivo_cancelacion: 'No acude',
+      tipo: 'no_vino',
     });
   });
 });

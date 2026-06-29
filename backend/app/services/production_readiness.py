@@ -85,6 +85,16 @@ def build_production_readiness_report(
     else:
         checks.append(_check("ok", "red", "CORS frontend", "El origen frontend esta definido.", "Evitar comodines y revisar cambios de dominio."))
 
+    cors_methods = settings.cors_allowed_methods_list
+    cors_headers = settings.cors_allowed_headers_list
+    cors_origins = settings.cors_allowed_origins
+    if "*" in cors_methods or "*" in cors_headers or "*" in cors_origins:
+        checks.append(_check("fail", "red", "CORS demasiado permisivo", "La configuracion CORS contiene comodines.", "Definir origenes, metodos y cabeceras explicitos para la instalacion."))
+    elif settings.environment == "production" and any(origin.startswith("http://") for origin in cors_origins):
+        checks.append(_check("fail", "red", "CORS sin HTTPS", "Un origen CORS de produccion usa HTTP.", "Servir frontend y API mediante HTTPS/TLS antes de abrir una clinica real."))
+    else:
+        checks.append(_check("ok", "red", "CORS limitado", "CORS usa origen, metodos y cabeceras acotados.", "Revisar esta lista al anadir integraciones o dominios."))
+
     if settings.environment == "production" and not settings.auth_cookie_secure:
         checks.append(_check("fail", "auth", "Cookie no segura", "AUTH_COOKIE_SECURE esta desactivado en produccion.", "Activar AUTH_COOKIE_SECURE=true con HTTPS."))
     elif settings.auth_cookie_samesite == "none" and not settings.auth_cookie_secure:
@@ -217,6 +227,14 @@ def build_production_readiness_report(
         checks.append(_check("warn", "fiscal", "Sin eventos SIF", "No hay eventos tecnicos SIF registrados.", "Registrar eventos de emision, anulacion, remision y exportacion."))
     else:
         checks.append(_check("ok", "fiscal", "Eventos SIF", f"Hay {sif_event_count} eventos SIF.", "Conservarlos con la misma politica de inalterabilidad."))
+
+    checks.append(_check(
+        "warn",
+        "legal/fiscal",
+        "Validacion externa pendiente",
+        "DentCore puede comprobar configuracion tecnica, pero no acredita por si solo cumplimiento RGPD/LOPDGDD ni VERI*FACTU.",
+        "Obtener validacion juridica y fiscal externa antes de marcar la instalacion como apta comercial.",
+    ))
 
     totals = {
         "ok": sum(1 for item in checks if item["status"] == "ok"),

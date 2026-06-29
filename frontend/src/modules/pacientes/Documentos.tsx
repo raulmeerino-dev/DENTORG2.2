@@ -3,7 +3,6 @@ import type { ChangeEvent, MouseEvent } from 'react';
 import { Folder, FolderPlus, UploadCloud, X } from 'lucide-react';
 import type { DocumentoPaciente } from '../../types/api';
 import { formatDate } from '../../lib/utils';
-import { openDocumentoPaciente } from '../../lib/api';
 
 type UploadDocumentoData = {
   archivo: File;
@@ -27,6 +26,9 @@ const DOCUMENT_FOLDERS = [
   { id: 'otro', label: 'Otros' },
 ] as const;
 
+const ALLOWED_DOCUMENT_EXTENSIONS = new Set(['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'tif', 'tiff', 'bmp', 'doc', 'docx']);
+const DOCUMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.gif,.webp,.tif,.tiff,.bmp,.doc,.docx';
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const folderLabelById: Map<string, string> = new Map(DOCUMENT_FOLDERS.map((folder) => [folder.id, folder.label]));
 
 function splitTags(etiquetas?: string | null) {
@@ -63,13 +65,15 @@ export function DocumentosPanel({
   uploadOpen,
   onUploadOpenChange,
   onSubir,
+  onAbrirDocumento,
   onContextDocumento,
 }: {
   pacienteId: string | null;
   documentos: DocumentoPaciente[];
   uploadOpen: boolean;
   onUploadOpenChange: (open: boolean) => void;
-  onSubir: (data: UploadDocumentoData) => void;
+  onSubir: (data: UploadDocumentoData) => Promise<unknown> | unknown;
+  onAbrirDocumento: (documento: DocumentoPaciente) => void;
   onContextDocumento: (event: MouseEvent, documento: DocumentoPaciente) => void;
 }) {
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -78,6 +82,7 @@ export function DocumentosPanel({
   const [creandoCarpeta, setCreandoCarpeta] = useState(false);
   const [nombreDocumento, setNombreDocumento] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [etiquetas, setEtiquetas] = useState('');
 
@@ -109,7 +114,18 @@ export function DocumentosPanel({
   function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0] ?? null;
     setArchivo(nextFile);
+    setUploadError('');
     if (nextFile) setNombreDocumento(fileBaseName(nextFile));
+  }
+
+  function validateFile(file: File) {
+    const extension = file.name.split('.').pop()?.toLowerCase() ?? '';
+    if (!ALLOWED_DOCUMENT_EXTENSIONS.has(extension)) {
+      return 'Formato no permitido. Use PDF, imagenes o documentos Word.';
+    }
+    if (file.size <= 0) return 'El archivo esta vacio.';
+    if (file.size > MAX_UPLOAD_BYTES) return 'El archivo supera el limite de 50 MB.';
+    return '';
   }
 
   function resetUpload() {
@@ -126,9 +142,14 @@ export function DocumentosPanel({
     onUploadOpenChange(false);
   }
 
-  function submitUpload() {
+  async function submitUpload() {
     if (!archivo) {
       setUploadError('Seleccione un archivo antes de guardar.');
+      return;
+    }
+    const fileError = validateFile(archivo);
+    if (fileError) {
+      setUploadError(fileError);
       return;
     }
     const customFolder = creandoCarpeta ? nuevaCarpeta.trim() : carpeta.startsWith('custom:') ? carpeta.slice(7).trim() : '';
@@ -141,14 +162,21 @@ export function DocumentosPanel({
     const tags = cleanTags(etiquetas);
     if (customFolder) tags.unshift(`carpeta:${customFolder}`);
     setUploadError('');
-    onSubir({
-      archivo,
-      categoria,
-      descripcion: nombreDocumento.trim() || fileBaseName(archivo),
-      fecha_documento: fecha,
-      etiquetas: tags.join(', '),
-    });
-    closeUpload();
+    setUploading(true);
+    try {
+      await onSubir({
+        archivo,
+        categoria,
+        descripcion: nombreDocumento.trim() || fileBaseName(archivo),
+        fecha_documento: fecha,
+        etiquetas: tags.join(', '),
+      });
+      closeUpload();
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'No se pudo subir el documento.');
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -183,7 +211,7 @@ export function DocumentosPanel({
                     </td>
                     <td>{doc.categoria.replaceAll('_', ' ')}</td>
                     <td>{cleanTags(doc.etiquetas).join(', ') || '-'}</td>
-                    <td>{pacienteId && <button type="button" onClick={() => void openDocumentoPaciente(pacienteId, doc.id, doc.nombre_original)}>Abrir</button>}</td>
+                    <td>{pacienteId && <button type="button" onClick={() => onAbrirDocumento(doc)}>Abrir</button>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -213,7 +241,7 @@ export function DocumentosPanel({
             <label className="document-upload-file">
               <UploadCloud size={18} strokeWidth={2} aria-hidden="true" />
               <span>{archivo ? archivo.name : 'Seleccionar archivo'}</span>
-              <input type="file" onChange={handleFile} />
+              <input type="file" accept={DOCUMENT_ACCEPT} onChange={handleFile} />
             </label>
 
             <div className="document-upload-grid">
@@ -248,7 +276,9 @@ export function DocumentosPanel({
 
             <footer>
               <button type="button" className="secondary-action" onClick={closeUpload}>Cancelar</button>
-              <button type="button" className="primary-action" onClick={submitUpload} disabled={!pacienteId}>Guardar documento</button>
+              <button type="button" className="primary-action" onClick={submitUpload} disabled={!pacienteId || uploading}>
+                {uploading ? 'Guardando...' : 'Guardar documento'}
+              </button>
             </footer>
           </section>
         </div>

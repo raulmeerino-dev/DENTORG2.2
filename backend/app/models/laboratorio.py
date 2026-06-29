@@ -22,6 +22,27 @@ ESTADOS_TRABAJO_LAB = (
     "incidencia",      # problema (retrabajo, error, etc.)
 )
 
+ESTADOS_TRABAJO_LAB = ESTADOS_TRABAJO_LAB + (
+    "pendiente_enviar",
+    "en_fabricacion",
+    "probado",
+    "finalizado",
+    "repetir_corregir",
+    "cancelado",
+    "pending_to_send",
+    "sent_to_lab",
+    "in_progress_at_lab",
+    "ready_at_lab",
+    "received_in_clinic",
+    "checked_in_clinic",
+    "tried_in_patient",
+    "delivered_or_placed",
+    "returned_to_lab",
+    "remake_required",
+    "delayed",
+    "cancelled",
+)
+
 
 class Laboratorio(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     """Catálogo de laboratorios externos."""
@@ -54,6 +75,9 @@ class TrabajoLaboratorio(UUIDMixin, TimestampMixin, Base):
     )
     historial_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("historial_clinico.id"), nullable=True
+    )
+    cita_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("citas.id"), nullable=True, index=True
     )
     tratamiento_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tratamientos_catalogo.id"), nullable=True
@@ -89,7 +113,9 @@ class TrabajoLaboratorio(UUIDMixin, TimestampMixin, Base):
     fecha_salida: Mapped[date | None] = mapped_column(Date, nullable=True)    # cuándo sale a lab
     fecha_entrega_prevista: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_recepcion: Mapped[date | None] = mapped_column(Date, nullable=True)  # cuándo vuelve
+    fecha_revision: Mapped[date | None] = mapped_column(Date, nullable=True)
     fecha_entrega_paciente: Mapped[date | None] = mapped_column(Date, nullable=True)
+    ubicacion_clinica: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
     estado: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pendiente", index=True
@@ -107,6 +133,7 @@ class TrabajoLaboratorio(UUIDMixin, TimestampMixin, Base):
     doctor: Mapped["Doctor"] = relationship("Doctor")          # noqa: F821
     laboratorio: Mapped["Laboratorio"] = relationship("Laboratorio", back_populates="trabajos")
     historial: Mapped["HistorialClinico | None"] = relationship("HistorialClinico")  # noqa: F821
+    cita: Mapped["Cita | None"] = relationship("Cita", back_populates="trabajos_laboratorio")  # noqa: F821
     tratamiento: Mapped["TratamientoCatalogo | None"] = relationship("TratamientoCatalogo")  # noqa: F821
     presupuesto: Mapped["Presupuesto | None"] = relationship("Presupuesto")  # noqa: F821
     factura: Mapped["Factura | None"] = relationship("Factura")  # noqa: F821

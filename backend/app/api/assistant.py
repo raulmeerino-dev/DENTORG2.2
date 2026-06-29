@@ -17,16 +17,20 @@ from app.database import get_db
 from app.schemas.assistant import (
     AssistantInterpretRequest,
     AssistantInterpretResponse,
+    AssistantLLMHealthResponse,
     DraftPatchInterpretRequest,
     DraftPatchInterpretResponse,
 )
 from app.services.assistant_llm_interpreter import (
     AssistantLLMError,
     AssistantLLMNotConfigured,
-    interpret_assistant_intent,
+    AssistantLLMUnavailable,
+    AssistantLLMUnsafeResponse,
+    check_llm_health,
+    interpret_assistant_intent_with_debug,
 )
 from app.services.audit import write_audit_log
-from app.services.draft_patch_interpreter import interpret_draft_patch
+from app.services.draft_patch_interpreter import interpret_draft_patch_with_debug
 
 router = APIRouter()
 
@@ -39,6 +43,13 @@ def _ensure_assistant_role(current_user: CurrentUser) -> None:
         )
 
 
+@router.get("/llm-health", response_model=AssistantLLMHealthResponse)
+async def assistant_llm_health(current_user: CurrentUser) -> AssistantLLMHealthResponse:
+    _ensure_assistant_role(current_user)
+    health = await check_llm_health(get_settings())
+    return AssistantLLMHealthResponse.model_validate(health)
+
+
 @router.post("/interpret", response_model=AssistantInterpretResponse)
 async def interpret_assistant_request(
     data: AssistantInterpretRequest,
@@ -49,7 +60,8 @@ async def interpret_assistant_request(
     _ensure_assistant_role(current_user)
     settings = get_settings()
     try:
-        intent = await interpret_assistant_intent(data, settings)
+        interpretation = await interpret_assistant_intent_with_debug(data, settings)
+        intent = interpretation.intent
     except AssistantLLMNotConfigured as exc:
         await write_audit_log(
             db,
@@ -64,6 +76,34 @@ async def interpret_assistant_request(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Interprete IA no configurado",
         ) from exc
+    except AssistantLLMUnavailable as exc:
+        await write_audit_log(
+            db,
+            user=current_user,
+            action="ASSISTANT_INTERPRET_UNAVAILABLE",
+            entity_type="assistant",
+            new_values={"status": "unavailable"},
+            request=request,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except AssistantLLMUnsafeResponse as exc:
+        await write_audit_log(
+            db,
+            user=current_user,
+            action="ASSISTANT_INTERPRET_UNSAFE_RESPONSE",
+            entity_type="assistant",
+            new_values={"status": "unsafe_response"},
+            request=request,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No he podido interpretar eso con seguridad. No se ha ejecutado nada.",
+        ) from exc
     except AssistantLLMError as exc:
         await write_audit_log(
             db,
@@ -76,7 +116,7 @@ async def interpret_assistant_request(
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No he podido interpretar eso con seguridad. Puedes repetirlo o hacerlo manualmente.",
+            detail="No he podido interpretar eso con seguridad. No se ha ejecutado nada.",
         ) from exc
 
     await write_audit_log(
@@ -90,11 +130,14 @@ async def interpret_assistant_request(
             "riskLevel": intent.risk_level,
             "status": intent.status,
             "confirmed": intent.intent == "confirm_current_draft",
+            "provider": interpretation.provider,
+            "model": interpretation.model,
+            "responseMs": interpretation.response_ms,
         },
         request=request,
     )
     await db.commit()
-    return AssistantInterpretResponse(intent=intent)
+    return AssistantInterpretResponse(intent=intent, debug=interpretation.debug_payload())
 
 
 @router.post("/patch", response_model=DraftPatchInterpretResponse)
@@ -107,7 +150,8 @@ async def interpret_draft_patch_request(
     _ensure_assistant_role(current_user)
     settings = get_settings()
     try:
-        patch = await interpret_draft_patch(data, settings)
+        interpretation = await interpret_draft_patch_with_debug(data, settings)
+        patch = interpretation.patch
     except AssistantLLMNotConfigured as exc:
         await write_audit_log(
             db,
@@ -122,6 +166,34 @@ async def interpret_draft_patch_request(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Interprete IA de borradores no configurado",
         ) from exc
+    except AssistantLLMUnavailable as exc:
+        await write_audit_log(
+            db,
+            user=current_user,
+            action="ASSISTANT_PATCH_UNAVAILABLE",
+            entity_type="assistant",
+            new_values={"status": "unavailable"},
+            request=request,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except AssistantLLMUnsafeResponse as exc:
+        await write_audit_log(
+            db,
+            user=current_user,
+            action="ASSISTANT_PATCH_UNSAFE_RESPONSE",
+            entity_type="assistant",
+            new_values={"status": "unsafe_response"},
+            request=request,
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="No he podido interpretar la correccion con seguridad. No se ha ejecutado nada.",
+        ) from exc
     except AssistantLLMError as exc:
         await write_audit_log(
             db,
@@ -134,7 +206,7 @@ async def interpret_draft_patch_request(
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="No he podido interpretar la correccion con seguridad.",
+            detail="No he podido interpretar la correccion con seguridad. No se ha ejecutado nada.",
         ) from exc
 
     await write_audit_log(
@@ -146,8 +218,11 @@ async def interpret_draft_patch_request(
             "action": patch.action,
             "confidence": patch.confidence,
             "confirmed": patch.action == "confirm",
+            "provider": interpretation.provider,
+            "model": interpretation.model,
+            "responseMs": interpretation.response_ms,
         },
         request=request,
     )
     await db.commit()
-    return DraftPatchInterpretResponse(patch=patch)
+    return DraftPatchInterpretResponse(patch=patch, debug=interpretation.debug_payload())

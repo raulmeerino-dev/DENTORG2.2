@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import logging
+import time
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -8,7 +11,35 @@ from pydantic import ValidationError
 
 from app.config import Settings
 from app.schemas.assistant import DraftPatch, DraftPatchInterpretRequest
-from app.services.assistant_llm_interpreter import AssistantLLMError, AssistantLLMNotConfigured
+from app.services.assistant_llm_interpreter import (
+    NO_LLM_ENGINE_MESSAGE,
+    OLLAMA_UNAVAILABLE_MESSAGE,
+    AssistantLLMError,
+    AssistantLLMNotConfigured,
+    AssistantLLMUnavailable,
+    AssistantLLMUnsafeResponse,
+    LLMProviderManager,
+    extract_json_object,
+)
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class DraftPatchInterpretation:
+    patch: DraftPatch
+    provider: str
+    model: str
+    response_ms: float
+
+    def debug_payload(self) -> dict[str, Any]:
+        return {
+            "route": f"llm/{self.provider}",
+            "providerUsed": self.provider,
+            "modelUsed": self.model,
+            "responseMs": self.response_ms,
+            "intentFinal": self.patch.action,
+        }
 
 DRAFT_PATCH_ACTIONS = [
     "update_fields",
@@ -141,6 +172,27 @@ Los ejemplos no son reglas literales. Debes razonar por significado.
 """
 
 
+def _ollama_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _minimal_patch_input(request: DraftPatchInterpretRequest) -> dict[str, Any]:
+    return {
+        "userText": request.user_text,
+        "safeContext": request.safe_context.model_dump(by_alias=True),
+        "currentDraft": request.current_draft.model_dump(by_alias=True),
+        "lastAssistantQuestion": request.last_assistant_question,
+    }
+
+
+def _log_patch_result(provider: str, model: str, raw_text: str, parsed: dict[str, Any], patch: DraftPatch) -> None:
+    logger.debug("DentCore assistant patch LLM provider usado: %s", provider)
+    logger.debug("DentCore assistant patch LLM modelo usado: %s", model)
+    logger.debug("DentCore assistant patch LLM respuesta cruda: %s", raw_text)
+    logger.debug("DentCore assistant patch LLM JSON parseado: %s", parsed)
+    logger.debug("DentCore assistant patch LLM patch final: %s", patch.model_dump(by_alias=True))
+
+
 class DraftPatchInterpreter:
     def __init__(self, settings: Settings):
         self.api_key = settings.openai_api_key.strip()
@@ -176,19 +228,17 @@ class DraftPatchInterpreter:
 
         raw_text = self._extract_output_text(response_payload)
         try:
-            parsed = json.loads(raw_text)
-            return DraftPatch.model_validate(parsed)
-        except (json.JSONDecodeError, ValidationError) as exc:
+            parsed = extract_json_object(raw_text)
+            patch = DraftPatch.model_validate(parsed)
+            _log_patch_result("openai", self.model, raw_text, parsed, patch)
+            return patch
+        except AssistantLLMUnsafeResponse:
+            raise
+        except ValidationError as exc:
             raise AssistantLLMError("El proveedor LLM devolvio un patch invalido") from exc
 
     def _build_request_payload(self, request: DraftPatchInterpretRequest) -> dict[str, Any]:
-        safe_input = {
-            "userText": request.user_text,
-            "currentDraft": request.current_draft.model_dump(by_alias=True),
-            "safeContext": request.safe_context.model_dump(by_alias=True),
-            "lastAssistantQuestion": request.last_assistant_question,
-            "visibleOptions": request.visible_options.model_dump(by_alias=True),
-        }
+        safe_input = _minimal_patch_input(request)
         return {
             "model": self.model,
             "store": False,
@@ -219,8 +269,129 @@ class DraftPatchInterpreter:
         raise AssistantLLMError("El proveedor LLM no devolvio texto estructurado")
 
 
+class OllamaDraftPatchInterpreter:
+    def __init__(self, settings: Settings):
+        self.base_url = settings.ollama_base_url.strip().rstrip("/")
+        self.model = settings.ollama_model.strip()
+        self.timeout = settings.ollama_timeout_seconds
+
+    async def interpret(self, request: DraftPatchInterpretRequest) -> DraftPatch:
+        if not self.base_url or not self.model:
+            raise AssistantLLMNotConfigured("Interprete Ollama de patches no configurado")
+
+        payload = self._build_request_payload(request)
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(_ollama_url(self.base_url, "/api/chat"), json=payload)
+            response.raise_for_status()
+            response_payload = response.json()
+        except httpx.TimeoutException as exc:
+            raise AssistantLLMUnavailable(OLLAMA_UNAVAILABLE_MESSAGE) from exc
+        except httpx.HTTPStatusError as exc:
+            raise AssistantLLMError(f"Error de Ollama ({exc.response.status_code})") from exc
+        except httpx.HTTPError as exc:
+            raise AssistantLLMUnavailable(OLLAMA_UNAVAILABLE_MESSAGE) from exc
+        except ValueError as exc:
+            raise AssistantLLMError("Respuesta invalida de Ollama") from exc
+
+        raw_text = self._extract_output_text(response_payload)
+        try:
+            parsed = extract_json_object(raw_text)
+            patch = DraftPatch.model_validate(parsed)
+            _log_patch_result("ollama", self.model, raw_text, parsed, patch)
+            return patch
+        except AssistantLLMUnsafeResponse:
+            raise
+        except ValidationError as exc:
+            raise AssistantLLMError("Ollama devolvio un patch invalido") from exc
+
+    def _build_request_payload(self, request: DraftPatchInterpretRequest) -> dict[str, Any]:
+        safe_input = _minimal_patch_input(request)
+        return {
+            "model": self.model,
+            "stream": False,
+            "format": DRAFT_PATCH_JSON_SCHEMA,
+            "options": {"temperature": 0},
+            "messages": [
+                {"role": "system", "content": DRAFT_PATCH_SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        "Devuelve exclusivamente un objeto JSON compatible con el schema configurado. "
+                        f"Entrada segura: {json.dumps(safe_input, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+        }
+
+    def _extract_output_text(self, payload: dict[str, Any]) -> str:
+        message = payload.get("message")
+        if isinstance(message, dict) and isinstance(message.get("content"), str):
+            return message["content"]
+        if isinstance(payload.get("response"), str):
+            return payload["response"]
+        raise AssistantLLMError("Ollama no devolvio texto estructurado")
+
+
+def _model_for_provider(provider: str, settings: Settings) -> str:
+    if provider == "ollama":
+        return settings.ollama_model.strip()
+    if provider == "openai":
+        return settings.openai_model.strip()
+    return "mock"
+
+
+async def _interpret_patch_with_provider(
+    provider: str,
+    request: DraftPatchInterpretRequest,
+    settings: Settings,
+) -> DraftPatchInterpretation:
+    started_at = time.perf_counter()
+    if provider == "ollama":
+        patch = await OllamaDraftPatchInterpreter(settings).interpret(request)
+    elif provider == "openai":
+        patch = await DraftPatchInterpreter(settings).interpret(request)
+    else:
+        raise AssistantLLMNotConfigured("Proveedor LLM no soportado")
+    response_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    return DraftPatchInterpretation(
+        patch=patch,
+        provider=provider,
+        model=_model_for_provider(provider, settings),
+        response_ms=response_ms,
+    )
+
+
+async def interpret_draft_patch_with_debug(
+    request: DraftPatchInterpretRequest,
+    settings: Settings,
+) -> DraftPatchInterpretation:
+    manager = LLMProviderManager(settings)
+    if manager.mode == "ollama":
+        manager.log_selected_provider("ollama")
+        return await _interpret_patch_with_provider("ollama", request, settings)
+    if manager.mode == "openai":
+        manager.log_selected_provider("openai")
+        return await _interpret_patch_with_provider("openai", request, settings)
+    if manager.mode != "auto":
+        raise AssistantLLMNotConfigured("Interprete de patches no configurado")
+
+    errors: list[str] = []
+    for provider in await manager.ordered_available_providers():
+        try:
+            manager.log_selected_provider(provider)
+            return await _interpret_patch_with_provider(provider, request, settings)
+        except AssistantLLMError as exc:
+            errors.append(f"{provider}: {exc}")
+            logger.debug("DentCore assistant patch LLM fallo en proveedor %s: %s", provider, exc)
+            continue
+
+    logger.debug("DentCore assistant patch LLM sin proveedor disponible. Fallos: %s", errors)
+    raise AssistantLLMUnavailable(NO_LLM_ENGINE_MESSAGE)
+
+
 async def interpret_draft_patch(
     request: DraftPatchInterpretRequest,
     settings: Settings,
 ) -> DraftPatch:
-    return await DraftPatchInterpreter(settings).interpret(request)
+    return (await interpret_draft_patch_with_debug(request, settings)).patch

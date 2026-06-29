@@ -24,12 +24,14 @@ from app.services.pdf_service import (
     generar_presupuesto_pdf,
     generar_recibo_pdf,
     pdf_response_headers,
+    validate_pdf_bytes,
 )
 
 router = APIRouter()
 
 
 def _pdf_response(data: bytes, filename: str) -> Response:
+    validate_pdf_bytes(data)
     return Response(
         content=data,
         media_type="application/pdf",
@@ -53,6 +55,11 @@ async def pdf_factura(
 
     archived = next((d for d in factura.documentos_fiscales if d.tipo == "factura_pdf"), None)
     pdf_bytes = read_archived_pdf(archived) if archived else None
+    if pdf_bytes is not None:
+        try:
+            validate_pdf_bytes(pdf_bytes)
+        except ValueError:
+            pdf_bytes = None
     if pdf_bytes is None:
         pdf_bytes = build_factura_pdf_bytes(factura)
 

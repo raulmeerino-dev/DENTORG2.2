@@ -26,6 +26,7 @@ CATEGORIAS_DOCUMENTO = (
     "consentimiento",
     "presupuesto",
     "factura",
+    "receta",
     "otro",
 )
 

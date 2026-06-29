@@ -2,6 +2,21 @@ import type { FormEvent } from 'react';
 import { AlertTriangle, Bot, Calendar, Check, Clock, Loader2, Mic, Minus, Pencil, Plus, Search, Send, ShieldCheck, Stethoscope, Trash2, UserRound, X } from 'lucide-react';
 import type { AssistantBudgetLine, AssistantContextSnapshot, AssistantDraftEditableField, AssistantIntent, AssistantMessage, AssistantPatientOption, AssistantPhase, AssistantProfessionalOption, AssistantSlot, AssistantTreatmentOption } from './types';
 
+type AssistantLLMHealth = {
+  mode: string;
+  activeProvider: 'ollama' | 'openai' | 'mock' | 'none';
+  ollama: {
+    available: boolean;
+    model: string;
+    message: string;
+  };
+  openai: {
+    available: boolean;
+    model: string;
+    message: string;
+  };
+};
+
 function phaseLabel(phase: AssistantPhase) {
   const labels: Record<AssistantPhase, string> = {
     idle: 'Listo',
@@ -506,6 +521,7 @@ export default function AssistantPanel({
   transcript,
   draft,
   input,
+  llmHealth,
   loadingData,
   onInputChange,
   onSubmit,
@@ -531,6 +547,7 @@ export default function AssistantPanel({
   transcript: string;
   draft: AssistantIntent | null;
   input: string;
+  llmHealth?: AssistantLLMHealth | null;
   loadingData: boolean;
   onInputChange: (value: string) => void;
   onSubmit: (value: string) => void;
@@ -556,6 +573,44 @@ export default function AssistantPanel({
   }
 
   const busy = ['listening', 'transcribing', 'interpreting', 'executing'].includes(phase);
+  const llmWarning = (() => {
+    if (!llmHealth) return null;
+    if (llmHealth.activeProvider === 'mock' || llmHealth.activeProvider === 'none') {
+      return 'No hay motor de IA disponible. Revisa Ollama u OpenAI.';
+    }
+    if (llmHealth.mode === 'ollama' && !llmHealth.ollama.available) return llmHealth.ollama.message;
+    if (llmHealth.mode === 'openai' && !llmHealth.openai.available) return llmHealth.openai.message;
+    return null;
+  })();
+  const llmStatus = (() => {
+    if (!llmHealth) return null;
+    const labels: Record<AssistantLLMHealth['activeProvider'], string> = {
+      ollama: 'Ollama',
+      openai: 'OpenAI',
+      mock: 'Mock',
+      none: 'Sin motor',
+    };
+    const activeHealth = llmHealth.activeProvider === 'ollama'
+      ? llmHealth.ollama
+      : llmHealth.activeProvider === 'openai'
+        ? llmHealth.openai
+        : null;
+    const configuredModel = llmHealth.mode === 'ollama'
+      ? llmHealth.ollama.model
+      : llmHealth.mode === 'openai'
+        ? llmHealth.openai.model
+        : llmHealth.ollama.model || llmHealth.openai.model;
+    return {
+      provider: labels[llmHealth.activeProvider],
+      model: activeHealth?.model ?? (llmHealth.activeProvider === 'mock' ? 'MockIntentInterpreter' : configuredModel || 'Sin modelo'),
+      available: activeHealth?.available ?? (llmHealth.activeProvider === 'mock'),
+      availability: llmHealth.activeProvider === 'ollama'
+        ? (llmHealth.ollama.available ? 'Ollama disponible' : 'Ollama no disponible')
+        : activeHealth?.available
+          ? 'Disponible'
+          : 'No disponible',
+    };
+  })();
 
   return (
     <aside className="assistant-panel" aria-label="Asistente DentCore">
@@ -576,6 +631,22 @@ export default function AssistantPanel({
         <span>{context.currentPatientDisplayName ?? 'Sin paciente activo'}</span>
         {loadingData && <em><Loader2 size={12} className="assistant-spin" /> Sincronizando</em>}
       </div>
+
+      {llmWarning && (
+        <p className="assistant-llm-warning">
+          <AlertTriangle size={14} strokeWidth={2} />
+          {llmWarning}
+        </p>
+      )}
+
+      {llmStatus && (
+        <div className={`assistant-llm-status ${llmStatus.available ? 'available' : 'unavailable'}`}>
+          {llmStatus.available ? <ShieldCheck size={14} strokeWidth={2} /> : <AlertTriangle size={14} strokeWidth={2} />}
+          <span>Proveedor <strong>{llmStatus.provider}</strong></span>
+          <span>Modelo <strong>{llmStatus.model}</strong></span>
+          <em>{llmStatus.availability}</em>
+        </div>
+      )}
 
       <div className="assistant-transcript" aria-live="polite">
         <span>Transcripcion</span>

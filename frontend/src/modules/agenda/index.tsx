@@ -6,6 +6,15 @@ import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, cr
 import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente, WhatsAppInboxItem } from '../../types/api';
 import { AGENDA_STATUS_LEGEND, QUICK_APPOINTMENT_STATES, STATUS_META, getVisualStatus, quickAppointmentStateKey, setTreatmentMarker } from './appointmentStatus';
 import type { QuickAppointmentState } from './appointmentStatus';
+import {
+  agendaLabSummary,
+  appointmentSuggestsLab,
+  buildLabAlerts,
+  citaMatchesLabFilter,
+  labShortName,
+  labStatusMeta,
+} from './laboratorioAgenda';
+import type { AgendaLabSummary } from './laboratorioAgenda';
 import { CancelCitaModal } from './modals/CancelCitaModal';
 
 type SlotDraft = {
@@ -15,6 +24,7 @@ type SlotDraft = {
   pacienteId?: string;
   motivo?: string;
   telefonearId?: string;
+  presupuestoLineaId?: string;
 };
 
 type HuecoResultado = HuecoLibre & {
@@ -87,6 +97,15 @@ function dateTimeLabel(value: string) {
     month: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+  });
+}
+
+function dateLabel(value?: string | null) {
+  if (!value) return '-';
+  return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
   });
 }
 
@@ -234,6 +253,13 @@ function citaMatchesQuery(cita: Cita, pacientes: ApiPaciente[], query: string) {
     cita.doctor?.nombre,
     cita.estado,
     visual.label,
+    ...(cita.laboratorio ?? []).flatMap((trabajo) => [
+      trabajo.descripcion,
+      trabajo.tipo_trabajo,
+      trabajo.estado,
+      trabajo.laboratorio?.nombre,
+      trabajo.ubicacion_clinica,
+    ]),
   ].filter(Boolean).join(' '));
   return tokens.every((token) => haystack.includes(token));
 }
@@ -294,6 +320,33 @@ function AgendaDayBrief({
   );
 }
 
+function AgendaLabSummaryStrip({
+  summary,
+  labOnly,
+  onToggleLabOnly,
+}: {
+  summary: AgendaLabSummary;
+  labOnly: boolean;
+  onToggleLabOnly: () => void;
+}) {
+  const hasLabSignal = summary.total > 0 || summary.suspectedWithoutWork > 0;
+  return (
+    <div className={`agenda-lab-summary${labOnly ? ' active' : ''}`} aria-label="Resumen laboratorio agenda">
+      <button type="button" onClick={onToggleLabOnly}>
+        <span>Trabajos de laboratorio hoy</span>
+        <strong>{summary.total}</strong>
+      </button>
+      <span className="agenda-lab-summary-ok">Listos: {summary.ready}</span>
+      <span className="agenda-lab-summary-pending">Pendientes: {summary.pending}</span>
+      <span className={summary.delayed ? 'agenda-lab-summary-danger' : ''}>Retrasados: {summary.delayed}</span>
+      {summary.suspectedWithoutWork > 0 && (
+        <span className="agenda-lab-summary-soft">Sin asociar: {summary.suspectedWithoutWork}</span>
+      )}
+      {!hasLabSignal && <em>Sin señales de laboratorio en el dia visible.</em>}
+    </div>
+  );
+}
+
 function AgendaToolbar({
   day,
   doctorId,
@@ -302,8 +355,10 @@ function AgendaToolbar({
   citasCount,
   pendingCount,
   clinicCount,
+  labOnly,
   onDayChange,
   onDoctorChange,
+  onToggleLabOnly,
   onRefresh,
   onSearchCita,
   onSearchSlot,
@@ -316,8 +371,10 @@ function AgendaToolbar({
   citasCount: number;
   pendingCount: number;
   clinicCount: number;
+  labOnly: boolean;
   onDayChange: (day: string) => void;
   onDoctorChange: (doctorId: string) => void;
+  onToggleLabOnly: () => void;
   onRefresh: () => void;
   onSearchCita: () => void;
   onSearchSlot: () => void;
@@ -351,6 +408,7 @@ function AgendaToolbar({
         <span>{citasCount} citas · {pendingCount} confirmar · {clinicCount} en clínica</span>
       </div>
       <div className="agenda-toolbar-actions">
+        <button type="button" className={labOnly ? 'active' : ''} onClick={onToggleLabOnly}>Citas con laboratorio</button>
         <button type="button" onClick={onSearchCita}>Buscar citas</button>
         <button type="button" onClick={onSearchSlot}>Buscar hueco</button>
         <button type="button" onClick={onOpenHorario}>Horario</button>
@@ -378,6 +436,7 @@ function CitaModal({
     citaId?: string;
     paciente_id: string;
     doctor_id: string;
+    presupuesto_linea_id?: string | null;
     fecha_hora: string;
     duracion_min: number;
     estado: string;
@@ -398,7 +457,9 @@ function CitaModal({
   const [duracion, setDuracion] = useState(cita?.duracion_min ?? 30);
   const [estado, setEstado] = useState(cita?.estado ?? 'programada');
   const storedTreatment = !cita ? sessionStorage.getItem('dentcore_selected_treatment') : null;
+  const storedPresupuestoLineaId = !cita ? sessionStorage.getItem('dentcore_selected_presupuesto_linea_id') : null;
   const [motivo, setMotivo] = useState(cita?.motivo ?? draft?.motivo ?? storedTreatment ?? '');
+  const [presupuestoLineaId] = useState(cita?.presupuesto_linea_id ?? draft?.presupuestoLineaId ?? storedPresupuestoLineaId ?? null);
   const [observaciones, setObservaciones] = useState(cita?.observaciones ?? '');
   const [gabinete, setGabinete] = useState(cita?.gabinete_id ?? '');
   const [tempName, setTempName] = useState('');
@@ -424,6 +485,9 @@ function CitaModal({
   });
   const whatsappThread = whatsappThreadQuery.data ?? [];
   const activeQuickState = quickAppointmentStateKey(estado, observaciones);
+  const labWorks = cita?.laboratorio ?? [];
+  const labAlerts = cita ? buildLabAlerts(cita, todayIso()) : [];
+  const labSuggested = cita ? appointmentSuggestsLab(cita) : false;
 
   function selectQuickState(option: QuickAppointmentState) {
     setEstado(option.value);
@@ -437,6 +501,7 @@ function CitaModal({
       citaId: cita?.id,
       paciente_id: pacienteId,
       doctor_id: doctorId,
+      presupuesto_linea_id: presupuestoLineaId,
       fecha_hora: `${fecha}T${hora}:00`,
       duracion_min: duracion,
       estado,
@@ -588,6 +653,37 @@ function CitaModal({
           <span>Canal: {cita?.recordatorio_canal ?? '-'}</span>
           <span>Confirmacion: {['confirmada', 'confirmed'].includes(estado) ? 'Confirmada' : 'Pendiente'}</span>
         </aside>
+        {cita && (labWorks.length > 0 || labSuggested) && (
+          <section className="appointment-lab-detail" aria-label="Laboratorio asociado a la cita">
+            <header>
+              <strong>Laboratorio</strong>
+              <span>{labWorks.length ? `${labWorks.length} trabajo${labWorks.length === 1 ? '' : 's'} asociado${labWorks.length === 1 ? '' : 's'}` : 'Sin trabajo asociado'}</span>
+            </header>
+            {labAlerts.map((alert) => (
+              <p key={alert} className="appointment-lab-alert">{alert}</p>
+            ))}
+            {labWorks.map((trabajo) => {
+              const meta = labStatusMeta(trabajo, todayIso());
+              return (
+                <article key={trabajo.id} className={`appointment-lab-item lab-${meta.variant}`}>
+                  <div>
+                    <strong>{trabajo.descripcion}</strong>
+                    <span>{[trabajo.tipo_trabajo, trabajo.laboratorio?.nombre].filter(Boolean).join(' · ')}</span>
+                  </div>
+                  <em>{meta.label}</em>
+                  <dl>
+                    <div><dt>Envio</dt><dd>{dateLabel(trabajo.fecha_salida)}</dd></div>
+                    <div><dt>Prevista</dt><dd>{dateLabel(trabajo.fecha_entrega_prevista)}</dd></div>
+                    <div><dt>Recepcion</dt><dd>{dateLabel(trabajo.fecha_recepcion)}</dd></div>
+                    <div><dt>Revision</dt><dd>{dateLabel(trabajo.fecha_revision)}</dd></div>
+                    <div><dt>Ubicacion</dt><dd>{trabajo.ubicacion_clinica || '-'}</dd></div>
+                  </dl>
+                  {trabajo.observaciones && <p>{trabajo.observaciones}</p>}
+                </article>
+              );
+            })}
+          </section>
+        )}
         {cita && (
           <section className="appointment-whatsapp-thread" aria-label="Historial WhatsApp de la cita">
             <header>
@@ -876,10 +972,11 @@ export default function AgendaPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchBar, setShowSearchBar] = useState(false);
+  const [labOnly, setLabOnly] = useState(false);
   const [now, setNow] = useState(new Date());
 
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
-  const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: getPacientes });
+  const pacientesQuery = useQuery({ queryKey: ['pacientes'], queryFn: () => getPacientes() });
   const telefonearQuery = useQuery({ queryKey: ['telefonear'], queryFn: getTelefonear });
 
   const range = useMemo(() => ({
@@ -895,7 +992,12 @@ export default function AgendaPage() {
 
   const doctores = useMemo(() => doctoresQuery.data ?? [], [doctoresQuery.data]);
   const pacientes = useMemo(() => pacientesQuery.data ?? [], [pacientesQuery.data]);
-  const citas = useMemo(() => citasQuery.data ?? [], [citasQuery.data]);
+  const rawCitas = useMemo(() => citasQuery.data ?? [], [citasQuery.data]);
+  const labSummary = useMemo(() => agendaLabSummary(rawCitas, todayIso()), [rawCitas]);
+  const citas = useMemo(
+    () => (labOnly ? rawCitas.filter(citaMatchesLabFilter) : rawCitas),
+    [labOnly, rawCitas],
+  );
 
   useEffect(() => {
     const focusDateParam = searchParams.get('fecha');
@@ -944,6 +1046,7 @@ export default function AgendaPage() {
       motivo: string;
       observaciones: string;
       gabinete_id: string | null;
+      presupuesto_linea_id?: string | null;
       telefonearId?: string;
     }) => {
       const { telefonearId, citaId, ...citaData } = data;
@@ -1108,7 +1211,14 @@ export default function AgendaPage() {
   ) => {
     setContextMenu(null);
     setModalCita(null);
-    setSlotDraft({ day: targetDay, slot, doctorId: targetDoctorId, pacienteId, ...meta });
+    setSlotDraft({
+      day: targetDay,
+      slot,
+      doctorId: targetDoctorId,
+      pacienteId,
+      presupuestoLineaId: sessionStorage.getItem('dentcore_selected_presupuesto_linea_id') ?? undefined,
+      ...meta,
+    });
   }, [day, doctorForSlot]);
 
   useEffect(() => {
@@ -1250,8 +1360,10 @@ export default function AgendaPage() {
         citasCount={citasActivas.length}
         pendingCount={pendientesConfirmar.length}
         clinicCount={pacientesEnClinica.length}
+        labOnly={labOnly}
         onDayChange={setDay}
         onDoctorChange={setDoctorId}
+        onToggleLabOnly={() => setLabOnly((value) => !value)}
         onRefresh={() => {
           void citasQuery.refetch();
           void horariosAgendaQuery.refetch();
@@ -1282,6 +1394,11 @@ export default function AgendaPage() {
         onOpenNext={() => nextVisibleCita && setModalCita(nextVisibleCita)}
         onSearchSlot={buscarHuecoLibre}
         onSearchCita={buscarCita}
+      />
+      <AgendaLabSummaryStrip
+        summary={labSummary}
+        labOnly={labOnly}
+        onToggleLabOnly={() => setLabOnly((value) => !value)}
       />
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
@@ -1434,9 +1551,12 @@ export default function AgendaPage() {
                     const needsReschedule = cita.estado === 'reschedule_requested';
                     const canMoveToClinic = !['en_clinica', 'atendida', 'anulada', 'falta', 'cancelled_by_patient', 'reschedule_requested', 'pending_manual_review'].includes(cita.estado);
                     const canFinish = cita.estado === 'en_clinica';
+                    const primaryLabWork = cita.laboratorio?.[0] ?? null;
+                    const primaryLabMeta = primaryLabWork ? labStatusMeta(primaryLabWork, nowDay) : null;
+                    const labAlerts = buildLabAlerts(cita, nowDay);
                     return (
                       <article
-                        className={`agenda-appointment ${visual.className}`}
+                        className={`agenda-appointment ${visual.className}${primaryLabMeta ? ' has-lab' : ''}${labAlerts.length ? ' has-lab-alert' : ''}`}
                         key={cita.id}
                         style={{ '--doctor-color': cita.doctor?.color_agenda ?? doctorById.get(cita.doctor_id)?.color_agenda ?? '#2a7de1' } as CSSProperties}
                         onClick={(event) => {
@@ -1454,6 +1574,20 @@ export default function AgendaPage() {
                         <span>{cita.motivo ?? visual.label}</span>
                         <small>{visual.label}</small>
                         <em>{cita.duracion_min} min</em>
+                        {(primaryLabWork || labAlerts.length > 0) && (
+                          <div className={`agenda-appointment-lab ${primaryLabMeta ? `lab-${primaryLabMeta.variant}` : 'lab-warning'}`}>
+                            {primaryLabMeta && <b>{primaryLabMeta.shortLabel}</b>}
+                            {primaryLabWork ? (
+                              <span>
+                                Lab: {labShortName(primaryLabWork)}
+                                {primaryLabWork.laboratorio?.nombre ? ` · ${primaryLabWork.laboratorio.nombre}` : ''}
+                              </span>
+                            ) : (
+                              <span>Lab: cita sin trabajo asociado</span>
+                            )}
+                            {labAlerts[0] && <em>{labAlerts[0]}</em>}
+                          </div>
+                        )}
                         <div className="agenda-appointment-actions" aria-label={`Acciones rapidas de ${patientName(cita)}`}>
                           {canConfirm && (
                             <button

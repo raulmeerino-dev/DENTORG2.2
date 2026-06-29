@@ -77,10 +77,12 @@ Si se anaden funciones que recomienden diagnostico, pronostico o decisiones tera
 Checklist recomendado:
 
 - Preflight sin `fail`.
+- Preflight revisado manualmente aunque quede `warn` por validacion externa pendiente.
 - Backup cifrado reciente y restauracion probada.
 - Backup de alcance `full` con uploads/documentos incluidos.
 - Copia externa verificada mediante `BACKUP_EXTERNAL_COPY_DIR` y hash coincidente.
 - Extraccion offline probada con `python -m scripts.backup_tool extract`.
+- Restore-check offline probado con `python -m scripts.backup_tool restore-check`.
 - Portal por invitacion probado con enlace valido, caducado y revocado.
 - HTTPS/TLS configurado.
 - 2FA activo para admin.
@@ -89,5 +91,7 @@ Checklist recomendado:
 - Migraciones aplicadas en copia de datos.
 - Prueba de importacion de pacientes.
 - Prueba completa de agenda, presupuesto, tratamiento, factura, cobro y PDF.
+- Prueba de cita creada desde una linea de presupuesto aceptada, conservando trazabilidad hasta realizado e historial.
+- E2E de navegador para guardar y refrescar cita vinculada a `presupuesto_linea_id`.
 - Prueba de recuperacion ante perdida de sesion o caida del servidor.
 - Manual de usuario entregado.

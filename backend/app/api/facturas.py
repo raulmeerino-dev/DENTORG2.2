@@ -45,7 +45,7 @@ from app.schemas.factura import (
     HistorialSinFacturarResponse,
 )
 from app.services.fiscal_document_service import archivar_pdf_factura
-from app.services.pdf_service import generar_receta_pdf, pdf_response_headers
+from app.services.pdf_service import generar_receta_pdf, pdf_response_headers, validate_pdf_bytes
 from app.services.verifactu_service import (
     registrar_evento_sif,
     registrar_registro_facturacion,
@@ -401,8 +401,10 @@ async def generar_receta(
         db.add(receta)
         factura.tiene_receta_electronica = True
         await db.commit()
+    pdf_bytes = base64.b64decode(receta.contenido_base64)
+    validate_pdf_bytes(pdf_bytes)
     return Response(
-        content=base64.b64decode(receta.contenido_base64),
+        content=pdf_bytes,
         media_type="application/pdf",
         headers=pdf_response_headers(f"receta-{factura.serie}-{factura.numero}.pdf", inline=False),
     )

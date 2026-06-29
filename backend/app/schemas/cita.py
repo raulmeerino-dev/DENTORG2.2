@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -12,6 +12,7 @@ class CitaCreate(BaseModel):
     paciente_id: UUID
     doctor_id: UUID
     gabinete_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
     fecha_hora: datetime
     duracion_min: int = Field(30, ge=10, le=480, multiple_of=10)
     es_urgencia: bool = False
@@ -28,6 +29,7 @@ class CitaCreate(BaseModel):
 class CitaUpdate(BaseModel):
     doctor_id: UUID | None = None
     gabinete_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
     fecha_hora: datetime | None = None
     duracion_min: int | None = Field(None, ge=10, le=480)
     estado: EstadoCita | None = None
@@ -82,12 +84,48 @@ class DoctorResumen(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LaboratorioResumen(BaseModel):
+    id: UUID
+    nombre: str
+    contacto: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class TrabajoLaboratorioCitaResumen(BaseModel):
+    id: UUID
+    paciente_id: UUID
+    doctor_id: UUID
+    laboratorio_id: UUID
+    cita_id: UUID | None = None
+    tratamiento_id: UUID | None = None
+    presupuesto_linea_id: UUID | None = None
+    tipo_trabajo: str | None = None
+    descripcion: str
+    pieza_dental: int | None = None
+    observaciones: str | None = None
+    fecha_salida: date | None = None
+    fecha_entrega_prevista: date | None = None
+    fecha_recepcion: date | None = None
+    fecha_revision: date | None = None
+    fecha_entrega_paciente: date | None = None
+    ubicacion_clinica: str | None = None
+    estado: str
+    colocado: bool = False
+    material_enviado: bool = False
+    material_devuelto: bool = False
+    laboratorio: LaboratorioResumen | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class CitaResponse(BaseModel):
     id: UUID
     paciente_id: UUID
     clinica_id: UUID | None = None
     doctor_id: UUID
     gabinete_id: UUID | None
+    presupuesto_linea_id: UUID | None
     fecha_hora: datetime
     duracion_min: int
     estado: str
@@ -103,6 +141,7 @@ class CitaResponse(BaseModel):
     # Datos denormalizados para UI
     paciente: PacienteResumen | None = None
     doctor: DoctorResumen | None = None
+    laboratorio: list[TrabajoLaboratorioCitaResumen] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

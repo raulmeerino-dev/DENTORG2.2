@@ -304,6 +304,168 @@ async def test_crud_cita(client: AsyncClient, db_session: AsyncSession):
 
 
 @pytest.mark.asyncio
+async def test_cita_vincula_presupuesto_linea_y_rechaza_linea_de_otro_paciente(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    headers = await auth_headers(client, db_session)
+    doctor = Doctor(nombre="Dra. Link", color_agenda="#2563eb", activo=True)
+    familia = FamiliaTratamiento(nombre="Agenda link", icono="AL", orden=12, activo=True)
+    db_session.add_all([doctor, familia])
+    await db_session.flush()
+    db_session.add(HorarioDoctor(
+        doctor_id=doctor.id,
+        dia_semana=0,
+        tipo_dia="laborable",
+        bloques=[{"inicio": "09:00", "fin": "13:00"}],
+        intervalo_min=10,
+    ))
+    tratamiento = TratamientoCatalogo(
+        familia_id=familia.id,
+        codigo=f"LINK-{uuid4().hex[:6]}",
+        nombre="Tratamiento con cita vinculada",
+        precio=80,
+        iva_porcentaje=0,
+        requiere_pieza=True,
+        activo=True,
+    )
+    db_session.add(tratamiento)
+    await db_session.commit()
+
+    paciente_a = await client.post(
+        "/api/pacientes",
+        headers=headers,
+        json={"nombre": "Alicia", "apellidos": "Linea"},
+    )
+    paciente_b = await client.post(
+        "/api/pacientes",
+        headers=headers,
+        json={"nombre": "Bruno", "apellidos": "Ajeno"},
+    )
+    assert paciente_a.status_code == 201
+    assert paciente_b.status_code == 201
+
+    presupuesto = await client.post(
+        "/api/presupuestos",
+        headers=headers,
+        json={
+            "paciente_id": paciente_a.json()["id"],
+            "doctor_id": str(doctor.id),
+            "fecha": datetime.now(timezone.utc).date().isoformat(),
+            "lineas": [{
+                "tratamiento_id": str(tratamiento.id),
+                "pieza_dental": 24,
+                "caras": "MO",
+                "precio_unitario": "80.00",
+                "descuento_porcentaje": "0.00",
+            }],
+        },
+    )
+    assert presupuesto.status_code == 201
+    linea_id = presupuesto.json()["lineas"][0]["id"]
+
+    next_monday = datetime.now(timezone.utc)
+    while next_monday.weekday() != 0:
+        next_monday += timedelta(days=1)
+    fecha = next_monday.replace(hour=9, minute=0, second=0, microsecond=0)
+
+    created = await client.post(
+        "/api/citas",
+        headers=headers,
+        json={
+            "paciente_id": paciente_a.json()["id"],
+            "doctor_id": str(doctor.id),
+            "presupuesto_linea_id": linea_id,
+            "fecha_hora": fecha.isoformat(),
+            "duracion_min": 30,
+            "motivo": "Tratamiento con presupuesto",
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["presupuesto_linea_id"] == linea_id
+
+    stored = await db_session.get(Cita, UUID(created.json()["id"]))
+    assert stored is not None
+    assert str(stored.presupuesto_linea_id) == linea_id
+
+    wrong_patient = await client.post(
+        "/api/citas",
+        headers=headers,
+        json={
+            "paciente_id": paciente_b.json()["id"],
+            "doctor_id": str(doctor.id),
+            "presupuesto_linea_id": linea_id,
+            "fecha_hora": fecha.replace(hour=10).isoformat(),
+            "duracion_min": 30,
+            "motivo": "Linea ajena",
+        },
+    )
+    assert wrong_patient.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_presupuesto_rechaza_linea_duplicada_en_mismo_presupuesto(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    headers = await auth_headers(client, db_session)
+    doctor = Doctor(nombre="Dra. Duplicados", color_agenda="#0f766e", activo=True)
+    familia = FamiliaTratamiento(nombre="Duplicados", icono="DU", orden=13, activo=True)
+    db_session.add_all([doctor, familia])
+    await db_session.flush()
+    tratamiento = TratamientoCatalogo(
+        familia_id=familia.id,
+        codigo=f"DUP-{uuid4().hex[:6]}",
+        nombre="Obturacion duplicada test",
+        precio=50,
+        iva_porcentaje=0,
+        requiere_pieza=True,
+        requiere_caras=True,
+        activo=True,
+    )
+    db_session.add(tratamiento)
+    await db_session.commit()
+
+    paciente = await client.post(
+        "/api/pacientes",
+        headers=headers,
+        json={"nombre": "Dalia", "apellidos": "Duplicada"},
+    )
+    assert paciente.status_code == 201
+    presupuesto = await client.post(
+        "/api/presupuestos",
+        headers=headers,
+        json={
+            "paciente_id": paciente.json()["id"],
+            "doctor_id": str(doctor.id),
+            "fecha": datetime.now(timezone.utc).date().isoformat(),
+            "lineas": [{
+                "tratamiento_id": str(tratamiento.id),
+                "pieza_dental": 26,
+                "caras": "OM",
+                "precio_unitario": "50.00",
+                "descuento_porcentaje": "0.00",
+            }],
+        },
+    )
+    assert presupuesto.status_code == 201
+
+    duplicate = await client.post(
+        f"/api/presupuestos/{presupuesto.json()['id']}/lineas",
+        headers=headers,
+        json={
+            "tratamiento_id": str(tratamiento.id),
+            "pieza_dental": 26,
+            "caras": "OM",
+            "precio_unitario": "50.00",
+            "descuento_porcentaje": "0.00",
+        },
+    )
+    assert duplicate.status_code == 409
+    assert "linea activa igual" in duplicate.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_portal_paciente_citas_documentos_y_firma(client: AsyncClient, db_session: AsyncSession):
     headers = await auth_headers(client, db_session)
     doctor = Doctor(nombre="Dr. Portal", color_agenda="#0f89b8", activo=True)
@@ -779,7 +941,7 @@ async def test_consentimiento_versionado_firma_pdf_y_revocacion(client: AsyncCli
     assert consentimiento["version_plantilla"] == plantilla["version_num"]
     assert "Pilar Firma" in consentimiento["contenido"]
 
-    tiny_png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lpVL1wAAAABJRU5ErkJggg=="
+    tiny_png = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAABGCAYAAABll74gAAACC0lEQVR4nO3cQW6DMBRFUegSPOsOuv/VdAedZQtUkRoJZZDGYPP/e/+eSdRJCvaVaxB03bZtAVx8RB8AMBJBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBwwpBF9Q+v7b9p5OVdwrraC8Cvv18r4sBgi6idazGynETtLl2YluhGDZBFw359hfru8GrxC0d9H0y7gP9+Iw+HrWYn70Td/Zxlgx6P/CPoPc/L0W1gyH3fk/v911JKugqFzZRITus2hJBH72wyTTQijErhp066J7JqnCPNSJktbjTBX12sNzDjgxZIew0QY8cnEyTPlLm82pJ4g4PeuZAZA7A9TxacNhhQV85SarbEKWQs9z6uzzorBczmeKIXuWUz+eyoDOtNpnDzjROiqv29KCzTlC248p2PKqr9rSgVSYo+jijf3+00X8thwatvPeL2IZUj/nZiGdyhgStHHJE2IT82pmnJ08F7RTyFWET8nyHgq4yMSPPs8qYSQVddVLOnHfVMZMOusqk9GxDCFlky8HbIf+HTcxiQTMhx148YNzmC3/aTp3znR5FBD1I9euLLAh6UtiEHIOgYYX/PgorBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBA0rBI3FyS+87qjITRiDtAAAAABJRU5ErkJggg=="
     firmado = await client.post(
         f"/api/consentimientos/{consentimiento['id']}/firmar",
         headers=headers,

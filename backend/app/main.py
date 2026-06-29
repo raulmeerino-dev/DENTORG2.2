@@ -16,6 +16,7 @@ from app.api import (
     doctores,
     documentos,
     facturas,
+    fichajes,
     inventario,
     laboratorio,
     notificaciones,
@@ -81,6 +82,7 @@ app.include_router(doctores.router, prefix="/api/doctores", tags=["doctores"])
 app.include_router(tratamientos.router, prefix="/api/tratamientos", tags=["tratamientos"])
 app.include_router(presupuestos.router, prefix="/api/presupuestos", tags=["presupuestos"])
 app.include_router(facturas.router, prefix="/api/facturas", tags=["facturas"])
+app.include_router(fichajes.router, prefix="/api/fichajes", tags=["fichajes"])
 app.include_router(reportes.router, prefix="/api/reportes", tags=["reportes"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 app.include_router(pdf.router, prefix="/api/pdf", tags=["pdf"])

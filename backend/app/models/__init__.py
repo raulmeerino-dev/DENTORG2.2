@@ -29,6 +29,7 @@ from app.models.factura import (
     FormaPago,
     PagoAnticipadoPaciente,
 )
+from app.models.fichaje import FichajeTrabajador, Trabajador
 from app.models.gabinete import Gabinete
 from app.models.historial import HistorialClinico, NotaDental
 from app.models.horario import HorarioDoctor, HorarioExcepcion
@@ -43,7 +44,7 @@ from app.models.odontograma import (
 from app.models.paciente import Paciente
 from app.models.portal_invitation import PortalInvitation
 from app.models.presupuesto import Presupuesto, PresupuestoLinea, TrabajoPendiente
-from app.models.receta import RecetaClinica
+from app.models.receta import RecetaClinica, RecetaPlantilla
 from app.models.referencia import Referencia, paciente_referencias
 from app.models.registro_evento_sif import RegistroEventoSIF
 from app.models.registro_facturacion import RegistroFacturacion
@@ -83,12 +84,15 @@ __all__ = [
     "TrabajoPendiente",
     "SesionClinicaItem",
     "RecetaClinica",
+    "RecetaPlantilla",
     "FormaPago",
     "Factura",
     "FacturaLinea",
     "Cobro",
     "PagoAnticipadoPaciente",
     "DocumentoFiscal",
+    "Trabajador",
+    "FichajeTrabajador",
     "Referencia",
     "paciente_referencias",
     "Consentimiento",

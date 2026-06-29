@@ -33,7 +33,13 @@ from app.database import get_db
 from app.models.documento import CATEGORIAS_DOCUMENTO, DocumentoPaciente
 from app.models.paciente import Paciente
 from app.services.audit import write_audit_log
-from app.services.pdf_service import generar_documento_clinico_pdf
+from app.services.pdf_service import (
+    InvalidSignatureError,
+    generar_documento_clinico_pdf,
+    signature_png_data_url,
+    validate_pdf_bytes,
+    validate_signature_data_url,
+)
 
 router = APIRouter()
 settings = get_settings()
@@ -83,6 +89,16 @@ def _ruta_paciente(paciente_id: str) -> Path:
     return p
 
 
+def _safe_patient_file(paciente_id: uuid.UUID, stored_name: str) -> Path:
+    if Path(stored_name).name != stored_name:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+    base = (UPLOAD_ROOT / str(paciente_id)).resolve()
+    path = (base / stored_name).resolve()
+    if path.parent != base:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+    return path
+
+
 def _sanear_nombre_archivo(nombre: str | None) -> str:
     limpio = Path(nombre or "documento").name.replace("\x00", "").strip()
     return limpio[:255] or "documento"
@@ -121,6 +137,9 @@ def _mime_docx_si_aplica(contenido: bytes) -> str | None:
 
 
 def _validar_y_determinar_archivo(nombre_original: str, contenido: bytes) -> tuple[str, str]:
+    if not contenido:
+        raise HTTPException(status_code=422, detail="El archivo esta vacio.")
+
     mime = _mime_por_firma(contenido)
     if mime is None and contenido.startswith(b"PK"):
         mime = _mime_docx_si_aplica(contenido)
@@ -142,6 +161,37 @@ def _validar_y_determinar_archivo(nombre_original: str, contenido: bytes) -> tup
         ext = next(iter(extensiones_validas))
 
     return mime, ext
+
+
+def _validar_mime_declarado(mime_declarado: str | None, mime_real: str) -> None:
+    declarado = (mime_declarado or "").split(";")[0].strip().lower()
+    if not declarado or declarado == "application/octet-stream":
+        return
+    if declarado != mime_real:
+        raise HTTPException(
+            status_code=415,
+            detail="El tipo MIME declarado no coincide con el contenido real del archivo.",
+        )
+
+
+def _validar_pdf_en_disco(ruta_abs: Path) -> None:
+    try:
+        with ruta_abs.open("rb") as file:
+            header = file.read(5)
+    except OSError as exc:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado en disco") from exc
+    if header != b"%PDF-":
+        raise HTTPException(status_code=422, detail="El PDF archivado no es valido.")
+
+
+def _validar_firma_opcional(data_url: str | None) -> str | None:
+    if not data_url:
+        return None
+    try:
+        firma_png = validate_signature_data_url(data_url, require_visible=True)
+    except InvalidSignatureError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return signature_png_data_url(firma_png)
 
 
 @router.get("/{paciente_id}/documentos")
@@ -207,6 +257,7 @@ async def subir_documento(
 
     nombre_original = _sanear_nombre_archivo(archivo.filename)
     mime, ext = _validar_y_determinar_archivo(nombre_original, contenido)
+    _validar_mime_declarado(archivo.content_type, mime)
 
     nombre_guardado = f"{uuid.uuid4()}{ext}"
     carpeta = _ruta_paciente(str(paciente_id))
@@ -268,6 +319,7 @@ async def generar_documento_pdf(
             status_code=422,
             detail=f"Categoria invalida. Validas: {', '.join(CATEGORIAS_DOCUMENTO)}",
         )
+    firma_data_url = _validar_firma_opcional(data.firma_data_url)
 
     paciente_nombre = " ".join(part for part in [pac.nombre, pac.apellidos] if part).strip()
     pdf_bytes = generar_documento_clinico_pdf(
@@ -275,8 +327,9 @@ async def generar_documento_pdf(
         contenido=data.contenido,
         paciente_nombre=paciente_nombre,
         fecha_documento=data.fecha_documento,
-        firma_data_url=data.firma_data_url,
+        firma_data_url=firma_data_url,
     )
+    validate_pdf_bytes(pdf_bytes)
     nombre_limpio = _sanear_nombre_archivo(data.titulo).replace(" ", "_").lower()
     nombre_original = f"{nombre_limpio or 'documento'}.pdf"
     nombre_guardado = f"{uuid.uuid4()}.pdf"
@@ -332,9 +385,11 @@ async def descargar_documento(
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, pac.clinica_id)
 
-    ruta_abs = UPLOAD_ROOT / str(paciente_id) / doc.nombre_guardado
+    ruta_abs = _safe_patient_file(paciente_id, doc.nombre_guardado)
     if not ruta_abs.exists():
         raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+    if doc.mime_type == "application/pdf":
+        _validar_pdf_en_disco(ruta_abs)
 
     return FileResponse(
         path=str(ruta_abs),

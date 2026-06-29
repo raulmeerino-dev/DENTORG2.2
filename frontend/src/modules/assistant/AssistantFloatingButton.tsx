@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Bot, Mic } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { getAssistantLLMHealth } from '../../lib/api';
 import { getAssistantPatients } from './PatientAssistantAdapter';
 import { getAssistantProfessionals } from './ProfessionalAssistantAdapter';
 import { getAssistantTreatments } from './TreatmentAssistantAdapter';
@@ -13,6 +14,7 @@ import { useAssistantContextProvider } from './assistantContext';
 import AssistantPanel from './AssistantPanel';
 import { applyDraftPatch } from './DraftPatch';
 import { cancelIntent, mergeIntentDraft } from './draftStore';
+import { FAST_COMMAND_CONFIDENCE_THRESHOLD, logAssistantRouteDebug, normalizeText, roundResponseMs, routeFastCommand } from './FastCommandRouter';
 import { interpretAssistantTurnWithLLM } from './LLMIntentInterpreter';
 import { resolveOperationalDraft } from './OperationalResolver';
 import { canRunAssistantAction, permissionLabel } from './permissionGuard';
@@ -39,6 +41,11 @@ function phaseFromIntent(intent: AssistantIntent): AssistantPhase {
   return 'ready';
 }
 
+function dispatchPatientFastAction(action: 'new' | 'budgets' | 'documents' | 'upload_document') {
+  sessionStorage.setItem('dentcore_patient_action', action);
+  window.dispatchEvent(new CustomEvent('dentcore:patient-fast-action', { detail: { action } }));
+}
+
 export default function AssistantFloatingButton() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -55,6 +62,23 @@ export default function AssistantFloatingButton() {
   const pacientesQuery = useQuery({ queryKey: ['assistant-patients'], queryFn: getAssistantPatients, enabled: open });
   const profesionalesQuery = useQuery({ queryKey: ['assistant-professionals'], queryFn: getAssistantProfessionals, enabled: open });
   const tratamientosQuery = useQuery({ queryKey: ['assistant-treatments'], queryFn: getAssistantTreatments, enabled: open });
+  const llmHealthQuery = useQuery({
+    queryKey: ['assistant-llm-health'],
+    queryFn: getAssistantLLMHealth,
+    enabled: open,
+    retry: false,
+    refetchInterval: open ? 30_000 : false,
+  });
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (llmHealthQuery.data?.mode === 'auto' && llmHealthQuery.data.activeProvider === 'openai') {
+      console.info('[DentCore Voice Assistant] fallback LLM externo activo', {
+        provider: 'openai',
+        model: llmHealthQuery.data.openai.model,
+      });
+    }
+  }, [llmHealthQuery.data]);
 
   const appendMessage = useCallback((role: AssistantMessage['role'], text: string) => {
     setMessages((current) => [...current, newMessage(role, text)]);
@@ -152,6 +176,18 @@ export default function AssistantFloatingButton() {
   const executeIntent = useCallback(async (intent: AssistantIntent, confirmed: boolean) => {
     const context = getContextSnapshot();
     const action = getActionDefinition(intent.intent);
+    if (intent.confidence < 0.75 && action.riskLevel !== 'low') {
+      const message = 'No ejecuto acciones sensibles con baja confianza. Reformula la peticion o revisa el borrador manualmente.';
+      setPhase('needs_clarification');
+      appendMessage('assistant', message);
+      auditAssistantEvent(context, intent, {
+        status: 'needs_clarification',
+        confirmed,
+        originalText: intent.originalText,
+        result: message,
+      });
+      return;
+    }
     const permissionCheck = canRunAssistantAction(context, action);
     const confirmMissing = confirmed
       && (intent.intent === 'create_budget_draft' || intent.intent === 'update_budget_draft')
@@ -210,15 +246,154 @@ export default function AssistantFloatingButton() {
     }
   }, [appendMessage, getContextSnapshot, navigate, profesionalesQuery.data, queryClient, rememberIntent]);
 
+  const executeFastCommand = useCallback(async (
+    match: NonNullable<ReturnType<typeof routeFastCommand>>,
+    context: AssistantContextSnapshot,
+    originalText: string,
+    startedAt: number,
+  ) => {
+    const debugAction = match.action.type;
+
+    if (match.action.type === 'navigate') {
+      navigate(match.action.targetPath);
+      setPhase('completed');
+      appendMessage('assistant', match.responseText);
+      const responseMs = roundResponseMs(startedAt);
+      logAssistantRouteDebug({
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${match.action.type}:${match.action.targetPath}`,
+        confidence: match.confidence,
+        normalizedText: match.normalizedText,
+        matchedVerb: match.matchedVerb,
+        matchedDestination: match.matchedDestination,
+        providerUsed: 'local',
+        modelUsed: 'FastCommandRouter',
+        intentFinal: match.action.type,
+      });
+      auditAssistantEvent(context, null, {
+        status: 'completed',
+        confirmed: false,
+        originalText,
+        result: match.responseText,
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${match.action.type}:${match.action.targetPath}`,
+      });
+      return;
+    }
+
+    if (
+      match.action.type === 'open_patient_draft'
+      || match.action.type === 'open_patient_budgets'
+      || match.action.type === 'open_patient_documents'
+    ) {
+      dispatchPatientFastAction(match.action.patientAction);
+      navigate(match.action.targetPath);
+      setPhase('completed');
+      appendMessage('assistant', match.responseText);
+      const responseMs = roundResponseMs(startedAt);
+      logAssistantRouteDebug({
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${match.action.type}:${match.action.patientAction}`,
+        confidence: match.confidence,
+        normalizedText: match.normalizedText,
+        matchedVerb: match.matchedVerb,
+        matchedDestination: match.matchedDestination,
+        providerUsed: 'local',
+        modelUsed: 'FastCommandRouter',
+        intentFinal: match.action.type,
+      });
+      auditAssistantEvent(context, null, {
+        status: 'completed',
+        confirmed: false,
+        originalText,
+        result: match.responseText,
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${match.action.type}:${match.action.patientAction}`,
+      });
+      return;
+    }
+
+    const action = getActionDefinition(match.action.intent.intent);
+    const permissionCheck = canRunAssistantAction(context, action);
+    if (!permissionCheck.allowed) {
+      const message = `No tienes permiso para ${permissionCheck.missingPermissions.map(permissionLabel).join(', ')}.`;
+      setPhase('error');
+      appendMessage('assistant', message);
+      const responseMs = roundResponseMs(startedAt);
+      logAssistantRouteDebug({
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${debugAction}:blocked_permission`,
+        confidence: match.confidence,
+        normalizedText: match.normalizedText,
+        matchedVerb: match.matchedVerb,
+        matchedDestination: match.matchedDestination,
+        providerUsed: 'local',
+        modelUsed: 'FastCommandRouter',
+        intentFinal: `${debugAction}:blocked_permission`,
+      });
+      auditAssistantEvent(context, match.action.intent, {
+        status: 'error',
+        confirmed: false,
+        originalText,
+        result: message,
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${debugAction}:blocked_permission`,
+      });
+      return;
+    }
+
+    const enriched = await resolveDraft(match.action.intent, context);
+    setDraft(enriched.intent);
+    setPhase(phaseFromIntent(enriched.intent));
+    const responseText = [match.responseText, enriched.intent.clarificationQuestion ?? enriched.extraMessage].filter(Boolean).join('\n');
+    appendMessage('assistant', responseText);
+    rememberIntent(enriched.intent, responseText);
+    const responseMs = roundResponseMs(startedAt);
+    logAssistantRouteDebug({
+      route: 'fast/local',
+      responseMs,
+      actionExecuted: debugAction,
+      confidence: match.confidence,
+      normalizedText: match.normalizedText,
+      matchedVerb: match.matchedVerb,
+      matchedDestination: match.matchedDestination,
+      providerUsed: 'local',
+      modelUsed: 'FastCommandRouter',
+      intentFinal: enriched.intent.intent,
+    });
+    auditAssistantEvent(context, enriched.intent, {
+      status: enriched.intent.status,
+      confirmed: false,
+      originalText,
+      result: responseText,
+      route: 'fast/local',
+      responseMs,
+      actionExecuted: debugAction,
+    });
+  }, [appendMessage, navigate, rememberIntent, resolveDraft]);
+
   const processText = useCallback(async (rawText: string) => {
     const text = rawText.trim();
     if (!text) return;
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
     setInput('');
     setTranscript(text);
     appendMessage('user', text);
     setPhase('interpreting');
 
     const context = getContextSnapshot();
+    const fastMatch = routeFastCommand({ text, context, currentDraft: draft });
+    if (fastMatch && fastMatch.confidence >= FAST_COMMAND_CONFIDENCE_THRESHOLD) {
+      await executeFastCommand(fastMatch, context, text, startedAt);
+      return;
+    }
+
     const result = await interpretAssistantTurnWithLLM({
       text,
       context,
@@ -227,6 +402,26 @@ export default function AssistantFloatingButton() {
       professionals: profesionalesQuery.data ?? [],
       treatments: tratamientosQuery.data ?? [],
       sessionMemory,
+    });
+    const llmResponseMs = roundResponseMs(startedAt);
+    const llmAction = result.kind === 'cancelled' ? 'cancel_current_draft' : result.intent.intent;
+    const debug = result.debug ?? {
+      route: 'mock' as const,
+      providerUsed: 'mock',
+      modelUsed: 'MockIntentInterpreter',
+      intentFinal: llmAction,
+    };
+    logAssistantRouteDebug({
+      route: debug.route,
+      responseMs: debug.responseMs ?? llmResponseMs,
+      actionExecuted: llmAction,
+      confidence: result.kind === 'cancelled' ? undefined : result.intent.confidence,
+      normalizedText: fastMatch?.normalizedText ?? normalizeText(text),
+      matchedVerb: fastMatch?.matchedVerb ?? null,
+      matchedDestination: fastMatch?.matchedDestination ?? null,
+      providerUsed: debug.providerUsed,
+      modelUsed: debug.modelUsed,
+      intentFinal: debug.intentFinal ?? llmAction,
     });
 
     if (result.kind === 'cancelled') {
@@ -238,6 +433,9 @@ export default function AssistantFloatingButton() {
         confirmed: false,
         originalText: text,
         result: result.responseText,
+        route: debug.route,
+        responseMs: debug.responseMs ?? llmResponseMs,
+        actionExecuted: llmAction,
       });
       window.setTimeout(() => setDraft(null), 0);
       rememberIntent(null, null);
@@ -255,6 +453,9 @@ export default function AssistantFloatingButton() {
         confirmed: false,
         originalText: text,
         result: message,
+        route: debug.route,
+        responseMs: debug.responseMs ?? llmResponseMs,
+        actionExecuted: llmAction,
       });
       return;
     }
@@ -316,6 +517,7 @@ export default function AssistantFloatingButton() {
     appendMessage,
     draft,
     executeIntent,
+    executeFastCommand,
     getContextSnapshot,
     pacientesQuery.data,
     profesionalesQuery.data,
@@ -532,6 +734,7 @@ export default function AssistantFloatingButton() {
           transcript={transcript}
           draft={draft}
           input={input}
+          llmHealth={llmHealthQuery.data ?? null}
           loadingData={loadingData}
           onInputChange={setInput}
           onSubmit={(value) => void processText(value)}

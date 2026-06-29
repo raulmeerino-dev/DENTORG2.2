@@ -8,6 +8,7 @@ import {
   aceptarPresupuesto,
   convertirPresupuestoFactura,
   deletePresupuestoLinea,
+  openPresupuestoPdf,
   pasarPresupuestoTrabajoPendiente,
   presentarPresupuesto,
   rechazarPresupuesto,
@@ -150,6 +151,12 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
     setCatalogSearch('');
   }
 
+  function abrirPdfPresupuesto() {
+    void openPresupuestoPdf(presupuesto.id).catch((error) => {
+      toast.error(error instanceof Error ? error.message : 'No se pudo abrir el presupuesto.');
+    });
+  }
+
   const dtoAcum = presupuesto.lineas.reduce((sum, l) => sum + Number(l.descuento_porcentaje ?? 0), 0);
   const avgDto = presupuesto.lineas.length > 0 ? Math.round(dtoAcum / presupuesto.lineas.length) : 0;
   const hasPendingWork = acceptedLines.some((linea) => linea.pasado_trabajo_pendiente);
@@ -185,6 +192,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
           <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuestoCerrado} className="btn-accept">Aceptar todo</button>
           <button onClick={() => passPending.mutate()} disabled={passPending.isPending || !acceptedLines.length} className="btn-pending">Trabajo pendiente</button>
           <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !canInvoiceBudget} className="btn-invoice">Facturar</button>
+          <button onClick={abrirPdfPresupuesto}>PDF</button>
           <details className="budget-secondary-menu">
             <summary>Mas</summary>
             <div>

@@ -124,6 +124,7 @@ def test_generar_recibo_pdf():
 
 def test_pdf_response_headers_son_seguras():
     headers = pdf_response_headers('factura-"381".pdf')
-    assert headers["Content-Disposition"] == 'inline; filename="factura-381.pdf"'
+    assert headers["Content-Disposition"].startswith('inline; filename="factura-381.pdf"')
+    assert "filename*=UTF-8''factura-381.pdf" in headers["Content-Disposition"]
     assert headers["Cache-Control"] == "no-store"
     assert headers["X-Content-Type-Options"] == "nosniff"

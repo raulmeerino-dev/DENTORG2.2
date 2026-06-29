@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
+import time
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -20,6 +25,22 @@ class AssistantLLMNotConfigured(Exception):
 class AssistantLLMError(Exception):
     pass
 
+
+class AssistantLLMUnavailable(AssistantLLMError):
+    pass
+
+
+class AssistantLLMUnsafeResponse(AssistantLLMError):
+    pass
+
+
+logger = logging.getLogger(__name__)
+
+OLLAMA_UNAVAILABLE_MESSAGE = (
+    "Ollama no está ejecutándose. Instálalo y ejecuta: "
+    "ollama pull qwen2.5:14b-instruct"
+)
+NO_LLM_ENGINE_MESSAGE = "No hay motor de IA disponible. Revisa Ollama u OpenAI."
 
 ALLOWED_INTENTS = [
     "open_patient_profile",
@@ -166,6 +187,63 @@ ASSISTANT_INTENT_JSON_SCHEMA: dict[str, Any] = {
     ],
 }
 
+OLLAMA_TREATMENT_LINE_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "treatmentType": {"type": ["string", "null"]},
+        "tooth": {"type": ["string", "null"]},
+        "quantity": {"type": ["integer", "null"]},
+    },
+    "required": ["treatmentType", "tooth", "quantity"],
+}
+
+OLLAMA_INTENT_JSON_KEYS = {
+    "intent",
+    "patientQuery",
+    "treatmentType",
+    "appointmentTreatments",
+    "budgetLines",
+    "dateRange",
+    "missingFields",
+    "spokenSummary",
+}
+
+OLLAMA_INTENT_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "intent": {"type": "string", "enum": ALLOWED_INTENTS},
+        "patientQuery": {"type": ["string", "null"]},
+        "treatmentType": {"type": ["string", "null"]},
+        "appointmentTreatments": {
+            "type": ["array", "null"],
+            "items": OLLAMA_TREATMENT_LINE_JSON_SCHEMA,
+        },
+        "budgetLines": {
+            "type": ["array", "null"],
+            "items": OLLAMA_TREATMENT_LINE_JSON_SCHEMA,
+        },
+        "dateRange": {"type": ["string", "null"]},
+        "missingFields": {"type": "array", "items": {"type": "string"}},
+        "spokenSummary": {"type": "string"},
+    },
+    "required": [
+        "intent",
+        "patientQuery",
+        "treatmentType",
+        "appointmentTreatments",
+        "budgetLines",
+        "dateRange",
+        "missingFields",
+        "spokenSummary",
+    ],
+}
+
+# Ollama and OpenAI intentionally share the same AssistantIntent contract.
+# The compact schema above is kept only for historical tests/migrations that import the symbol.
+OLLAMA_INTENT_JSON_SCHEMA = ASSISTANT_INTENT_JSON_SCHEMA
+
 SYSTEM_PROMPT = """
 Eres el interprete semantico del asistente de voz de DentCore, una app de gestion de clinica dental.
 
@@ -219,6 +297,392 @@ Si confidence < 0.75 o hay ambiguedad, needsClarification true.
 spokenSummary debe ser breve y operativo.
 """
 
+OLLAMA_SYSTEM_PROMPT = """
+Eres el interprete semantico local del asistente de voz de DentCore.
+
+Devuelve un unico objeto JSON. No escribas markdown, explicaciones ni texto fuera del JSON.
+El JSON debe usar exactamente estas claves:
+intent, patientQuery, treatmentType, appointmentTreatments, budgetLines, dateRange, missingFields, spokenSummary.
+
+Interpreta la orden por significado clinico y operativo. No ejecutes acciones, no inventes ids, no inventes fechas,
+no diagnostiques y no guardes datos. Si falta un dato necesario, deja el campo en null y anadelo a missingFields.
+
+appointmentTreatments contiene tratamientos pedidos para una cita. budgetLines contiene tratamientos pedidos para
+un presupuesto. Cada linea usa treatmentType, tooth y quantity; tooth es null si no se indica pieza.
+Conserva los tratamientos en el idioma y terminos del usuario; no traduzcas nombres clinicos.
+tooth debe ser solo el numero de pieza dental si aparece, sin palabras ni prefijos.
+dateRange solo se rellena si el usuario pide una fecha, rango o disponibilidad.
+No anadas patientId/currentPatientId a missingFields si patientQuery identifica al paciente por texto.
+spokenSummary debe ser breve y operativo.
+"""
+
+
+def _provider_from_settings(settings: Settings) -> str:
+    return settings.llm_provider.strip().lower() or "auto"
+
+
+def _fallback_order_from_settings(settings: Settings) -> list[str]:
+    supported = {"ollama", "openai", "mock"}
+    order = [
+        item.strip().lower()
+        for item in settings.llm_fallback_order.split(",")
+        if item.strip().lower() in supported
+    ]
+    return order or ["ollama", "openai", "mock"]
+
+
+def _ollama_url(base_url: str, path: str) -> str:
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _minimal_draft(request: AssistantInterpretRequest) -> dict[str, Any] | None:
+    if not request.current_draft:
+        return None
+    draft = request.current_draft.model_dump(by_alias=True)
+    return {
+        "intent": draft.get("intent"),
+        "confidence": draft.get("confidence"),
+        "status": draft.get("status"),
+        "fields": draft.get("fields"),
+        "missingFields": draft.get("missingFields"),
+        "needsClarification": draft.get("needsClarification"),
+        "clarificationQuestion": draft.get("clarificationQuestion"),
+        "requiresConfirmation": draft.get("requiresConfirmation"),
+        "riskLevel": draft.get("riskLevel"),
+        "spokenSummary": draft.get("spokenSummary"),
+    }
+
+
+def build_safe_intent_input(request: AssistantInterpretRequest) -> dict[str, Any]:
+    return {
+        "userText": request.user_text,
+        "safeContext": request.context.model_dump(by_alias=True),
+        "currentDraft": _minimal_draft(request),
+        "lastAssistantQuestion": request.last_assistant_question,
+        "availableActions": AVAILABLE_ACTIONS,
+    }
+
+
+def _action_metadata(intent_name: str) -> Mapping[str, Any]:
+    for item in AVAILABLE_ACTIONS:
+        if item["intent"] == intent_name:
+            return item
+    return AVAILABLE_ACTIONS[-1]
+
+
+def _string_or_none(value: Any) -> str | None:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped or None
+    return None
+
+
+def _quantity_or_none(value: Any) -> int | None:
+    if isinstance(value, int) and value > 0:
+        return value
+    return None
+
+
+def _tooth_or_none(value: Any) -> str | None:
+    text = _string_or_none(value)
+    if not text:
+        return None
+    match = re.search(r"\d{1,2}", text)
+    return match.group(0) if match else text
+
+
+def _normalize_treatment_lines(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    lines: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, Mapping):
+            continue
+        treatment_type = _string_or_none(item.get("treatmentType"))
+        lines.append(
+            {
+                "treatmentType": treatment_type,
+                "tooth": _tooth_or_none(item.get("tooth")),
+                "quantity": _quantity_or_none(item.get("quantity")),
+            }
+        )
+    return lines
+
+
+def _appointment_treatment_type(parsed: Mapping[str, Any]) -> str | None:
+    treatment_type = _string_or_none(parsed.get("treatmentType"))
+    if treatment_type:
+        return treatment_type
+
+    appointment_treatments = _normalize_treatment_lines(parsed.get("appointmentTreatments"))
+    labels = [line["treatmentType"] for line in appointment_treatments if line.get("treatmentType")]
+    if not labels:
+        return None
+    return ", ".join(labels)
+
+
+def _budget_lines_from_ollama(parsed: Mapping[str, Any]) -> list[dict[str, Any]] | None:
+    budget_lines = _normalize_treatment_lines(parsed.get("budgetLines"))
+    if not budget_lines:
+        return None
+    return [
+        {
+            "treatmentQuery": line.get("treatmentType"),
+            "treatmentId": None,
+            "description": None,
+            "tooth": line.get("tooth"),
+            "quantity": line.get("quantity") or 1,
+            "unitPrice": None,
+            "discount": None,
+            "total": None,
+        }
+        for line in budget_lines
+    ]
+
+
+def _validate_ollama_compact_json(parsed: Mapping[str, Any]) -> None:
+    keys = set(parsed.keys())
+    missing = OLLAMA_INTENT_JSON_KEYS - keys
+    extra = keys - OLLAMA_INTENT_JSON_KEYS
+    if missing or extra:
+        raise AssistantLLMUnsafeResponse("Ollama no devolvio el JSON compacto esperado")
+
+
+def _intent_from_ollama_json(parsed: Mapping[str, Any]) -> AssistantIntentPayload:
+    _validate_ollama_compact_json(parsed)
+
+    intent_name = _string_or_none(parsed.get("intent")) or "unknown"
+    if intent_name not in ALLOWED_INTENTS:
+        intent_name = "unknown"
+
+    raw_missing_fields = parsed.get("missingFields")
+    missing_source = raw_missing_fields if isinstance(raw_missing_fields, list) else []
+    missing_fields = [
+        item.strip()
+        for item in missing_source
+        if isinstance(item, str) and item.strip()
+    ]
+    patient_query = _string_or_none(parsed.get("patientQuery"))
+    if patient_query:
+        missing_fields = [
+            item
+            for item in missing_fields
+            if item not in {"patientId", "currentPatientId"}
+        ]
+    metadata = _action_metadata(intent_name)
+    requires_confirmation = bool(metadata["requiresConfirmation"])
+    status = "needs_clarification" if missing_fields else "awaiting_confirmation" if requires_confirmation else "ready"
+    budget_lines = _budget_lines_from_ollama(parsed)
+
+    payload = {
+        "intent": intent_name,
+        "confidence": 0.0 if intent_name == "unknown" else 0.85,
+        "status": status,
+        "fields": {
+            "patientId": None,
+            "patientQuery": patient_query,
+            "professionalId": None,
+            "professionalQuery": None,
+            "treatmentType": None if intent_name == "create_budget_draft" else _appointment_treatment_type(parsed),
+            "dateRange": _string_or_none(parsed.get("dateRange")),
+            "preferredDate": None,
+            "preferredTime": None,
+            "timePreference": None,
+            "durationMinutes": None,
+            "appointmentId": None,
+            "taskText": None,
+            "noteText": None,
+            "amount": None,
+            "selectedSlotIndex": None,
+            "budgetLines": budget_lines,
+            "budgetStatus": "draft" if intent_name == "create_budget_draft" and budget_lines else None,
+        },
+        "missingFields": missing_fields,
+        "needsClarification": bool(missing_fields),
+        "clarificationQuestion": None,
+        "requiresConfirmation": requires_confirmation,
+        "riskLevel": metadata["riskLevel"],
+        "spokenSummary": _string_or_none(parsed.get("spokenSummary")) or "No he podido interpretar la orden.",
+    }
+    return AssistantIntentPayload.model_validate(payload)
+
+
+def extract_json_object(text: str) -> dict[str, Any]:
+    stripped = text.strip()
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict):
+            return parsed
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    for index, char in enumerate(stripped):
+        if char != "{":
+            continue
+        try:
+            parsed, _ = decoder.raw_decode(stripped[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+
+    raise AssistantLLMUnsafeResponse("El proveedor LLM no devolvio JSON seguro")
+
+
+def _log_interpreter_result(provider: str, model: str, raw_text: str, parsed: Mapping[str, Any], intent: AssistantIntentPayload) -> None:
+    logger.debug("DentCore assistant LLM provider usado: %s", provider)
+    logger.debug("DentCore assistant LLM modelo usado: %s", model)
+    logger.debug("DentCore assistant LLM respuesta cruda: %s", raw_text)
+    logger.debug("DentCore assistant LLM JSON parseado: %s", dict(parsed))
+    logger.debug("DentCore assistant LLM intent final: %s", intent.model_dump(by_alias=True))
+
+
+@dataclass(frozen=True)
+class ProviderHealth:
+    available: bool
+    model: str
+    message: str
+
+
+@dataclass(frozen=True)
+class AssistantIntentInterpretation:
+    intent: AssistantIntentPayload
+    provider: str
+    model: str
+    response_ms: float
+
+    def debug_payload(self) -> dict[str, Any]:
+        return {
+            "route": f"llm/{self.provider}",
+            "providerUsed": self.provider,
+            "modelUsed": self.model,
+            "responseMs": self.response_ms,
+            "intentFinal": self.intent.intent,
+        }
+
+
+class LLMProviderManager:
+    def __init__(self, settings: Settings):
+        self.settings = settings
+        self.mode = _provider_from_settings(settings)
+        self.fallback_order = _fallback_order_from_settings(settings)
+
+    async def check_ollama(self) -> ProviderHealth:
+        base_url = self.settings.ollama_base_url.strip().rstrip("/")
+        model = self.settings.ollama_model.strip()
+        if not base_url or not model:
+            return ProviderHealth(
+                available=False,
+                model=model,
+                message="Ollama no esta configurado: revisa OLLAMA_BASE_URL y OLLAMA_MODEL.",
+            )
+
+        try:
+            async with httpx.AsyncClient(timeout=3) as client:
+                response = await client.get(_ollama_url(base_url, "/api/tags"))
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.TimeoutException, httpx.HTTPError, ValueError):
+            return ProviderHealth(available=False, model=model, message=OLLAMA_UNAVAILABLE_MESSAGE)
+
+        models = payload.get("models", [])
+        names = {
+            item.get("name") or item.get("model")
+            for item in models
+            if isinstance(item, dict) and (item.get("name") or item.get("model"))
+        }
+        if model in names:
+            return ProviderHealth(available=True, model=model, message=f"Ollama disponible con el modelo {model}.")
+        return ProviderHealth(
+            available=False,
+            model=model,
+            message=f"Ollama responde, pero falta el modelo {model}. Ejecuta: ollama pull {model}",
+        )
+
+    def check_openai(self) -> ProviderHealth:
+        model = self.settings.openai_model.strip()
+        if self.settings.openai_api_key.strip() and model:
+            return ProviderHealth(available=True, model=model, message=f"OpenAI configurado con el modelo {model}.")
+        return ProviderHealth(
+            available=False,
+            model=model,
+            message="OpenAI no esta configurado: revisa OPENAI_API_KEY y OPENAI_MODEL.",
+        )
+
+    async def health(self) -> dict[str, Any]:
+        ollama = await self.check_ollama()
+        openai = self.check_openai()
+        active_provider = self._active_provider_from_health(ollama, openai)
+        return {
+            "mode": self.mode,
+            "activeProvider": active_provider,
+            "ollama": {
+                "available": ollama.available,
+                "model": ollama.model,
+                "message": ollama.message,
+            },
+            "openai": {
+                "available": openai.available,
+                "model": openai.model,
+                "message": openai.message,
+            },
+        }
+
+    def _active_provider_from_health(self, ollama: ProviderHealth, openai: ProviderHealth) -> str:
+        if self.mode == "ollama":
+            return "ollama" if ollama.available else "none"
+        if self.mode == "openai":
+            return "openai" if openai.available else "none"
+        if self.mode != "auto":
+            return "none"
+
+        for provider in self.fallback_order:
+            if provider == "ollama" and ollama.available:
+                return "ollama"
+            if provider == "openai" and openai.available:
+                return "openai"
+            if provider == "mock":
+                return "mock"
+        return "none"
+
+    async def ordered_available_providers(self) -> list[str]:
+        if self.mode == "ollama":
+            return ["ollama"]
+        if self.mode == "openai":
+            return ["openai"]
+        if self.mode != "auto":
+            return []
+
+        providers: list[str] = []
+        ollama_health: ProviderHealth | None = None
+        openai_health: ProviderHealth | None = None
+        for provider in self.fallback_order:
+            if provider == "ollama":
+                ollama_health = ollama_health or await self.check_ollama()
+                if ollama_health.available:
+                    providers.append("ollama")
+                else:
+                    logger.debug("DentCore assistant LLM Ollama no disponible: %s", ollama_health.message)
+            elif provider == "openai":
+                openai_health = openai_health or self.check_openai()
+                if openai_health.available:
+                    providers.append("openai")
+                else:
+                    logger.debug("DentCore assistant LLM OpenAI no disponible: %s", openai_health.message)
+            elif provider == "mock":
+                logger.debug("DentCore assistant LLM fallback mock configurado en backend; lo resolvera el cliente si procede.")
+        return providers
+
+    def log_selected_provider(self, provider: str) -> None:
+        if provider == "ollama":
+            logger.debug("DentCore assistant LLM provider seleccionado: ollama, modelo: %s", self.settings.ollama_model)
+        elif provider == "openai":
+            logger.debug(
+                "DentCore assistant LLM provider seleccionado: openai, modelo: %s. ATENCION DEV: proveedor externo.",
+                self.settings.openai_model,
+            )
+
 
 class LLMIntentInterpreter:
     def __init__(self, settings: Settings):
@@ -255,20 +719,17 @@ class LLMIntentInterpreter:
 
         raw_text = self._extract_output_text(response_payload)
         try:
-            parsed = json.loads(raw_text)
-            return AssistantIntentPayload.model_validate(parsed)
-        except (json.JSONDecodeError, ValidationError) as exc:
+            parsed = extract_json_object(raw_text)
+            intent = AssistantIntentPayload.model_validate(parsed)
+            _log_interpreter_result("openai", self.model, raw_text, parsed, intent)
+            return intent
+        except AssistantLLMUnsafeResponse:
+            raise
+        except ValidationError as exc:
             raise AssistantLLMError("El proveedor LLM devolvio una intencion invalida") from exc
 
     def _build_request_payload(self, request: AssistantInterpretRequest) -> dict[str, Any]:
-        safe_input = {
-            "userText": request.user_text,
-            "assistantContext": request.context.model_dump(by_alias=True),
-            "currentDraft": request.current_draft.model_dump(by_alias=True) if request.current_draft else None,
-            "lastAssistantQuestion": request.last_assistant_question,
-            "allowedIntents": ALLOWED_INTENTS,
-            "availableActions": AVAILABLE_ACTIONS,
-        }
+        safe_input = build_safe_intent_input(request)
         return {
             "model": self.model,
             "store": False,
@@ -299,8 +760,137 @@ class LLMIntentInterpreter:
         raise AssistantLLMError("El proveedor LLM no devolvio texto estructurado")
 
 
+class OllamaIntentInterpreter:
+    def __init__(self, settings: Settings):
+        self.base_url = settings.ollama_base_url.strip().rstrip("/")
+        self.model = settings.ollama_model.strip()
+        self.timeout = settings.ollama_timeout_seconds
+
+    async def interpret(self, request: AssistantInterpretRequest) -> AssistantIntentPayload:
+        if not self.base_url or not self.model:
+            raise AssistantLLMNotConfigured("Interprete Ollama no configurado")
+
+        payload = self._build_request_payload(request)
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(_ollama_url(self.base_url, "/api/chat"), json=payload)
+            response.raise_for_status()
+            response_payload = response.json()
+        except httpx.TimeoutException as exc:
+            raise AssistantLLMUnavailable(OLLAMA_UNAVAILABLE_MESSAGE) from exc
+        except httpx.HTTPStatusError as exc:
+            raise AssistantLLMError(f"Error de Ollama ({exc.response.status_code})") from exc
+        except httpx.HTTPError as exc:
+            raise AssistantLLMUnavailable(OLLAMA_UNAVAILABLE_MESSAGE) from exc
+        except ValueError as exc:
+            raise AssistantLLMError("Respuesta invalida de Ollama") from exc
+
+        raw_text = self._extract_output_text(response_payload)
+        try:
+            parsed = extract_json_object(raw_text)
+            intent = AssistantIntentPayload.model_validate(parsed)
+            _log_interpreter_result("ollama", self.model, raw_text, parsed, intent)
+            if intent.intent == "unknown":
+                logger.warning("DentCore assistant Ollama devolvio unknown. userText=%r respuesta cruda: %s", request.user_text, raw_text)
+            return intent
+        except AssistantLLMUnsafeResponse:
+            logger.warning("DentCore assistant Ollama respuesta cruda no JSON AssistantIntent: %s", raw_text)
+            raise
+        except ValidationError as exc:
+            logger.warning("DentCore assistant Ollama JSON invalido. respuesta cruda: %s", raw_text)
+            raise AssistantLLMError("Ollama devolvio una intencion invalida") from exc
+
+    def _build_request_payload(self, request: AssistantInterpretRequest) -> dict[str, Any]:
+        safe_input = build_safe_intent_input(request)
+        return {
+            "model": self.model,
+            "stream": False,
+            "format": OLLAMA_INTENT_JSON_SCHEMA,
+            "options": {"temperature": 0},
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        "Devuelve exclusivamente un objeto JSON compatible con el schema AssistantIntent configurado. "
+                        f"Entrada segura: {json.dumps(safe_input, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+        }
+
+    def _extract_output_text(self, payload: dict[str, Any]) -> str:
+        message = payload.get("message")
+        if isinstance(message, dict) and isinstance(message.get("content"), str):
+            return message["content"]
+        if isinstance(payload.get("response"), str):
+            return payload["response"]
+        raise AssistantLLMError("Ollama no devolvio texto estructurado")
+
+
+async def check_llm_health(settings: Settings) -> dict[str, Any]:
+    return await LLMProviderManager(settings).health()
+
+
+def _model_for_provider(provider: str, settings: Settings) -> str:
+    if provider == "ollama":
+        return settings.ollama_model.strip()
+    if provider == "openai":
+        return settings.openai_model.strip()
+    return "mock"
+
+
+async def _interpret_with_provider(
+    provider: str,
+    request: AssistantInterpretRequest,
+    settings: Settings,
+) -> AssistantIntentInterpretation:
+    started_at = time.perf_counter()
+    if provider == "ollama":
+        intent = await OllamaIntentInterpreter(settings).interpret(request)
+    elif provider == "openai":
+        intent = await LLMIntentInterpreter(settings).interpret(request)
+    else:
+        raise AssistantLLMNotConfigured("Proveedor LLM no soportado")
+    response_ms = round((time.perf_counter() - started_at) * 1000, 2)
+    return AssistantIntentInterpretation(
+        intent=intent,
+        provider=provider,
+        model=_model_for_provider(provider, settings),
+        response_ms=response_ms,
+    )
+
+
+async def interpret_assistant_intent_with_debug(
+    request: AssistantInterpretRequest,
+    settings: Settings,
+) -> AssistantIntentInterpretation:
+    manager = LLMProviderManager(settings)
+    if manager.mode == "ollama":
+        manager.log_selected_provider("ollama")
+        return await _interpret_with_provider("ollama", request, settings)
+    if manager.mode == "openai":
+        manager.log_selected_provider("openai")
+        return await _interpret_with_provider("openai", request, settings)
+    if manager.mode != "auto":
+        raise AssistantLLMNotConfigured("Interprete LLM no configurado")
+
+    errors: list[str] = []
+    for provider in await manager.ordered_available_providers():
+        try:
+            manager.log_selected_provider(provider)
+            return await _interpret_with_provider(provider, request, settings)
+        except AssistantLLMError as exc:
+            errors.append(f"{provider}: {exc}")
+            logger.debug("DentCore assistant LLM fallo en proveedor %s: %s", provider, exc)
+            continue
+
+    logger.debug("DentCore assistant LLM sin proveedor disponible. Fallos: %s", errors)
+    raise AssistantLLMUnavailable(NO_LLM_ENGINE_MESSAGE)
+
+
 async def interpret_assistant_intent(
     request: AssistantInterpretRequest,
     settings: Settings,
 ) -> AssistantIntentPayload:
-    return await LLMIntentInterpreter(settings).interpret(request)
+    return (await interpret_assistant_intent_with_debug(request, settings)).intent
