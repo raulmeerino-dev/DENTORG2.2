@@ -19,7 +19,7 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 export type AssistantTranscriptionResult = {
   transcript: string;
   confidence: number;
-  provider: 'web-speech' | 'openai-stt' | 'mock';
+  provider: 'web-speech' | 'mock';
 };
 
 export interface AssistantTranscriptionProvider {
@@ -71,17 +71,6 @@ export class WebSpeechTranscriptionProvider implements AssistantTranscriptionPro
       };
       recognition.start();
     });
-  }
-}
-
-export class OpenAISpeechToTextProvider implements AssistantTranscriptionProvider {
-  async transcribe(fallbackText: string): Promise<AssistantTranscriptionResult> {
-    await Promise.resolve();
-    return {
-      transcript: fallbackText,
-      confidence: fallbackText.trim() ? 0.5 : 0,
-      provider: 'openai-stt',
-    };
   }
 }
 

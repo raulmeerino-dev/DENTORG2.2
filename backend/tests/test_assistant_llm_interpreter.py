@@ -460,7 +460,7 @@ async def test_provider_selector_returns_debug_metadata_for_openai_fallback(monk
 
 
 @pytest.mark.asyncio
-async def test_ollama_logs_raw_response_when_json_is_not_compact(monkeypatch, caplog):
+async def test_ollama_logs_raw_response_when_json_is_not_assistant_intent(monkeypatch, caplog):
     FakeAsyncClient.next_post_payload = {
         "message": {"role": "assistant", "content": "Claro, voy a buscar a Carmen."}
     }

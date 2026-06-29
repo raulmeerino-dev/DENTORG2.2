@@ -47,6 +47,8 @@ Frontend local: `http://127.0.0.1:5173`.
 
 DentCore Voice Assistant puede usar Ollama como proveedor LLM local gratuito. Descarga Ollama desde su web oficial: [ollama.com/download](https://ollama.com/download).
 
+Los comandos simples de navegacion y borradores rapidos pasan primero por `FastCommandRouter` en frontend. Si el router local alcanza confianza alta, ejecuta al instante sin llamar a Ollama ni a OpenAI. Ollama/OpenAI solo interpretan ordenes complejas o ambiguas.
+
 Configura el backend en modo automatico:
 
 ```powershell

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -187,61 +186,7 @@ ASSISTANT_INTENT_JSON_SCHEMA: dict[str, Any] = {
     ],
 }
 
-OLLAMA_TREATMENT_LINE_JSON_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "treatmentType": {"type": ["string", "null"]},
-        "tooth": {"type": ["string", "null"]},
-        "quantity": {"type": ["integer", "null"]},
-    },
-    "required": ["treatmentType", "tooth", "quantity"],
-}
-
-OLLAMA_INTENT_JSON_KEYS = {
-    "intent",
-    "patientQuery",
-    "treatmentType",
-    "appointmentTreatments",
-    "budgetLines",
-    "dateRange",
-    "missingFields",
-    "spokenSummary",
-}
-
-OLLAMA_INTENT_JSON_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "intent": {"type": "string", "enum": ALLOWED_INTENTS},
-        "patientQuery": {"type": ["string", "null"]},
-        "treatmentType": {"type": ["string", "null"]},
-        "appointmentTreatments": {
-            "type": ["array", "null"],
-            "items": OLLAMA_TREATMENT_LINE_JSON_SCHEMA,
-        },
-        "budgetLines": {
-            "type": ["array", "null"],
-            "items": OLLAMA_TREATMENT_LINE_JSON_SCHEMA,
-        },
-        "dateRange": {"type": ["string", "null"]},
-        "missingFields": {"type": "array", "items": {"type": "string"}},
-        "spokenSummary": {"type": "string"},
-    },
-    "required": [
-        "intent",
-        "patientQuery",
-        "treatmentType",
-        "appointmentTreatments",
-        "budgetLines",
-        "dateRange",
-        "missingFields",
-        "spokenSummary",
-    ],
-}
-
 # Ollama and OpenAI intentionally share the same AssistantIntent contract.
-# The compact schema above is kept only for historical tests/migrations that import the symbol.
 OLLAMA_INTENT_JSON_SCHEMA = ASSISTANT_INTENT_JSON_SCHEMA
 
 SYSTEM_PROMPT = """
@@ -297,26 +242,6 @@ Si confidence < 0.75 o hay ambiguedad, needsClarification true.
 spokenSummary debe ser breve y operativo.
 """
 
-OLLAMA_SYSTEM_PROMPT = """
-Eres el interprete semantico local del asistente de voz de DentCore.
-
-Devuelve un unico objeto JSON. No escribas markdown, explicaciones ni texto fuera del JSON.
-El JSON debe usar exactamente estas claves:
-intent, patientQuery, treatmentType, appointmentTreatments, budgetLines, dateRange, missingFields, spokenSummary.
-
-Interpreta la orden por significado clinico y operativo. No ejecutes acciones, no inventes ids, no inventes fechas,
-no diagnostiques y no guardes datos. Si falta un dato necesario, deja el campo en null y anadelo a missingFields.
-
-appointmentTreatments contiene tratamientos pedidos para una cita. budgetLines contiene tratamientos pedidos para
-un presupuesto. Cada linea usa treatmentType, tooth y quantity; tooth es null si no se indica pieza.
-Conserva los tratamientos en el idioma y terminos del usuario; no traduzcas nombres clinicos.
-tooth debe ser solo el numero de pieza dental si aparece, sin palabras ni prefijos.
-dateRange solo se rellena si el usuario pide una fecha, rango o disponibilidad.
-No anadas patientId/currentPatientId a missingFields si patientQuery identifica al paciente por texto.
-spokenSummary debe ser breve y operativo.
-"""
-
-
 def _provider_from_settings(settings: Settings) -> str:
     return settings.llm_provider.strip().lower() or "auto"
 
@@ -361,150 +286,6 @@ def build_safe_intent_input(request: AssistantInterpretRequest) -> dict[str, Any
         "lastAssistantQuestion": request.last_assistant_question,
         "availableActions": AVAILABLE_ACTIONS,
     }
-
-
-def _action_metadata(intent_name: str) -> Mapping[str, Any]:
-    for item in AVAILABLE_ACTIONS:
-        if item["intent"] == intent_name:
-            return item
-    return AVAILABLE_ACTIONS[-1]
-
-
-def _string_or_none(value: Any) -> str | None:
-    if isinstance(value, str):
-        stripped = value.strip()
-        return stripped or None
-    return None
-
-
-def _quantity_or_none(value: Any) -> int | None:
-    if isinstance(value, int) and value > 0:
-        return value
-    return None
-
-
-def _tooth_or_none(value: Any) -> str | None:
-    text = _string_or_none(value)
-    if not text:
-        return None
-    match = re.search(r"\d{1,2}", text)
-    return match.group(0) if match else text
-
-
-def _normalize_treatment_lines(value: Any) -> list[dict[str, Any]]:
-    if not isinstance(value, list):
-        return []
-    lines: list[dict[str, Any]] = []
-    for item in value:
-        if not isinstance(item, Mapping):
-            continue
-        treatment_type = _string_or_none(item.get("treatmentType"))
-        lines.append(
-            {
-                "treatmentType": treatment_type,
-                "tooth": _tooth_or_none(item.get("tooth")),
-                "quantity": _quantity_or_none(item.get("quantity")),
-            }
-        )
-    return lines
-
-
-def _appointment_treatment_type(parsed: Mapping[str, Any]) -> str | None:
-    treatment_type = _string_or_none(parsed.get("treatmentType"))
-    if treatment_type:
-        return treatment_type
-
-    appointment_treatments = _normalize_treatment_lines(parsed.get("appointmentTreatments"))
-    labels = [line["treatmentType"] for line in appointment_treatments if line.get("treatmentType")]
-    if not labels:
-        return None
-    return ", ".join(labels)
-
-
-def _budget_lines_from_ollama(parsed: Mapping[str, Any]) -> list[dict[str, Any]] | None:
-    budget_lines = _normalize_treatment_lines(parsed.get("budgetLines"))
-    if not budget_lines:
-        return None
-    return [
-        {
-            "treatmentQuery": line.get("treatmentType"),
-            "treatmentId": None,
-            "description": None,
-            "tooth": line.get("tooth"),
-            "quantity": line.get("quantity") or 1,
-            "unitPrice": None,
-            "discount": None,
-            "total": None,
-        }
-        for line in budget_lines
-    ]
-
-
-def _validate_ollama_compact_json(parsed: Mapping[str, Any]) -> None:
-    keys = set(parsed.keys())
-    missing = OLLAMA_INTENT_JSON_KEYS - keys
-    extra = keys - OLLAMA_INTENT_JSON_KEYS
-    if missing or extra:
-        raise AssistantLLMUnsafeResponse("Ollama no devolvio el JSON compacto esperado")
-
-
-def _intent_from_ollama_json(parsed: Mapping[str, Any]) -> AssistantIntentPayload:
-    _validate_ollama_compact_json(parsed)
-
-    intent_name = _string_or_none(parsed.get("intent")) or "unknown"
-    if intent_name not in ALLOWED_INTENTS:
-        intent_name = "unknown"
-
-    raw_missing_fields = parsed.get("missingFields")
-    missing_source = raw_missing_fields if isinstance(raw_missing_fields, list) else []
-    missing_fields = [
-        item.strip()
-        for item in missing_source
-        if isinstance(item, str) and item.strip()
-    ]
-    patient_query = _string_or_none(parsed.get("patientQuery"))
-    if patient_query:
-        missing_fields = [
-            item
-            for item in missing_fields
-            if item not in {"patientId", "currentPatientId"}
-        ]
-    metadata = _action_metadata(intent_name)
-    requires_confirmation = bool(metadata["requiresConfirmation"])
-    status = "needs_clarification" if missing_fields else "awaiting_confirmation" if requires_confirmation else "ready"
-    budget_lines = _budget_lines_from_ollama(parsed)
-
-    payload = {
-        "intent": intent_name,
-        "confidence": 0.0 if intent_name == "unknown" else 0.85,
-        "status": status,
-        "fields": {
-            "patientId": None,
-            "patientQuery": patient_query,
-            "professionalId": None,
-            "professionalQuery": None,
-            "treatmentType": None if intent_name == "create_budget_draft" else _appointment_treatment_type(parsed),
-            "dateRange": _string_or_none(parsed.get("dateRange")),
-            "preferredDate": None,
-            "preferredTime": None,
-            "timePreference": None,
-            "durationMinutes": None,
-            "appointmentId": None,
-            "taskText": None,
-            "noteText": None,
-            "amount": None,
-            "selectedSlotIndex": None,
-            "budgetLines": budget_lines,
-            "budgetStatus": "draft" if intent_name == "create_budget_draft" and budget_lines else None,
-        },
-        "missingFields": missing_fields,
-        "needsClarification": bool(missing_fields),
-        "clarificationQuestion": None,
-        "requiresConfirmation": requires_confirmation,
-        "riskLevel": metadata["riskLevel"],
-        "spokenSummary": _string_or_none(parsed.get("spokenSummary")) or "No he podido interpretar la orden.",
-    }
-    return AssistantIntentPayload.model_validate(payload)
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
