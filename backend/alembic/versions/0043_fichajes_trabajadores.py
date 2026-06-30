@@ -17,13 +17,21 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-tipo_fichaje = sa.Enum("entrada", "salida", name="tipo_fichaje")
-origen_trabajador = sa.Enum("trabajador", "usuario", name="origen_trabajador_fichaje")
+tipo_fichaje = postgresql.ENUM("entrada", "salida", name="tipo_fichaje", create_type=False)
+origen_trabajador = postgresql.ENUM(
+    "trabajador",
+    "usuario",
+    name="origen_trabajador_fichaje",
+    create_type=False,
+)
 
 
 def upgrade() -> None:
-    tipo_fichaje.create(op.get_bind(), checkfirst=True)
-    origen_trabajador.create(op.get_bind(), checkfirst=True)
+    postgresql.ENUM("entrada", "salida", name="tipo_fichaje").create(op.get_bind(), checkfirst=True)
+    postgresql.ENUM("trabajador", "usuario", name="origen_trabajador_fichaje").create(
+        op.get_bind(),
+        checkfirst=True,
+    )
 
     op.create_table(
         "trabajadores",
