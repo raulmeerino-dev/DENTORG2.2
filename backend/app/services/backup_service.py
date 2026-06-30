@@ -21,14 +21,14 @@ UPLOADS_DIR = Path("uploads")
 BACKUP_SCOPES = {"database", "uploads", "full"}
 
 
-def _backup_key(purpose: str = "dentcore-backup") -> bytes:
+def _backup_key() -> bytes:
     settings = get_settings()
     key_source = settings.backup_encryption_key or settings.db_encryption_key
     if settings.backup_encryption_key and len(settings.backup_encryption_key) < 32:
         raise ValueError("BACKUP_ENCRYPTION_KEY debe tener al menos 32 caracteres")
     if settings.environment == "production" and len(key_source) < 32:
         raise ValueError("Clave de backup insegura para produccion")
-    return hashlib.sha256(f"{key_source}:{purpose}".encode()).digest()
+    return hashlib.sha256(f"{key_source}:dentcore-backup".encode()).digest()
 
 
 def _encrypt(raw: bytes) -> bytes:
@@ -38,16 +38,12 @@ def _encrypt(raw: bytes) -> bytes:
 
 
 def _decrypt(raw: bytes) -> bytes:
-    formats = (
-        (b"DENTCOREBAK1", "dentcore-backup"),
-        (b"DENTCOREBAK1", "dentcore-backup"),
-    )
-    for prefix, purpose in formats:
-        if raw.startswith(prefix):
-            nonce = raw[len(prefix):len(prefix) + 12]
-            payload = raw[len(prefix) + 12:]
-            return AESGCM(_backup_key(purpose)).decrypt(nonce, payload, None)
-    raise ValueError("Formato de backup no reconocido")
+    prefix = b"DENTCOREBAK1"
+    if not raw.startswith(prefix):
+        raise ValueError("Formato de backup no reconocido")
+    nonce = raw[len(prefix):len(prefix) + 12]
+    payload = raw[len(prefix) + 12:]
+    return AESGCM(_backup_key()).decrypt(nonce, payload, None)
 
 
 def _validate_backup_payload(payload: dict) -> None:

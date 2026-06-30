@@ -45,7 +45,7 @@ function todayIso() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-async function mockDentCoreApi(page: Page) {
+async function mockDentcoreApi(page: Page) {
   const citas: Array<Record<string, unknown>> = [];
   let createdPayload: Record<string, unknown> | null = null;
   let authenticated = false;
@@ -183,7 +183,7 @@ async function mockDentCoreApi(page: Page) {
 }
 
 test('guardar, refrescar y conservar cita vinculada a linea de presupuesto', async ({ page }) => {
-  const apiState = await mockDentCoreApi(page);
+  const apiState = await mockDentcoreApi(page);
 
   await page.goto('/login');
   await page.getByLabel('Usuario').fill('admin');
