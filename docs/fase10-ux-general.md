@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Esta fase reduce friccion operativa sin cambiar la estructura tipo Eurodent ya trabajada. Se centra en que la aplicacion comunique mejor cuando carga, guarda, falla o no tiene datos, manteniendo pantallas densas pero mas legibles.
+Esta fase reduce friccion operativa sin cambiar la estructura clinica ya trabajada. Se centra en que la aplicacion comunique mejor cuando carga, guarda, falla o no tiene datos, manteniendo pantallas densas pero mas legibles.
 
 ## Cambios aplicados
 

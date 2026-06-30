@@ -1,6 +1,6 @@
-# DentCore.2
+# DentCore
 
-Software web de gestion dental orientado a clinica, con flujo operativo parecido a Eurodent/Gesdent y stack moderno:
+Software web de gestion dental orientado a clinica, con flujo operativo profesional y stack moderno:
 
 - Backend: FastAPI, SQLAlchemy async, Alembic, PostgreSQL.
 - Frontend: React, TypeScript, Vite, React Query.
@@ -22,7 +22,7 @@ Software web de gestion dental orientado a clinica, con flujo operativo parecido
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-$env:DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2"
+$env:DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore"
 $env:JWT_SECRET_KEY="dev-secret-change-me"
 $env:DB_ENCRYPTION_KEY="dev-encryption-key-min-32-chars"
 $env:BACKUP_ENCRYPTION_KEY="dev-backup-key-min-32-chars-change-me"

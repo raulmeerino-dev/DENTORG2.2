@@ -45,6 +45,9 @@ describe('FastCommandRouter', () => {
       'vete a agenda',
       'muestrame el calendario',
       'abre calendario',
+      'abreme la agenda de hoy',
+      'entra en agenda',
+      'vamos a calendario',
     ].forEach((text) => {
       const result = fast(text);
       expect(result?.confidence).toBeGreaterThanOrEqual(0.9);
@@ -70,7 +73,7 @@ describe('FastCommandRouter', () => {
   });
 
   it('creates sensitive actions as drafts and never as saved operations', () => {
-    const appointment = fast('nueva cita', patientContext);
+    const appointment = fast('crear una cita', patientContext);
     expect(appointment?.action.type).toBe('open_appointment_draft');
     if (appointment?.action.type !== 'open_appointment_draft') return;
     expect(appointment.action.sensitive).toBe(true);
@@ -78,7 +81,7 @@ describe('FastCommandRouter', () => {
     expect(appointment.action.intent.fields.patientId).toBe('patient-1');
     expect(appointment.responseText).toMatch(/borrador/i);
 
-    const budget = fast('nuevo presupuesto', patientContext);
+    const budget = fast('preparar un presupuesto', patientContext);
     expect(budget?.action.type).toBe('open_budget_draft');
     if (budget?.action.type !== 'open_budget_draft') return;
     expect(budget.action.sensitive).toBe(true);
@@ -101,6 +104,45 @@ describe('FastCommandRouter', () => {
     expect(result?.confidence).toBeLessThan(FAST_COMMAND_CONFIDENCE_THRESHOLD);
     expect(result?.matchedVerb).toBeNull();
     expect(result?.matchedDestination).toBe('calendar');
+  });
+
+  it('answers simple help requests locally', () => {
+    const result = fast('que puedes hacer');
+
+    expect(result?.confidence).toBeGreaterThanOrEqual(FAST_COMMAND_CONFIDENCE_THRESHOLD);
+    expect(result?.action).toMatchObject({ type: 'show_help', sensitive: false });
+    expect(result?.responseText).toContain('borrador');
+  });
+
+  it('handles obvious active draft decisions locally before any LLM', () => {
+    const current = fast('nueva cita', patientContext);
+    if (current?.action.type !== 'open_appointment_draft') throw new Error('Expected appointment draft');
+
+    const confirm = routeFastCommand({
+      text: 'si confirma',
+      context: patientContext,
+      currentDraft: current.action.intent,
+    });
+
+    expect(confirm?.confidence).toBeGreaterThanOrEqual(FAST_COMMAND_CONFIDENCE_THRESHOLD);
+    expect(confirm?.action).toMatchObject({ type: 'confirm_current_draft', sensitive: true });
+
+    const cancel = routeFastCommand({
+      text: 'cancela eso',
+      context: patientContext,
+      currentDraft: current.action.intent,
+    });
+
+    expect(cancel?.confidence).toBeGreaterThanOrEqual(FAST_COMMAND_CONFIDENCE_THRESHOLD);
+    expect(cancel?.action).toMatchObject({ type: 'cancel_current_draft', sensitive: false });
+
+    const noSave = routeFastCommand({
+      text: 'no lo guardes',
+      context: patientContext,
+      currentDraft: current.action.intent,
+    });
+
+    expect(noSave?.action).toMatchObject({ type: 'cancel_current_draft' });
   });
 
   it('does not replace an active draft with a new sensitive draft', () => {

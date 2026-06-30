@@ -332,7 +332,7 @@ export default function HoyPage() {
           {citasQuery.isLoading && (
             <div className="patient-loading-strip" aria-label="Cargando citas"><span /><span /><span /></div>
           )}
-          <table className="euro-table hoy-citas-table">
+          <table className="dentcore-table hoy-citas-table">
             <thead>
               <tr>
                 <th>Hora</th>
@@ -399,7 +399,7 @@ export default function HoyPage() {
               <summary style={{ cursor: 'pointer', padding: '0.25rem 0' }}>
                 {canceladas.length} cita{canceladas.length > 1 ? 's' : ''} cancelada{canceladas.length > 1 ? 's' : ''} / no asistidas
               </summary>
-              <table className="euro-table" style={{ marginTop: '0.25rem' }}>
+              <table className="dentcore-table" style={{ marginTop: '0.25rem' }}>
                 <tbody>
                   {canceladas.map((cita) => (
                     <tr key={cita.id}>
@@ -449,14 +449,14 @@ export default function HoyPage() {
           <section className="desk-panel">
             <div className="panel-caption"><strong>Acciones rápidas</strong></div>
             <div className="agenda-button-grid">
-              <Link to="/pacientes" className="euro-action-button" onClick={prepararNuevaFicha}>Nueva ficha</Link>
-              <Link to="/pacientes" className="euro-action-button">Buscar paciente</Link>
-              <Link to="/agenda" className="euro-action-button" onClick={prepararNuevaCita}>Nueva cita</Link>
-              <Link to="/caja" className="euro-action-button">Caja / cobros</Link>
-              <button type="button" className="euro-action-button whatsapp-action" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp" title="Recordatorios WhatsApp">
+              <Link to="/pacientes" className="dentcore-action-button" onClick={prepararNuevaFicha}>Nueva ficha</Link>
+              <Link to="/pacientes" className="dentcore-action-button">Buscar paciente</Link>
+              <Link to="/agenda" className="dentcore-action-button" onClick={prepararNuevaCita}>Nueva cita</Link>
+              <Link to="/caja" className="dentcore-action-button">Caja / cobros</Link>
+              <button type="button" className="dentcore-action-button whatsapp-action" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp" title="Recordatorios WhatsApp">
                 <WhatsAppIcon />
               </button>
-              <Link to="/whatsapp" className="euro-action-button">
+              <Link to="/whatsapp" className="dentcore-action-button">
                 Respuestas WA {whatsappPendientes.length > 0 ? `(${whatsappPendientes.length})` : ''}
               </Link>
             </div>
@@ -539,7 +539,7 @@ export default function HoyPage() {
                 </div>
 
                 <div className="whatsapp-patient-list">
-                  <table className="euro-table">
+                  <table className="dentcore-table">
                     <thead>
                       <tr>
                         <th />

@@ -5,7 +5,7 @@ from urllib.parse import urlsplit, urlunsplit
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://eurodent:eurodent_dev_pass@localhost:5432/eurodent2"
+DEFAULT_DATABASE_URL = "postgresql+asyncpg://dentcore:dentcore_dev_pass@localhost:5432/dentcore"
 DEFAULT_DB_ENCRYPTION_KEY = "dev-encryption-key-change-in-prod-32ch"
 DEFAULT_BACKUP_ENCRYPTION_KEY = ""
 DEFAULT_JWT_SECRET_KEY = "dev-jwt-secret-change-in-prod"
@@ -29,13 +29,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 240
     refresh_token_expire_days: int = 7
-    refresh_cookie_name: str = "eurodent_refresh_token"
+    refresh_cookie_name: str = "dentcore_refresh_token"
     auth_cookie_secure: bool = False
     auth_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     verifactu_mode: Literal["verifactu", "no_verifactu"] = "verifactu"
-    sif_codigo: str = "EURODENT2-COPY"
+    sif_codigo: str = "DENTCORE-SIF"
     sif_version: str = "0.2.0"
-    sif_nombre_producto: str = "Eurodent Dental Suite"
+    sif_nombre_producto: str = "DentCore Dental Suite"
     sif_productor_nombre: str = "DentCore"
     sif_productor_nif: str = "B00000000"
 
@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     environment: Literal["development", "production"] = "development"
 
     # Datos de la clínica (para PDFs, cabeceras de facturas y Verifactu)
-    clinica_nombre: str = "Clínica Dental Eurodent"
+    clinica_nombre: str = "Clínica Dental DentCore"
     clinica_direccion: str = ""
     clinica_ciudad: str = ""
     clinica_telefono: str = ""

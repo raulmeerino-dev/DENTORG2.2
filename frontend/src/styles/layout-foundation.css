@@ -69,7 +69,7 @@ body,
 /* Bloqueo del scroll global para las pantallas con scroll interno modular. */
 .main-content > .patient-screen,
 .main-content > .caja-screen,
-.main-content > .agenda-euro,
+.main-content > .agenda-dentcore,
 .main-content > .hoy-page {
   overflow: hidden;
 }
@@ -238,7 +238,7 @@ body,
 /* 7. Agenda — toolbar fijo, layout interno con scroll por columna    */
 /* ------------------------------------------------------------------ */
 
-.agenda-euro {
+.agenda-dentcore {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -247,13 +247,13 @@ body,
   overflow: hidden;
 }
 
-.agenda-euro > .agenda-toolbar,
-.agenda-euro > .inline-alert,
-.agenda-euro > .patient-loading-strip {
+.agenda-dentcore > .agenda-toolbar,
+.agenda-dentcore > .inline-alert,
+.agenda-dentcore > .patient-loading-strip {
   flex: 0 0 auto;
 }
 
-.agenda-euro > .agenda-layout {
+.agenda-dentcore > .agenda-layout {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -264,7 +264,7 @@ body,
 }
 
 @media (max-width: 1100px) {
-  .agenda-euro > .agenda-layout {
+  .agenda-dentcore > .agenda-layout {
     grid-template-columns: 1fr;
   }
 }
@@ -351,7 +351,7 @@ body,
 .main-content,
 .patient-desk,
 .clinical-workspace,
-.agenda-euro,
+.agenda-dentcore,
 .agenda-layout,
 .caja-screen,
 .hoy-page,
@@ -398,9 +398,9 @@ body,
 }
 
 /* Sticky thead para tablas dentro de .scroll-region / .caja-table-wrap. */
-.caja-table-wrap .euro-table thead th,
-.scroll-region table.euro-table thead th,
-.module-body table.euro-table thead th {
+.caja-table-wrap .dentcore-table thead th,
+.scroll-region table.dentcore-table thead th,
+.module-body table.dentcore-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -417,9 +417,9 @@ html[data-theme="dark"] .module-body::-webkit-scrollbar-thumb {
   background: rgba(138, 163, 177, 0.32);
 }
 
-html[data-theme="dark"] .caja-table-wrap .euro-table thead th,
-html[data-theme="dark"] .scroll-region table.euro-table thead th,
-html[data-theme="dark"] .module-body table.euro-table thead th {
+html[data-theme="dark"] .caja-table-wrap .dentcore-table thead th,
+html[data-theme="dark"] .scroll-region table.dentcore-table thead th,
+html[data-theme="dark"] .module-body table.dentcore-table thead th {
   background: #132b3a;
 }
 
@@ -463,7 +463,7 @@ body {
   overflow: hidden !important;
 }
 
-.euro-shell-header {
+.dentcore-shell-header {
   flex: 0 0 auto;
   min-height: 0;
   overflow: visible;
@@ -492,7 +492,7 @@ body {
   height: 26px !important;
 }
 
-.euro-main-nav {
+.dentcore-main-nav {
   display: none !important;
 }
 
@@ -699,7 +699,7 @@ body {
 }
 
 .history-complete-workspace,
-.history-billing-eurodent,
+.history-billing-dentcore,
 .complete-history-panel,
 .complete-history-layout,
 .history-ledger-scroll,

@@ -8,21 +8,21 @@ historial clínico, presupuesto con líneas, entrada en telefonear.
 """
 import asyncio
 import sys
-from pathlib import Path
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import AsyncSessionLocal
+
 from app.core.crypto import cifrar_campos_paciente
-from app.models.gabinete import Gabinete
-from app.models.paciente import Paciente
+from app.database import AsyncSessionLocal
 from app.models.cita import Cita, CitaTelefonear
-from app.models.historial import HistorialClinico
-from app.models.presupuesto import Presupuesto, PresupuestoLinea
 from app.models.doctor import Doctor
+from app.models.gabinete import Gabinete
+from app.models.historial import HistorialClinico
+from app.models.paciente import Paciente
+from app.models.presupuesto import Presupuesto, PresupuestoLinea
 from app.models.tratamiento import TratamientoCatalogo
 
 
@@ -30,7 +30,7 @@ async def seed():
     async with AsyncSessionLocal() as session:
 
         # ── Doctores ─────────────────────────────────────────────────────────
-        result = await session.execute(select(Doctor).where(Doctor.activo == True))
+        result = await session.execute(select(Doctor).where(Doctor.activo.is_(True)))
         doctores = result.scalars().all()
         if len(doctores) < 3:
             print("ERROR: Se necesitan al menos 3 doctores.")
@@ -40,7 +40,7 @@ async def seed():
 
         # ── Tratamientos ─────────────────────────────────────────────────────
         result = await session.execute(
-            select(TratamientoCatalogo).where(TratamientoCatalogo.activo == True)
+            select(TratamientoCatalogo).where(TratamientoCatalogo.activo.is_(True))
         )
         tratamientos = result.scalars().all()
         trat1 = tratamientos[0] if tratamientos else None
@@ -80,7 +80,7 @@ async def seed():
 
         todos_pacientes: list[Paciente] = []
         # Incluir pacientes ya existentes
-        result = await session.execute(select(Paciente).where(Paciente.activo == True))
+        result = await session.execute(select(Paciente).where(Paciente.activo.is_(True)))
         todos_pacientes.extend(result.scalars().all())
 
         for pd in pacientes_raw:
@@ -110,7 +110,7 @@ async def seed():
             print(f"  + Paciente: {p.apellidos}, {p.nombre}")
 
         # Actualizar lista con todos los activos
-        result = await session.execute(select(Paciente).where(Paciente.activo == True))
+        result = await session.execute(select(Paciente).where(Paciente.activo.is_(True)))
         todos_pacientes = result.scalars().all()
         print(f"Total pacientes activos: {len(todos_pacientes)}")
 

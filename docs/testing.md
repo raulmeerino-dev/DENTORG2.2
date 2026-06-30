@@ -13,8 +13,8 @@ Comando local:
 
 ```powershell
 cd backend
-$env:DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2_test"
-$env:TEST_DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2_test"
+$env:DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore_test"
+$env:TEST_DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore_test"
 .\.venv\Scripts\alembic.exe upgrade 0041
 .\.venv\Scripts\alembic.exe upgrade head
 .\.venv\Scripts\python.exe -m pytest -q

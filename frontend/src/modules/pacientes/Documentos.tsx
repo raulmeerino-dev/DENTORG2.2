@@ -199,7 +199,7 @@ export function DocumentosPanel({
               <span><Folder size={15} strokeWidth={2} aria-hidden="true" />{folder}</span>
               <b>{docs.length}</b>
             </header>
-            <table className="euro-table compact-table">
+            <table className="dentcore-table compact-table">
               <thead><tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Etiquetas</th><th /></tr></thead>
               <tbody>
                 {docs.map((doc) => (

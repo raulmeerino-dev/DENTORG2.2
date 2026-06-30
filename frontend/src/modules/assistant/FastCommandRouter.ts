@@ -59,6 +59,21 @@ export type FastCommandAction =
       label: string;
       intent: AssistantIntent;
       sensitive: true;
+    }
+  | {
+      type: 'confirm_current_draft';
+      label: string;
+      sensitive: true;
+    }
+  | {
+      type: 'cancel_current_draft';
+      label: string;
+      sensitive: false;
+    }
+  | {
+      type: 'show_help';
+      label: string;
+      sensitive: false;
     };
 
 export interface FastCommandMatch {
@@ -71,9 +86,10 @@ export interface FastCommandMatch {
   matchedDestination: string | null;
 }
 
-const STOP_WORDS = new Set(['el', 'la', 'los', 'las', 'me', 'mi', 'porfa', 'por', 'favor', 'a', 'al', 'de', 'del']);
-const NAVIGATION_VERBS = new Set(['abre', 'abrir', 'mira', 'mirame', 'ver', 'ensename', 'muestra', 'muestrame', 'ir', 'vete', 'llevame']);
-const NAVIGATION_FILLERS = new Set(['quiero', 'quisiera', 'necesito', 'puedes', 'podrias', 'ahora']);
+const STOP_WORDS = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas', 'me', 'mi', 'lo', 'porfa', 'por', 'favor', 'a', 'al', 'de', 'del', 'en']);
+const NAVIGATION_VERBS = new Set(['abre', 'abreme', 'abrir', 'entra', 'entrar', 'mira', 'mirame', 've', 'ver', 'ensename', 'muestra', 'muestrame', 'ir', 'vete', 'vamos', 'llevame']);
+const NAVIGATION_FILLERS = new Set(['quiero', 'quisiera', 'necesito', 'puedes', 'podrias', 'ahora', 'hoy', 'manana', 'semana', 'mes', 'dia', 'pantalla', 'seccion', 'modulo', 'vista', 'principal']);
+const HELP_RESPONSE = 'Puedo abrir agenda, pacientes, caja, documentos, presupuestos y configuracion; crear borradores de cita, paciente o presupuesto; buscar pacientes, proponer huecos y ayudarte a confirmar o cancelar borradores. Las acciones clinicas o economicas se preparan en borrador antes de guardar.';
 const DESTINATION_ALIASES = {
   calendar: ['agenda', 'calendario', 'citas'],
   patients: ['pacientes', 'paciente', 'fichas'],
@@ -248,6 +264,48 @@ function budgetDraftMatch(
   };
 }
 
+function currentDraftActionMatch(
+  type: 'confirm_current_draft' | 'cancel_current_draft',
+  responseText: string,
+  debug: Pick<FastCommandMatch, 'normalizedText' | 'matchedVerb' | 'matchedDestination'>,
+): FastCommandMatch {
+  const action: FastCommandAction = type === 'confirm_current_draft'
+    ? {
+        type: 'confirm_current_draft',
+        label: 'Confirmar borrador actual',
+        sensitive: true,
+      }
+    : {
+        type: 'cancel_current_draft',
+        label: 'Cancelar borrador actual',
+        sensitive: false,
+      };
+
+  return {
+    route: 'fast/local',
+    confidence: 0.97,
+    responseText,
+    action,
+    ...debug,
+  };
+}
+
+function helpMatch(
+  debug: Pick<FastCommandMatch, 'normalizedText' | 'matchedVerb' | 'matchedDestination'>,
+): FastCommandMatch {
+  return {
+    route: 'fast/local',
+    confidence: 0.96,
+    responseText: HELP_RESPONSE,
+    action: {
+      type: 'show_help',
+      label: 'Mostrar ayuda del asistente',
+      sensitive: false,
+    },
+    ...debug,
+  };
+}
+
 function findNavigationVerb(tokens: string[]) {
   return tokens.find((token) => NAVIGATION_VERBS.has(token)) ?? null;
 }
@@ -299,6 +357,22 @@ function semanticNavigationMatch(
   );
 }
 
+function isLocalDraftConfirm(normalized: string) {
+  return /^(si|s|ok|vale|perfecto|adelante|confirmo|confirmar|confirma|acepto|aceptar|acepta|guardar|guarda|guardalo|ejecuta|ejecutar|hazlo)(\s+(esto|eso|borrador|accion|orden|cita|presupuesto))?$/.test(normalized)
+    || /^si\s+(confirma|confirmar|guarda|guardalo|ejecuta|hazlo)$/.test(normalized);
+}
+
+function isLocalDraftCancel(normalized: string) {
+  return /^(cancela|cancelar|descarta|descartar|olvida|olvidalo|anula|anular)(\s+(esto|eso|borrador|accion|orden|cita|presupuesto))?$/.test(normalized)
+    || /^(no\s+guardar|no\s+guardes|no\s+lo\s+guardes)$/.test(normalized);
+}
+
+function isLocalHelpRequest(normalized: string) {
+  return /^(ayuda|ayudame|comandos|opciones)$/.test(normalized)
+    || /^(que|q)\s+(puedes|sabes)\s+hacer$/.test(normalized)
+    || /^como\s+(me\s+)?ayudas?$/.test(normalized);
+}
+
 export function routeFastCommand({
   text,
   context,
@@ -319,6 +393,18 @@ export function routeFastCommand({
 
   const navigation = semanticNavigationMatch(text, baseDebug);
   if (navigation) return navigation;
+
+  if (isLocalHelpRequest(normalized)) {
+    return helpMatch(baseDebug);
+  }
+
+  if (currentDraft && isLocalDraftCancel(normalized)) {
+    return currentDraftActionMatch('cancel_current_draft', 'Borrador cancelado. No he guardado nada.', baseDebug);
+  }
+
+  if (currentDraft && isLocalDraftConfirm(normalized)) {
+    return currentDraftActionMatch('confirm_current_draft', 'Confirmacion recibida. Valido el borrador antes de ejecutar.', baseDebug);
+  }
 
   if (/^(nuevo|nueva|crear|alta|dar alta)\s+paciente$/.test(normalized)) {
     return patientActionMatch('open_patient_draft', 'new', 'Abrir borrador de paciente', 'Ficha de paciente abierta en borrador.', baseDebug);

@@ -12,6 +12,7 @@ import {
   saveOdontograma,
   solicitarCambioPortalCita,
   marcarFaltaCita,
+  registrarFichaje,
   reprogramarCita,
   updateHorarioDoctor,
   updateOdontogramaPieza,
@@ -162,6 +163,20 @@ describe('otras escrituras reales sin demo fallback', () => {
     expect(spy).toHaveBeenCalledWith('/citas/cita-1/marcar-falta', {
       motivo_cancelacion: 'No acude',
       tipo: 'no_vino',
+    });
+  });
+
+  it('registrarFichaje no simula exito demo si falla el backend', async () => {
+    const spy = vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Fichaje rechazado'));
+    await expect(registrarFichaje({
+      trabajador_id: 'user-1',
+      pin: '1234',
+      tipo: 'entrada',
+    })).rejects.toThrow('Fichaje rechazado');
+    expect(spy).toHaveBeenCalledWith('/fichajes', {
+      trabajador_id: 'user-1',
+      pin: '1234',
+      tipo: 'entrada',
     });
   });
 });

@@ -67,7 +67,7 @@ export interface ApiPaciente {
   clinica_id?: string | null;
   entidad_id?: string | null;
   entidad_alt_id?: string | null;
-  // Ficha ampliada (paridad Eurodent)
+  // Ficha ampliada (paridad clinica)
   sexo?: PacienteSexo | null;
   profesion?: string | null;
   pais?: string | null;

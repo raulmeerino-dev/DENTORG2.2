@@ -1351,7 +1351,7 @@ export default function AgendaPage() {
   const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
 
   return (
-    <section className="page page-shell agenda-euro" onClick={() => setContextMenu(null)}>
+    <section className="page page-shell agenda-dentcore" onClick={() => setContextMenu(null)}>
       <AgendaToolbar
         day={day}
         doctorId={doctorId}
@@ -1430,7 +1430,7 @@ export default function AgendaPage() {
 
           <div className="pending-call-panel">
             <div className="panel-caption"><strong>Telefonear</strong><span>Arrastre a un hueco</span></div>
-            <table className="euro-table">
+            <table className="dentcore-table">
               <thead><tr><th>Nombre</th><th>Telefono</th><th>Motivo</th><th></th></tr></thead>
               <tbody>
                 {(telefonearQuery.data ?? []).map((item: TelefonearPendiente) => (

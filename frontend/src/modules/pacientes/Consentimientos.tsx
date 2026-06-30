@@ -57,7 +57,7 @@ export function ConsentimientosPanel({
         </select>
         <button onClick={() => onDisenar()}>Personalizado</button>
       </div>
-      <table className="euro-table">
+      <table className="dentcore-table">
         <thead><tr><th>Fecha</th><th>Tipo</th><th>Version</th><th>Estado</th><th>Documento</th><th>Acciones</th></tr></thead>
         <tbody>
           {consentimientos.map((item) => (

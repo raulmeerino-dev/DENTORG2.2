@@ -81,6 +81,14 @@ describe('App navigation', () => {
     await waitFor(() => expect(screen.getByText(/WhatsApp page/i)).toBeInTheDocument());
   });
 
+  it('renders protected lazy staff routes', async () => {
+    authState.user = { id: 'user-1', nombre: 'Administrador', rol: 'admin' };
+    window.history.pushState({}, '', '/pacientes');
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText(/Pacientes page/i)).toBeInTheDocument());
+  });
+
   it('allows reception to use reports/listados for caja context', async () => {
     authState.user = { id: 'user-2', nombre: 'Recepcion', rol: 'recepcion' };
     window.history.pushState({}, '', '/listados');

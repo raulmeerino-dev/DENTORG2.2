@@ -50,7 +50,7 @@ export function TrabajoPendientePanel({
         <strong>Tratamientos pendientes</strong>
         <span>Solo trabajos aceptados o pasados a pendiente; muestra si ya tienen cita.</span>
       </div>
-      <table className="euro-table">
+      <table className="dentcore-table">
         <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Importe</th><th>Cita</th><th>Estado</th><th>Accion</th></tr></thead>
         <tbody>
           {rows.map(({ presupuesto, linea, cita }) => (

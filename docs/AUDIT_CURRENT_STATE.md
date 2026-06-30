@@ -1,10 +1,10 @@
-# Auditoria de estado actual DentCore.2
+# Auditoria de estado actual DentCore
 
 Fecha: 2026-06-25
 
 ## Resumen ejecutivo
 
-DentCore.2 esta funcionalmente muy avanzado para una clinica dental: cubre agenda, pacientes, tratamientos, presupuestos, realizados, historial, documentos, recetas, laboratorio, facturacion, caja, admin, auditoria, portal y backups. El producto ya no debe tratarse como prototipo.
+DentCore esta funcionalmente muy avanzado para una clinica dental: cubre agenda, pacientes, tratamientos, presupuestos, realizados, historial, documentos, recetas, laboratorio, facturacion, caja, admin, auditoria, portal y backups. El producto ya no debe tratarse como prototipo.
 
 La conclusion comercial es prudente: puede prepararse para piloto controlado, pero no debe venderse como SaaS general hasta cerrar preflight, restauracion real de backups, validacion legal/fiscal externa, CI completo y pruebas de flujo clinico-economico extremo a extremo.
 
@@ -104,4 +104,4 @@ Comandos bloqueados por entorno:
 
 ## Criterio comercial
 
-DentCore.2 puede presentarse como piloto interno o demo profesional si el entorno no usa datos reales o si hay contrato y controles operativos. Para cobrar a clinicas reales se exige evidencia: CI verde, backup restaurado en entorno aislado, preflight sin `fail`, HTTPS, 2FA admin, roles revisados, auditoria activa y validacion legal/fiscal externa.
+DentCore puede presentarse como piloto interno o demo profesional si el entorno no usa datos reales o si hay contrato y controles operativos. Para cobrar a clinicas reales se exige evidencia: CI verde, backup restaurado en entorno aislado, preflight sin `fail`, HTTPS, 2FA admin, roles revisados, auditoria activa y validacion legal/fiscal externa.

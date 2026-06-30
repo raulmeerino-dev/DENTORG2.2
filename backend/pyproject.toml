@@ -1,7 +1,7 @@
 [project]
-name = "eurodent2-backend"
+name = "dentcore-backend"
 version = "0.1.0"
-description = "Sistema de gestión integral para clínica dental Eurodent 2.0"
+description = "Backend de DentCore para gestion integral de clinica dental"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.111.0",
@@ -44,6 +44,17 @@ ignore = [
     "E501",  # Long clinical/API texts are easier to review unwrapped in this codebase.
     "B008",  # FastAPI intentionally uses Depends/Query/Form/File in endpoint signatures.
     "UP017", # Keep timezone.utc until the project drops Python 3.11 support.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*.py" = [
+    "I001",  # Historical Alembic revisions keep generated import blocks stable.
+    "UP007", # Old revision annotations are left untouched to avoid noisy migration churn.
+    "UP012", # Hash canonicalization in older migrations stays byte-for-byte stable.
+    "UP035", # Some generated revisions still use typing imports from their template.
+]
+"scripts/seed_*.py" = [
+    "E402", # Seed scripts prepend backend root to sys.path before importing app modules.
 ]
 
 [tool.pytest.ini_options]

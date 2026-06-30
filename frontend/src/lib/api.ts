@@ -78,6 +78,19 @@ import type {
   UsuarioMe,
   WhatsAppInboxItem,
 } from '../types/api';
+import {
+  DEMO_CONSENTIMIENTOS,
+  DEMO_DOCTORES,
+  DEMO_DOCUMENTOS,
+  DEMO_FACTURAS,
+  DEMO_FAMILIAS,
+  DEMO_FORMAS_PAGO,
+  DEMO_HISTORIAL,
+  DEMO_PACIENTES,
+  DEMO_PLANTILLAS_CONSENTIMIENTO,
+  DEMO_PRESUPUESTOS,
+  DEMO_TRATAMIENTOS,
+} from './demoData';
 
 const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8011/api';
 const API_LOG_PREFIX = '[DentCore API]';
@@ -122,6 +135,10 @@ const DEMO_TOKEN_PREFIX = 'demo:';
 const DEMO_FALLBACK_ENABLED = import.meta.env.VITE_DEMO_FALLBACK === 'true';
 let inMemoryAuthToken: string | null = null;
 
+if (import.meta.env.PROD && DEMO_FALLBACK_ENABLED) {
+  throw new Error('VITE_DEMO_FALLBACK=true no esta permitido en produccion: DentCore debe usar API real.');
+}
+
 function addMinutesLocal(time: string, minutes: number) {
   const [hour, minute] = time.split(':').map(Number);
   const total = hour * 60 + minute + minutes;
@@ -143,329 +160,6 @@ export function clearStoredAuthToken() {
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
-
-const DEMO_DOCTORES: Doctor[] = [
-  { id: 'demo-doc-1', nombre: 'Dr. Garcia Ruiz', especialidad: 'Implantologia', color_agenda: '#2563eb', es_auxiliar: false, porcentaje: '35.00', activo: true },
-  { id: 'demo-doc-2', nombre: 'Dra. Lopez Herrera', especialidad: 'Ortodoncia', color_agenda: '#16a34a', es_auxiliar: false, porcentaje: '40.00', activo: true },
-  { id: 'demo-doc-3', nombre: 'Dr. Martin Torres', especialidad: 'Endodoncia', color_agenda: '#dc2626', es_auxiliar: false, porcentaje: '35.00', activo: true },
-  { id: 'demo-doc-4', nombre: 'Dra. Sanchez Vega', especialidad: 'Higiene', color_agenda: '#9333ea', es_auxiliar: true, porcentaje: '0.00', activo: true },
-];
-
-const DEMO_PACIENTES: ApiPaciente[] = [
-  {
-    id: 'demo-pac-1',
-    codigo: '#0091312',
-    num_historial: 91312,
-    nombre: 'CESAR',
-    apellidos: 'GUTIERREZ VELEZ',
-    fecha_nacimiento: '1969-09-13',
-    telefono: '942503186',
-    telefono2: '685140378',
-    email: 'cesar@example.test',
-    direccion: 'BARRIO PALACIO 139',
-    ciudad: 'PONTEJOS',
-    provincia: 'CANTABRIA',
-    observaciones: 'LIMP cada 6 meses [14-10-13]',
-    datos_salud: { alergias: 'Sin alergias registradas' },
-    activo: true,
-  },
-  {
-    id: 'demo-pac-2',
-    codigo: '#003485',
-    num_historial: 3485,
-    nombre: 'PILAR',
-    apellidos: 'OJEDA CALVO',
-    fecha_nacimiento: '1974-04-02',
-    telefono: '600000001',
-    telefono2: null,
-    email: '',
-    direccion: 'AVENIDA CENTRAL 18',
-    ciudad: 'SANTANDER',
-    provincia: 'CANTABRIA',
-    observaciones: 'Avisar para revision de implante.',
-    datos_salud: { alergias: 'Penicilina' },
-    activo: true,
-  },
-];
-
-const DEMO_FAMILIAS: FamiliaTratamiento[] = [
-  { id: 'fam-pf', nombre: 'Protesis fija', icono: 'PF', orden: 1 },
-  { id: 'fam-impl', nombre: 'Implantologia', icono: 'IM', orden: 2 },
-  { id: 'fam-cons', nombre: 'Conservadora', icono: 'OC', orden: 3 },
-  { id: 'fam-endo', nombre: 'Endodoncia', icono: 'EN', orden: 4 },
-  { id: 'fam-cx', nombre: 'Cirugia oral', icono: 'CX', orden: 5 },
-  { id: 'fam-per', nombre: 'Periodoncia', icono: 'PE', orden: 6 },
-  { id: 'fam-orto', nombre: 'Ortodoncia', icono: 'OR', orden: 7 },
-  { id: 'fam-rem', nombre: 'Protesis removible', icono: 'PR', orden: 8 },
-  { id: 'fam-est', nombre: 'Estetica dental', icono: 'ES', orden: 9 },
-  { id: 'fam-otros', nombre: 'Otros', icono: 'OT', orden: 10 },
-];
-
-const DEMO_FAMILIA_BY_ID = Object.fromEntries(DEMO_FAMILIAS.map((familia) => [familia.id, familia])) as Record<string, FamiliaTratamiento>;
-
-type DemoTreatmentRow = [string, string, string, string, string, boolean, boolean];
-
-const DEMO_TREATMENT_ROWS: DemoTreatmentRow[] = [
-  ['trt-pf001', 'fam-pf', 'PF001', 'Puente de 2 piezas de zirconio', '780.00', false, false],
-  ['trt-pf002', 'fam-pf', 'PF002', 'Puente de 2 piezas metal-cerámica', '600.00', false, false],
-  ['trt-pf003', 'fam-pf', 'PF003', 'Puente de 3 piezas de zirconio', '1170.00', false, false],
-  ['trt-pf004', 'fam-pf', 'PF004', 'Puente de 3 piezas metal-cerámica', '900.00', false, false],
-  ['trt-pf005', 'fam-pf', 'PF005', 'Puente de 4 piezas de zirconio', '1560.00', false, false],
-  ['trt-pf006', 'fam-pf', 'PF006', 'Puente de 4 piezas metal-cerámica', '1200.00', false, false],
-  ['trt-pf007', 'fam-pf', 'PF007', 'Puente de 5 piezas de zirconio', '1950.00', false, false],
-  ['trt-pf008', 'fam-pf', 'PF008', 'Puente de 5 piezas metal-cerámica', '1500.00', false, false],
-  ['trt-pf009', 'fam-pf', 'PF009', 'Puente de 6 piezas de zirconio', '2340.00', false, false],
-  ['trt-im001', 'fam-impl', 'IM001', 'Puente fijo de 12 piezas sobre 6 implantes', '3400.00', false, false],
-  ['trt-oc001', 'fam-cons', 'OC001', 'Abrasión para obturar', '40.00', true, true],
-  ['trt-im002', 'fam-impl', 'IM002', 'Aditamento de teflón', '50.00', true, false],
-  ['trt-im003', 'fam-impl', 'IM003', 'Aditamento externo', '100.00', true, false],
-  ['trt-im004', 'fam-impl', 'IM004', 'Aditamento para implante integrado', '300.00', true, false],
-  ['trt-en001', 'fam-endo', 'EN001', 'Apicectomía', '180.00', true, false],
-  ['trt-pf010', 'fam-pf', 'PF010', 'Ataches', '240.00', false, false],
-  ['trt-ot001', 'fam-otros', 'OT001', 'Atención domiciliaria', '200.00', false, false],
-  ['t-blan', 'fam-est', 'ES001', 'Blanqueamiento externo', '300.00', false, false],
-  ['trt-es002', 'fam-est', 'ES002', 'Blanqueamiento interno', '100.00', true, false],
-  ['trt-or001', 'fam-orto', 'OR001', 'Brackets de zafiro', '850.00', false, false],
-  ['trt-or002', 'fam-orto', 'OR002', 'Brackets metálicos', '650.00', false, false],
-  ['trt-or003', 'fam-orto', 'OR003', 'Brackets transparentes', '700.00', false, false],
-  ['trt-pf011', 'fam-pf', 'PF011', 'Carilla de zirconio', '420.00', true, false],
-  ['trt-pf012', 'fam-pf', 'PF012', 'Cementado', '20.00', true, false],
-  ['trt-cx001', 'fam-cx', 'CX001', 'Cirugía menor', '40.00', false, false],
-  ['trt-ot002', 'fam-otros', 'OT002', 'Compostura', '60.00', false, false],
-  ['trt-pf013', 'fam-pf', 'PF013', 'Corona metal-cerámica', '300.00', true, false],
-  ['trt-im005', 'fam-impl', 'IM005', 'Corona sobre implante', '450.00', true, false],
-  ['trt-pf014', 'fam-pf', 'PF014', 'Corona de zirconio', '390.00', true, false],
-  ['trt-im006', 'fam-impl', 'IM006', 'Desatornillar prótesis y limpieza de implantes', '75.00', false, false],
-  ['trt-oc002', 'fam-cons', 'OC002', 'Diferencia de reconstrucción', '20.00', true, false],
-  ['trt-im007', 'fam-impl', 'IM007', 'Elevación con regeneración', '900.00', false, false],
-  ['trt-im008', 'fam-impl', 'IM008', 'Elevación de seno', '500.00', false, false],
-  ['t-emp', 'fam-cons', 'OC003', 'Empaste', '50.00', true, true],
-  ['trt-en002', 'fam-endo', 'EN002', 'Endodoncia multirradicular', '180.00', true, false],
-  ['t-endo', 'fam-endo', 'EN003', 'Endodoncia unirradicular', '150.00', true, false],
-  ['trt-or004', 'fam-orto', 'OR004', 'Estudio de ortodoncia', '50.00', false, false],
-  ['trt-cx002', 'fam-cx', 'CX002', 'Exodoncia compleja', '120.00', true, false],
-  ['trt-cx003', 'fam-cx', 'CX003', 'Exodoncia de tercer molar', '100.00', true, false],
-  ['trt-cx004', 'fam-cx', 'CX004', 'Exodoncia normal', '50.00', true, false],
-  ['trt-or005', 'fam-orto', 'OR005', 'Férula de descarga Michigan', '250.00', false, false],
-  ['trt-or006', 'fam-orto', 'OR006', 'Férula retenedora de alambre', '120.00', false, false],
-  ['trt-or007', 'fam-orto', 'OR007', 'Férula retenedora de ortodoncia', '100.00', false, false],
-  ['trt-cx005', 'fam-cx', 'CX005', 'Frenectomía', '180.00', false, false],
-  ['trt-pe001', 'fam-per', 'PE001', 'Gingivectomía', '180.00', false, false],
-  ['trt-oc004', 'fam-cons', 'OC004', 'Gran reconstrucción', '80.00', true, true],
-  ['t-impl', 'fam-impl', 'IM009', 'Implante', '890.00', true, false],
-  ['trt-pe002', 'fam-per', 'PE002', 'Injerto de tejido conectivo', '500.00', false, false],
-  ['t-limp', 'fam-cons', 'OC005', 'Limpieza', '60.00', false, false],
-  ['trt-or008', 'fam-orto', 'OR008', 'Mantenedor de espacio', '120.00', false, false],
-  ['trt-im010', 'fam-impl', 'IM010', 'Mesoestructura completa', '4200.00', false, false],
-  ['trt-en004', 'fam-endo', 'EN004', 'Perno de cuarzo', '100.00', true, false],
-  ['trt-en005', 'fam-endo', 'EN005', 'Perno de titanio', '90.00', true, false],
-  ['trt-es003', 'fam-est', 'ES003', 'Piercing', '40.00', false, false],
-  ['trt-or009', 'fam-orto', 'OR009', 'Placa expansora', '500.00', false, false],
-  ['trt-or010', 'fam-orto', 'OR010', 'Placa Hawley', '400.00', false, false],
-  ['trt-pr001', 'fam-rem', 'PR001', 'Prótesis metal-esquelética', '800.00', false, false],
-  ['trt-pr002', 'fam-rem', 'PR002', 'Prótesis de resina', '700.00', false, false],
-  ['trt-pr003', 'fam-rem', 'PR003', 'Prótesis inmediata completa', '350.00', false, false],
-  ['trt-pr004', 'fam-rem', 'PR004', 'Prótesis inmediata parcial', '250.00', false, false],
-  ['trt-pe003', 'fam-per', 'PE003', 'Raspaje y alisado por cuadrante', '80.00', false, false],
-  ['trt-pe004', 'fam-per', 'PE004', 'Raspaje y alisado por pieza', '20.00', true, false],
-  ['trt-oc006', 'fam-cons', 'OC006', 'Reconstrucción endodoncia', '60.00', true, true],
-  ['trt-oc007', 'fam-cons', 'OC007', 'Reconstrucción estética', '120.00', true, true],
-  ['trt-im011', 'fam-impl', 'IM011', 'Regeneración ósea', '450.00', false, false],
-  ['trt-cx006', 'fam-cx', 'CX006', 'Regularización ósea', '200.00', false, false],
-  ['trt-en006', 'fam-endo', 'EN006', 'Rehacer endodoncia', '180.00', true, false],
-  ['trt-oc008', 'fam-cons', 'OC008', 'Reponer empaste', '25.00', true, true],
-  ['trt-or011', 'fam-orto', 'OR011', 'Revisión placa Hawley', '30.00', false, false],
-  ['trt-or012', 'fam-orto', 'OR012', 'Revisión placa expansora', '50.00', false, false],
-  ['trt-oc009', 'fam-cons', 'OC009', 'Sellador', '20.00', true, false],
-  ['trt-im012', 'fam-impl', 'IM012', 'Sobredentadura', '900.00', false, false],
-  ['trt-im013', 'fam-impl', 'IM013', 'Sobredentadura removible', '2340.00', false, false],
-  ['t-orto', 'fam-orto', 'OR013', 'Tratamiento de ortodoncia de 12 meses', '1080.00', false, false],
-  ['trt-or014', 'fam-orto', 'OR014', 'Tratamiento de ortodoncia de 18 meses', '1620.00', false, false],
-  ['trt-or015', 'fam-orto', 'OR015', 'Tratamiento de ortodoncia de 24 meses', '2160.00', false, false],
-  ['trt-or016', 'fam-orto', 'OR016', 'Tratamiento de ortodoncia con Smilers de 18 meses', '6300.00', false, false],
-  ['trt-or017', 'fam-orto', 'OR017', 'Tratamiento de ortodoncia con Smilers de 12 meses', '4200.00', false, false],
-  ['trt-or018', 'fam-orto', 'OR018', 'Tratamiento de ortodoncia con Smilers de 6 meses', '2100.00', false, false],
-];
-
-const DEMO_TRATAMIENTOS: TratamientoCatalogo[] = DEMO_TREATMENT_ROWS.map(
-  ([id, familia_id, codigo, nombre, precio, requiere_pieza, requiere_caras]) => ({
-    id,
-    familia_id,
-    familia: DEMO_FAMILIA_BY_ID[familia_id],
-    codigo,
-    nombre,
-    precio,
-    iva_porcentaje: '0.00',
-    requiere_pieza,
-    requiere_caras,
-    activo: true,
-  }),
-);
-
-const DEMO_TRATAMIENTO_BY_ID = Object.fromEntries(DEMO_TRATAMIENTOS.map((tratamiento) => [tratamiento.id, tratamiento])) as Record<string, TratamientoCatalogo>;
-
-const DEMO_PRESUPUESTOS: Presupuesto[] = [
-  {
-    id: 'demo-pres-1',
-    paciente_id: 'demo-pac-1',
-    numero: 381,
-    fecha: '2026-04-14',
-    estado: 'aceptado',
-    pie_pagina: null,
-    odontograma: {
-      version: 1,
-      teeth: {
-        16: { estado: 'planificado', superficies: ['O'], lineaId: 'demo-line-1' },
-        24: { estado: 'planificado', superficies: ['M'], lineaId: 'demo-line-2' },
-        37: { estado: 'realizado', superficies: ['O'], lineaId: 'demo-line-3' },
-      },
-    },
-    doctor_id: 'demo-doc-1',
-    lineas: [
-      { id: 'demo-line-1', presupuesto_id: 'demo-pres-1', tratamiento_id: 't-limp', tratamiento: DEMO_TRATAMIENTO_BY_ID['t-limp'], pieza_dental: null, caras: null, precio_unitario: '60.00', descuento_porcentaje: '0.00', aceptado: true, pasado_trabajo_pendiente: true, importe_neto: '60.00' },
-      { id: 'demo-line-2', presupuesto_id: 'demo-pres-1', tratamiento_id: 't-endo', tratamiento: DEMO_TRATAMIENTO_BY_ID['t-endo'], pieza_dental: 24, caras: null, precio_unitario: '150.00', descuento_porcentaje: '0.00', aceptado: true, pasado_trabajo_pendiente: false, importe_neto: '150.00' },
-      { id: 'demo-line-3', presupuesto_id: 'demo-pres-1', tratamiento_id: 't-impl', tratamiento: DEMO_TRATAMIENTO_BY_ID['t-impl'], pieza_dental: 37, caras: null, precio_unitario: '890.00', descuento_porcentaje: '0.00', aceptado: false, pasado_trabajo_pendiente: false, importe_neto: '890.00' },
-    ],
-    total: '1100.00',
-    total_aceptado: '210.00',
-  },
-];
-
-const DEMO_FACTURAS: Factura[] = [
-  {
-    id: 'demo-fac-1',
-    paciente_id: 'demo-pac-1',
-    serie: 'A',
-    numero: 381,
-    fecha: '2026-04-14',
-    estado: 'emitida',
-    subtotal: '210.00',
-    iva_total: '0.00',
-    total: '210.00',
-    huella: 'demo-huella-fiscal-123456',
-    num_registro: 1,
-    estado_verifactu: 'pendiente',
-    lineas: [{ id: 'demo-fl-1', concepto: 'Limpieza y endodoncia unirradicular', concepto_ficticio: '24', cantidad: 1, precio_unitario: '210.00', iva_porcentaje: '0.00', subtotal: '210.00' }],
-    cobros: [{ id: 'demo-cob-1', fecha: '2026-04-14T10:00:00', importe: '150.00', forma_pago_id: 'demo-fp-1', notas: null, anulado_at: null, motivo_anulacion: null }],
-    total_cobrado: '150.00',
-    pendiente: '60.00',
-  },
-];
-
-const DEMO_HISTORIAL: HistorialClinico[] = [
-  {
-    id: 'demo-hist-1',
-    paciente_id: 'demo-pac-1',
-    tratamiento_id: 't-limp',
-    doctor_id: 'demo-doc-1',
-    gabinete_id: 'gab-2',
-    pieza_dental: null,
-    caras: null,
-    fecha: '2026-04-14',
-    diagnostico: 'Revision periodica',
-    procedimiento: 'Limpieza, profilaxis y topicacion',
-    observaciones: 'Paciente citado para control en 6 meses.',
-    estado: 'realizado',
-    importe: '60.00',
-    factura_id: 'demo-fac-1',
-    tratamiento: { id: 't-limp', nombre: DEMO_TRATAMIENTO_BY_ID['t-limp'].nombre, codigo: DEMO_TRATAMIENTO_BY_ID['t-limp'].codigo },
-    doctor: { id: 'demo-doc-1', nombre: DEMO_DOCTORES[0].nombre },
-  },
-  {
-    id: 'demo-hist-2',
-    paciente_id: 'demo-pac-2',
-    tratamiento_id: 't-endo',
-    doctor_id: 'demo-doc-2',
-    gabinete_id: 'gab-1',
-    pieza_dental: 24,
-    caras: null,
-    fecha: '2026-02-09',
-    diagnostico: 'Dolor a percusion',
-    procedimiento: 'Endodoncia unirradicular',
-    observaciones: 'Control radiografico en la proxima visita.',
-    estado: 'cobrado_parcial',
-    importe: '150.00',
-    factura_id: null,
-    tratamiento: { id: 't-endo', nombre: DEMO_TRATAMIENTO_BY_ID['t-endo'].nombre, codigo: DEMO_TRATAMIENTO_BY_ID['t-endo'].codigo },
-    doctor: { id: 'demo-doc-2', nombre: DEMO_DOCTORES[1].nombre },
-  },
-];
-
-const DEMO_DOCUMENTOS: DocumentoPaciente[] = [
-  {
-    id: 'demo-docpac-1',
-    paciente_id: 'demo-pac-1',
-    nombre_original: 'rx_periapical_24.pdf',
-    mime_type: 'application/pdf',
-    tamano_bytes: 182400,
-    categoria: 'radiografia',
-    descripcion: 'Radiografia periapical previa a endodoncia',
-    fecha_documento: '2026-04-14',
-    tratamiento_id: 't-endo',
-    historial_id: 'demo-hist-1',
-    doctor_id: 'demo-doc-1',
-    etiquetas: 'endo, pieza 24',
-    created_at: '2026-04-14T10:30:00',
-  },
-  {
-    id: 'demo-docpac-2',
-    paciente_id: 'demo-pac-1',
-    nombre_original: 'presupuesto_implantes.pdf',
-    mime_type: 'application/pdf',
-    tamano_bytes: 94600,
-    categoria: 'presupuesto',
-    descripcion: 'Presupuesto entregado al paciente',
-    fecha_documento: '2026-04-14',
-    tratamiento_id: 't-impl',
-    historial_id: null,
-    doctor_id: 'demo-doc-1',
-    etiquetas: 'implantes',
-    created_at: '2026-04-14T11:05:00',
-  },
-];
-
-const DEMO_PLANTILLAS_CONSENTIMIENTO: PlantillaConsentimiento[] = [
-  { codigo: 'implantes', nombre: 'Implantes', version: '2026.04', tratamientos: ['implante', 'cirugia'] },
-  { codigo: 'extracciones', nombre: 'Extracciones', version: '2026.04', tratamientos: ['extraccion', 'cirugia'] },
-  { codigo: 'endodoncia', nombre: 'Endodoncia', version: '2026.04', tratamientos: ['endodoncia'] },
-  { codigo: 'ortodoncia', nombre: 'Ortodoncia', version: '2026.04', tratamientos: ['ortodoncia'] },
-  { codigo: 'blanqueamiento', nombre: 'Blanqueamiento', version: '2026.04', tratamientos: ['blanqueamiento'] },
-  { codigo: 'periodoncia', nombre: 'Periodoncia', version: '2026.04', tratamientos: ['periodoncia'] },
-  { codigo: 'protesis', nombre: 'Protesis', version: '2026.04', tratamientos: ['protesis'] },
-  { codigo: 'limpieza', nombre: 'Limpieza / profilaxis', version: '2026.04', tratamientos: ['limpieza'] },
-];
-
-const DEMO_CONSENTIMIENTOS: Consentimiento[] = [
-  {
-    id: 'demo-cons-1',
-    paciente_id: 'demo-pac-1',
-    clinica_id: null,
-    plantilla_id: null,
-    tratamiento_id: 't-endo',
-    doctor_id: 'demo-doc-1',
-    historial_id: 'demo-hist-1',
-    documento_id: 'demo-docpac-1',
-    tipo: 'Endodoncia',
-    estado: 'firmado',
-    fecha_firma: '2026-04-14',
-    firmado_at: '2026-04-14T10:45:00',
-    documento_path: 'pacientes/demo-pac-1/consentimiento_endodoncia.pdf',
-    plantilla_version: '2026.04',
-    version_plantilla: 1,
-    contenido: null,
-    hash_documento: null,
-    revocado: false,
-    fecha_revocacion: null,
-    motivo_revocacion: null,
-    created_at: '2026-04-14T10:40:00',
-  },
-];
-
-const DEMO_FORMAS_PAGO: FormaPago[] = [
-  { id: 'demo-fp-1', nombre: 'Efectivo', activo: true },
-  { id: 'demo-fp-2', nombre: 'Tarjeta', activo: true },
-  { id: 'demo-fp-3', nombre: 'Transferencia', activo: true },
-];
 
 type BackendHealthPayload = {
   ok?: boolean;
@@ -1564,7 +1258,7 @@ export async function getTrabajadoresFichaje() {
 export async function getUltimoFichajeTrabajador(trabajadorId: string) {
   return withDemoFallback(
     api.get<FichajeTrabajador | null>(`/fichajes/ultimo/${trabajadorId}`),
-    demoFichajeUltimo[trabajadorId] ?? null,
+    null,
   );
 }
 
@@ -1573,10 +1267,8 @@ export async function registrarFichaje(data: {
   pin: string;
   tipo: TipoFichaje;
 }) {
-  return withDemoFallback(
-    api.post<FichajeRegistroResponse>('/fichajes', data),
-    demoRegistrarFichaje(data.trabajador_id, data.tipo),
-  );
+  const { data: registered } = await api.post<FichajeRegistroResponse>('/fichajes', data);
+  return registered;
 }
 
 export async function getTelefonear() {
@@ -2238,8 +1930,6 @@ function isDemoSession() {
   return Boolean(getStoredAuthToken()?.startsWith(DEMO_TOKEN_PREFIX));
 }
 
-let demoFichajeUltimo: Record<string, FichajeTrabajador> = {};
-
 function demoTrabajadoresFichaje(): TrabajadorFichaje[] {
   const user = getDemoUser();
   if (!user || user.rol === 'paciente') return [];
@@ -2254,27 +1944,6 @@ function demoTrabajadoresFichaje(): TrabajadorFichaje[] {
       pin_configurado: true,
     },
   ];
-}
-
-function demoRegistrarFichaje(trabajadorId: string, tipo: TipoFichaje): FichajeRegistroResponse {
-  const worker = demoTrabajadoresFichaje().find((item) => item.id === trabajadorId) ?? demoTrabajadoresFichaje()[0];
-  const now = new Date();
-  const fichaje: FichajeTrabajador = {
-    id: `demo-fichaje-${now.getTime()}`,
-    trabajador_id: trabajadorId,
-    trabajador_origen: worker?.origen ?? 'usuario',
-    trabajador_nombre: worker?.nombre ?? 'Trabajador demo',
-    clinica_id: worker?.clinica_id ?? null,
-    fecha: now.toISOString().slice(0, 10),
-    hora_exacta: now.toISOString(),
-    tipo,
-    equipo: 'Demo local',
-    ip_address: null,
-    user_agent: navigator.userAgent,
-    registrado_por_usuario_id: getDemoUser()?.id ?? null,
-  };
-  demoFichajeUltimo = { ...demoFichajeUltimo, [trabajadorId]: fichaje };
-  return { fichaje, ultimo_fichaje: fichaje };
 }
 
 function demoResponse<T>(data: T) {

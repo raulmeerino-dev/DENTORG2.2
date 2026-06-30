@@ -101,7 +101,7 @@ export function InvoiceCreationModal({
             <section>
               <h3>Tratamientos no facturados</h3>
               <div className="invoice-picker-table">
-                <table className="euro-table">
+                <table className="dentcore-table">
                   <thead><tr><th>Fecha</th><th>Tratamiento</th><th>Importe</th></tr></thead>
                   <tbody>
                     {loading && <tr><td colSpan={3}>Cargando tratamientos pendientes...</td></tr>}
@@ -120,7 +120,7 @@ export function InvoiceCreationModal({
             <section>
               <h3>Tratamientos a facturar</h3>
               <div className="invoice-picker-table">
-                <table className="euro-table">
+                <table className="dentcore-table">
                   <thead><tr><th>Fecha</th><th>Tratamiento</th><th>Importe</th></tr></thead>
                   <tbody>
                     {renderRows(selectedLineas, remove)}

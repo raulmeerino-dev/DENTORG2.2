@@ -96,8 +96,8 @@ export default function MainNav() {
   }, [launcherOpen]);
 
   return (
-    <header className="euro-shell-header app-launcher-shell" ref={headerRef}>
-      <div className="euro-titlebar app-launcher-bar">
+    <header className="dentcore-shell-header app-launcher-shell" ref={headerRef}>
+      <div className="dentcore-titlebar app-launcher-bar">
         <div className="app-launcher-anchor">
           <button
             type="button"
@@ -142,7 +142,7 @@ export default function MainNav() {
           )}
         </div>
 
-        <div className="euro-titlebar-context">
+        <div className="dentcore-titlebar-context">
           {user?.rol === 'paciente'
             ? <span className="title-clock app-launcher-clock">{nowLabel}</span>
             : <StaffClockPopover label={nowLabel} />}
@@ -159,7 +159,7 @@ export default function MainNav() {
           >
             {isDark ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
           </button>
-          <button className="euro-nav-button nav-exit app-launcher-exit" onClick={() => void logout()}>
+          <button className="dentcore-nav-button nav-exit app-launcher-exit" onClick={() => void logout()}>
             <span className="nav-icon" aria-hidden="true">
               <LogOut size={ICON_SIZE} strokeWidth={1.9} />
             </span>

@@ -5,6 +5,7 @@ import {
   updateOdontogramaPieza,
   updateOdontogramaSuperficie,
 } from '../../lib/api';
+import { invalidatePatientWorkspaceQueries } from '../../lib/queryInvalidation';
 import type { ApiPaciente, OdontogramaSurfaceName, UserRole } from '../../types/api';
 import { odontogramaBackendToVisual, odontogramChangeToBackendPatch } from './adapters/backendAdapter';
 import { OdontogramaTool } from './OdontogramaTool';
@@ -83,8 +84,7 @@ export function PatientOdontogramFlow({
       return updateOdontogramaPieza(odontogramaQuery.data.id, piezaFdi, payload);
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['patient-odontogram-flow', paciente?.id] });
-      if (paciente?.id) void queryClient.invalidateQueries({ queryKey: ['odontograma-paciente', paciente.id] });
+      if (paciente?.id) invalidatePatientWorkspaceQueries(queryClient, paciente.id);
     },
   });
 

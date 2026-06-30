@@ -1352,8 +1352,8 @@ Comando:
 
 ```powershell
 cd backend
-$env:DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2_test"
-$env:TEST_DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2_test"
+$env:DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore_test"
+$env:TEST_DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore_test"
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
@@ -1396,7 +1396,7 @@ Backend:
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-$env:DATABASE_URL="postgresql+asyncpg://eurodent:eurodent_dev_pass@127.0.0.1:5434/eurodent2"
+$env:DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore"
 $env:JWT_SECRET_KEY="dev-secret-change-me"
 $env:DB_ENCRYPTION_KEY="dev-encryption-key-min-32-chars"
 .\.venv\Scripts\python.exe -m alembic upgrade head

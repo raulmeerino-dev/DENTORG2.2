@@ -252,24 +252,24 @@ export default function AssistantFloatingButton() {
     originalText: string,
     startedAt: number,
   ) => {
-    const debugAction = match.action.type;
+    const fastAction = match.action;
+    const debugAction = fastAction.type;
 
-    if (match.action.type === 'navigate') {
-      navigate(match.action.targetPath);
+    if (fastAction.type === 'show_help') {
       setPhase('completed');
       appendMessage('assistant', match.responseText);
       const responseMs = roundResponseMs(startedAt);
       logAssistantRouteDebug({
         route: 'fast/local',
         responseMs,
-        actionExecuted: `${match.action.type}:${match.action.targetPath}`,
+        actionExecuted: debugAction,
         confidence: match.confidence,
         normalizedText: match.normalizedText,
         matchedVerb: match.matchedVerb,
         matchedDestination: match.matchedDestination,
         providerUsed: 'local',
         modelUsed: 'FastCommandRouter',
-        intentFinal: match.action.type,
+        intentFinal: debugAction,
       });
       auditAssistantEvent(context, null, {
         status: 'completed',
@@ -278,32 +278,150 @@ export default function AssistantFloatingButton() {
         result: match.responseText,
         route: 'fast/local',
         responseMs,
-        actionExecuted: `${match.action.type}:${match.action.targetPath}`,
+        actionExecuted: debugAction,
+      });
+      return;
+    }
+
+    if (fastAction.type === 'cancel_current_draft') {
+      const cancelled = cancelIntent(draft);
+      setDraft(null);
+      setPhase('cancelled');
+      appendMessage('assistant', match.responseText);
+      rememberIntent(null, null);
+      const responseMs = roundResponseMs(startedAt);
+      logAssistantRouteDebug({
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: debugAction,
+        confidence: match.confidence,
+        normalizedText: match.normalizedText,
+        matchedVerb: match.matchedVerb,
+        matchedDestination: match.matchedDestination,
+        providerUsed: 'local',
+        modelUsed: 'FastCommandRouter',
+        intentFinal: debugAction,
+      });
+      auditAssistantEvent(context, cancelled, {
+        status: 'cancelled',
+        confirmed: false,
+        originalText,
+        result: match.responseText,
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: debugAction,
+      });
+      return;
+    }
+
+    if (fastAction.type === 'confirm_current_draft') {
+      if (!draft) {
+        setPhase('needs_clarification');
+        const message = 'No hay ningun borrador activo para confirmar.';
+        appendMessage('assistant', message);
+        return;
+      }
+
+      const resolvedConfirm = await resolveDraft(draft, context);
+      const responseMs = roundResponseMs(startedAt);
+      logAssistantRouteDebug({
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: debugAction,
+        confidence: match.confidence,
+        normalizedText: match.normalizedText,
+        matchedVerb: match.matchedVerb,
+        matchedDestination: match.matchedDestination,
+        providerUsed: 'local',
+        modelUsed: 'FastCommandRouter',
+        intentFinal: resolvedConfirm.intent.intent,
+      });
+
+      if (resolvedConfirm.intent.needsClarification || resolvedConfirm.intent.operationalCanConfirm === false) {
+        setDraft(resolvedConfirm.intent);
+        setPhase(phaseFromIntent(resolvedConfirm.intent));
+        const message = resolvedConfirm.intent.clarificationQuestion
+          ?? resolvedConfirm.extraMessage
+          ?? 'No puedo confirmar todavia. Falta resolver el borrador.';
+        appendMessage('assistant', message);
+        rememberIntent(resolvedConfirm.intent, message);
+        auditAssistantEvent(context, resolvedConfirm.intent, {
+          status: resolvedConfirm.intent.status,
+          confirmed: false,
+          originalText,
+          result: message,
+          route: 'fast/local',
+          responseMs,
+          actionExecuted: `${debugAction}:needs_clarification`,
+        });
+        return;
+      }
+
+      setDraft(resolvedConfirm.intent);
+      appendMessage('assistant', match.responseText);
+      auditAssistantEvent(context, resolvedConfirm.intent, {
+        status: 'executing',
+        confirmed: true,
+        originalText,
+        result: match.responseText,
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: debugAction,
+      });
+      await executeIntent(resolvedConfirm.intent, true);
+      return;
+    }
+
+    if (fastAction.type === 'navigate') {
+      navigate(fastAction.targetPath);
+      setPhase('completed');
+      appendMessage('assistant', match.responseText);
+      const responseMs = roundResponseMs(startedAt);
+      logAssistantRouteDebug({
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${fastAction.type}:${fastAction.targetPath}`,
+        confidence: match.confidence,
+        normalizedText: match.normalizedText,
+        matchedVerb: match.matchedVerb,
+        matchedDestination: match.matchedDestination,
+        providerUsed: 'local',
+        modelUsed: 'FastCommandRouter',
+        intentFinal: fastAction.type,
+      });
+      auditAssistantEvent(context, null, {
+        status: 'completed',
+        confirmed: false,
+        originalText,
+        result: match.responseText,
+        route: 'fast/local',
+        responseMs,
+        actionExecuted: `${fastAction.type}:${fastAction.targetPath}`,
       });
       return;
     }
 
     if (
-      match.action.type === 'open_patient_draft'
-      || match.action.type === 'open_patient_budgets'
-      || match.action.type === 'open_patient_documents'
+      fastAction.type === 'open_patient_draft'
+      || fastAction.type === 'open_patient_budgets'
+      || fastAction.type === 'open_patient_documents'
     ) {
-      dispatchPatientFastAction(match.action.patientAction);
-      navigate(match.action.targetPath);
+      dispatchPatientFastAction(fastAction.patientAction);
+      navigate(fastAction.targetPath);
       setPhase('completed');
       appendMessage('assistant', match.responseText);
       const responseMs = roundResponseMs(startedAt);
       logAssistantRouteDebug({
         route: 'fast/local',
         responseMs,
-        actionExecuted: `${match.action.type}:${match.action.patientAction}`,
+        actionExecuted: `${fastAction.type}:${fastAction.patientAction}`,
         confidence: match.confidence,
         normalizedText: match.normalizedText,
         matchedVerb: match.matchedVerb,
         matchedDestination: match.matchedDestination,
         providerUsed: 'local',
         modelUsed: 'FastCommandRouter',
-        intentFinal: match.action.type,
+        intentFinal: fastAction.type,
       });
       auditAssistantEvent(context, null, {
         status: 'completed',
@@ -312,12 +430,12 @@ export default function AssistantFloatingButton() {
         result: match.responseText,
         route: 'fast/local',
         responseMs,
-        actionExecuted: `${match.action.type}:${match.action.patientAction}`,
+        actionExecuted: `${fastAction.type}:${fastAction.patientAction}`,
       });
       return;
     }
 
-    const action = getActionDefinition(match.action.intent.intent);
+    const action = getActionDefinition(fastAction.intent.intent);
     const permissionCheck = canRunAssistantAction(context, action);
     if (!permissionCheck.allowed) {
       const message = `No tienes permiso para ${permissionCheck.missingPermissions.map(permissionLabel).join(', ')}.`;
@@ -336,7 +454,7 @@ export default function AssistantFloatingButton() {
         modelUsed: 'FastCommandRouter',
         intentFinal: `${debugAction}:blocked_permission`,
       });
-      auditAssistantEvent(context, match.action.intent, {
+      auditAssistantEvent(context, fastAction.intent, {
         status: 'error',
         confirmed: false,
         originalText,
@@ -348,7 +466,7 @@ export default function AssistantFloatingButton() {
       return;
     }
 
-    const enriched = await resolveDraft(match.action.intent, context);
+    const enriched = await resolveDraft(fastAction.intent, context);
     setDraft(enriched.intent);
     setPhase(phaseFromIntent(enriched.intent));
     const responseText = [match.responseText, enriched.intent.clarificationQuestion ?? enriched.extraMessage].filter(Boolean).join('\n');
@@ -376,7 +494,7 @@ export default function AssistantFloatingButton() {
       responseMs,
       actionExecuted: debugAction,
     });
-  }, [appendMessage, navigate, rememberIntent, resolveDraft]);
+  }, [appendMessage, draft, executeIntent, navigate, rememberIntent, resolveDraft]);
 
   const processText = useCallback(async (rawText: string) => {
     const text = rawText.trim();

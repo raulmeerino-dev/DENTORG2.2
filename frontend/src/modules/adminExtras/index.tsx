@@ -271,7 +271,7 @@ export default function AdminExtrasPage() {
         <div className="fichero-grid">
           <section className="desk-panel">
             <div className="panel-caption"><strong>Clínicas</strong></div>
-            <table className="euro-table"><thead><tr><th>Nombre</th><th>Dirección</th><th>Activa</th></tr></thead><tbody>
+            <table className="dentcore-table"><thead><tr><th>Nombre</th><th>Dirección</th><th>Activa</th></tr></thead><tbody>
               {(clinicasQuery.data ?? []).map((clinica) => <tr key={clinica.id}><td>{clinica.nombre}</td><td>{clinica.direccion}</td><td>{clinica.activa ? 'Sí' : 'No'}</td></tr>)}
             </tbody></table>
           </section>
@@ -293,7 +293,7 @@ export default function AdminExtrasPage() {
               <strong>Stock y alertas</strong>
               <span>{(inventarioQuery.data ?? []).filter((producto) => producto.stock_act < producto.stock_min).length} bajo mínimo</span>
             </div>
-            <table className="euro-table">
+            <table className="dentcore-table">
               <thead><tr><th>Producto</th><th>Cat.</th><th>Proveedor</th><th>Mín.</th><th>Actual</th><th>Estado</th><th></th></tr></thead>
               <tbody>
                 {(inventarioQuery.data ?? []).map((producto) => {
@@ -429,7 +429,7 @@ export default function AdminExtrasPage() {
       {tab === 'auditoria' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Auditoría clínica y administrativa</strong></div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Fecha</th><th>Acción</th><th>Entidad</th><th>Usuario</th><th>IP</th></tr></thead>
             <tbody>
               {(auditoriaQuery.data ?? []).map((entry) => (

@@ -15,6 +15,7 @@ import {
   updatePresupuestoLinea,
 } from '../../lib/api';
 import { colorForTreatment, formatDate, money } from '../../lib/utils';
+import { invalidatePatientWorkspaceQueries } from '../../lib/queryInvalidation';
 import { TreatmentBadge } from '../../components/TreatmentBadge';
 import { BudgetOdontogramFlow } from '../odontogram';
 
@@ -44,7 +45,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
     return `${item.codigo ?? ''} ${item.nombre} ${item.familia?.nombre ?? ''}`.toLowerCase().includes(q);
   }).slice(0, 120);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
+  const invalidate = () => invalidatePatientWorkspaceQueries(queryClient, presupuesto.paciente_id);
 
   const addLine = useMutation({
     mutationFn: () => {
@@ -75,15 +76,14 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
     },
     onSuccess: () => {
       setLineaSeleccionada(null);
-      void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
+      invalidate();
     },
   });
 
   const passPending = useMutation({
     mutationFn: () => pasarPresupuestoTrabajoPendiente(presupuesto.id),
     onSuccess: () => {
-      void invalidate();
-      void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', presupuesto.paciente_id] });
+      invalidate();
       toast.success('Trabajo pasado a pendiente.');
     },
   });
@@ -91,7 +91,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   const presentBudget = useMutation({
     mutationFn: () => presentarPresupuesto(presupuesto.id),
     onSuccess: () => {
-      void invalidate();
+      invalidate();
       toast.success('Presupuesto presentado.');
     },
   });
@@ -99,9 +99,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   const acceptBudget = useMutation({
     mutationFn: () => aceptarPresupuesto(presupuesto.id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['trabajo-pendiente', presupuesto.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', presupuesto.paciente_id] });
+      invalidate();
       toast.success('Presupuesto aceptado.');
     },
   });
@@ -111,7 +109,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
     onSuccess: () => {
       setRechazarOpen(false);
       setMotivoRechazo('');
-      void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
+      invalidate();
       toast.success('Presupuesto rechazado.');
     },
   });
@@ -119,9 +117,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   const invoiceBudget = useMutation({
     mutationFn: () => convertirPresupuestoFactura(presupuesto.id),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['presupuestos', presupuesto.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['facturas', presupuesto.paciente_id] });
-      void queryClient.invalidateQueries({ queryKey: ['saldo-paciente', presupuesto.paciente_id] });
+      invalidate();
       toast.success('Presupuesto convertido en factura.');
     },
   });
@@ -255,7 +251,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
       </details>
 
       {/* Lines table with totals row */}
-      <table className="euro-table">
+      <table className="dentcore-table">
         <thead>
           <tr>
             <th>Tipo</th>
@@ -347,7 +343,7 @@ export function CitasPacientePanel({ citas }: { citas: Cita[] }) {
   return (
     <section className="desk-panel">
       <div className="panel-caption"><strong>Citas del paciente</strong><span>Confirmacion, recordatorios y asistencia</span></div>
-      <table className="euro-table">
+      <table className="dentcore-table">
         <thead><tr><th>Fecha</th><th>Hora</th><th>Doctor</th><th>Tratamiento previsto</th><th>Estado</th><th>Recordatorio</th><th>Obs. cita</th></tr></thead>
         <tbody>
           {citas.map((cita) => (

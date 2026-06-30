@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PacientesPage from './index';
 
@@ -11,7 +11,7 @@ vi.mock('../../auth/AuthContext', () => ({
   }),
 }));
 
-const { paciente, createPresupuestoMock, getPresupuestosMock, resetPresupuestos } = vi.hoisted(() => {
+const { createPresupuestoMock, getPacienteMock, getPacientesMock, getPresupuestosMock, resetPresupuestos } = vi.hoisted(() => {
   const basePresupuesto = {
     id: 'pres-1',
     paciente_id: 'pac-1',
@@ -43,26 +43,40 @@ const { paciente, createPresupuestoMock, getPresupuestosMock, resetPresupuestos 
     return created;
   });
   const getPresupuestosMock = vi.fn(async () => presupuestosStore);
+  const paciente = {
+    id: 'pac-1',
+    num_historial: 91312,
+    nombre: 'Cesar',
+    apellidos: 'Gutierrez Velez',
+    fecha_nacimiento: null,
+    telefono: '600000000',
+    telefono2: null,
+    dni_nie: null,
+    email: null,
+    direccion: null,
+    codigo_postal: null,
+    ciudad: null,
+    provincia: null,
+    activo: true,
+    observaciones: 'LIMP cada 6 meses',
+    datos_salud: { alergias: 'Sin alergias registradas' },
+  };
+  const paciente2 = {
+    ...paciente,
+    id: 'pac-2',
+    num_historial: 91313,
+    nombre: 'Pilar',
+    apellidos: 'Ojeda Calvo',
+    telefono: '600000001',
+    observaciones: 'Revision implante',
+    datos_salud: { alergias: 'Penicilina' },
+  };
+  const getPacienteMock = vi.fn(async (pacienteId: string) => (pacienteId === paciente2.id ? paciente2 : paciente));
+  const getPacientesMock = vi.fn(async () => [paciente, paciente2]);
   return {
-  paciente: {
-  id: 'pac-1',
-  num_historial: 91312,
-  nombre: 'Cesar',
-  apellidos: 'Gutierrez Velez',
-  fecha_nacimiento: null,
-  telefono: '600000000',
-  telefono2: null,
-  dni_nie: null,
-  email: null,
-  direccion: null,
-  codigo_postal: null,
-  ciudad: null,
-  provincia: null,
-  activo: true,
-  observaciones: 'LIMP cada 6 meses',
-  datos_salud: { alergias: 'Sin alergias registradas' },
-  },
     createPresupuestoMock,
+    getPacienteMock,
+    getPacientesMock,
     getPresupuestosMock,
     resetPresupuestos,
   };
@@ -181,8 +195,8 @@ vi.mock('../../lib/api', () => ({
   getHistorialSinFacturar: vi.fn().mockResolvedValue([]),
   getOdontogramaContexto: vi.fn().mockResolvedValue({ mode: 'lectura', odontograma_id: 'odo-1', paciente_id: 'pac-1', teeth: {} }),
   getNotasDentalesPaciente: vi.fn().mockResolvedValue([]),
-  getPaciente: vi.fn().mockResolvedValue(paciente),
-  getPacientes: vi.fn().mockResolvedValue([paciente]),
+  getPaciente: getPacienteMock,
+  getPacientes: getPacientesMock,
   getPagosAnticipadosPaciente: vi.fn().mockResolvedValue([]),
   getPlantillasConsentimiento: vi.fn().mockResolvedValue([]),
   getLaboratorios: vi.fn().mockResolvedValue([{ id: 'lab-1', nombre: 'Lab Norte', telefono: null, whatsapp: null, email: null, contacto: null, notas: null, activo: true }]),
@@ -210,11 +224,17 @@ vi.mock('../../lib/api', () => ({
   uploadDocumentoPaciente: vi.fn(),
 }));
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-probe">{location.pathname}{location.search}</span>;
+}
+
+function renderPage(initialEntries = ['/pacientes']) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={initialEntries}>
+        <LocationProbe />
         <PacientesPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -225,7 +245,39 @@ describe('PacientesPage structure', () => {
   beforeEach(() => {
     resetPresupuestos();
     createPresupuestoMock.mockClear();
+    getPacienteMock.mockClear();
+    getPacientesMock.mockClear();
     getPresupuestosMock.mockClear();
+    window.sessionStorage.clear();
+  });
+
+  it('seleccionar paciente actualiza la URL canonica', async () => {
+    const user = userEvent.setup();
+    renderPage(['/pacientes']);
+
+    const finder = await screen.findByPlaceholderText(/Buscar paciente/i);
+    await user.click(finder);
+    await user.click(await screen.findByRole('button', { name: /Ojeda Calvo, Pilar/i }));
+
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/pacientes?paciente_id=pac-2'));
+    expect(window.sessionStorage.getItem('dentcore_selected_patient_id')).toBe('pac-2');
+  });
+
+  it('refrescar con paciente_id mantiene ese paciente', async () => {
+    renderPage(['/pacientes?paciente_id=pac-2']);
+
+    await waitFor(() => expect(getPacienteMock).toHaveBeenCalledWith('pac-2'));
+    await waitFor(() => expect(window.sessionStorage.getItem('dentcore_selected_patient_id')).toBe('pac-2'));
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('/pacientes?paciente_id=pac-2');
+  });
+
+  it('sessionStorage obsoleto no gana frente a paciente_id de la URL', async () => {
+    window.sessionStorage.setItem('dentcore_selected_patient_id', 'pac-1');
+    renderPage(['/pacientes?paciente_id=pac-2']);
+
+    await waitFor(() => expect(getPacienteMock).toHaveBeenCalledWith('pac-2'));
+    expect(getPacienteMock).not.toHaveBeenCalledWith('pac-1');
+    await waitFor(() => expect(window.sessionStorage.getItem('dentcore_selected_patient_id')).toBe('pac-2'));
   });
 
   it('uses three main tabs and keeps patient documents in ficha context', async () => {

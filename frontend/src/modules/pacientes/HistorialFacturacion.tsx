@@ -110,7 +110,7 @@ function formatStateLabel(estado: string) {
   return labels[value] ?? estado;
 }
 
-export function EurodentHistoryBillingPanel({
+export function DentCoreHistoryBillingPanel({
   paciente,
   historial,
   facturas,
@@ -194,7 +194,7 @@ export function EurodentHistoryBillingPanel({
   }
 
   return (
-    <section className="history-billing-eurodent">
+    <section className="history-billing-dentcore">
       <div className="history-ledger-toolbar">
         <div className="history-ledger-title">
           <strong>Historial de tratamientos</strong>
@@ -280,7 +280,7 @@ export function EurodentHistoryBillingPanel({
       </div>
 
       <div className="history-ledger-scroll" aria-label="Historial de tratamientos con desplazamiento" onContextMenu={openBlankHistoryMenu}>
-        <table className="euro-table history-ledger-table">
+        <table className="dentcore-table history-ledger-table">
           <thead>
             <tr>
               <th>Fecha</th>
@@ -373,7 +373,7 @@ export function InvoiceHistoryModal({
           <button onClick={onClose}>Cerrar</button>
         </header>
         <div className="invoice-history-list">
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Fecha</th><th>Factura</th><th>Estado</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>PDF</th></tr></thead>
             <tbody>
               {facturas.map((factura) => (
@@ -400,7 +400,7 @@ export function ClinicalHistoryPanel({ paciente, historial, onFacturar, onCobrar
   return (
     <section className="desk-panel">
       <div className="panel-caption"><strong>Historial clinico</strong><span>Observaciones por tratamiento, no mezcladas con la ficha general</span></div>
-      <table className="euro-table treatment-table">
+      <table className="dentcore-table treatment-table">
         <thead><tr><th>Fecha</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Diagnostico</th><th>Estado</th><th>Importe</th><th>Factura</th></tr></thead>
         <tbody>
           {historial.map((entrada, index) => (

@@ -519,7 +519,7 @@ export function ConfiguracionWorkspace({
               <strong>Formas de pago</strong>
               <span>Configuracion minima</span>
             </div>
-            <table className="euro-table compact-table">
+            <table className="dentcore-table compact-table">
               <thead><tr><th>Metodo</th><th>Estado</th><th>Uso</th></tr></thead>
               <tbody>
                 {(formasPagoQuery.data ?? []).map((forma) => (
@@ -543,7 +543,7 @@ export function ConfiguracionWorkspace({
         <div className="fichero-grid">
           <section className="desk-panel">
             <div className="panel-caption"><strong>Doctores, auxiliares y colores</strong><AccessPill allowed={isAdmin} /></div>
-            <table className="euro-table">
+            <table className="dentcore-table">
               <thead><tr><th>Color</th><th>Nombre</th><th>Especialidad</th><th>%</th><th>Tipo</th><th>Activo</th></tr></thead>
               <tbody>
                 {doctores.map((doctor) => (
@@ -604,7 +604,7 @@ export function ConfiguracionWorkspace({
               />
             </div>
             <div className="treatment-catalog-scroll">
-              <table className="euro-table">
+              <table className="dentcore-table">
                 <thead><tr><th>Codigo</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th>IVA</th><th>Precio</th></tr></thead>
                 <tbody>
                   {filteredTratamientos.map((tratamiento) => (
@@ -700,7 +700,7 @@ export function ConfiguracionWorkspace({
             <button disabled={!isAdmin} onClick={() => aplicarPlantillaLaborables('tarde')}>L-V solo tarde</button>
             <button disabled={!isAdmin} onClick={marcarFinDeSemanaFestivo}>S-D festivo</button>
           </div>
-          <table className="euro-table horario-editor-table">
+          <table className="dentcore-table horario-editor-table">
             <colgroup>
               <col className="horario-col-dia" />
               <col className="horario-col-tipo" />
@@ -780,7 +780,7 @@ export function ConfiguracionWorkspace({
       {tab === 'laboratorio' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Laboratorios y protesicos</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Nombre</th><th>Contacto</th><th>Telefono</th><th>WhatsApp</th><th>Email</th><th>Notas</th><th>Activo</th></tr></thead>
             <tbody>
               {(laboratoriosQuery.data ?? []).map((lab) => (
@@ -838,7 +838,7 @@ export function ConfiguracionWorkspace({
               <div><strong>{readinessQuery.data?.totals.warn ?? '-'}</strong><span>Avisos</span></div>
               <div><strong>{readinessQuery.data?.totals.fail ?? '-'}</strong><span>Bloqueos</span></div>
             </div>
-            <table className="euro-table compact-table">
+            <table className="dentcore-table compact-table">
               <thead><tr><th>Area</th><th>Estado</th><th>Revision</th><th>Accion</th></tr></thead>
               <tbody>
                 {(readinessQuery.data?.checks ?? []).map((check) => (
@@ -853,7 +853,7 @@ export function ConfiguracionWorkspace({
               </tbody>
             </table>
           </div>
-          <table className="euro-table backup-table">
+          <table className="dentcore-table backup-table">
             <thead><tr><th>Inicio</th><th>Estado</th><th>Alcance</th><th>Tamano</th><th>Cifrado</th><th>Verificacion</th><th>Restauracion</th><th>Retencion</th><th>Destino</th><th></th></tr></thead>
             <tbody>
               {(backupsQuery.data ?? []).map((backup) => (
@@ -890,7 +890,7 @@ export function ConfiguracionWorkspace({
       {tab === 'roles' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Mapa de roles y permisos visibles</strong><AccessPill allowed={isAdmin} /></div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Seccion</th><th>Admin</th><th>Doctor</th><th>Recepcion</th><th>Contenido</th></tr></thead>
             <tbody>
               {WORKFLOW_ITEMS.map((item) => (

@@ -180,7 +180,7 @@ export default function WhatsAppPage() {
 
       <div className="whatsapp-inbox-layout">
         <section className="whatsapp-inbox-table-wrap">
-          <table className="euro-table whatsapp-inbox-table">
+          <table className="dentcore-table whatsapp-inbox-table">
             <thead>
               <tr>
                 <th>Recibido</th>

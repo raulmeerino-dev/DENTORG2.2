@@ -78,7 +78,7 @@ export default function ListadosPage() {
             <strong>Facturacion, cobros y saldos</strong>
             {!canSeeCaja && <span className="access-pill locked">Importes visibles segun permisos</span>}
           </div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead>
               <tr><th>Factura</th><th>Fecha</th><th>Estado</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>Huella</th><th>PDF</th></tr>
             </thead>
@@ -104,7 +104,7 @@ export default function ListadosPage() {
       {tab === 'pacientes' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Pacientes y saldos operativos</strong><span>Busqueda, seguimiento y prioridad de llamada</span></div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Historial</th><th>Paciente</th><th>F. nacimiento</th><th>Citas</th><th>Saldo</th><th>Activo</th></tr></thead>
             <tbody>
               {(pacientesQuery.data ?? []).map((paciente) => (
@@ -125,7 +125,7 @@ export default function ListadosPage() {
       {tab === 'agenda' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Citas por doctor</strong><span>Actividad, asistencia y faltas</span></div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Doctor</th><th>Total citas</th><th>Atendidas</th><th>Faltas</th><th>Color agenda</th></tr></thead>
             <tbody>
               {(citasDoctorQuery.data ?? []).map((row) => (
@@ -151,7 +151,7 @@ export default function ListadosPage() {
             <div><span>Pacientes nuevos</span><strong>{kpis?.pacientes_nuevos ?? 0}</strong></div>
             <div><span>Faltas</span><strong>{kpis?.citas.faltas ?? 0}</strong></div>
           </div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Tratamiento</th><th>Cantidad</th></tr></thead>
             <tbody>
               {(topTratamientosQuery.data ?? []).map((row) => (
@@ -165,7 +165,7 @@ export default function ListadosPage() {
       {tab === 'laboratorio' && (
         <section className="desk-panel">
           <div className="panel-caption"><strong>Trabajos de laboratorio pendientes</strong><span>Salida, recepcion, incidencia y entrega</span></div>
-          <table className="euro-table">
+          <table className="dentcore-table">
             <thead><tr><th>Paciente</th><th>Laboratorio</th><th>Trabajo</th><th>Pieza</th><th>Estado</th><th>Entrega prevista</th><th>Precio</th></tr></thead>
             <tbody>
               {(laboratorioQuery.data ?? []).map((trabajo) => (

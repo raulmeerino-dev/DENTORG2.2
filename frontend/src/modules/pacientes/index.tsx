@@ -61,11 +61,12 @@ import {
 } from '../../lib/api';
 import type { ApiPaciente, Consentimiento, DocumentoPaciente, Factura, HistorialClinico, HistorialSinFacturar, NotaDentalCreateInput, PagoAnticipadoPaciente, Presupuesto, PresupuestoLinea, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, SesionTratamientoRealizadoInput, TrabajoLaboratorioCreateInput } from '../../types/api';
 import { money, formatDate, fullName } from '../../lib/utils';
+import { invalidatePatientWorkspaceQueries } from '../../lib/queryInvalidation';
 import type { PrimeraVisitaData } from './PrimeraVisita';
 import { ConsentimientosPanel, DocumentDesignerModal } from './Consentimientos';
 import type { DocumentDesignerMode } from './Consentimientos';
 import { DocumentosPanel } from './Documentos';
-import { EurodentHistoryBillingPanel, InvoiceHistoryModal } from './HistorialFacturacion';
+import { DentCoreHistoryBillingPanel, InvoiceHistoryModal } from './HistorialFacturacion';
 import { HistorialCompletoPanel } from './HistorialCompleto';
 import { CobroModal } from './modals/CobroModal';
 import { AnticipoModal } from './modals/AnticipoModal';
@@ -185,7 +186,6 @@ export default function PacientesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [selected, setSelected] = useState<ApiPaciente | null>(null);
   const [tab, setTab] = useState<WorkTab>('pacientes');
   const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>('primera');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
@@ -231,14 +231,15 @@ export default function PacientesPage() {
     }),
   });
   const pacientes = pacientesQuery.data ?? [];
-  const urlPatientId = searchParams.get('paciente_id');
-  const cachedPatientId = sessionStorage.getItem('dentcore_selected_patient_id');
+  const urlPatientParam = searchParams.get('paciente_id');
+  const hasPatientQueryParam = urlPatientParam !== null;
+  const urlPatientId = urlPatientParam?.trim() || null;
+  const cachedPatientId = hasPatientQueryParam ? null : sessionStorage.getItem('dentcore_selected_patient_id');
   const requestedPatientId = urlPatientId ?? cachedPatientId;
-  const selectedMatchesRequest = selected && (!requestedPatientId || selected.id === requestedPatientId) ? selected : null;
   const requestedPatientSummary = pacientes.find((paciente) => paciente.id === requestedPatientId) ?? null;
-  const firstPatient = !requestedPatientId ? (pacientes[0] ?? null) : null;
-  const activeSummary = selectedMatchesRequest ?? requestedPatientSummary ?? firstPatient;
-  const activePatientId = selectedMatchesRequest?.id ?? requestedPatientSummary?.id ?? requestedPatientId ?? firstPatient?.id ?? null;
+  const firstPatient = !requestedPatientId && !hasPatientQueryParam ? (pacientes[0] ?? null) : null;
+  const activeSummary = requestedPatientSummary ?? firstPatient;
+  const activePatientId = requestedPatientSummary?.id ?? requestedPatientId ?? firstPatient?.id ?? null;
   const pacienteDetalleQuery = useQuery({
     queryKey: ['paciente-detalle', activePatientId],
     queryFn: () => getPaciente(activePatientId!),
@@ -391,12 +392,12 @@ export default function PacientesPage() {
   }, [active, searchParams, setSearchParams, urlPatientId]);
 
   function setActivePatient(paciente: ApiPaciente, options: { replace?: boolean } = {}) {
-    setSelected(paciente);
+    queryClient.setQueryData(['paciente-detalle', paciente.id], paciente);
     sessionStorage.setItem('dentcore_selected_patient_id', paciente.id);
     sessionStorage.setItem('dentcore_selected_patient_name', fullName(paciente));
     const next = new URLSearchParams(searchParams);
     next.set('paciente_id', paciente.id);
-    setSearchParams(next, { replace: options.replace ?? false });
+    setSearchParams(next, { replace: options.replace ?? true });
   }
 
   function openPatientArea(targetTab: WorkTab) {
@@ -435,25 +436,7 @@ export default function PacientesPage() {
   }
 
   function invalidatePatientWorkspace(pacienteId: string) {
-    [
-      ['paciente-detalle', pacienteId],
-      ['presupuestos', pacienteId],
-      ['facturas', pacienteId],
-      ['pagos-anticipados', pacienteId],
-      ['saldo-paciente', pacienteId],
-      ['historial-paciente', pacienteId],
-      ['historial-sin-facturar', pacienteId],
-      ['citas-paciente', pacienteId],
-      ['documentos-paciente', pacienteId],
-      ['consentimientos-paciente', pacienteId],
-      ['laboratorio-paciente', pacienteId],
-      ['recetas-paciente', pacienteId],
-      ['notas-dentales', pacienteId],
-      ['sesion-items', pacienteId],
-      ['odontograma-contexto', pacienteId],
-    ].forEach((queryKey) => {
-      void queryClient.invalidateQueries({ queryKey });
-    });
+    invalidatePatientWorkspaceQueries(queryClient, pacienteId);
   }
 
   const nuevoPresupuesto = useMutation({
@@ -1234,7 +1217,7 @@ export default function PacientesPage() {
         )}
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
-            <EurodentHistoryBillingPanel
+            <DentCoreHistoryBillingPanel
               paciente={active}
               historial={historialQuery.data ?? []}
               facturas={facturas}

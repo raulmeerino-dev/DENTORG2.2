@@ -11,10 +11,10 @@ Credenciales de prueba:
     Doctor:  doctor / doctor123
 """
 import asyncio
-import sys
 import io
-from pathlib import Path
+import sys
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 # Windows: forzar stdout a UTF-8
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
@@ -24,19 +24,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.database import AsyncSessionLocal
-from app.core.security import hash_password
+
 from app.core.crypto import cifrar_campos_paciente
+from app.core.security import hash_password
 from app.data.tratamientos_base import FAMILIAS_TRATAMIENTO_BASE, TRATAMIENTOS_BASE
-from app.models.usuario import Usuario
+from app.database import AsyncSessionLocal
+from app.models.cita import Cita, CitaTelefonear
 from app.models.doctor import Doctor
 from app.models.gabinete import Gabinete
-from app.models.paciente import Paciente
-from app.models.cita import Cita, CitaTelefonear
 from app.models.historial import HistorialClinico
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.models.paciente import Paciente
 from app.models.presupuesto import Presupuesto, PresupuestoLinea
-from app.models.factura import Factura, FacturaLinea
+from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.models.usuario import Usuario
 
 
 def dt(d: date, h: int, m: int = 0) -> datetime:
@@ -64,7 +64,7 @@ async def seed():
 
     async with AsyncSessionLocal() as session:
         print("=" * 60)
-        print("EURODENT 2.0 — Seed de demostración")
+        print("DENTCORE — Seed de demostración")
         print("=" * 60)
 
         # ── Usuario admin ────────────────────────────────────────────

@@ -78,7 +78,7 @@ def upgrade() -> None:
             "es_rectificativa": bool(row["es_rectificativa"]),
             "estado_factura": row["estado"],
             "huella_anterior": huella_anterior or ("0" * 64),
-            "sistema_codigo": "EURODENT2-COPY",
+            "sistema_codigo": "DENTCORE-COPY",
             "sistema_version": "0.2.0",
             "usuario_id": None,
             "detalles": {},

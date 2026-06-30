@@ -4,7 +4,7 @@ Revision ID: 0026
 Revises: 0025
 Create Date: 2026-05-18
 
-Añade campos administrativos al paciente que estaban en Eurodent:
+Añade campos administrativos al paciente que estaban en DentCore:
 - sexo, profesion, pais
 - doctor_habitual_id (FK a doctores)
 - num_poliza (la mutua/entidad ya existe via entidad_id)

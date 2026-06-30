@@ -2,7 +2,7 @@
 
 ## Vision general
 
-DentCore.2 es una aplicacion web clinica con separacion clara entre backend, frontend y base de datos.
+DentCore es una aplicacion web clinica con separacion clara entre backend, frontend y base de datos.
 
 ```mermaid
 flowchart LR

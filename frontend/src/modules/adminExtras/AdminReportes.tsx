@@ -291,7 +291,7 @@ export function AdminReportes() {
           <div className="admin-report-chart admin-report-chart-split">
             <div>
               <div className="panel-caption"><strong>Tratamientos top</strong><span>Volumen e importe</span></div>
-              <table className="euro-table">
+              <table className="dentcore-table">
                 <thead><tr><th>Tratamiento</th><th>Cant.</th><th>Importe</th></tr></thead>
                 <tbody>
                   {topTratamientos.slice(0, 8).map((row) => <tr key={row.tratamiento}><td>{row.tratamiento}</td><td>{row.cantidad}</td><td>{money(row.importe ?? 0)}</td></tr>)}
@@ -354,7 +354,7 @@ export function AdminReportes() {
           </label>
         </div>
 
-        <table className="euro-table">
+        <table className="dentcore-table">
           <thead>
             <tr>
               {Object.keys(customRows[0] ?? { resultado: '' }).map((header) => <th key={header}>{header}</th>)}

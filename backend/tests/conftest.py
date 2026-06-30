@@ -23,12 +23,12 @@ from app.main import app
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://eurodent:eurodent_dev_pass@postgres:5432/eurodent2_test",
+    "postgresql+asyncpg://dentcore:dentcore_dev_pass@postgres:5432/dentcore_test",
 )
 
 _test_url = make_url(TEST_DATABASE_URL)
 ADMIN_DATABASE_URL = _test_url.set(database="postgres").render_as_string(hide_password=False)
-TEST_DATABASE_NAME = _test_url.database or "eurodent2_test"
+TEST_DATABASE_NAME = _test_url.database or "dentcore_test"
 
 admin_engine = create_async_engine(ADMIN_DATABASE_URL, echo=False, isolation_level="AUTOCOMMIT")
 test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)

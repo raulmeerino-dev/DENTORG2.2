@@ -11,10 +11,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sqlalchemy import select
+
 from app.core.security import hash_password
 from app.database import AsyncSessionLocal
 from app.models.usuario import Usuario
-from sqlalchemy import select
 
 
 async def crear_admin():

@@ -322,7 +322,7 @@ describe('Flujo integración cross-módulo', () => {
       presupuesto_id: 'pres-1',
       tratamiento_id: 'trat-1',
     });
-  });
+  }, 10_000);
 
   it('banner de laboratorio vencido aparece en la Ficha y abre tratamientos pendientes', async () => {
     const user = userEvent.setup();

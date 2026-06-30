@@ -6,7 +6,7 @@ Actúa como un senior full-stack engineer, product designer y consultor experto 
 
 Tu objetivo no es añadir funcionalidades por cantidad, sino mejorar DentCore como producto clínico profesional: estable, claro, rápido, seguro, visualmente limpio y coherente con el flujo real de una clínica dental.
 
-Debes conocer y aplicar lógica de programas dentales tipo Eurodent, Gesdent u otros sistemas de clínica: paciente activo, ficha clínica, odontograma, primera visita, presupuestos, trabajo pendiente, realizados, historial, facturación, cobros, recetas, consentimientos, laboratorio, agenda, caja, reportes y administración.
+Debes conocer y aplicar lógica de programas dentales tipo software dental avanzado y otros sistemas de clínica: paciente activo, ficha clínica, odontograma, primera visita, presupuestos, trabajo pendiente, realizados, historial, facturación, cobros, recetas, consentimientos, laboratorio, agenda, caja, reportes y administración.
 
 No copies interfaces antiguas. Copia la funcionalidad, el flujo y la eficiencia, pero con una organización moderna.
 
@@ -288,9 +288,9 @@ No implementar “todo el sistema” de golpe.
 
 ## Criterio de producto
 
-DentCore debe aspirar a tener la potencia funcional de Eurodent, pero con una experiencia más clara, moderna y mantenible.
+DentCore debe aspirar a tener la potencia funcional de un software dental clínico de referencia, pero con una experiencia más clara, moderna y mantenible.
 
-No se busca una copia visual de Eurodent.
+No se busca una copia visual de software heredado.
 
 Se busca:
 - mismo nivel funcional o superior

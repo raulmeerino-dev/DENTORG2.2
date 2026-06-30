@@ -1,4 +1,4 @@
-"""Initial schema — todas las tablas de Eurodent 2.0
+"""Initial schema — todas las tablas de DentCore
 
 Revision ID: 0001
 Revises:

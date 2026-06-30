@@ -2,11 +2,16 @@
 Carga la lista exacta de tratamientos de la clínica.
 Añade o actualiza sin borrar tratamientos referenciados en historial.
 """
-import sys, os, io, asyncio
+import asyncio
+import io
+import os
+import sys
+
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy import select
+
 from app.database import AsyncSessionLocal
 from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
 

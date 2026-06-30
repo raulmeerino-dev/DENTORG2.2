@@ -1,8 +1,8 @@
-# DentCore — Paridad funcional Eurodent: Diseño completo
+# DentCore — Paridad funcional DentCore: Diseño completo
 
 **Fecha:** 2026-05-18
 **Proyecto:** DentCore (FastAPI + SQLAlchemy + PostgreSQL / React + Vite + TypeScript)
-**Objetivo:** Completar el flujo clínico-administrativo de DentCore para que cubra todas las funciones clave de Eurodent, con organización moderna.
+**Objetivo:** Completar el flujo clínico-administrativo de DentCore para que cubra todas las funciones clave de DentCore, con organización moderna.
 
 ---
 
@@ -56,7 +56,7 @@
 ## Fase 1 — Ficha completa
 
 ### Objetivo
-Ampliar la ficha del paciente con todos los campos administrativos y clínicos que Eurodent incluye, accesibles desde el formulario de edición existente.
+Ampliar la ficha del paciente con todos los campos administrativos y clínicos que DentCore incluye, accesibles desde el formulario de edición existente.
 
 ### Backend
 
@@ -442,7 +442,7 @@ Cada test es independiente con mocks de API:
 
 ---
 
-## Funciones de Eurodent cubiertas tras este sprint
+## Funciones de DentCore cubiertas tras este sprint
 
 | Función | Estado post-sprint |
 |---|---|

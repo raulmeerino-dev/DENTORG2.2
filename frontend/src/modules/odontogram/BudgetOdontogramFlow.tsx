@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addPresupuestoLinea, getOdontogramaPaciente, saveOdontograma } from '../../lib/api';
+import { invalidatePatientWorkspaceQueries } from '../../lib/queryInvalidation';
 import type { ApiPaciente, Presupuesto, TratamientoCatalogo, UserRole } from '../../types/api';
 import { odontogramaBackendToVisual } from './adapters/backendAdapter';
 import {
@@ -43,8 +44,7 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, user
       return payload;
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['presupuestos', paciente.id] });
-      void queryClient.invalidateQueries({ queryKey: ['odontograma-contexto', paciente.id] });
+      invalidatePatientWorkspaceQueries(queryClient, paciente.id);
     },
   });
 

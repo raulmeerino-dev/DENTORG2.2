@@ -1,6 +1,6 @@
 # DentCore - Mapa funcional de gestion dental
 
-Este documento organiza la aplicacion como programa clinico operativo, inspirado en flujos tipo Eurodent/Gesdent.
+Este documento organiza la aplicacion como programa clinico operativo, inspirado en flujos tipo software dental avanzado.
 
 ## Principio de producto
 

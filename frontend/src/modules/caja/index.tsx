@@ -178,7 +178,7 @@ export default function CajaPage() {
       </div>
 
       <div className="caja-table-wrap">
-        <table className="euro-table">
+        <table className="dentcore-table">
           <thead>
             <tr>
               <th>Fecha</th>
