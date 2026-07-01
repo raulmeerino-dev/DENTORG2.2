@@ -193,6 +193,19 @@ export function DentCoreHistoryBillingPanel({
     onAddAnticipo();
   }
 
+  function openRowMenuFromButton(event: MouseEvent<HTMLButtonElement>, row: HistoryBillingRow) {
+    event.preventDefault();
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuWidth = 240;
+    setSelectedId(row.id);
+    setHistoryMenu({
+      x: Math.max(10, Math.min(rect.left, window.innerWidth - menuWidth - 10)),
+      y: Math.min(rect.bottom + 6, window.innerHeight - 160),
+      row,
+    });
+  }
+
   return (
     <section className="history-billing-dentcore">
       <div className="history-ledger-toolbar">
@@ -308,24 +321,79 @@ export function DentCoreHistoryBillingPanel({
                   setHistoryMenu({ x: event.clientX, y: event.clientY, row });
                 }}
               >
-                <td>{formatDate(row.date)}</td>
-                <td><TreatmentBadge tratamiento={row.treatment} /></td>
-                <td className="history-treatment-cell">
+                <td data-label="Fecha">{formatDate(row.date)}</td>
+                <td data-label="Tipo"><TreatmentBadge tratamiento={row.treatment} /></td>
+                <td data-label="Tratamiento" className="history-treatment-cell">
                   <strong>{row.tratamiento}</strong>
                   <small>{formatStateLabel(row.estado)}</small>
                 </td>
-                <td>{row.pieza}</td>
-                <td>{row.doctor}</td>
-                <td>{row.factura}</td>
-                <td>{row.recibo}</td>
-                <td className="num">{row.importe ? money(row.importe) : '0,00'}</td>
-                <td className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para anadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
-                <td className="num">{money(row.saldo)}</td>
+                <td data-label="Pieza">{row.pieza}</td>
+                <td data-label="Doctor">{row.doctor}</td>
+                <td data-label="Factura">{row.factura}</td>
+                <td data-label="Recibo/Cobro">{row.recibo}</td>
+                <td data-label="Importe" className="num">{row.importe ? money(row.importe) : '0,00'}</td>
+                <td data-label="Cobrado" className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para anadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
+                <td data-label="Saldo" className="num">{money(row.saldo)}</td>
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={10}>Sin tratamientos realizados en el historial.</td></tr>}
           </tbody>
         </table>
+        <div className="history-ledger-mobile-list" role="list" aria-label="Historial de tratamientos en tarjetas">
+          {rows.map((row) => (
+            <article
+              key={`mobile-${row.id}`}
+              className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}history-treatment-card treatment-coded-row`}
+              style={{ '--treatment-color': colorForTreatment(row.treatment) } as CSSProperties}
+              role="listitem"
+              aria-selected={selectedRow?.id === row.id}
+              onClick={() => setSelectedId(row.id)}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                setSelectedId(row.id);
+                setHistoryMenu({ x: event.clientX, y: event.clientY, row });
+              }}
+            >
+              <header>
+                <time dateTime={row.date}>{formatDate(row.date)}</time>
+                <TreatmentBadge tratamiento={row.treatment} />
+                <button
+                  type="button"
+                  className="history-card-menu-button"
+                  aria-label="Mas acciones del tratamiento"
+                  onClick={(event) => openRowMenuFromButton(event, row)}
+                >
+                  ...
+                </button>
+              </header>
+              <strong className="history-card-treatment">{row.tratamiento}</strong>
+              <div className="history-card-meta">
+                <span>{formatStateLabel(row.estado)}</span>
+                {row.pieza && <span>Pieza {row.pieza}</span>}
+                {row.doctor && <span>{row.doctor}</span>}
+              </div>
+              <dl className="history-card-money">
+                <div>
+                  <dt>Importe</dt>
+                  <dd>{row.importe ? money(row.importe) : '0,00'}</dd>
+                </div>
+                <div>
+                  <dt>Cobrado</dt>
+                  <dd>{row.cobrado ? money(row.cobrado) : '0,00'}</dd>
+                </div>
+                <div>
+                  <dt>Saldo</dt>
+                  <dd className={row.saldo > 0 ? 'is-pending' : ''}>{money(row.saldo)}</dd>
+                </div>
+              </dl>
+              <footer>
+                <span>Factura {row.factura}</span>
+                <span>Cobro {row.recibo}</span>
+              </footer>
+            </article>
+          ))}
+          {!rows.length && <div className="history-ledger-empty-card">Sin tratamientos realizados en el historial.</div>}
+        </div>
       </div>
 
       <label className="history-comments">

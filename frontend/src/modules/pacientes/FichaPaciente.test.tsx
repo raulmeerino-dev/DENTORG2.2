@@ -142,6 +142,7 @@ describe('PatientForm', () => {
           onEdit={noop}
           onOpenFull={noop}
           onOpenCitas={noop}
+          onComentario={noop}
           onNuevoPresupuesto={noop}
           onCrearReceta={noop}
           onWhatsApp={noop}

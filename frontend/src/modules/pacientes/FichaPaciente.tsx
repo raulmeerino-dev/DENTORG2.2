@@ -1,12 +1,22 @@
 import { useMemo, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { FormEvent, MouseEvent, ReactNode } from 'react';
 import {
   AlertTriangle,
   CalendarClock,
+  CalendarPlus,
   ClipboardList,
   CreditCard,
+  Edit3,
+  Eye,
+  FileSignature,
   FileText,
   History,
+  MessageCircle,
+  Mic,
+  MoreHorizontal,
+  Pill,
+  Receipt,
+  Upload,
   User,
   Wallet,
 } from 'lucide-react';
@@ -16,7 +26,6 @@ import type { WorkTab } from './index';
 import { getBillingTotals, getFacturasPendientes, getFacturasRecientes, getPagosParciales } from './billingUtils';
 import { PatientOdontogramSummary } from './PatientOdontogramSummary';
 import { buildPatientStatus, type PatientStatusSeverity } from './patientStatus';
-import { ClinicalDictationButton } from './ClinicalDictation';
 
 const STATUS_SEVERITY_TONE: Record<PatientStatusSeverity, 'success' | 'info' | 'warning' | 'danger'> = {
   ok: 'success',
@@ -174,7 +183,7 @@ export function PatientFinder({
           }}
           onFocus={() => setResultsOpen(true)}
           onBlur={() => setTimeout(() => setResultsOpen(false), 160)}
-          placeholder="Buscar paciente — nombre, teléfono o historia"
+          placeholder="Buscar paciente..."
           autoComplete="off"
         />
       </label>
@@ -262,6 +271,7 @@ export function PatientForm({
   onOpenCitas,
   onDictarNota = () => undefined,
   canDictarNota = false,
+  onComentario,
   onNuevoPresupuesto,
   onCrearReceta,
   onWhatsApp,
@@ -291,6 +301,7 @@ export function PatientForm({
   onOpenCitas: () => void;
   onDictarNota?: () => void;
   canDictarNota?: boolean;
+  onComentario: () => void;
   onNuevoPresupuesto: () => void;
   onCrearReceta: () => void;
   onWhatsApp: () => void;
@@ -367,6 +378,12 @@ export function PatientForm({
   })();
   const sexoLabel = paciente?.sexo === 'F' ? 'Mujer' : paciente?.sexo === 'M' ? 'Hombre' : paciente?.sexo === 'otro' ? 'Otro' : null;
   const direccionCompleta = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
+  const primaryBillingAction = totals.pendiente > 0;
+
+  function runHeaderAction(event: MouseEvent<HTMLButtonElement>, action: () => void) {
+    event.currentTarget.closest('details')?.removeAttribute('open');
+    action();
+  }
 
   return (
     <div className="patient-form-grid patient-hub-grid patient-bento">
@@ -415,20 +432,83 @@ export function PatientForm({
           <em>{money(totals.cobrado)} cobrado</em>
         </div>
         <div className="patient-hub-head-actions">
-          <button type="button" onClick={onEdit} disabled={!paciente}>Editar datos</button>
-          <button type="button" onClick={onOpenCitas} disabled={!paciente}>Nueva cita</button>
-          <ClinicalDictationButton label="Dictar nota" onClick={onDictarNota} disabled={!paciente || !canDictarNota} compact />
-          <button type="button" onClick={onCrearReceta} disabled={!paciente}>Nueva receta</button>
-          <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Documentos</button>
-          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>CI / circular</button>
-          <button type="button" onClick={onNuevoPresupuesto} disabled={!paciente}>Nuevo presupuesto</button>
-          {(paciente?.telefono || paciente?.telefono2) && (
-            <button type="button" onClick={onWhatsApp}>WhatsApp</button>
-          )}
-          {totals.pendiente > 0 && (
-            <button type="button" className="patient-action-danger" onClick={() => onRegistrarCobro(facturasPendientes[0] ?? null)}>Cobrar</button>
-          )}
-          <button type="button" onClick={onOpenFull} disabled={!paciente}>Vista completa</button>
+          <button
+            type="button"
+            className={primaryBillingAction ? 'patient-header-primary patient-action-danger' : 'patient-header-primary'}
+            onClick={primaryBillingAction ? () => onRegistrarCobro(facturasPendientes[0] ?? null) : onOpenCitas}
+            disabled={!paciente}
+          >
+            {primaryBillingAction ? <CreditCard size={14} strokeWidth={2} aria-hidden="true" /> : <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />}
+            <span>{primaryBillingAction ? 'Registrar cobro' : 'Nueva cita'}</span>
+          </button>
+          <button type="button" className="patient-header-secondary" onClick={onEdit} disabled={!paciente}>
+            <Edit3 size={14} strokeWidth={2} aria-hidden="true" />
+            <span>Editar</span>
+          </button>
+          <details className="patient-more-actions">
+            <summary aria-label="Mas acciones del paciente">
+              <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
+              <span>Mas acciones</span>
+            </summary>
+            <div className="patient-header-actions-menu" role="menu" aria-label="Mas acciones del paciente">
+              {primaryBillingAction && (
+                <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenCitas)} disabled={!paciente}>
+                  <CalendarPlus size={14} strokeWidth={1.8} aria-hidden="true" />
+                  <span>Nueva cita</span>
+                </button>
+              )}
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onNuevoPresupuesto)} disabled={!paciente}>
+                <Receipt size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Nuevo presupuesto</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onComentario)} disabled={!paciente}>
+                <Edit3 size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Editar nota</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onDictarNota)} disabled={!paciente || !canDictarNota}>
+                <Mic size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Dictar nota</span>
+              </button>
+              {!primaryBillingAction && (
+                <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, () => onRegistrarCobro(facturasPendientes[0] ?? null))} disabled={!paciente}>
+                  <CreditCard size={14} strokeWidth={1.8} aria-hidden="true" />
+                  <span>Nuevo recibo / cobro</span>
+                </button>
+              )}
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onEmitirFactura)} disabled={!paciente}>
+                <Receipt size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Emitir factura</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenDocumentos)} disabled={!paciente}>
+                <FileText size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Documentos</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onSubirDocumento)} disabled={!paciente}>
+                <Upload size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Subir documento</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenConsentimientos)} disabled={!paciente}>
+                <FileSignature size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Consentimiento</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onCrearReceta)} disabled={!paciente}>
+                <Pill size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Nueva receta</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onWhatsApp)} disabled={!paciente || (!paciente.telefono && !paciente.telefono2)}>
+                <MessageCircle size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>WhatsApp</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onHistorialFacturas)} disabled={!paciente}>
+                <History size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Facturas y recibos</span>
+              </button>
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenFull)} disabled={!paciente}>
+                <Eye size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Vista completa</span>
+              </button>
+            </div>
+          </details>
         </div>
       </section>
 

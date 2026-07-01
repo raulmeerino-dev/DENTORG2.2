@@ -1143,6 +1143,7 @@ export default function PacientesPage() {
               onOpenCitas={abrirAgendaPaciente}
               onDictarNota={() => setDictationContext({ contexto: 'ficha' })}
               canDictarNota={canDictarNota}
+              onComentario={() => setComentarioOpen(true)}
               onNuevoPresupuesto={() => nuevoPresupuesto.mutate()}
               onCrearReceta={() => {
                 setRecetaError(null);

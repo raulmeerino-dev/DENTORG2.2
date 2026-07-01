@@ -290,7 +290,7 @@ describe('PacientesPage structure', () => {
     expect(within(mainTabs).queryByRole('button', { name: /^Presupuestos$/i })).not.toBeInTheDocument();
     expect(within(mainTabs).getByRole('button', { name: /^Clinica$/i })).toBeInTheDocument();
     expect(within(mainTabs).getByRole('button', { name: /^Historial$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Documentos$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Docs\s+\d+$/i })).toBeInTheDocument();
     expect(await screen.findByText(/Resumen odontograma/i)).toBeInTheDocument();
     expect(screen.getByTestId('mini-odontogram')).toBeInTheDocument();
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
@@ -332,12 +332,20 @@ describe('PacientesPage structure', () => {
     expect(screen.getByRole('button', { name: /Facturacion/i })).toBeInTheDocument();
   });
 
-  it('creates a new budget from the visible action and selects it', async () => {
+  it('creates a new budget from the patient action menu and selects it', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    const createButton = await screen.findByRole('button', { name: /^Nuevo presupuesto$/i });
-    await waitFor(() => expect(createButton).not.toBeDisabled());
+    const moreButton = await screen.findByRole('button', { name: /^Mas acciones$/i });
+    await waitFor(() => expect(moreButton).not.toBeDisabled());
+    await user.click(moreButton);
+    const createButton = await waitFor(() => {
+      const enabled = screen
+        .getAllByRole('menuitem', { name: /^Nuevo presupuesto$/i })
+        .find((button) => !button.hasAttribute('disabled'));
+      expect(enabled).toBeTruthy();
+      return enabled!;
+    });
     await user.click(createButton);
 
     await waitFor(() => expect(createPresupuestoMock).toHaveBeenCalledWith('pac-1', 'doc-1'));
