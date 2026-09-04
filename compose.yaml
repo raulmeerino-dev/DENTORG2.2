@@ -1,0 +1,81 @@
+name: dentcore
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dentcore}
+      POSTGRES_USER: ${POSTGRES_USER:-dentcore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dentcore_dev_pass}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55433}:5432"
+    volumes:
+      - dentcore_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dentcore} -d ${POSTGRES_DB:-dentcore}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: dentcore-backend-local
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dentcore}:${POSTGRES_PASSWORD:-dentcore_dev_pass}@db:5432/${POSTGRES_DB:-dentcore}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dentcore-demo-jwt-secret-change-before-production}
+      DB_ENCRYPTION_KEY: ${DB_ENCRYPTION_KEY:-dentcore-demo-db-encryption-key-change-before-production}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-dentcore-demo-backup-key-change-before-production}
+      FRONTEND_URL: ${FRONTEND_URL:-http://127.0.0.1:5173}
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      ENVIRONMENT: development
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-1}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8011}:8000"
+    volumes:
+      - dentcore_uploads:/app/uploads
+      - dentcore_backups:/app/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  seed-demo:
+    image: dentcore-backend-local
+    command: ["python", "scripts/seed_demo.py"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dentcore}:${POSTGRES_PASSWORD:-dentcore_dev_pass}@db:5432/${POSTGRES_DB:-dentcore}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dentcore-demo-jwt-secret-change-before-production}
+      DB_ENCRYPTION_KEY: ${DB_ENCRYPTION_KEY:-dentcore-demo-db-encryption-key-change-before-production}
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: "no"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://127.0.0.1:8011/api}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dentcore_postgres:
+  dentcore_uploads:
+  dentcore_backups:

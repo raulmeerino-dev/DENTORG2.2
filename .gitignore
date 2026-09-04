@@ -19,6 +19,7 @@ build/
 *.tsbuildinfo
 
 # Local runtime data
+.env
 backend/.env
 backend/uploads/
 backend/backups/

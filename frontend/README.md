@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# Frontend de DentCore
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicación clínica en React, TypeScript y Vite. La navegación principal se organiza en Hoy, Agenda, Pacientes, Caja, Reportes y Administración; los flujos clínicos del paciente viven dentro de `src/modules/pacientes`.
 
-Currently, two official plugins are available:
+## Desarrollo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Por defecto consume la API en `http://127.0.0.1:8011/api`. Para una revisión visual sin backend puede activarse el fallback de demostración solo en desarrollo:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```powershell
+$env:VITE_DEMO_FALLBACK="true"
+npm run dev
 ```
+
+El build de producción rechaza expresamente el fallback demo.
+
+## Comprobaciones
+
+```powershell
+npm run lint
+npm run test:unit
+npm run build
+```
+
+La prueba end-to-end actual simula la API en el navegador, levanta Vite automáticamente y no requiere backend ni PostgreSQL:
+
+```powershell
+npm run test:e2e
+```
+
+## Organización
+
+- `src/components`: shell y componentes globales.
+- `src/modules`: superficies funcionales por dominio.
+- `src/lib`: cliente API, invalidaciones y utilidades compartidas.
+- `src/types`: contratos TypeScript del backend.
+- `src/styles`: fundamentos visuales compartidos.
+- `public/odontogram-assets`: imágenes clínicas del odontograma.
+
+La documentación de arquitectura, despliegue y pruebas se mantiene en `../docs`.

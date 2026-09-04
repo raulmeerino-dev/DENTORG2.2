@@ -9,11 +9,30 @@ Software web de gestion dental orientado a clinica, con flujo operativo profesio
 
 ## Modulos principales
 
-- Inicio: dashboard operativo diario y BI resumido.
+- Hoy: centro operativo diario y BI resumido.
 - Agenda: citas por doctor, huecos, telefono, estados visuales y recordatorios.
 - Pacientes: ficha, primera visita, odontograma, presupuestos, pendientes, realizados, historial/facturacion, documentos y consentimientos.
+- Caja: cobros, facturas, recibos, saldo y arqueo diario.
 - Admin: listados, configuracion, clinicas, usuarios/roles, tratamientos, horarios, inventario, laboratorio, auditoria, backups y cumplimiento fiscal.
 - Portal paciente: invitaciones publicas con token expirado/revocable, citas, documentos y firma de consentimientos.
+
+## Arranque con Docker
+
+El entorno local completo incluye PostgreSQL, migraciones, datos demo, backend y frontend con fallback SPA:
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d
+docker compose ps
+```
+
+- Aplicacion: `http://127.0.0.1:5173`
+- API: `http://127.0.0.1:8011/api/docs`
+- Admin: `admin / admin1234`
+- Doctor: `doctor / doctor123`
+- Recepcion: `recepcion / recep123`
+
+Las credenciales y claves incluidas son exclusivamente de desarrollo. No deben reutilizarse en produccion.
 
 ## Arranque local
 
@@ -22,7 +41,7 @@ Software web de gestion dental orientado a clinica, con flujo operativo profesio
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-$env:DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:5434/dentcore"
+$env:DATABASE_URL="postgresql+asyncpg://dentcore:dentcore_dev_pass@127.0.0.1:55433/dentcore"
 $env:JWT_SECRET_KEY="dev-secret-change-me"
 $env:DB_ENCRYPTION_KEY="dev-encryption-key-min-32-chars"
 $env:BACKUP_ENCRYPTION_KEY="dev-backup-key-min-32-chars-change-me"
@@ -98,10 +117,10 @@ Nota: los tests backend necesitan PostgreSQL accesible segun `TEST_DATABASE_URL`
 
 ## Estado actual
 
-Se han completado las fases principales hasta UX general:
+El nucleo funcional de las fases principales esta implementado hasta UX general:
 
 1. Seguridad, permisos, multi-clinica y auditoria.
-2. Tests y CI.
+2. Tests automatizados y workflow de CI; la rama publicada debe estar verde antes de integrar en `main`.
 3. Odontograma profesional.
 4. Agenda avanzada.
 5. Inventario y pedidos.
