@@ -40,6 +40,7 @@ describe('MainNav', () => {
 
     renderMainNav();
 
+    expect(screen.getByRole('button', { name: /Cerrar sesión/i })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Hoy/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /DentCore Clinic/i }));
 

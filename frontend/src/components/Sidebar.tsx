@@ -161,7 +161,13 @@ export default function MainNav() {
           >
             {isDark ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
           </button>
-          <button className="dentcore-nav-button nav-exit app-launcher-exit" onClick={() => void logout()}>
+          <button
+            type="button"
+            className="dentcore-nav-button nav-exit app-launcher-exit"
+            aria-label="Cerrar sesión"
+            title="Cerrar sesión"
+            onClick={() => void logout()}
+          >
             <span className="nav-icon" aria-hidden="true">
               <LogOut size={ICON_SIZE} strokeWidth={1.9} />
             </span>
