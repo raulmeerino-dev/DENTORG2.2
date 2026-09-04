@@ -23,7 +23,7 @@ vi.mock('sonner', () => ({
   },
 }));
 
-function renderClock() {
+function renderClock(currentUserId?: string) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -32,7 +32,7 @@ function renderClock() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <StaffClockPopover label="jue, 25 jun 12:00" />
+      <StaffClockPopover label="jue, 25 jun 12:00" currentUserId={currentUserId} />
     </QueryClientProvider>,
   );
 }
@@ -79,13 +79,31 @@ describe('StaffClockPopover', () => {
     expect(await screen.findByRole('dialog', { name: 'Fichaje' })).toBeInTheDocument();
     expect(await screen.findByText('Dra. Test')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('PIN'), '1234');
+    await user.type(screen.getByLabelText('Contraseña del trabajador'), '1234');
     await user.click(screen.getByRole('button', { name: /Registrar entrada/i }));
 
     await waitFor(() => {
       expect(apiMocks.registrarFichaje).toHaveBeenCalledWith({
         trabajador_id: 'worker-1',
         pin: '1234',
+        tipo: 'entrada',
+      });
+    });
+  });
+
+  it('permite al usuario autenticado fichar directamente sin pedir otra credencial', async () => {
+    const user = userEvent.setup();
+    renderClock('worker-1');
+
+    await user.click(screen.getByRole('button', { name: /Fichaje/i }));
+    expect(await screen.findByText('Dra. Test')).toBeInTheDocument();
+    expect(screen.queryByLabelText('PIN')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Registrar entrada/i }));
+
+    await waitFor(() => {
+      expect(apiMocks.registrarFichaje).toHaveBeenCalledWith({
+        trabajador_id: 'worker-1',
+        pin: '',
         tipo: 'entrada',
       });
     });

@@ -123,6 +123,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   });
 
   const acceptedLines = presupuesto.lineas.filter((linea) => linea.aceptado);
+  const unpreparedAcceptedLines = acceptedLines.filter((linea) => !linea.pasado_trabajo_pendiente);
   const totalBruto = presupuesto.lineas.reduce((sum, l) => sum + Number(l.precio_unitario), 0);
   const totalDescuentos = totalBruto - presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
   const totalNeto = presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
@@ -186,7 +187,14 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
         <div className="budget-panel-actions budget-primary-actions">
           <button onClick={() => presentBudget.mutate()} disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}>Presentar</button>
           <button onClick={() => acceptBudget.mutate()} disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuestoCerrado} className="btn-accept">Aceptar todo</button>
-          <button onClick={() => passPending.mutate()} disabled={passPending.isPending || !acceptedLines.length} className="btn-pending">Trabajo pendiente</button>
+          <button
+            onClick={() => passPending.mutate()}
+            disabled={passPending.isPending || !unpreparedAcceptedLines.length}
+            className="btn-pending"
+            title={unpreparedAcceptedLines.length ? 'Crear el trabajo pendiente de las líneas aceptadas' : 'Todo el trabajo aceptado ya está preparado'}
+          >
+            {unpreparedAcceptedLines.length ? `Preparar pendientes (${unpreparedAcceptedLines.length})` : 'Trabajo preparado'}
+          </button>
           <button onClick={() => invoiceBudget.mutate()} disabled={invoiceBudget.isPending || !canInvoiceBudget} className="btn-invoice">Facturar</button>
           <button onClick={abrirPdfPresupuesto}>PDF</button>
           <details className="budget-secondary-menu">
@@ -216,7 +224,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
 
       {/* Workbench */}
       <details className="budget-step-panel" open>
-        <summary>Paso 2: anadir o editar tratamientos</summary>
+        <summary>Paso 2: añadir o editar tratamientos</summary>
       <div className="budget-workbench">
         <aside className="budget-treatment-picker">
           <input value={catalogSearch} onChange={(event) => setCatalogSearch(event.target.value)} placeholder="Buscar tratamiento" />

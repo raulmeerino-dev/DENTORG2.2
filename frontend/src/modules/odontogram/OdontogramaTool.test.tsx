@@ -30,7 +30,7 @@ describe('OdontogramaTool', () => {
   it('renderiza diagnostico sin acciones de presupuesto', () => {
     renderTool('diagnostico');
 
-    expect(screen.getByText('Odontograma diagnostico')).toBeInTheDocument();
+    expect(screen.getByText('Odontograma diagnóstico')).toBeInTheDocument();
     expect(screen.getByText('Guardar diagnostico')).toBeInTheDocument();
     expect(screen.queryByText('Anadir linea')).not.toBeInTheDocument();
   });
@@ -47,7 +47,7 @@ describe('OdontogramaTool', () => {
   it('oculta acciones diagnosticas para recepcion', () => {
     renderTool('diagnostico', undefined, 'recepcion');
 
-    expect(screen.getByText('Odontograma diagnostico')).toBeInTheDocument();
+    expect(screen.getByText('Odontograma diagnóstico')).toBeInTheDocument();
     expect(screen.queryByText('Guardar diagnostico')).not.toBeInTheDocument();
     expect(screen.queryByText('Guardar superficie')).not.toBeInTheDocument();
   });

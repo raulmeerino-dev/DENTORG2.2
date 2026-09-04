@@ -3,19 +3,19 @@ import type { OdontogramMode } from '../types/odontogram.types';
 type OdontogramHeaderProps = {
   patientName: string;
   mode: OdontogramMode;
-  demoDate: string;
-  totalBudget: number;
+  contextDate?: string;
+  totalBudget?: number;
 };
 
 const modeLabels: Record<OdontogramMode, string> = {
   summary: 'Resumen',
   initialVisit: 'Primera visita',
-  diagnosis: 'Diagnostico',
+  diagnosis: 'Diagnóstico',
   budget: 'Presupuesto',
   pending: 'Pendientes',
   completed: 'Realizados',
   current: 'Actual',
-  history: 'Historico',
+  history: 'Histórico',
   documents: 'Documentos',
   reading: 'Lectura',
 };
@@ -27,12 +27,12 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function OdontogramHeader({ patientName, mode, demoDate, totalBudget }: OdontogramHeaderProps) {
+export function OdontogramHeader({ patientName, mode, contextDate, totalBudget }: OdontogramHeaderProps) {
   return (
     <header className="od-topbar">
       <div>
         <span className="od-brand">DentCore Clinic</span>
-        <span className="od-module">Modulo de odontograma</span>
+        <span className="od-module">Módulo de odontograma</span>
       </div>
       <dl className="od-demo-meta" aria-label="Datos del odontograma">
         <div>
@@ -43,14 +43,18 @@ export function OdontogramHeader({ patientName, mode, demoDate, totalBudget }: O
           <dt>Modo actual</dt>
           <dd>{modeLabels[mode]}</dd>
         </div>
-        <div>
-          <dt>Fecha</dt>
-          <dd>{demoDate}</dd>
-        </div>
-        <div>
-          <dt>Total presupuesto</dt>
-          <dd>{formatCurrency(totalBudget)}</dd>
-        </div>
+        {contextDate && (
+          <div>
+            <dt>Fecha</dt>
+            <dd>{contextDate}</dd>
+          </div>
+        )}
+        {totalBudget !== undefined && (
+          <div>
+            <dt>Total presupuesto</dt>
+            <dd>{formatCurrency(totalBudget)}</dd>
+          </div>
+        )}
       </dl>
     </header>
   );

@@ -51,6 +51,7 @@ import type {
   SesionClinicaItemUpdateInput,
   SesionTratamientoRealizadoInput,
   TrabajoLaboratorioCreateInput,
+  TrabajoPendiente,
   ReportCitasDoctor,
   ReportDashboard,
   ReportKpis,
@@ -89,6 +90,7 @@ import {
   DEMO_PACIENTES,
   DEMO_PLANTILLAS_CONSENTIMIENTO,
   DEMO_PRESUPUESTOS,
+  DEMO_TRABAJOS_PENDIENTES,
   DEMO_TRATAMIENTOS,
 } from './demoData';
 
@@ -846,8 +848,21 @@ export async function deletePresupuestoLinea(presupuestoId: string, lineaId: str
 }
 
 export async function pasarPresupuestoTrabajoPendiente(presupuestoId: string) {
-  const { data } = await api.post<unknown[]>(`/presupuestos/${presupuestoId}/pasar-trabajo-pendiente`);
+  const { data } = await api.post<TrabajoPendiente[]>(`/presupuestos/${presupuestoId}/pasar-trabajo-pendiente`);
   return data;
+}
+
+export async function getTrabajosPendientesPaciente(pacienteId: string, soloPendiente = true) {
+  const fallback = DEMO_TRABAJOS_PENDIENTES.filter((item) => (
+    (item.paciente_id === pacienteId || pacienteId.startsWith('demo-'))
+    && (!soloPendiente || !item.realizado)
+  ));
+  return withDemoFallback(
+    api.get<TrabajoPendiente[]>(`/presupuestos/trabajo-pendiente/${pacienteId}`, {
+      params: { solo_pendiente: soloPendiente },
+    }),
+    fallback,
+  );
 }
 
 export async function createFacturaManual(pacienteId: string, concepto: string, importe: number) {

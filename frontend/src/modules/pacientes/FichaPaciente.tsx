@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent, MouseEvent, ReactNode } from 'react';
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarClock,
   CalendarPlus,
   ClipboardList,
@@ -271,6 +272,7 @@ export function PatientForm({
   onOpenCitas,
   onDictarNota = () => undefined,
   canDictarNota = false,
+  canManageBilling = true,
   onComentario,
   onNuevoPresupuesto,
   onCrearReceta,
@@ -301,6 +303,7 @@ export function PatientForm({
   onOpenCitas: () => void;
   onDictarNota?: () => void;
   canDictarNota?: boolean;
+  canManageBilling?: boolean;
   onComentario: () => void;
   onNuevoPresupuesto: () => void;
   onCrearReceta: () => void;
@@ -363,12 +366,32 @@ export function PatientForm({
     presupuestos,
     citas,
     historial,
-    saldoPendiente: totals.pendiente,
+    saldoPendiente: canManageBilling ? totals.pendiente : 0,
     laboratorio,
     consentimientos,
     today,
   });
   const statusTone = STATUS_SEVERITY_TONE[patientStatus.severity];
+  const patientStatusAction = (() => {
+    if (!paciente || !patientStatus.suggestedAction) return null;
+
+    switch (patientStatus.status) {
+      case 'pendiente_cobro':
+        return canManageBilling
+          ? { label: 'Cobrar ahora', run: () => onRegistrarCobro(facturasPendientes[0] ?? null) }
+          : null;
+      case 'pendiente_laboratorio':
+        return { label: 'Revisar pendientes', run: onOpenPendientes };
+      case 'presupuesto_aceptado_sin_cita':
+      case 'pendiente_cita':
+      case 'revision_vencida':
+        return { label: patientStatus.suggestedAction, run: onOpenCitas };
+      case 'pendiente_presupuesto':
+        return { label: patientStatus.suggestedAction, run: onNuevoPresupuesto };
+      default:
+        return null;
+    }
+  })();
 
   const edad = (() => {
     if (!paciente?.fecha_nacimiento) return null;
@@ -378,7 +401,6 @@ export function PatientForm({
   })();
   const sexoLabel = paciente?.sexo === 'F' ? 'Mujer' : paciente?.sexo === 'M' ? 'Hombre' : paciente?.sexo === 'otro' ? 'Otro' : null;
   const direccionCompleta = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
-  const primaryBillingAction = totals.pendiente > 0;
 
   function runHeaderAction(event: MouseEvent<HTMLButtonElement>, action: () => void) {
     event.currentTarget.closest('details')?.removeAttribute('open');
@@ -408,55 +430,73 @@ export function PatientForm({
           <span>Paciente</span>
           <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
           <em>H {paciente?.num_historial ?? '-'} · {paciente?.telefono || paciente?.telefono2 || 'sin telefono'} · {paciente?.dni_nie || 'sin DNI'}</em>
-          {paciente && (
+          {paciente && patientStatusAction ? (
+            <button
+              type="button"
+              className={`patient-card-chip patient-card-chip-${statusTone} patient-status-action`}
+              title={patientStatus.description}
+              aria-label={`Estado del paciente: ${patientStatus.label}. ${patientStatus.description} Acción: ${patientStatusAction.label}`}
+              onClick={patientStatusAction.run}
+            >
+              <span>{patientStatus.label}</span>
+              <em>
+                {patientStatusAction.label}
+                <ArrowRight size={11} strokeWidth={2.2} aria-hidden="true" />
+              </em>
+            </button>
+          ) : paciente ? (
             <span
               className={`patient-card-chip patient-card-chip-${statusTone}`}
               title={patientStatus.description}
               aria-label={`Estado del paciente: ${patientStatus.label}. ${patientStatus.description}`}
             >
               {patientStatus.label}
-              {patientStatus.suggestedAction && (
-                <em style={{ marginLeft: 6, fontStyle: 'normal', opacity: 0.85 }}>· {patientStatus.suggestedAction}</em>
-              )}
             </span>
-          )}
+          ) : null}
           <PatientIdentityChips paciente={paciente} />
         </div>
         <div className={`patient-hub-alert ${hasAlertasReales ? 'has-alerts' : ''}`}>
           <span><AlertTriangle size={11} strokeWidth={2.2} aria-hidden="true" /> Alertas</span>
           <strong title={alertText}>{alertText}</strong>
         </div>
-        <div className={`patient-hub-balance ${totals.pendiente > 0 ? 'has-debt' : ''}`}>
-          <span><Wallet size={11} strokeWidth={2.2} aria-hidden="true" /> Saldo</span>
-          <strong>{money(totals.pendiente)}</strong>
-          <em>{money(totals.cobrado)} cobrado</em>
-        </div>
+        {canManageBilling && (
+          <div className={`patient-hub-balance ${totals.pendiente > 0 ? 'has-debt' : ''}`}>
+            <span><Wallet size={11} strokeWidth={2.2} aria-hidden="true" /> Saldo</span>
+            <strong>{money(totals.pendiente)}</strong>
+            <em>{money(totals.cobrado)} cobrado</em>
+          </div>
+        )}
         <div className="patient-hub-head-actions">
           <button
             type="button"
-            className={primaryBillingAction ? 'patient-header-primary patient-action-danger' : 'patient-header-primary'}
-            onClick={primaryBillingAction ? () => onRegistrarCobro(facturasPendientes[0] ?? null) : onOpenCitas}
+            className="patient-header-primary"
+            onClick={onOpenCitas}
             disabled={!paciente}
           >
-            {primaryBillingAction ? <CreditCard size={14} strokeWidth={2} aria-hidden="true" /> : <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />}
-            <span>{primaryBillingAction ? 'Registrar cobro' : 'Nueva cita'}</span>
+            <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />
+            <span>Nueva cita</span>
           </button>
-          <button type="button" className="patient-header-secondary" onClick={onEdit} disabled={!paciente}>
-            <Edit3 size={14} strokeWidth={2} aria-hidden="true" />
-            <span>Editar</span>
-          </button>
+          {canManageBilling && (
+            <button
+              type="button"
+              className={totals.pendiente > 0 ? 'patient-header-secondary patient-action-danger' : 'patient-header-secondary'}
+              onClick={() => onRegistrarCobro(facturasPendientes[0] ?? null)}
+              disabled={!paciente}
+            >
+              <CreditCard size={14} strokeWidth={2} aria-hidden="true" />
+              <span>Cobrar</span>
+            </button>
+          )}
           <details className="patient-more-actions">
-            <summary aria-label="Mas acciones del paciente">
+            <summary role="button" aria-label="Más acciones del paciente">
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
-              <span>Mas acciones</span>
+              <span>Más acciones</span>
             </summary>
-            <div className="patient-header-actions-menu" role="menu" aria-label="Mas acciones del paciente">
-              {primaryBillingAction && (
-                <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenCitas)} disabled={!paciente}>
-                  <CalendarPlus size={14} strokeWidth={1.8} aria-hidden="true" />
-                  <span>Nueva cita</span>
-                </button>
-              )}
+            <div className="patient-header-actions-menu" role="menu" aria-label="Más acciones del paciente">
+              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onEdit)} disabled={!paciente}>
+                <Edit3 size={14} strokeWidth={1.8} aria-hidden="true" />
+                <span>Editar datos</span>
+              </button>
               <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onNuevoPresupuesto)} disabled={!paciente}>
                 <Receipt size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Nuevo presupuesto</span>
@@ -469,16 +509,12 @@ export function PatientForm({
                 <Mic size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Dictar nota</span>
               </button>
-              {!primaryBillingAction && (
-                <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, () => onRegistrarCobro(facturasPendientes[0] ?? null))} disabled={!paciente}>
-                  <CreditCard size={14} strokeWidth={1.8} aria-hidden="true" />
-                  <span>Nuevo recibo / cobro</span>
+              {canManageBilling && (
+                <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onEmitirFactura)} disabled={!paciente}>
+                  <Receipt size={14} strokeWidth={1.8} aria-hidden="true" />
+                  <span>Emitir factura</span>
                 </button>
               )}
-              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onEmitirFactura)} disabled={!paciente}>
-                <Receipt size={14} strokeWidth={1.8} aria-hidden="true" />
-                <span>Emitir factura</span>
-              </button>
               <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenDocumentos)} disabled={!paciente}>
                 <FileText size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Documentos</span>
@@ -499,10 +535,12 @@ export function PatientForm({
                 <MessageCircle size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>WhatsApp</span>
               </button>
-              <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onHistorialFacturas)} disabled={!paciente}>
-                <History size={14} strokeWidth={1.8} aria-hidden="true" />
-                <span>Facturas y recibos</span>
-              </button>
+              {canManageBilling && (
+                <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onHistorialFacturas)} disabled={!paciente}>
+                  <History size={14} strokeWidth={1.8} aria-hidden="true" />
+                  <span>Facturas y recibos</span>
+                </button>
+              )}
               <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onOpenFull)} disabled={!paciente}>
                 <Eye size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Vista completa</span>
@@ -518,7 +556,9 @@ export function PatientForm({
         <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}>Presupuestos <strong>{presupuestos.length}</strong></button>
         <button type="button" className={pendientes.length ? 'patient-flow-warning' : ''} onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
         <button type="button" onClick={onOpenRealizados} disabled={!paciente}>Realizados <strong>{realizados.length}</strong></button>
-        <button type="button" className={facturasPendientes.length ? 'patient-flow-danger' : ''} onClick={onOpenFacturacion} disabled={!paciente}>Facturacion <strong>{facturasPendientes.length}</strong></button>
+        {canManageBilling && (
+          <button type="button" className={facturasPendientes.length ? 'patient-flow-danger' : ''} onClick={onOpenFacturacion} disabled={!paciente}>Facturación <strong>{facturasPendientes.length}</strong></button>
+        )}
         <button type="button" className={consentimientosPendientes ? 'patient-flow-warning' : ''} onClick={onOpenConsentimientos} disabled={!paciente}>CI pte. <strong>{consentimientosPendientes}</strong></button>
         <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
       </section>
@@ -568,7 +608,7 @@ export function PatientForm({
       <section className="patient-next-card">
         <CardHead
           icon={<CalendarClock size={14} strokeWidth={2} />}
-          title="Proxima cita"
+          title="Próxima cita"
           status={nextCita?.estado ?? 'sin cita'}
           statusTone={nextCita ? 'info' : 'muted'}
           action={<button type="button" onClick={onOpenCitas} disabled={!paciente}>Ver citas</button>}
@@ -581,7 +621,7 @@ export function PatientForm({
       <section className="patient-last-card">
         <CardHead
           icon={<History size={14} strokeWidth={2} />}
-          title="Ultima visita"
+          title="Última visita"
           status={lastVisit?.estado ?? 'sin historial'}
           statusTone={lastVisit ? 'success' : 'muted'}
           action={<button type="button" onClick={onOpenHistorial} disabled={!paciente}>Historial</button>}
@@ -591,11 +631,11 @@ export function PatientForm({
         <small>{lastVisit?.doctor?.nombre ? `Doctor: ${lastVisit.doctor.nombre}` : 'Sin profesional asociado'}</small>
       </section>
 
-      <section className="patient-billing-card">
+      {canManageBilling && <section className="patient-billing-card">
         <CardHead
           icon={<CreditCard size={14} strokeWidth={2} />}
           title="Cobros / facturas"
-          status={facturasPendientes.length ? `${facturasPendientes.length} pte.` : 'al dia'}
+          status={facturasPendientes.length ? `${facturasPendientes.length} pte.` : 'al día'}
           statusTone={facturasPendientes.length ? 'danger' : 'success'}
           action={<button type="button" onClick={onHistorialFacturas} disabled={!paciente}>Facturas</button>}
         />
@@ -622,7 +662,7 @@ export function PatientForm({
           ))}
           {!ultimaFacturas.length && <p>Sin facturas previas.</p>}
         </div>
-      </section>
+      </section>}
       </div>
 
       {/* COL DERECHA — administrativa: ficha rica + docs/CI */}
@@ -639,12 +679,12 @@ export function PatientForm({
           <div><dt>DNI / NIF</dt><dd>{paciente?.dni_nie || '—'}</dd></div>
           <div><dt>Nacimiento</dt><dd>{paciente?.fecha_nacimiento ? `${formatDate(paciente.fecha_nacimiento)}${edad !== null ? ` · ${edad} años` : ''}` : '—'}</dd></div>
           <div><dt>Sexo</dt><dd>{sexoLabel || '—'}</dd></div>
-          <div><dt>Profesion</dt><dd>{paciente?.profesion || '—'}</dd></div>
-          <div className="wide"><dt>Telefonos</dt><dd>{[paciente?.telefono, paciente?.telefono2].filter(Boolean).join(' / ') || '—'}</dd></div>
+          <div><dt>Profesión</dt><dd>{paciente?.profesion || '—'}</dd></div>
+          <div className="wide"><dt>Teléfonos</dt><dd>{[paciente?.telefono, paciente?.telefono2].filter(Boolean).join(' / ') || '—'}</dd></div>
           <div className="wide"><dt>Email</dt><dd>{paciente?.email || '—'}</dd></div>
-          <div className="wide"><dt>Direccion</dt><dd>{direccionCompleta || '—'}</dd></div>
-          <div><dt>Pais</dt><dd>{paciente?.pais || '—'}</dd></div>
-          <div><dt>Poliza</dt><dd>{paciente?.num_poliza || '—'}</dd></div>
+          <div className="wide"><dt>Dirección</dt><dd>{direccionCompleta || '—'}</dd></div>
+          <div><dt>País</dt><dd>{paciente?.pais || '—'}</dd></div>
+          <div><dt>Póliza</dt><dd>{paciente?.num_poliza || '—'}</dd></div>
           {paciente?.pagador_distinto && (
             <div className="wide"><dt>Pagador</dt><dd>{[paciente.pagador_nombre, paciente.pagador_dni].filter(Boolean).join(' · ') || 'Pagador distinto'}</dd></div>
           )}
@@ -662,7 +702,7 @@ export function PatientForm({
         />
         <div className="patient-documents-summary-grid">
           <div>
-            <strong>Ultimos documentos</strong>
+            <strong>Últimos documentos</strong>
             {ultimosDocumentos.map((documento) => (
               <button type="button" key={documento.id} onClick={onOpenDocumentos}>
                 <span>{documento.categoria}</span>
@@ -912,6 +952,7 @@ export function NuevoPacienteModal({
 export function PatientFullViewModal({
   paciente,
   facturas,
+  canManageBilling = true,
   historial,
   citas,
   presupuestos,
@@ -924,6 +965,7 @@ export function PatientFullViewModal({
 }: {
   paciente: ApiPaciente;
   facturas: Factura[];
+  canManageBilling?: boolean;
   historial: HistorialClinico[];
   citas: Cita[];
   presupuestos: Presupuesto[];
@@ -974,7 +1016,9 @@ export function PatientFullViewModal({
         <div className="patient-full-kpis">
           <div><span>Proxima cita</span><strong>{nextCita ? `${formatDate(nextCita.fecha_hora)} ${nextCita.fecha_hora.slice(11, 16)}` : 'Sin cita'}</strong><small>{nextCita?.motivo ?? 'No hay tratamiento previsto'}</small></div>
           <div><span>Ultima visita</span><strong>{lastVisit ? formatDate(lastVisit.fecha) : 'Sin historial'}</strong><small>{lastVisit?.procedimiento || lastVisit?.tratamiento?.nombre || 'Sin tratamiento registrado'}</small></div>
-          <div><span>Pendiente</span><strong className={billingTotals.pendiente > 0 ? 'debt' : ''}>{money(billingTotals.pendiente)}</strong><small>Facturado {money(billingTotals.facturado)} - cobrado {money(billingTotals.cobrado)}</small></div>
+          {canManageBilling && (
+            <div><span>Pendiente</span><strong className={billingTotals.pendiente > 0 ? 'debt' : ''}>{money(billingTotals.pendiente)}</strong><small>Facturado {money(billingTotals.facturado)} - cobrado {money(billingTotals.cobrado)}</small></div>
+          )}
           <div><span>Documentos</span><strong>{documentos.length}</strong><small>{consentimientos.length} consentimientos - {laboratorio.length} trabajos lab.</small></div>
         </div>
 
@@ -1028,19 +1072,21 @@ export function PatientFullViewModal({
             </div>
           </section>
 
-          <section>
-            <h3>Facturacion</h3>
-            <div className="patient-full-list compact">
-              {facturas.slice(0, 5).map((factura) => (
-                <article key={factura.id}>
-                  <strong>{factura.serie}-{factura.numero}</strong>
-                  <span>{formatDate(factura.fecha)} - {factura.estado}</span>
-                  <small>Total {money(factura.total)} - pendiente {money(factura.pendiente)}</small>
-                </article>
-              ))}
-              {!facturas.length && <p>Sin facturas.</p>}
-            </div>
-          </section>
+          {canManageBilling && (
+            <section>
+              <h3>Facturacion</h3>
+              <div className="patient-full-list compact">
+                {facturas.slice(0, 5).map((factura) => (
+                  <article key={factura.id}>
+                    <strong>{factura.serie}-{factura.numero}</strong>
+                    <span>{formatDate(factura.fecha)} - {factura.estado}</span>
+                    <small>Total {money(factura.total)} - pendiente {money(factura.pendiente)}</small>
+                  </article>
+                ))}
+                {!facturas.length && <p>Sin facturas.</p>}
+              </div>
+            </section>
+          )}
 
           <section>
             <h3>Proximas citas</h3>

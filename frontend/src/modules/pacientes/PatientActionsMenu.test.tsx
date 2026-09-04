@@ -63,6 +63,19 @@ describe('PatientActionsMenu', () => {
     expect(handlers.onCobrar).toHaveBeenCalledTimes(1);
   });
 
+  it('oculta las acciones economicas para perfiles sin permisos de facturacion', () => {
+    const handlers = makeHandlers();
+    render(
+      <PatientActionsMenu
+        paciente={paciente}
+        handlers={handlers}
+        canManageBilling={false}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Nueva cita' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cobrar' })).not.toBeInTheDocument();
+  });
+
   it('abre el dropdown y dispara acciones secundarias', async () => {
     const user = userEvent.setup();
     const handlers = makeHandlers();

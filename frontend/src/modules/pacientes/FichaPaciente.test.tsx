@@ -22,6 +22,7 @@ describe('PatientForm', () => {
   it('renders a compact patient summary with next visit, last visit and balance', async () => {
     const user = userEvent.setup();
     const queryClient = new QueryClient();
+    const onOpenCitas = vi.fn();
     noop.mockClear();
     render(
       <QueryClientProvider client={queryClient}>
@@ -141,7 +142,7 @@ describe('PatientForm', () => {
           laboratorio={[]}
           onEdit={noop}
           onOpenFull={noop}
-          onOpenCitas={noop}
+          onOpenCitas={onOpenCitas}
           onComentario={noop}
           onNuevoPresupuesto={noop}
           onCrearReceta={noop}
@@ -163,8 +164,8 @@ describe('PatientForm', () => {
     );
 
     expect(screen.getAllByText(/Gutierrez Velez/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Proxima cita/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ultima visita/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pr[oó]xima cita/i)).toBeInTheDocument();
+    expect(screen.getByText(/[ÚU]ltima visita/i)).toBeInTheDocument();
     expect(screen.getByText(/Cobros \/ facturas/i)).toBeInTheDocument();
     expect(screen.getByText(/Resumen odontograma/i)).toBeInTheDocument();
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
@@ -172,7 +173,9 @@ describe('PatientForm', () => {
     expect(screen.getByTestId('mini-odontogram-pendientes')).toHaveTextContent('Pendientes: 1');
     expect(screen.getByTestId('mini-odontogram-realizados')).toHaveTextContent('Realizados: 1');
     expect(screen.getByTestId('mini-odontogram-presupuestados')).toHaveTextContent('Presupuestados: 1');
-    await user.click(screen.getByRole('button', { name: /Ver detalle en Clinica/i }));
+    await user.click(screen.getByRole('button', { name: /Estado del paciente: Pendiente de cita.*Acción: Dar cita/i }));
+    expect(onOpenCitas).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: /Ver detalle en Tratamientos/i }));
     expect(noop).toHaveBeenCalled();
     expect(screen.getByText(/Documentos y consentimientos/i)).toBeInTheDocument();
     expect(screen.getByText('rx-control.pdf')).toBeInTheDocument();

@@ -2,6 +2,21 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  ArrowRight,
+  CalendarPlus,
+  CircleDollarSign,
+  ClipboardList,
+  Clock3,
+  Ellipsis,
+  MessageCircle,
+  Phone,
+  RefreshCw,
+  Search,
+  UserCheck,
+  UserPlus,
+  Wallet,
+} from 'lucide-react';
+import {
   confirmarCita,
   enviarRecordatorioCita,
   getCitas,
@@ -128,7 +143,7 @@ export default function HoyPage() {
     queryFn: () => getCitas({ fecha_desde: `${today}T00:00:00`, fecha_hasta: `${today}T23:59:59` }),
   });
   const telefonearQuery = useQuery({ queryKey: ['telefonear'], queryFn: getTelefonear });
-  const dashboardQuery = useQuery({ queryKey: ['dashboard-bi'], queryFn: getReportDashboard });
+  const dashboardQuery = useQuery({ queryKey: ['dashboard-bi'], queryFn: () => getReportDashboard() });
   const reminderCitasQuery = useQuery({
     queryKey: ['whatsapp-reminders', reminderDesde, reminderHasta],
     queryFn: () => getCitas({ fecha_desde: `${reminderDesde}T00:00:00`, fecha_hasta: `${reminderHasta}T23:59:59` }),
@@ -190,6 +205,21 @@ export default function HoyPage() {
       };
       return priority(a) - priority(b) || a.fecha_hora.localeCompare(b.fecha_hora);
     })[0] ?? null;
+  const siguienteLlamada = pendientesLlamar[0] ?? null;
+  const trabajoPendienteCount = enClinica.length + solicitudesCambio.length + pendientesLlamar.length;
+  const proximaAccionTitulo = proximaAccion
+    ? `${citaHora(proximaAccion)} · ${pacienteNombre(proximaAccion)}`
+    : siguienteLlamada
+      ? `Llamar · ${telefonearNombre(siguienteLlamada)}`
+      : 'Jornada al día';
+  const proximaAccionDetalle = proximaAccion
+    ? (ESTADO_LABEL[proximaAccion.estado] ?? proximaAccion.estado)
+    : siguienteLlamada
+      ? 'Paciente pendiente de reubicar'
+      : 'No hay acciones abiertas';
+  const deudaPendiente = dashboard
+    ? `${Math.round(dashboard.alertas.deuda_pendiente ?? 0)} €`
+    : '—';
   const reminderCitas = useMemo(
     () => (reminderCitasQuery.data ?? [])
       .filter((cita) => !['anulada', 'falta', 'cancelled_by_patient', 'atendida'].includes(cita.estado))
@@ -252,82 +282,109 @@ export default function HoyPage() {
         <div className="inline-alert">No se han podido cargar las citas de hoy. Revisa la conexión.</div>
       )}
 
-      <div className="dashboard-metrics hoy-metrics">
-        <div>
-          <span>Citas hoy</span>
-          <strong>{activas.length}</strong>
-          <small>{canceladas.length} canceladas</small>
-        </div>
-        <div>
-          <span>Sin confirmar</span>
-          <strong>{sinConfirmar.length}</strong>
-          <small>pendiente recordatorio</small>
-        </div>
-        <div>
-          <span>En clínica ahora</span>
-          <strong>{enClinica.length}</strong>
-          <small>{atendidas.length} finalizadas</small>
-        </div>
-        <div>
-          <span>Telefonear</span>
-          <strong>{pendientesLlamar.length}</strong>
-          <small>pacientes pendientes</small>
-        </div>
-        <div>
-          <span>Presupuestos pend.</span>
-          <strong>{dashboard?.alertas.presupuestos_pendientes ?? '—'}</strong>
-          <small>por confirmar</small>
-        </div>
-        <div>
-          <span>Deuda pendiente</span>
-          <strong>{dashboard?.alertas.deuda_pendiente ? `${dashboard.alertas.deuda_pendiente.toFixed(0)} €` : '—'}</strong>
-          <small>cobros sin realizar</small>
-        </div>
-      </div>
-
-      <div className="clinic-flow-board" aria-label="Trabajo operativo de hoy">
-        <section>
-          <span>Próxima acción</span>
-          <strong>{proximaAccion ? `${citaHora(proximaAccion)} · ${pacienteNombre(proximaAccion)}` : 'Sin acciones abiertas'}</strong>
-          <small>{proximaAccion ? (ESTADO_LABEL[proximaAccion.estado] ?? proximaAccion.estado) : 'Agenda controlada'}</small>
-          {proximaAccion && (
-            <button type="button" onClick={() => abrirCitaAgenda(proximaAccion)}>
-              Abrir cita
+      <section className="hoy-command-center" aria-label="Prioridades de hoy">
+        <div className="hoy-next-action">
+          <div>
+            <span>Próxima acción</span>
+            <strong>{proximaAccionTitulo}</strong>
+            <small>{proximaAccionDetalle}</small>
+          </div>
+          {(proximaAccion || siguienteLlamada) && (
+            <button
+              type="button"
+              onClick={() => proximaAccion ? abrirCitaAgenda(proximaAccion) : navigate('/agenda')}
+            >
+              <span>Gestionar</span>
+              <ArrowRight size={15} aria-hidden="true" />
             </button>
           )}
-        </section>
-        <section>
-          <span>En clínica</span>
-          <strong>{enClinica.length} paciente{enClinica.length === 1 ? '' : 's'}</strong>
-          <div className="clinic-flow-list">
-            {enClinica.slice(0, 3).map((cita) => (
-              <button type="button" key={cita.id} onClick={() => cita.paciente_id && irAPaciente(cita.paciente_id)}>
-                {citaHora(cita)} · {pacienteNombre(cita)}
-              </button>
-            ))}
-            {!enClinica.length && <small>Sin pacientes esperando o en gabinete.</small>}
+        </div>
+
+        <div className="hoy-command-counters" aria-label="Resumen operativo de hoy">
+          <button type="button" className={sinConfirmar.length ? 'attention' : ''} onClick={() => navigate('/agenda')}>
+            <Clock3 size={16} aria-hidden="true" />
+            <span>Sin confirmar</span>
+            <strong>{sinConfirmar.length}</strong>
+          </button>
+          <button
+            type="button"
+            className={enClinica.length ? 'active' : ''}
+            onClick={() => enClinica[0]?.paciente_id ? irAPaciente(enClinica[0].paciente_id) : navigate('/agenda')}
+          >
+            <UserCheck size={16} aria-hidden="true" />
+            <span>En clínica</span>
+            <strong>{enClinica.length}</strong>
+          </button>
+          <button
+            type="button"
+            className={solicitudesCambio.length ? 'attention' : ''}
+            onClick={() => solicitudesCambio[0] ? abrirCitaAgenda(solicitudesCambio[0]) : navigate('/agenda')}
+          >
+            <RefreshCw size={16} aria-hidden="true" />
+            <span>Cambios</span>
+            <strong>{solicitudesCambio.length}</strong>
+          </button>
+          <button type="button" className={pendientesLlamar.length ? 'attention' : ''} onClick={() => navigate('/agenda')}>
+            <Phone size={16} aria-hidden="true" />
+            <span>Telefonear</span>
+            <strong>{pendientesLlamar.length}</strong>
+          </button>
+          <div>
+            <ClipboardList size={16} aria-hidden="true" />
+            <span>Presupuestos</span>
+            <strong>{dashboard?.alertas.presupuestos_pendientes ?? '—'}</strong>
           </div>
-        </section>
-        <section>
-          <span>Cambios solicitados</span>
-          <strong>{solicitudesCambio.length}</strong>
-          <div className="clinic-flow-list">
-            {solicitudesCambio.slice(0, 3).map((cita) => (
-              <button type="button" key={cita.id} onClick={() => abrirCitaAgenda(cita)}>
-                {citaHora(cita)} · {pacienteNombre(cita)}
-              </button>
-            ))}
-            {!solicitudesCambio.length && <small>Sin reprogramaciones pendientes.</small>}
+          <div>
+            <CircleDollarSign size={16} aria-hidden="true" />
+            <span>Deuda</span>
+            <strong>{deudaPendiente}</strong>
           </div>
-        </section>
-      </div>
+        </div>
+
+        <nav className="hoy-command-actions" aria-label="Acciones rápidas de recepción">
+          <Link to="/agenda" className="primary-action" onClick={prepararNuevaCita}>
+            <CalendarPlus size={15} aria-hidden="true" />
+            Nueva cita
+          </Link>
+          <Link to="/pacientes">
+            <Search size={15} aria-hidden="true" />
+            Buscar paciente
+          </Link>
+          <button type="button" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp">
+            <WhatsAppIcon />
+            Recordatorios
+          </button>
+          <details className="hoy-more-actions">
+            <summary role="button" aria-label="Más acciones">
+              <Ellipsis size={16} aria-hidden="true" />
+              Más
+            </summary>
+            <div>
+              <Link to="/pacientes" onClick={prepararNuevaFicha}>
+                <UserPlus size={15} aria-hidden="true" />
+                Nueva ficha
+              </Link>
+              <Link to="/caja">
+                <Wallet size={15} aria-hidden="true" />
+                Cobros
+              </Link>
+              <Link to="/whatsapp">
+                <MessageCircle size={15} aria-hidden="true" />
+                Respuestas{whatsappPendientes.length > 0 ? ` (${whatsappPendientes.length})` : ''}
+              </Link>
+            </div>
+          </details>
+        </nav>
+      </section>
 
       <div className="hoy-layout">
         <main className="hoy-agenda">
           <div className="panel-caption">
-            <strong>Agenda de hoy</strong>
-            <span>Flujo de recepción — haz clic en la cita para editar</span>
-            <Link to="/agenda">Abrir agenda completa</Link>
+            <div>
+              <strong>Agenda de hoy</strong>
+              <span>{activas.length} activas · {sinConfirmar.length} sin confirmar · {atendidas.length} finalizadas</span>
+            </div>
+            <Link to="/agenda">Agenda completa</Link>
           </div>
           {citasQuery.isLoading && (
             <div className="patient-loading-strip" aria-label="Cargando citas"><span /><span /><span /></div>
@@ -389,7 +446,20 @@ export default function HoyPage() {
                 </tr>
               ))}
               {!citasQuery.isLoading && !activas.length && (
-                <tr><td colSpan={6}>No hay citas activas para hoy.</td></tr>
+                <tr className="hoy-empty-row">
+                  <td colSpan={6} className="hoy-empty-cell">
+                    <div className="hoy-empty-agenda">
+                      <div>
+                        <strong>Hoy no hay citas activas</strong>
+                        <span>La agenda está libre para nuevas citas o urgencias.</span>
+                      </div>
+                      <Link to="/agenda" onClick={prepararNuevaCita}>
+                        <CalendarPlus size={15} aria-hidden="true" />
+                        Crear cita
+                      </Link>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -416,74 +486,70 @@ export default function HoyPage() {
         </main>
 
         <aside className="hoy-sidebar">
-          <section className="desk-panel">
+          <section className="desk-panel hoy-work-queue" aria-label="Trabajo operativo de hoy">
             <div className="panel-caption">
-              <strong>Telefonear</strong>
-              <span>{pendientesLlamar.length} pendientes</span>
-              <Link to="/agenda">Ver agenda</Link>
+              <div>
+                <strong>Trabajo pendiente</strong>
+                <span>{trabajoPendienteCount} acci{trabajoPendienteCount === 1 ? 'ón' : 'ones'}</span>
+              </div>
+              <Link to="/agenda">Gestionar agenda</Link>
             </div>
-            {telefonearQuery.isLoading && <p style={{ padding: '0.5rem' }}>Cargando...</p>}
-            {pendientesLlamar.slice(0, 10).map((item) => (
-              <div key={item.id} className="telefonear-item">
-                <div>
-                  <strong>{telefonearNombre(item)}</strong>
-                  <span>{item.motivo ?? 'Reprogramar'}</span>
-                  <small>{item.doctor?.nombre ?? ''}</small>
-                </div>
-                {item.paciente?.telefono && (
-                  <button
-                    type="button"
-                    title={item.paciente.telefono}
-                    onClick={() => copiarTelefono(item.paciente!.telefono!)}
-                  >
-                    {item.paciente.telefono}
+
+            <div className="hoy-work-group">
+              <header>
+                <span><UserCheck size={15} aria-hidden="true" />En clínica</span>
+                <strong>{enClinica.length}</strong>
+              </header>
+              <div className="clinic-flow-list">
+                {enClinica.slice(0, 3).map((cita) => (
+                  <button type="button" key={cita.id} onClick={() => cita.paciente_id && irAPaciente(cita.paciente_id)}>
+                    {citaHora(cita)} · {pacienteNombre(cita)}
                   </button>
-                )}
+                ))}
+                {!enClinica.length && <small>Sin pacientes esperando o en gabinete.</small>}
               </div>
-            ))}
-            {!telefonearQuery.isLoading && !pendientesLlamar.length && (
-              <p style={{ padding: '0.5rem', margin: 0 }}>Sin llamadas pendientes.</p>
-            )}
-          </section>
-
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Acciones rápidas</strong></div>
-            <div className="agenda-button-grid">
-              <Link to="/pacientes" className="dentcore-action-button" onClick={prepararNuevaFicha}>Nueva ficha</Link>
-              <Link to="/pacientes" className="dentcore-action-button">Buscar paciente</Link>
-              <Link to="/agenda" className="dentcore-action-button" onClick={prepararNuevaCita}>Nueva cita</Link>
-              <Link to="/caja" className="dentcore-action-button">Caja / cobros</Link>
-              <button type="button" className="dentcore-action-button whatsapp-action" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp" title="Recordatorios WhatsApp">
-                <WhatsAppIcon />
-              </button>
-              <Link to="/whatsapp" className="dentcore-action-button">
-                Respuestas WA {whatsappPendientes.length > 0 ? `(${whatsappPendientes.length})` : ''}
-              </Link>
             </div>
-          </section>
 
-          <section className="desk-panel">
-            <div className="panel-caption">
-              <strong>Alertas</strong>
-              <span>Requieren atención</span>
+            <div className="hoy-work-group">
+              <header>
+                <span><RefreshCw size={15} aria-hidden="true" />Cambios solicitados</span>
+                <strong>{solicitudesCambio.length}</strong>
+              </header>
+              <div className="clinic-flow-list">
+                {solicitudesCambio.slice(0, 3).map((cita) => (
+                  <button type="button" key={cita.id} onClick={() => abrirCitaAgenda(cita)}>
+                    {citaHora(cita)} · {pacienteNombre(cita)}
+                  </button>
+                ))}
+                {!solicitudesCambio.length && <small>Sin reprogramaciones pendientes.</small>}
+              </div>
             </div>
-            <div className="alert-list">
-              <div>
-                <strong>{dashboard?.alertas.citas_sin_confirmar ?? sinConfirmar.length}</strong>
-                <span>citas sin confirmar</span>
-              </div>
-              <div>
-                <strong>{dashboard?.alertas.pacientes_en_clinica ?? enClinica.length}</strong>
-                <span>pacientes en clínica ahora</span>
-              </div>
-              <div>
-                <strong>{dashboard?.alertas.presupuestos_pendientes ?? 0}</strong>
-                <span>presupuestos por aceptar</span>
-              </div>
-              <div>
-                <strong>{dashboard?.alertas.deuda_pendiente ? `${Math.round(dashboard.alertas.deuda_pendiente)} €` : '0 €'}</strong>
-                <span>deuda pendiente cobro</span>
-              </div>
+
+            <div className="hoy-work-group">
+              <header>
+                <span><Phone size={15} aria-hidden="true" />Telefonear</span>
+                <strong>{pendientesLlamar.length}</strong>
+              </header>
+              {telefonearQuery.isLoading && <small>Cargando...</small>}
+              {pendientesLlamar.slice(0, 10).map((item) => (
+                <div key={item.id} className="telefonear-item">
+                  <div>
+                    <strong>{telefonearNombre(item)}</strong>
+                    <span>{item.motivo ?? 'Reprogramar'}</span>
+                    <small>{item.doctor?.nombre ?? ''}</small>
+                  </div>
+                  {item.paciente?.telefono && (
+                    <button
+                      type="button"
+                      title={`Copiar ${item.paciente.telefono}`}
+                      onClick={() => copiarTelefono(item.paciente!.telefono!)}
+                    >
+                      {item.paciente.telefono}
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!telefonearQuery.isLoading && !pendientesLlamar.length && <small>Sin llamadas pendientes.</small>}
             </div>
           </section>
         </aside>

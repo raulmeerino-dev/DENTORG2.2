@@ -163,7 +163,9 @@ export function HistorialCompletoPanel({
   onOpenConsentimiento,
   onOpenFactura,
   onOpenReceta,
+  onOpenTreatmentHistory,
   userRole,
+  canManageBilling = true,
 }: {
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
@@ -181,9 +183,17 @@ export function HistorialCompletoPanel({
   onOpenConsentimiento: (consentimiento: Consentimiento) => void;
   onOpenFactura: (factura: Factura) => void;
   onOpenReceta?: (receta: RecetaClinica) => void;
+  onOpenTreatmentHistory?: () => void;
   userRole?: UserRole | null;
+  canManageBilling?: boolean;
 }) {
   const [filter, setFilter] = useState<HistoryFilter>('todo');
+  const availableFilters = canManageBilling
+    ? FILTERS
+    : FILTERS.filter((item) => item.id !== 'facturacion' && item.id !== 'cobros');
+  const activeFilter = canManageBilling || (filter !== 'facturacion' && filter !== 'cobros')
+    ? filter
+    : 'todo';
   const pieceOptions = useMemo(() => collectDentalPieces({
     historial,
     presupuestos,
@@ -402,7 +412,7 @@ export function HistorialCompletoPanel({
     return next.sort(sortDesc);
   }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, notasDentales, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
 
-  const visibleEvents = filter === 'todo' ? events : events.filter((event) => event.filter === filter);
+  const visibleEvents = activeFilter === 'todo' ? events : events.filter((event) => event.filter === activeFilter);
   const ledgerGroups = buildLedgerGroups(visibleEvents);
 
   return (
@@ -412,12 +422,19 @@ export function HistorialCompletoPanel({
           <span>Historial completo</span>
           <strong>{paciente ? fullName(paciente) : 'Sin paciente seleccionado'}</strong>
         </div>
-        <em>{visibleEvents.length} eventos visibles</em>
+        <div className="complete-history-head-actions">
+          <em>{visibleEvents.length} eventos visibles</em>
+          {onOpenTreatmentHistory && (
+            <button type="button" onClick={onOpenTreatmentHistory}>
+              {canManageBilling ? 'Tratamientos y facturación' : 'Tratamientos realizados'}
+            </button>
+          )}
+        </div>
       </header>
 
       <nav className="history-filter-tabs" aria-label="Filtros del historial completo">
-        {FILTERS.map((item) => (
-          <button key={item.id} type="button" className={filter === item.id ? 'active' : ''} onClick={() => setFilter(item.id)}>
+        {availableFilters.map((item) => (
+          <button key={item.id} type="button" className={activeFilter === item.id ? 'active' : ''} onClick={() => setFilter(item.id)}>
             {item.label}
           </button>
         ))}

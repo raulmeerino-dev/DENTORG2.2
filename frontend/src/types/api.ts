@@ -190,6 +190,19 @@ export interface Presupuesto {
   total_aceptado: string;
 }
 
+export interface TrabajoPendiente {
+  id: string;
+  paciente_id: string;
+  presupuesto_linea_id: string;
+  presupuesto_linea: PresupuestoLinea;
+  tratamiento_id: string;
+  tratamiento: TratamientoResumen | null;
+  pieza_dental: number | null;
+  caras: string | null;
+  realizado: boolean;
+  historial_id: string | null;
+}
+
 export interface FacturaLinea {
   id: string;
   factura_id?: string;

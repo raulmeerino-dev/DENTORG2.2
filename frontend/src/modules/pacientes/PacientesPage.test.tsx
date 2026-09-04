@@ -212,6 +212,7 @@ vi.mock('../../lib/api', () => ({
   getSaldoPaciente: vi.fn().mockResolvedValue({ total_facturado: '60.00', total_cobrado: '0.00', pendiente: '60.00' }),
   getTratamientosCatalogo: vi.fn().mockResolvedValue([]),
   getTrabajosLaboratorio: vi.fn().mockResolvedValue([]),
+  getTrabajosPendientesPaciente: vi.fn().mockResolvedValue([]),
   openConsentimientoPdf: vi.fn(),
   openDocumentoPaciente: vi.fn(),
   openRecetaClinicaPdf: vi.fn(),
@@ -288,15 +289,16 @@ describe('PacientesPage structure', () => {
     const mainTabs = screen.getByRole('navigation');
     expect(within(mainTabs).getByRole('button', { name: /^Ficha$/i })).toBeInTheDocument();
     expect(within(mainTabs).queryByRole('button', { name: /^Presupuestos$/i })).not.toBeInTheDocument();
-    expect(within(mainTabs).getByRole('button', { name: /^Clinica$/i })).toBeInTheDocument();
+    expect(within(mainTabs).getByRole('button', { name: /^Tratamientos$/i })).toBeInTheDocument();
     expect(within(mainTabs).getByRole('button', { name: /^Historial$/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^Nueva cita$/i })).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Docs\s+\d+$/i })).toBeInTheDocument();
     expect(await screen.findByText(/Resumen odontograma/i)).toBeInTheDocument();
     expect(screen.getByTestId('mini-odontogram')).toBeInTheDocument();
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Ver detalle en Clinica/i }));
-    expect(await screen.findByText(/Odontograma base/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Ver detalle en Tratamientos/i }));
+    expect(await screen.findByText(/Odontograma diagnóstico/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Ficha$/i }));
     expect(await screen.findByText(/Documentos y consentimientos/i)).toBeInTheDocument();
 
@@ -307,12 +309,12 @@ describe('PacientesPage structure', () => {
     expect(screen.getAllByText('rx-control.pdf').length).toBeGreaterThan(0);
   }, 10_000);
 
-  it('shows clinical subtabs and keeps complete history behind a secondary action', async () => {
+  it('shows clinical subtabs and opens the complete timeline as the main history view', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByRole('button', { name: /^Clinica$/i });
-    await user.click(screen.getByRole('button', { name: /^Clinica$/i }));
+    await screen.findByRole('button', { name: /^Tratamientos$/i });
+    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
     expect(screen.getByRole('button', { name: /^Diagnóstico$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Pendientes$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Sesión actual$/i })).toBeInTheDocument();
@@ -320,23 +322,20 @@ describe('PacientesPage structure', () => {
     expect(screen.queryByRole('button', { name: /^Realizados$/i })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
-    await waitFor(() => expect(screen.getByText(/Historial de tratamientos/i)).toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: /Clinico/i })).not.toBeInTheDocument();
-    expect(screen.queryByText(/Tratamientos realizados en historial/i)).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
-
-    await user.click(screen.getByRole('button', { name: /^Mas$/i }));
-    await user.click(screen.getByRole('menuitem', { name: /Actividad completa/i }));
     await waitFor(() => expect(screen.getByText(/Historial completo/i)).toBeInTheDocument());
     expect(screen.getByRole('button', { name: /Clinico/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Facturacion/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /Tratamientos y facturaci/i }));
+    await waitFor(() => expect(screen.getByText(/Historial de tratamientos/i)).toBeInTheDocument());
   });
 
   it('creates a new budget from the patient action menu and selects it', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    const moreButton = await screen.findByRole('button', { name: /^Mas acciones$/i });
+    const moreButton = await screen.findByRole('button', { name: /^M[aá]s acciones del paciente$/i });
     await waitFor(() => expect(moreButton).not.toBeDisabled());
     await user.click(moreButton);
     const createButton = await waitFor(() => {

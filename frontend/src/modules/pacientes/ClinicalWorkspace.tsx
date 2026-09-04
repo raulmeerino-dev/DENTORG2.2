@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MouseEvent } from 'react';
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, FileText, FlaskConical, Info, NotebookPen, Pill, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, FileText, FlaskConical, Info, NotebookPen, Pill, Plus, Trash2 } from 'lucide-react';
 import type {
   ApiPaciente,
   Cita,
@@ -17,6 +17,7 @@ import type {
   SesionClinicaItemUpdateInput,
   SesionTratamientoRealizadoInput,
   TrabajoLaboratorio,
+  TrabajoPendiente,
   TratamientoCatalogo,
   UserRole,
 } from '../../types/api';
@@ -171,37 +172,30 @@ function sessionTreatmentFromSesionItem(
 function buildSessionTreatments(
   citas: Cita[],
   presupuestos: Presupuesto[],
-  historial: HistorialClinico[],
+  trabajosPendientes: TrabajoPendiente[],
   sesionItems: SesionClinicaItem[],
 ): SessionTreatment[] {
   const todayAppointments = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
-  const completedBudgetLines = new Set(
-    historial
-      .filter((entrada) => hasFinishedState(entrada.estado) && entrada.presupuesto_linea_id)
-      .map((entrada) => entrada.presupuesto_linea_id as string),
-  );
 
   const persistedActive = sesionItems.filter((item) => item.estado !== 'realizado');
   const persistedLineaIds = new Set(persistedActive.map((item) => item.presupuesto_linea_id).filter(Boolean) as string[]);
   const persistedCitaIds = new Set(persistedActive.map((item) => item.cita_id).filter(Boolean) as string[]);
   const items: SessionTreatment[] = persistedActive.map((item) => sessionTreatmentFromSesionItem(item, presupuestos));
 
-  const pendingLines = presupuestos.flatMap((presupuesto) => (
-    presupuesto.lineas
-      .filter((linea) => (
-        !completedBudgetLines.has(linea.id)
-        && !persistedLineaIds.has(linea.id)
-        && (linea.aceptado || linea.pasado_trabajo_pendiente || presupuesto.estado === 'aceptado')
-      ))
-      .map((linea) => ({ presupuesto, linea }))
-  ));
+  const pendingLines = trabajosPendientes
+    .filter((trabajo) => !trabajo.realizado && !persistedLineaIds.has(trabajo.presupuesto_linea_id))
+    .map((trabajo) => ({
+      linea: trabajo.presupuesto_linea,
+      presupuesto: presupuestos.find((presupuesto) => presupuesto.id === trabajo.presupuesto_linea.presupuesto_id),
+    }));
 
   pendingLines.forEach(({ presupuesto, linea }) => {
+    const cita = todayAppointments.find((item) => item.presupuesto_linea_id === linea.id);
     items.push({
       id: `linea-${linea.id}`,
       sesionItemId: null,
       source: 'pendiente',
-      sourceLabel: `Ppto. ${presupuesto.numero}`,
+      sourceLabel: presupuesto ? `Ppto. ${presupuesto.numero}` : 'Trabajo pendiente',
       tratamientoId: linea.tratamiento_id,
       tratamiento: linea.tratamiento,
       title: linea.tratamiento?.nombre ?? 'Tratamiento pendiente',
@@ -209,6 +203,8 @@ function buildSessionTreatments(
       caras: linea.caras ?? '',
       observaciones: '',
       status: 'planificado',
+      scheduledAt: cita?.fecha_hora ?? null,
+      citaId: cita?.id ?? null,
       linea,
     });
   });
@@ -216,11 +212,10 @@ function buildSessionTreatments(
   todayAppointments.forEach((cita) => {
     if (persistedCitaIds.has(cita.id)) return;
     const motivo = cita.motivo || 'Tratamiento previsto';
-    const normalizedMotivo = normalizeSessionText(motivo);
-    const alreadyCovered = items.some((item) => {
-      const title = normalizeSessionText(item.title);
-      return title && normalizedMotivo && (title.includes(normalizedMotivo) || normalizedMotivo.includes(title));
-    });
+    const alreadyCovered = Boolean(
+      cita.presupuesto_linea_id
+      && items.some((item) => item.linea?.id === cita.presupuesto_linea_id),
+    );
     if (alreadyCovered) return;
     items.push({
       id: `cita-${cita.id}`,
@@ -431,6 +426,7 @@ function SessionWorkspace({
   citas,
   historial,
   presupuestos,
+  trabajosPendientes,
   documentos,
   consentimientos,
   recetas,
@@ -451,6 +447,7 @@ function SessionWorkspace({
   onCrearPedidoLab,
   onCrearPedidoLabForLine,
   onOpenDocumentos,
+  onOpenPresupuestos,
   onOpenHistorial,
   onDictarNotaSesion,
   canDictarNota = false,
@@ -463,6 +460,7 @@ function SessionWorkspace({
   citas: Cita[];
   historial: HistorialClinico[];
   presupuestos: Presupuesto[];
+  trabajosPendientes: TrabajoPendiente[];
   documentos: DocumentoPaciente[];
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
@@ -483,6 +481,7 @@ function SessionWorkspace({
   onCrearPedidoLab: () => void;
   onCrearPedidoLabForLine: (linea: PresupuestoLinea) => void;
   onOpenDocumentos: () => void;
+  onOpenPresupuestos: () => void;
   onOpenHistorial: () => void;
   onDictarNotaSesion: () => void;
   canDictarNota?: boolean;
@@ -506,8 +505,8 @@ function SessionWorkspace({
       .sort((a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora))[0] ?? null;
   }, [citas, sessionStartedAt]);
   const baseSessionItems = useMemo(
-    () => buildSessionTreatments(citas, presupuestos, historial, sesionItems),
-    [citas, historial, presupuestos, sesionItems],
+    () => buildSessionTreatments(citas, presupuestos, trabajosPendientes, sesionItems),
+    [citas, presupuestos, sesionItems, trabajosPendientes],
   );
   const [draftItems, setDraftItems] = useState<SessionTreatment[]>(baseSessionItems);
   const [selectedId, setSelectedId] = useState<string | null>(baseSessionItems[0]?.id ?? null);
@@ -526,6 +525,9 @@ function SessionWorkspace({
     if (!q) return true;
     return normalizeSessionText(`${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`).includes(q);
   }).slice(0, 80);
+  const acceptedUnpreparedLines = useMemo(() => presupuestos.flatMap((presupuesto) => (
+    presupuesto.lineas.filter((linea) => linea.aceptado && !linea.pasado_trabajo_pendiente)
+  )), [presupuestos]);
   const selectedPieceNumber = selected?.piezaDental ? Number(selected.piezaDental) : null;
   const selectedPieceNotes = selectedPieceNumber
     ? notasDentales.filter((nota) => nota.pieza_dental === selectedPieceNumber).slice(0, 3)
@@ -744,17 +746,17 @@ function SessionWorkspace({
 
   return (
     <div className="clinical-session-stack">
-      <div className="clinical-session-workbench">
+      <div className={`clinical-session-workbench ${selected ? '' : 'is-empty'}`.trim()}>
         <section className="desk-panel clinical-session-board">
         <div className="session-board-head">
           <div>
-            <span>Sesion actual</span>
+            <span>Sesión actual</span>
             <strong>{draftItems.length} tratamientos</strong>
           </div>
           <div className="session-board-actions">
-            <ClinicalDictationButton label="Dictar nota de sesion" onClick={onDictarNotaSesion} disabled={!paciente || !canDictarNota} compact />
+            <ClinicalDictationButton label="Dictar nota de sesión" onClick={onDictarNotaSesion} disabled={!paciente || !canDictarNota} compact />
             <button type="button" className="primary-action" onClick={() => setAdding((open) => !open)} disabled={!paciente}>
-              <Plus size={14} aria-hidden="true" /> Anadir
+              <Plus size={14} aria-hidden="true" /> Añadir
             </button>
           </div>
         </div>
@@ -763,7 +765,7 @@ function SessionWorkspace({
             <input
               value={catalogSearch}
               onChange={(event) => setCatalogSearch(event.target.value)}
-              placeholder="Buscar tratamiento en catalogo"
+              placeholder="Buscar tratamiento en catálogo"
             />
             <select value={selectedCatalogId} onChange={(event) => setSelectedCatalogId(event.target.value)}>
               <option value="">Seleccionar tratamiento...</option>
@@ -773,15 +775,15 @@ function SessionWorkspace({
                 </option>
               ))}
             </select>
-            <button type="button" onClick={addTreatmentFromCatalog} disabled={!filteredCatalog.length}>Anadir a sesion</button>
+            <button type="button" onClick={addTreatmentFromCatalog} disabled={!filteredCatalog.length}>Añadir a sesión</button>
           </div>
         )}
         {sesionItemsError && (
           <p className="session-save-error" role="alert">{sesionItemsError}</p>
         )}
-        <div className="session-treatment-list" role="list" aria-label="Tratamientos de la sesion">
+        <div className="session-treatment-list" role="list" aria-label="Tratamientos de la sesión">
           {sesionItemsLoading && !draftItems.length && (
-            <div className="session-empty-state"><span>Cargando sesion del paciente...</span></div>
+            <div className="session-empty-state"><span>Cargando sesión del paciente...</span></div>
           )}
           {draftItems.map((item) => (
             <button
@@ -802,16 +804,37 @@ function SessionWorkspace({
             </button>
           ))}
           {!sesionItemsLoading && !draftItems.length && (
-            <div className="session-empty-state">
-              <strong>Sin tratamientos en la sesion</strong>
-              <span>Anade uno desde catalogo o usa tratamientos aceptados del paciente.</span>
+            <div className={`session-empty-state ${acceptedUnpreparedLines.length ? 'is-actionable' : ''}`}>
+              <span className="session-empty-icon" aria-hidden="true">
+                {acceptedUnpreparedLines.length ? <ClipboardCheck size={22} /> : <Plus size={22} />}
+              </span>
+              <div>
+                <strong>
+                  {acceptedUnpreparedLines.length
+                    ? `${acceptedUnpreparedLines.length} ${acceptedUnpreparedLines.length === 1 ? 'tratamiento aceptado' : 'tratamientos aceptados'} por preparar`
+                    : 'Sesión sin tratamientos'}
+                </strong>
+                <span>
+                  {acceptedUnpreparedLines.length
+                    ? 'Pásalos a trabajo pendiente antes de utilizarlos en esta sesión.'
+                    : 'Añade únicamente los tratamientos que vas a realizar hoy.'}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="session-empty-action"
+                onClick={acceptedUnpreparedLines.length ? onOpenPresupuestos : () => setAdding(true)}
+              >
+                {acceptedUnpreparedLines.length ? 'Preparar desde presupuesto' : 'Añadir tratamiento'}
+                <ArrowRight size={15} aria-hidden="true" />
+              </button>
             </div>
           )}
         </div>
         </section>
-        <section className="desk-panel clinical-session-detail">
-        {selected ? (
-          <>
+        {selected && (
+          <section className="desk-panel clinical-session-detail">
+            <>
             <div className="session-detail-head">
               <div className="session-detail-title">
                 <span className={`session-treatment-source source-${selected.source}`}>
@@ -958,11 +981,9 @@ function SessionWorkspace({
                 <button type="button" onClick={onOpenDocumentos} disabled={!paciente}><NotebookPen size={14} aria-hidden="true" /> Documentos / fotos</button>
               </div>
             </details>
-          </>
-        ) : (
-          <p className="session-empty-detail">Selecciona o anade un tratamiento para editar la sesion.</p>
+            </>
+          </section>
         )}
-        </section>
         <aside className="clinical-session-context">
           <PatientExitChecklistPanel
             title={exitChecklist.title}
@@ -1163,6 +1184,9 @@ export function ClinicalWorkspace({
   citas,
   historial,
   presupuestos,
+  trabajosPendientes,
+  trabajosPendientesLoading,
+  trabajosPendientesError,
   documentos,
   consentimientos,
   recetas,
@@ -1202,6 +1226,9 @@ export function ClinicalWorkspace({
   citas: Cita[];
   historial: HistorialClinico[];
   presupuestos: Presupuesto[];
+  trabajosPendientes: TrabajoPendiente[];
+  trabajosPendientesLoading: boolean;
+  trabajosPendientesError: string | null;
   documentos: DocumentoPaciente[];
   consentimientos: Consentimiento[];
   recetas: RecetaClinica[];
@@ -1263,13 +1290,16 @@ export function ClinicalWorkspace({
       )}
       {activeTab === 'pendiente' && (
         <TrabajoPendientePanel
+          trabajosPendientes={trabajosPendientes}
           presupuestos={presupuestos}
           citas={citas}
-          historial={historial}
+          loading={trabajosPendientesLoading}
+          error={trabajosPendientesError}
           paciente={paciente}
           onDarCita={onDarCita}
           onContextLinea={onContextLinea}
           onCrearPedidoLab={onCrearPedidoLab}
+          onOpenPresupuestos={onOpenPresupuestos}
           userRole={userRole}
         />
       )}
@@ -1279,6 +1309,7 @@ export function ClinicalWorkspace({
           citas={citas}
           historial={historial}
           presupuestos={presupuestos}
+          trabajosPendientes={trabajosPendientes}
           documentos={documentos}
           consentimientos={consentimientos}
           recetas={recetas}
@@ -1299,6 +1330,7 @@ export function ClinicalWorkspace({
           onCrearPedidoLab={onCrearPedidoLabGeneral}
           onCrearPedidoLabForLine={onCrearPedidoLab}
           onOpenDocumentos={onOpenDocumentos}
+          onOpenPresupuestos={onOpenPresupuestos}
           onOpenHistorial={onOpenHistorial}
           onDictarNotaSesion={onDictarNotaSesion}
           canDictarNota={canDictarNota}

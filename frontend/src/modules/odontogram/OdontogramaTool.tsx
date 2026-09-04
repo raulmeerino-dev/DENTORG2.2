@@ -35,12 +35,12 @@ type OdontogramaToolProps = {
 
 const modeText: Record<OdontogramaToolMode, { title: string; subtitle: string }> = {
   diagnostico: {
-    title: 'Odontograma diagnostico',
-    subtitle: 'Diagnostico actual por pieza y superficie. No muestra acciones economicas.',
+    title: 'Odontograma diagnóstico',
+    subtitle: 'Diagnóstico actual por pieza y superficie. No muestra acciones económicas.',
   },
   presupuesto: {
     title: 'Odontograma del presupuesto',
-    subtitle: 'Propuesta clinica y economica de este presupuesto. No modifica el estado actual.',
+    subtitle: 'Propuesta clínica y económica de este presupuesto. No modifica el estado actual.',
   },
   pendiente: {
     title: 'Tratamientos pendientes',
@@ -48,19 +48,19 @@ const modeText: Record<OdontogramaToolMode, { title: string; subtitle: string }>
   },
   realizado: {
     title: 'Tratamientos realizados',
-    subtitle: 'Tratamientos completados y estado clinico actualizado.',
+    subtitle: 'Tratamientos completados y estado clínico actualizado.',
   },
   historial: {
-    title: 'Historial odontologico',
+    title: 'Historial odontológico',
     subtitle: 'Consulta temporal por pieza. Vista de lectura.',
   },
   documentos: {
     title: 'Documentos vinculados',
-    subtitle: 'Radiografias, fotos y consentimientos asociados a piezas o superficies.',
+    subtitle: 'Radiografías, fotos y consentimientos asociados a piezas o superficies.',
   },
   lectura: {
     title: 'Odontograma actual',
-    subtitle: 'Resumen clinico del paciente. Vista sin edicion.',
+    subtitle: 'Resumen clínico del paciente. Vista sin edición.',
   },
 };
 
@@ -72,7 +72,7 @@ export function OdontogramaTool({
   data,
   title,
   subtitle,
-  totalBudget = 0,
+  totalBudget,
   readOnly,
   enableQuickTreatments,
   onAction,
@@ -115,7 +115,7 @@ export function OdontogramaTool({
       <section className="desk-panel odontogram-flow-panel">
         <div className="panel-caption">
           <strong>Odontograma</strong>
-          <span>Seleccione un paciente para ver el mapa clinico.</span>
+          <span>Seleccione un paciente para ver el mapa clínico.</span>
         </div>
       </section>
     );

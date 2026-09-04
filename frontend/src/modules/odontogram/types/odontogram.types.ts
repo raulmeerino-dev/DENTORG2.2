@@ -125,7 +125,7 @@ export type OdontogramProps = {
   title?: string;
   subtitle?: string;
   patientName?: string;
-  demoDate?: string;
+  contextDate?: string;
   totalBudget?: number;
   selected?: ToothSelection;
   readOnly?: boolean;

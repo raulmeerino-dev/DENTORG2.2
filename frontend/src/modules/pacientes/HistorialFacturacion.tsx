@@ -123,6 +123,7 @@ export function DentCoreHistoryBillingPanel({
   onContextFactura,
   onCrearReceta,
   onOpenActivity,
+  canManageBilling = true,
 }: {
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
@@ -136,6 +137,7 @@ export function DentCoreHistoryBillingPanel({
   onContextFactura: (event: MouseEvent, factura: Factura) => void;
   onCrearReceta?: () => void;
   onOpenActivity?: () => void;
+  canManageBilling?: boolean;
 }) {
   const rows = useMemo(() => buildHistoryBillingRows(historial, facturas), [historial, facturas]);
   const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow | null } | null>(null);
@@ -215,32 +217,37 @@ export function DentCoreHistoryBillingPanel({
             {paciente ? `${paciente.apellidos}, ${paciente.nombre} - H ${paciente.num_historial}` : 'Paciente sin seleccionar'}
             {' - '}
             {rows.length} realizado{rows.length === 1 ? '' : 's'}
-            {' - '}
-            saldo {money(totals.pendiente)}
+            {canManageBilling && (
+              <> - saldo {money(totals.pendiente)}</>
+            )}
           </span>
         </div>
         <div className="history-toolbar-actions" ref={historyToolbarRef}>
-          <button onClick={() => {
-            setHistoryActionsOpen(false);
-            setInvoiceMenuOpen(false);
-            if (firstPendingFactura) {
-              onCobrarImporte(firstPendingFactura);
-            } else {
-              onCobrar();
-            }
-          }}>Cobrar</button>
-          <span className="invoice-split-button">
-            <button onClick={() => {
-              setHistoryActionsOpen(false);
-              setInvoiceMenuOpen((open) => !open);
-            }}>Facturas</button>
-            {invoiceMenuOpen && (
-              <span className="invoice-action-popover">
-                <button onClick={() => { onHistorialFacturas(); setInvoiceMenuOpen(false); }}>Historial de facturas</button>
-                <button onClick={() => { onFacturar(); setInvoiceMenuOpen(false); }}>Generar factura</button>
+          {canManageBilling && (
+            <>
+              <button onClick={() => {
+                setHistoryActionsOpen(false);
+                setInvoiceMenuOpen(false);
+                if (firstPendingFactura) {
+                  onCobrarImporte(firstPendingFactura);
+                } else {
+                  onCobrar();
+                }
+              }}>Cobrar</button>
+              <span className="invoice-split-button">
+                <button onClick={() => {
+                  setHistoryActionsOpen(false);
+                  setInvoiceMenuOpen((open) => !open);
+                }}>Facturas</button>
+                {invoiceMenuOpen && (
+                  <span className="invoice-action-popover">
+                    <button onClick={() => { onHistorialFacturas(); setInvoiceMenuOpen(false); }}>Historial de facturas</button>
+                    <button onClick={() => { onFacturar(); setInvoiceMenuOpen(false); }}>Generar factura</button>
+                  </span>
+                )}
               </span>
-            )}
-          </span>
+            </>
+          )}
           <span className="invoice-split-button history-more-button">
             <button
               type="button"
@@ -256,16 +263,18 @@ export function DentCoreHistoryBillingPanel({
             </button>
             {historyActionsOpen && (
               <span className="invoice-action-popover history-actions-popover" role="menu" aria-label="Mas acciones de historial">
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setHistoryActionsOpen(false);
-                    if (selectedFactura) abrirFacturaPdf(selectedFactura);
-                  }}
-                  disabled={!selectedFactura}
-                >
-                  Imprimir
-                </button>
+                {canManageBilling && (
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setHistoryActionsOpen(false);
+                      if (selectedFactura) abrirFacturaPdf(selectedFactura);
+                    }}
+                    disabled={!selectedFactura}
+                  >
+                    Imprimir
+                  </button>
+                )}
                 <button
                   role="menuitem"
                   onClick={() => {
@@ -282,7 +291,9 @@ export function DentCoreHistoryBillingPanel({
                 >
                   Receta
                 </button>
-                <button role="menuitem" onClick={() => { setHistoryActionsOpen(false); onRecibos(); }}>Recibos</button>
+                {canManageBilling && (
+                  <button role="menuitem" onClick={() => { setHistoryActionsOpen(false); onRecibos(); }}>Recibos</button>
+                )}
                 {onOpenActivity && (
                   <button role="menuitem" onClick={() => { setHistoryActionsOpen(false); onOpenActivity(); }}>Actividad completa</button>
                 )}
@@ -292,7 +303,11 @@ export function DentCoreHistoryBillingPanel({
         </div>
       </div>
 
-      <div className="history-ledger-scroll" aria-label="Historial de tratamientos con desplazamiento" onContextMenu={openBlankHistoryMenu}>
+      <div
+        className="history-ledger-scroll"
+        aria-label="Historial de tratamientos con desplazamiento"
+        onContextMenu={canManageBilling ? openBlankHistoryMenu : undefined}
+      >
         <table className="dentcore-table history-ledger-table">
           <thead>
             <tr>
@@ -301,11 +316,15 @@ export function DentCoreHistoryBillingPanel({
               <th>Tratamiento</th>
               <th>Pieza</th>
               <th>Doctor</th>
-              <th>Factura</th>
-              <th>Recibo/Cobro</th>
-              <th>Importe</th>
-              <th>Cobrado</th>
-              <th>Saldo</th>
+              {canManageBilling && (
+                <>
+                  <th>Factura</th>
+                  <th>Recibo/Cobro</th>
+                  <th>Importe</th>
+                  <th>Cobrado</th>
+                  <th>Saldo</th>
+                </>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -315,11 +334,11 @@ export function DentCoreHistoryBillingPanel({
                 className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}treatment-coded-row`}
                 style={{ '--treatment-color': colorForTreatment(row.treatment) } as CSSProperties}
                 onClick={() => setSelectedId(row.id)}
-                onContextMenu={(event) => {
+                onContextMenu={canManageBilling ? (event) => {
                   event.preventDefault();
                   setSelectedId(row.id);
                   setHistoryMenu({ x: event.clientX, y: event.clientY, row });
-                }}
+                } : undefined}
               >
                 <td data-label="Fecha">{formatDate(row.date)}</td>
                 <td data-label="Tipo"><TreatmentBadge tratamiento={row.treatment} /></td>
@@ -329,14 +348,18 @@ export function DentCoreHistoryBillingPanel({
                 </td>
                 <td data-label="Pieza">{row.pieza}</td>
                 <td data-label="Doctor">{row.doctor}</td>
-                <td data-label="Factura">{row.factura}</td>
-                <td data-label="Recibo/Cobro">{row.recibo}</td>
-                <td data-label="Importe" className="num">{row.importe ? money(row.importe) : '0,00'}</td>
-                <td data-label="Cobrado" className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para anadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
-                <td data-label="Saldo" className="num">{money(row.saldo)}</td>
+                {canManageBilling && (
+                  <>
+                    <td data-label="Factura">{row.factura}</td>
+                    <td data-label="Recibo/Cobro">{row.recibo}</td>
+                    <td data-label="Importe" className="num">{row.importe ? money(row.importe) : '0,00'}</td>
+                    <td data-label="Cobrado" className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para anadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
+                    <td data-label="Saldo" className="num">{money(row.saldo)}</td>
+                  </>
+                )}
               </tr>
             ))}
-            {!rows.length && <tr><td colSpan={10}>Sin tratamientos realizados en el historial.</td></tr>}
+            {!rows.length && <tr><td colSpan={canManageBilling ? 10 : 5}>Sin tratamientos realizados en el historial.</td></tr>}
           </tbody>
         </table>
         <div className="history-ledger-mobile-list" role="list" aria-label="Historial de tratamientos en tarjetas">
@@ -348,23 +371,25 @@ export function DentCoreHistoryBillingPanel({
               role="listitem"
               aria-selected={selectedRow?.id === row.id}
               onClick={() => setSelectedId(row.id)}
-              onContextMenu={(event) => {
+              onContextMenu={canManageBilling ? (event) => {
                 event.preventDefault();
                 setSelectedId(row.id);
                 setHistoryMenu({ x: event.clientX, y: event.clientY, row });
-              }}
+              } : undefined}
             >
               <header>
                 <time dateTime={row.date}>{formatDate(row.date)}</time>
                 <TreatmentBadge tratamiento={row.treatment} />
-                <button
-                  type="button"
-                  className="history-card-menu-button"
-                  aria-label="Mas acciones del tratamiento"
-                  onClick={(event) => openRowMenuFromButton(event, row)}
-                >
-                  ...
-                </button>
+                {canManageBilling && (
+                  <button
+                    type="button"
+                    className="history-card-menu-button"
+                    aria-label="Mas acciones del tratamiento"
+                    onClick={(event) => openRowMenuFromButton(event, row)}
+                  >
+                    ...
+                  </button>
+                )}
               </header>
               <strong className="history-card-treatment">{row.tratamiento}</strong>
               <div className="history-card-meta">
@@ -372,24 +397,28 @@ export function DentCoreHistoryBillingPanel({
                 {row.pieza && <span>Pieza {row.pieza}</span>}
                 {row.doctor && <span>{row.doctor}</span>}
               </div>
-              <dl className="history-card-money">
-                <div>
-                  <dt>Importe</dt>
-                  <dd>{row.importe ? money(row.importe) : '0,00'}</dd>
-                </div>
-                <div>
-                  <dt>Cobrado</dt>
-                  <dd>{row.cobrado ? money(row.cobrado) : '0,00'}</dd>
-                </div>
-                <div>
-                  <dt>Saldo</dt>
-                  <dd className={row.saldo > 0 ? 'is-pending' : ''}>{money(row.saldo)}</dd>
-                </div>
-              </dl>
-              <footer>
-                <span>Factura {row.factura}</span>
-                <span>Cobro {row.recibo}</span>
-              </footer>
+              {canManageBilling && (
+                <>
+                  <dl className="history-card-money">
+                    <div>
+                      <dt>Importe</dt>
+                      <dd>{row.importe ? money(row.importe) : '0,00'}</dd>
+                    </div>
+                    <div>
+                      <dt>Cobrado</dt>
+                      <dd>{row.cobrado ? money(row.cobrado) : '0,00'}</dd>
+                    </div>
+                    <div>
+                      <dt>Saldo</dt>
+                      <dd className={row.saldo > 0 ? 'is-pending' : ''}>{money(row.saldo)}</dd>
+                    </div>
+                  </dl>
+                  <footer>
+                    <span>Factura {row.factura}</span>
+                    <span>Cobro {row.recibo}</span>
+                  </footer>
+                </>
+              )}
             </article>
           ))}
           {!rows.length && <div className="history-ledger-empty-card">Sin tratamientos realizados en el historial.</div>}
@@ -403,7 +432,7 @@ export function DentCoreHistoryBillingPanel({
           value={selectedRow?.comentario || 'Sin observaciones especificas para el tratamiento seleccionado.'}
         />
       </label>
-      {historyMenu && (
+      {canManageBilling && historyMenu && (
         <div className="context-menu patient-context-menu history-row-context-menu" style={{ left: historyMenu.x, top: historyMenu.y }}>
           <strong>Historial / facturacion</strong>
           <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Anadir pago / anticipo</button>

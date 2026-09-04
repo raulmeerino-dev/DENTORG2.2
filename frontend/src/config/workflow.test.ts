@@ -32,10 +32,10 @@ describe('workflow permissions', () => {
       .filter((item) => canAccess(role, item))
       .map((item) => item.label);
 
-    expect(labelsFor('recepcion')).toEqual(['Hoy', 'Agenda', 'Pacientes', 'Reportes/Listados']);
+    expect(labelsFor('recepcion')).toEqual(['Hoy', 'Agenda', 'Pacientes', 'Caja', 'Reportes/Listados']);
     expect(labelsFor('doctor')).toEqual(['Hoy', 'Agenda', 'Pacientes']);
     expect(labelsFor('auxiliar')).toEqual(['Hoy', 'Agenda', 'Pacientes']);
-    expect(labelsFor('admin')).toEqual(['Hoy', 'Agenda', 'Pacientes', 'Reportes/Listados', 'Administracion']);
+    expect(labelsFor('admin')).toEqual(['Hoy', 'Agenda', 'Pacientes', 'Caja', 'Reportes/Listados', 'Administración']);
     expect(labelsFor('paciente')).toEqual(['Portal paciente']);
 
     const whatsapp = WORKFLOW_ITEMS.find((item) => item.id === 'whatsapp');
@@ -45,7 +45,7 @@ describe('workflow permissions', () => {
     expect(caja?.label).toBe('Caja');
     expect(caja?.route).toBe('/caja');
     expect(GLOBAL_LAUNCHER_IDS).not.toContain('whatsapp');
-    expect(GLOBAL_LAUNCHER_IDS).not.toContain('caja');
+    expect(GLOBAL_LAUNCHER_IDS).toContain('caja');
     expect(WORKFLOW_ITEMS.find((item) => item.id === 'dashboard')).toBeUndefined();
   });
 });

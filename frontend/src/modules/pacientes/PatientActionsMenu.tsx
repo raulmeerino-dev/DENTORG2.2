@@ -72,10 +72,12 @@ function getMenuPosition(anchor: HTMLElement): MenuPosition {
 export function PatientActionsMenu({
   paciente,
   busy,
+  canManageBilling = true,
   handlers,
 }: {
   paciente: ApiPaciente | null;
   busy?: boolean;
+  canManageBilling?: boolean;
   handlers: PatientActionsHandlers;
 }) {
   const [open, setOpen] = useState(false);
@@ -237,10 +239,12 @@ export function PatientActionsMenu({
           <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />
           <span>Nueva cita</span>
         </button>
-        <button type="button" onClick={handlers.onCobrar} disabled={noPatient}>
-          <CreditCard size={14} strokeWidth={2} aria-hidden="true" />
-          <span>Cobrar</span>
-        </button>
+        {canManageBilling && (
+          <button type="button" onClick={handlers.onCobrar} disabled={noPatient}>
+            <CreditCard size={14} strokeWidth={2} aria-hidden="true" />
+            <span>Cobrar</span>
+          </button>
+        )}
         <button
           ref={moreButtonRef}
           type="button"

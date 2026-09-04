@@ -87,7 +87,7 @@ export default function CajaPage() {
 
   const facturasQuery = useQuery({ queryKey: ['caja-facturas'], queryFn: () => getFacturas() });
   const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
-  const kpisQuery = useQuery({ queryKey: ['caja-kpis'], queryFn: getReportKpis });
+  const kpisQuery = useQuery({ queryKey: ['caja-kpis'], queryFn: () => getReportKpis() });
   const ingresosQuery = useQuery({
     queryKey: ['caja-ingresos', mesDesde, today],
     queryFn: () => getIngresosReporte(mesDesde, today),

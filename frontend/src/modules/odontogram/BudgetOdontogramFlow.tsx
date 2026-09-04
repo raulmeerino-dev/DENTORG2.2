@@ -78,7 +78,7 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, user
           contextId={presupuesto.id}
           data={visualData}
           title="Odontograma del presupuesto"
-          subtitle="Seleccione pieza/superficie y doble clic para anadir tratamiento propuesto. No modifica el odontograma actual."
+          subtitle="Seleccione pieza/superficie y doble clic para añadir tratamiento propuesto. No modifica el odontograma actual."
           totalBudget={totalBudget}
           readOnly={addTreatmentMutation.isPending}
           enableQuickTreatments
@@ -88,12 +88,12 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, user
         />
       ) : (
         <div className="budget-clinical-restricted" role="note">
-          <strong>Odontograma reservado a clinica</strong>
-          <span>Recepcion puede gestionar el presupuesto desde las lineas y acciones superiores.</span>
+          <strong>Odontograma reservado a clínica</strong>
+          <span>Recepción puede gestionar el presupuesto desde las líneas y acciones superiores.</span>
         </div>
       )}
-      {addTreatmentMutation.isPending && <div className="odontogram-flow-status">Anadiendo linea...</div>}
-      {addTreatmentMutation.isError && <div className="odontogram-flow-status error">No se pudo crear la linea.</div>}
+      {addTreatmentMutation.isPending && <div className="odontogram-flow-status">Añadiendo línea...</div>}
+      {addTreatmentMutation.isError && <div className="odontogram-flow-status error">No se pudo crear la línea.</div>}
       {duplicateNotice && <div className="odontogram-flow-status">{duplicateNotice}</div>}
     </section>
   );

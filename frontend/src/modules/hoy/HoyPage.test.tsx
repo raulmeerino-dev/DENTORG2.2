@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -38,7 +38,7 @@ vi.mock('../../lib/api', () => ({
   getCitas: vi.fn(async () => [mocks.cambio, mocks.enClinica]),
   getReportDashboard: vi.fn(async () => ({
     alertas: {
-      citas_sin_confirmar: 0,
+      citas_sin_confirmar: 9,
       pacientes_en_clinica: 1,
       faltas_periodo: 0,
       deuda_pendiente: 120,
@@ -82,5 +82,24 @@ describe('HoyPage flujo operativo', () => {
       expect(sessionStorage.getItem('dentcore_agenda_focus_cita_id')).toBe('cita-cambio');
       expect(sessionStorage.getItem('dentcore_agenda_focus_date')).toBe('2026-06-17');
     });
+  });
+
+  it('prioriza la jornada real y conserva el acceso directo a nueva cita', async () => {
+    const user = userEvent.setup();
+    renderHoy();
+
+    const commandCenter = await screen.findByLabelText(/Prioridades de hoy/i);
+    const dailySummary = within(commandCenter).getByLabelText(/Resumen operativo de hoy/i);
+
+    await waitFor(() => {
+      expect(commandCenter).toHaveTextContent('09:30 · Portal, Paula');
+      expect(within(dailySummary).getByText('Sin confirmar').closest('button')).toHaveTextContent('0');
+      expect(within(dailySummary).getByText('En clínica').closest('button')).toHaveTextContent('1');
+      expect(within(dailySummary).getByText('Cambios').closest('button')).toHaveTextContent('1');
+    });
+    expect(screen.queryByText(/^Alertas$/i)).not.toBeInTheDocument();
+
+    await user.click(within(commandCenter).getByRole('link', { name: /^Nueva cita$/i }));
+    expect(sessionStorage.getItem('dentcore_agenda_action')).toBe('new');
   });
 });

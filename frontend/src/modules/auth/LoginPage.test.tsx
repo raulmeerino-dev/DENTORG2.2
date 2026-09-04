@@ -23,7 +23,7 @@ describe('LoginPage', () => {
     render(<MemoryRouter><LoginPage /></MemoryRouter>);
 
     const submit = screen.getByRole('button', { name: /entrar/i });
-    expect(screen.getByRole('heading', { name: /acceso/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /entrar en la clínica/i })).toBeInTheDocument();
     expect(submit).toBeDisabled();
 
     await userEvent.type(screen.getByLabelText(/usuario/i), 'admin');

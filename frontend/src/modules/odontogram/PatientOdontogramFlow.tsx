@@ -93,7 +93,7 @@ export function PatientOdontogramFlow({
       <section className="desk-panel odontogram-flow-panel">
         <div className="panel-caption">
           <strong>Odontograma</strong>
-          <span>Seleccione un paciente para ver el mapa clinico.</span>
+          <span>Seleccione un paciente para ver el mapa clínico.</span>
         </div>
       </section>
     );
@@ -106,8 +106,7 @@ export function PatientOdontogramFlow({
         paciente={paciente}
         data={usesDirectBaseData ? visualData : undefined}
         title={title}
-        subtitle={subtitle ?? `Historia ${paciente.num_historial} - odontograma clinico compartido`}
-        totalBudget={0}
+        subtitle={subtitle ?? `Historia ${paciente.num_historial} - odontograma clínico compartido`}
         readOnly={effectiveReadOnly || updateMutation.isPending}
         enableQuickTreatments={effectiveQuickTreatments && !effectiveReadOnly}
         userRole={userRole}

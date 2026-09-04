@@ -87,7 +87,7 @@ export function PatientOdontogramSummary({
         </h3>
         <div className="patient-card-head-right">
           <span>{teethWithClinicalData} piezas con datos</span>
-          <button type="button" onClick={onOpenDetail} aria-label="Ver detalle en Clinica">Detalle</button>
+          <button type="button" onClick={onOpenDetail} aria-label="Ver detalle en Tratamientos">Detalle</button>
         </div>
       </div>
       <div className="mini-odontogram" data-testid="mini-odontogram" role="img" aria-label="Mini odontograma resumen">

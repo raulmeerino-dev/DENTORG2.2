@@ -47,9 +47,9 @@ describe('MainNav', () => {
     expect(screen.getByRole('menuitem', { name: /Agenda/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Pacientes/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Reportes\/Listados/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Administracion/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Administración/i })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /^WhatsApp\b/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /^Caja\b/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^Caja/i })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /Portal paciente/i })).not.toBeInTheDocument();
   });
 
@@ -66,8 +66,8 @@ describe('MainNav', () => {
     expect(screen.getByRole('menuitem', { name: /Pacientes/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Reportes\/Listados/i })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /^WhatsApp\b/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /^Caja\b/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /Administracion/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^Caja/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Administración/i })).not.toBeInTheDocument();
   });
 
   it('shows only the patient portal for patient users', async () => {

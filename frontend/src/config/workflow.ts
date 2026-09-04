@@ -28,6 +28,7 @@ export const GLOBAL_LAUNCHER_IDS: AppSection[] = [
   'hoy',
   'agenda',
   'pacientes',
+  'caja',
   'listados',
   'adminExtras',
   'portalPaciente',
@@ -36,7 +37,7 @@ export const GLOBAL_LAUNCHER_IDS: AppSection[] = [
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Administrador',
   doctor: 'Doctor',
-  recepcion: 'Recepcion',
+  recepcion: 'Recepción',
   auxiliar: 'Auxiliar',
   paciente: 'Paciente',
 };
@@ -45,7 +46,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   {
     id: 'hoy',
     label: 'Hoy',
-    description: 'Centro operativo diario: citas, llamadas, cobros pendientes y acciones rapidas.',
+    description: 'Centro operativo diario: citas, llamadas, cobros pendientes y acciones rápidas.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/hoy',
     shortcut: 'HO',
@@ -53,7 +54,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   {
     id: 'agenda',
     label: 'Agenda',
-    description: 'Citas, huecos, llamadas, estados y ocupacion.',
+    description: 'Citas, huecos, llamadas, estados y ocupación.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
     route: '/agenda',
     shortcut: 'AG',
@@ -85,15 +86,15 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   {
     id: 'listados',
     label: 'Reportes/Listados',
-    description: 'Reportes, listados operativos y control economico de la clinica.',
+    description: 'Reportes, listados operativos y control económico de la clínica.',
     roles: ['admin', 'recepcion'],
     route: '/listados',
     shortcut: 'RE',
   },
   {
     id: 'adminExtras',
-    label: 'Administracion',
-    description: 'Clinicas, usuarios, inventario, catalogos, auditoria, seguridad y backups.',
+    label: 'Administración',
+    description: 'Clínicas, usuarios, inventario, catálogos, auditoría, seguridad y backups.',
     roles: ['admin'],
     route: '/admin-extras',
     shortcut: 'AD',
@@ -108,14 +109,14 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   },
   {
     id: 'clinica',
-    label: 'Clinica',
-    description: 'Historial, odontograma, tratamientos realizados y planificacion.',
+    label: 'Clínica',
+    description: 'Historial, odontograma, tratamientos realizados y planificación.',
     roles: ['admin', 'doctor', 'auxiliar'],
   },
   {
     id: 'documentos',
     label: 'Documentos',
-    description: 'Consentimientos, imagenes, adjuntos clinicos y PDFs emitidos.',
+    description: 'Consentimientos, imágenes, adjuntos clínicos y PDFs emitidos.',
     roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
   },
   {
@@ -127,7 +128,7 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   {
     id: 'seguridad',
     label: 'Usuarios y roles',
-    description: 'Usuarios, permisos, sesiones, auditoria y privacidad.',
+    description: 'Usuarios, permisos, sesiones, auditoría y privacidad.',
     roles: ['admin'],
   },
 ];

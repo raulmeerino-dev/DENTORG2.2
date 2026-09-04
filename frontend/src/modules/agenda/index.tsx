@@ -2,6 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, FormEvent, MouseEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  CalendarPlus,
+  CalendarSearch,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Gauge,
+  Home,
+  Printer,
+  RefreshCw,
+  Search,
+  UsersRound,
+} from 'lucide-react';
 import { buscarHuecosLibres, cancelarCitaAvanzada, confirmarCita, createCita, createPaciente, enviarRecordatorioCita, getCitas, getDoctores, getHorarios, getPacientes, getTelefonear, getWhatsAppComunicaciones, marcarFaltaCita, marcarTelefonearReubicada, updateCita } from '../../lib/api';
 import type { ApiPaciente, Cita, Doctor, HorarioDoctor, HuecoLibre, TelefonearPendiente, WhatsAppInboxItem } from '../../types/api';
 import { AGENDA_STATUS_LEGEND, QUICK_APPOINTMENT_STATES, STATUS_META, getVisualStatus, quickAppointmentStateKey, setTreatmentMarker } from './appointmentStatus';
@@ -355,10 +368,9 @@ function AgendaToolbar({
   citasCount,
   pendingCount,
   clinicCount,
-  labOnly,
   onDayChange,
   onDoctorChange,
-  onToggleLabOnly,
+  onCreateCita,
   onRefresh,
   onSearchCita,
   onSearchSlot,
@@ -371,10 +383,9 @@ function AgendaToolbar({
   citasCount: number;
   pendingCount: number;
   clinicCount: number;
-  labOnly: boolean;
   onDayChange: (day: string) => void;
   onDoctorChange: (doctorId: string) => void;
-  onToggleLabOnly: () => void;
+  onCreateCita: () => void;
   onRefresh: () => void;
   onSearchCita: () => void;
   onSearchSlot: () => void;
@@ -384,10 +395,19 @@ function AgendaToolbar({
 
   return (
     <div className="agenda-compact-toolbar" aria-label="Filtros y acciones de agenda" onClick={(event) => event.stopPropagation()}>
-      <label>
+      <div className="agenda-date-field">
         <span>Fecha</span>
-        <input type="date" value={day} onChange={(event) => onDayChange(event.target.value)} />
-      </label>
+        <div className="agenda-date-control">
+          <button type="button" aria-label="Día anterior" title="Día anterior" onClick={() => onDayChange(addDaysIso(day, -1))}>
+            <ChevronLeft size={17} aria-hidden="true" />
+          </button>
+          <input aria-label="Fecha" type="date" value={day} onChange={(event) => onDayChange(event.target.value)} />
+          <button type="button" aria-label="Día siguiente" title="Día siguiente" onClick={() => onDayChange(addDaysIso(day, 1))}>
+            <ChevronRight size={17} aria-hidden="true" />
+          </button>
+          <button type="button" className="agenda-today-button" onClick={() => onDayChange(todayIso())}>Hoy</button>
+        </div>
+      </div>
       <label className="agenda-toolbar-doctor">
         <span>Doctor</span>
         <select value={doctorId} onChange={(event) => onDoctorChange(event.target.value)}>
@@ -397,22 +417,35 @@ function AgendaToolbar({
           ))}
         </select>
       </label>
-      <label>
-        <span>Vista</span>
-        <select value="dia" onChange={() => undefined}>
-          <option value="dia">Día</option>
-        </select>
-      </label>
       <div className="agenda-toolbar-status" title={horarioLabel}>
         <b>{statusTitle}</b>
         <span>{citasCount} citas · {pendingCount} confirmar · {clinicCount} en clínica</span>
       </div>
       <div className="agenda-toolbar-actions">
-        <button type="button" className={labOnly ? 'active' : ''} onClick={onToggleLabOnly}>Citas con laboratorio</button>
-        <button type="button" onClick={onSearchCita}>Buscar citas</button>
-        <button type="button" onClick={onSearchSlot}>Buscar hueco</button>
-        <button type="button" onClick={onOpenHorario}>Horario</button>
-        <button type="button" onClick={onRefresh}>Refrescar</button>
+        <button
+          type="button"
+          className="agenda-toolbar-primary primary-action"
+          aria-label="Nueva cita"
+          onClick={onCreateCita}
+        >
+          <CalendarPlus size={15} strokeWidth={2.2} aria-hidden="true" />
+          <span>Crear cita</span>
+        </button>
+        <button type="button" onClick={onSearchCita}>
+          <Search size={15} aria-hidden="true" />
+          <span>Buscar cita</span>
+        </button>
+        <button type="button" onClick={onSearchSlot}>
+          <CalendarSearch size={15} aria-hidden="true" />
+          <span>Buscar hueco</span>
+        </button>
+        <button type="button" onClick={onOpenHorario}>
+          <Clock3 size={15} aria-hidden="true" />
+          <span>Horario</span>
+        </button>
+        <button type="button" className="agenda-toolbar-icon-button" aria-label="Actualizar agenda" title="Actualizar agenda" onClick={onRefresh}>
+          <RefreshCw size={15} aria-hidden="true" />
+        </button>
       </div>
     </div>
   );
@@ -1223,11 +1256,11 @@ export default function AgendaPage() {
 
   useEffect(() => {
     if (sessionStorage.getItem('dentcore_agenda_action') !== 'new') return;
-    if (!doctores.length || !slots.length || slotDraft || modalCita) return;
+    if (!doctores.length || slotDraft || modalCita) return;
     const selectedPacienteId = sessionStorage.getItem('dentcore_selected_patient_id') ?? undefined;
-    const preferredSlot = slots.find((slot) => minutesFromTime(slot) >= 9 * 60) ?? slots[0];
-    sessionStorage.removeItem('dentcore_agenda_action');
+    const preferredSlot = slots.find((slot) => minutesFromTime(slot) >= 9 * 60) ?? slots[0] ?? '09:00';
     const timeout = window.setTimeout(() => {
+      sessionStorage.removeItem('dentcore_agenda_action');
       openNew(preferredSlot, selectedPacienteId, day, doctorForSlot(preferredSlot, day));
     }, 0);
     return () => window.clearTimeout(timeout);
@@ -1360,10 +1393,12 @@ export default function AgendaPage() {
         citasCount={citasActivas.length}
         pendingCount={pendientesConfirmar.length}
         clinicCount={pacientesEnClinica.length}
-        labOnly={labOnly}
         onDayChange={setDay}
         onDoctorChange={setDoctorId}
-        onToggleLabOnly={() => setLabOnly((value) => !value)}
+        onCreateCita={() => {
+          const preferredSlot = slots.find((slot) => minutesFromTime(slot) >= 9 * 60) ?? slots[0] ?? '09:00';
+          openNew(preferredSlot);
+        }}
         onRefresh={() => {
           void citasQuery.refetch();
           void horariosAgendaQuery.refetch();
@@ -1464,10 +1499,10 @@ export default function AgendaPage() {
           </div>
 
           <div className="agenda-button-grid">
-            <button onClick={() => window.print()}>Imprimir</button>
-            <button onClick={verOcupacion}>Ocupacion</button>
-            <button onClick={() => { setDoctorId(''); void citasQuery.refetch(); }}>Ver Todo</button>
-            <button onClick={() => navigate('/dashboard')}>Salir</button>
+            <button onClick={() => window.print()}><Printer size={14} aria-hidden="true" />Imprimir</button>
+            <button onClick={verOcupacion}><Gauge size={14} aria-hidden="true" />Ocupación</button>
+            <button onClick={() => { setDoctorId(''); void citasQuery.refetch(); }}><UsersRound size={14} aria-hidden="true" />Todas</button>
+            <button onClick={() => navigate('/hoy')}><Home size={14} aria-hidden="true" />Hoy</button>
           </div>
           {showSearchBar && (
             <form className="agenda-search-bar" onSubmit={(e) => { e.preventDefault(); ejecutarBusqueda(searchQuery); }}>

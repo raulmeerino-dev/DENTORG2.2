@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, HistorialClinico, NotaDental, NotaDentalCreateInput, Presupuesto, RecetaClinica, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, TrabajoLaboratorio, TratamientoCatalogo } from '../../types/api';
+import type { ApiPaciente, Cita, Consentimiento, DocumentoPaciente, HistorialClinico, NotaDental, NotaDentalCreateInput, Presupuesto, RecetaClinica, SesionClinicaItem, SesionClinicaItemCreateInput, SesionClinicaItemUpdateInput, TrabajoLaboratorio, TrabajoPendiente, TratamientoCatalogo } from '../../types/api';
 import { ClinicalWorkspace } from './ClinicalWorkspace';
 
 vi.mock('../odontogram', () => ({
@@ -60,6 +60,19 @@ const presupuesto: Presupuesto = {
   }],
 };
 
+const trabajoPendiente: TrabajoPendiente = {
+  id: 'tp-1',
+  paciente_id: paciente.id,
+  presupuesto_linea_id: presupuesto.lineas[0].id,
+  presupuesto_linea: presupuesto.lineas[0],
+  tratamiento_id: tratamiento.id,
+  tratamiento: presupuesto.lineas[0].tratamiento,
+  pieza_dental: 16,
+  caras: 'MOD',
+  realizado: false,
+  historial_id: null,
+};
+
 function buildSesionItem(overrides: Partial<SesionClinicaItem> = {}): SesionClinicaItem {
   return {
     id: 'sesion-1',
@@ -85,6 +98,9 @@ function buildSesionItem(overrides: Partial<SesionClinicaItem> = {}): SesionClin
 
 type RenderClinicalOptions = {
   initialSesionItems?: SesionClinicaItem[];
+  presupuestos?: Presupuesto[];
+  trabajosPendientes?: TrabajoPendiente[];
+  onOpenPresupuestos?: () => void;
   onCreateSesionItem?: (input: SesionClinicaItemCreateInput) => Promise<SesionClinicaItem>;
   onUpdateSesionItem?: (itemId: string, cambios: SesionClinicaItemUpdateInput) => Promise<SesionClinicaItem>;
   onDeleteSesionItem?: (itemId: string) => Promise<unknown>;
@@ -145,6 +161,7 @@ function renderClinical(
     estado: cambios.estado ?? 'planificado',
   }));
   const onDeleteSesionItem = options.onDeleteSesionItem ?? vi.fn(async () => undefined);
+  const onOpenPresupuestos = options.onOpenPresupuestos ?? vi.fn();
   render(
     <ClinicalWorkspace
       activeTab="sesion"
@@ -152,7 +169,10 @@ function renderClinical(
       paciente={paciente}
       citas={[]}
       historial={[]}
-      presupuestos={[presupuesto]}
+      presupuestos={options.presupuestos ?? [presupuesto]}
+      trabajosPendientes={options.trabajosPendientes ?? [trabajoPendiente]}
+      trabajosPendientesLoading={false}
+      trabajosPendientesError={null}
       documentos={[]}
       consentimientos={[]}
       recetas={[]}
@@ -170,7 +190,7 @@ function renderClinical(
       onCrearReceta={vi.fn()}
       onOpenConsentimiento={vi.fn()}
       onOpenDocumentos={vi.fn()}
-      onOpenPresupuestos={vi.fn()}
+      onOpenPresupuestos={onOpenPresupuestos}
       onOpenHistorial={vi.fn()}
       onFinalizarTratamientoSesion={onFinalizar}
       onCreateNotaDental={onCreateNotaDental}
@@ -183,7 +203,7 @@ function renderClinical(
       userRole="admin"
     />,
   );
-  return { onFinalizar, onCreateNotaDental, onCreateSesionItem, onUpdateSesionItem, onDeleteSesionItem };
+  return { onFinalizar, onCreateNotaDental, onCreateSesionItem, onUpdateSesionItem, onDeleteSesionItem, onOpenPresupuestos };
 }
 
 const visitaCita: Cita = {
@@ -238,6 +258,9 @@ function renderVisits(overrides: Partial<{
       citas={overrides.citas ?? []}
       historial={overrides.historial ?? []}
       presupuestos={[]}
+      trabajosPendientes={[]}
+      trabajosPendientesLoading={false}
+      trabajosPendientesError={null}
       documentos={overrides.documentos ?? []}
       consentimientos={overrides.consentimientos ?? []}
       recetas={overrides.recetas ?? []}
@@ -272,6 +295,32 @@ function renderVisits(overrides: Partial<{
 }
 
 describe('ClinicalWorkspace sesion actual', () => {
+  it('explica y abre el paso de presupuesto cuando el trabajo aceptado aun no esta preparado', async () => {
+    const user = userEvent.setup();
+    const legacyBudget: Presupuesto = {
+      ...presupuesto,
+      lineas: [{ ...presupuesto.lineas[0], pasado_trabajo_pendiente: false }],
+    };
+    const { onOpenPresupuestos } = renderClinical(undefined, undefined, {
+      presupuestos: [legacyBudget],
+      trabajosPendientes: [],
+    });
+
+    expect(screen.getByText('1 tratamiento aceptado por preparar')).toBeInTheDocument();
+    expect(screen.queryByText(/Selecciona o añade un tratamiento/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Preparar desde presupuesto/i }));
+    expect(onOpenPresupuestos).toHaveBeenCalledTimes(1);
+  });
+
+  it('abre el catalogo desde el estado vacio cuando no existe trabajo aceptado', async () => {
+    const user = userEvent.setup();
+    renderClinical(undefined, undefined, { presupuestos: [], trabajosPendientes: [] });
+
+    expect(screen.getByText('Sesión sin tratamientos')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Añadir tratamiento/i }));
+    expect(screen.getByPlaceholderText('Buscar tratamiento en catálogo')).toBeInTheDocument();
+  });
+
   it('muestra solo las secciones clinicas principales sin Notas / docs', () => {
     renderClinical();
 

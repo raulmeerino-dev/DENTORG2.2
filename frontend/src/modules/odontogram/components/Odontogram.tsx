@@ -44,8 +44,8 @@ export function Odontogram({
   title,
   subtitle = 'Mapa clinico del paciente',
   patientName = 'Paciente',
-  demoDate = '08/05/2026',
-  totalBudget = 1340,
+  contextDate,
+  totalBudget,
   selected,
   readOnly,
   showDemoHeader = false,
@@ -297,7 +297,7 @@ export function Odontogram({
 
   return (
     <main className="od-page">
-      {showDemoHeader ? <OdontogramHeader patientName={patientName} mode={mode} demoDate={demoDate} totalBudget={totalBudget} /> : null}
+      {showDemoHeader ? <OdontogramHeader patientName={patientName} mode={mode} contextDate={contextDate} totalBudget={totalBudget} /> : null}
 
       <section className="od-shell" aria-label="Odontograma interactivo">
         <div className="od-workspace-card">
@@ -309,13 +309,17 @@ export function Odontogram({
             </div>
             <div className="od-clinical-context" aria-label="Contexto del odontograma">
               <span>{patientName}</span>
-              <span>{demoDate}</span>
-              <strong>{formatCurrency(totalBudget)}</strong>
+              {contextDate && <span>{contextDate}</span>}
+              {totalBudget !== undefined && <strong>{formatCurrency(totalBudget)}</strong>}
             </div>
           </div>
 
           <div className="od-layout">
-            <div className="od-chart-area">
+            <div
+              className="od-chart-area"
+              tabIndex={0}
+              aria-label="Odontograma dental. Desplaza horizontalmente si no caben todas las piezas."
+            >
               <ToothArch
                 arch="upper"
                 teeth={teeth}

@@ -77,15 +77,25 @@ const { mocks } = vi.hoisted(() => {
     material_devuelto: false,
     laboratorio: { id: 'lab-1', nombre: 'Lab Dental X', contacto: 'Laura' },
   };
+  const horarios = Array.from({ length: 7 }, (_, dia) => ({
+    id: `hor-${dia}`,
+    doctor_id: doctor.id,
+    dia_semana: dia,
+    tipo_dia: 'laborable',
+    bloques: [{ inicio: '09:00', fin: '10:00' }],
+    intervalo_min: 30,
+  }));
   return {
     mocks: {
       paciente,
       doctor,
       cita,
       trabajoLab,
+      horarios,
       buscarHuecosLibres: vi.fn().mockResolvedValue([]),
       createCita: vi.fn(async () => cita),
       getCitas: vi.fn().mockResolvedValue([]),
+      getHorarios: vi.fn().mockResolvedValue(horarios),
       getWhatsAppComunicaciones: vi.fn().mockResolvedValue([]),
       updateCita: vi.fn(async (_id: string, patch: object) => ({ ...cita, ...patch })),
       marcarTelefonearReubicada: vi.fn(async () => ({
@@ -116,14 +126,7 @@ vi.mock('../../lib/api', () => ({
   enviarRecordatorioCita: vi.fn(),
   getCitas: mocks.getCitas,
   getDoctores: vi.fn().mockResolvedValue([mocks.doctor]),
-  getHorarios: vi.fn().mockResolvedValue(Array.from({ length: 7 }, (_, dia) => ({
-    id: `hor-${dia}`,
-    doctor_id: mocks.doctor.id,
-    dia_semana: dia,
-    tipo_dia: 'laborable',
-    bloques: [{ inicio: '09:00', fin: '10:00' }],
-    intervalo_min: 30,
-  }))),
+  getHorarios: mocks.getHorarios,
   getPacientes: vi.fn().mockResolvedValue([mocks.paciente]),
   getTelefonear: vi.fn().mockResolvedValue([{
     id: 'tel-1',
@@ -165,6 +168,8 @@ describe('AgendaPage flujos de cita', () => {
     mocks.createCita.mockClear();
     mocks.getCitas.mockReset();
     mocks.getCitas.mockResolvedValue([]);
+    mocks.getHorarios.mockReset();
+    mocks.getHorarios.mockResolvedValue(mocks.horarios);
     mocks.getWhatsAppComunicaciones.mockReset();
     mocks.getWhatsAppComunicaciones.mockResolvedValue([]);
     mocks.updateCita.mockClear();
@@ -183,6 +188,16 @@ describe('AgendaPage flujos de cita', () => {
     expect(await screen.findByText(/Buscar hueco libre/i)).toBeInTheDocument();
   });
 
+  it('abre el formulario existente desde la accion primaria de nueva cita', async () => {
+    const user = userEvent.setup();
+    renderAgenda();
+
+    await user.click(await screen.findByRole('button', { name: /^Nueva cita$/i }));
+
+    expect(await screen.findByText(/^Nueva cita$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Buscar paciente/i)).toBeInTheDocument();
+  });
+
   it('no duplica el filtro activo ni estados equivalentes en agenda', async () => {
     renderAgenda();
 
@@ -194,6 +209,27 @@ describe('AgendaPage flujos de cita', () => {
     expect(within(legend).getAllByText('Sin confirmar')).toHaveLength(1);
     expect(within(legend).getAllByText('Confirmada')).toHaveLength(1);
     expect(within(legend).getAllByText('Mensaje enviado')).toHaveLength(1);
+  });
+
+  it('permite recorrer dias y volver a hoy sin una vista redundante', async () => {
+    const user = userEvent.setup();
+    renderAgenda();
+
+    const toolbar = await screen.findByLabelText(/Filtros y acciones de agenda/i);
+    const dateInput = within(toolbar).getByLabelText(/^Fecha$/i);
+    const initialDay = (dateInput as HTMLInputElement).value;
+
+    expect(within(toolbar).queryByLabelText(/^Vista$/i)).not.toBeInTheDocument();
+
+    await user.click(within(toolbar).getByRole('button', { name: /^Día siguiente$/i }));
+    await waitFor(() => expect(dateInput).not.toHaveValue(initialDay));
+
+    await user.click(within(toolbar).getByRole('button', { name: /^Día anterior$/i }));
+    await waitFor(() => expect(dateInput).toHaveValue(initialDay));
+
+    await user.click(within(toolbar).getByRole('button', { name: /^Día siguiente$/i }));
+    await user.click(within(toolbar).getByRole('button', { name: /^Hoy$/i }));
+    await waitFor(() => expect(dateInput).toHaveValue(initialDay));
   });
 
   it('muestra laboratorio en la tarjeta y en el detalle rapido de cita', async () => {
@@ -242,8 +278,8 @@ describe('AgendaPage flujos de cita', () => {
     expect(await screen.findByText('Prueba corona')).toBeInTheDocument();
     expect(screen.getByText('Revision general')).toBeInTheDocument();
 
-    const toolbar = screen.getByLabelText(/Filtros y acciones de agenda/i);
-    await user.click(within(toolbar).getByRole('button', { name: /Citas con laboratorio/i }));
+    const labSummary = screen.getByLabelText(/Resumen laboratorio agenda/i);
+    await user.click(within(labSummary).getByRole('button', { name: /Trabajos de laboratorio hoy/i }));
 
     expect(screen.getByText('Prueba corona')).toBeInTheDocument();
     expect(screen.queryByText('Revision general')).not.toBeInTheDocument();
@@ -272,6 +308,18 @@ describe('AgendaPage flujos de cita', () => {
     }));
     expect(sessionStorage.getItem('dentcore_selected_treatment')).toBeNull();
     expect(sessionStorage.getItem('dentcore_selected_presupuesto_linea_id')).toBeNull();
+  });
+
+  it('abre nueva cita desde Pacientes aunque el dia no tenga horario configurado', async () => {
+    mocks.getHorarios.mockResolvedValueOnce([]);
+    sessionStorage.setItem('dentcore_agenda_action', 'new');
+    sessionStorage.setItem('dentcore_selected_patient_id', mocks.paciente.id);
+
+    renderAgenda();
+
+    expect(await screen.findByText(/^Nueva cita$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Paciente$/i)).toHaveValue(mocks.paciente.id);
+    expect(screen.getByLabelText(/Hora inicio/i)).toHaveValue('09:00');
   });
 
   it('cambia el estado de cita con botones rapidos sin guardar automaticamente', async () => {

@@ -7,6 +7,7 @@ import type { FichajeTrabajador, TipoFichaje } from '../types/api';
 
 type StaffClockPopoverProps = {
   label: string;
+  currentUserId?: string | null;
 };
 
 function formatFichajeTime(value: string) {
@@ -26,7 +27,7 @@ function lastFichajeLabel(fichaje?: FichajeTrabajador | null) {
   return `Ultimo fichaje: ${tipo} - ${formatFichajeTime(fichaje.hora_exacta)}`;
 }
 
-export default function StaffClockPopover({ label }: StaffClockPopoverProps) {
+export default function StaffClockPopover({ label, currentUserId = null }: StaffClockPopoverProps) {
   const queryClient = useQueryClient();
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
@@ -44,11 +45,18 @@ export default function StaffClockPopover({ label }: StaffClockPopoverProps) {
   const trabajadores = useMemo(() => trabajadoresQuery.data ?? [], [trabajadoresQuery.data]);
   const effectiveTrabajadorId = useMemo(() => {
     if (trabajadores.some((trabajador) => trabajador.id === trabajadorId)) return trabajadorId;
+    const currentWorker = trabajadores.find(
+      (trabajador) => trabajador.origen === 'usuario' && trabajador.id === currentUserId,
+    );
+    if (currentWorker) return currentWorker.id;
     return trabajadores[0]?.id ?? '';
-  }, [trabajadorId, trabajadores]);
+  }, [currentUserId, trabajadorId, trabajadores]);
   const selectedTrabajador = useMemo(
     () => trabajadores.find((trabajador) => trabajador.id === effectiveTrabajadorId) ?? null,
     [effectiveTrabajadorId, trabajadores],
+  );
+  const isAuthenticatedUser = Boolean(
+    selectedTrabajador?.origen === 'usuario' && selectedTrabajador.id === currentUserId,
   );
 
   const ultimoQuery = useQuery({
@@ -60,7 +68,7 @@ export default function StaffClockPopover({ label }: StaffClockPopoverProps) {
   const fichajeMutation = useMutation({
     mutationFn: (tipo: TipoFichaje) => registrarFichaje({
       trabajador_id: effectiveTrabajadorId,
-      pin,
+      pin: isAuthenticatedUser ? '' : pin,
       tipo,
     }),
     onSuccess: (data) => {
@@ -104,15 +112,24 @@ export default function StaffClockPopover({ label }: StaffClockPopoverProps) {
       setFormError('Selecciona un trabajador.');
       return;
     }
-    if (!pin.trim()) {
-      setFormError('Introduce el PIN del trabajador.');
+    if (!isAuthenticatedUser && !pin.trim()) {
+      setFormError(selectedTrabajador?.origen === 'usuario'
+        ? 'Introduce la contraseña del trabajador.'
+        : 'Introduce el PIN del trabajador.');
       return;
     }
     setFormError(null);
     fichajeMutation.mutate(tipo);
   }
 
-  const canSubmit = Boolean(effectiveTrabajadorId && pin.trim()) && !fichajeMutation.isPending;
+  const selectedWorkerCanAuthenticate = Boolean(
+    selectedTrabajador && (isAuthenticatedUser || selectedTrabajador.pin_configurado),
+  );
+  const canSubmit = Boolean(
+    effectiveTrabajadorId
+    && selectedWorkerCanAuthenticate
+    && (isAuthenticatedUser || pin.trim()),
+  ) && !fichajeMutation.isPending;
 
   return (
     <div className="staff-clock" ref={wrapperRef}>
@@ -143,6 +160,7 @@ export default function StaffClockPopover({ label }: StaffClockPopoverProps) {
                 value={effectiveTrabajadorId}
                 onChange={(event) => {
                   setTrabajadorId(event.target.value);
+                  setPin('');
                   setFormError(null);
                 }}
                 disabled={trabajadoresQuery.isLoading || !trabajadores.length}
@@ -155,31 +173,39 @@ export default function StaffClockPopover({ label }: StaffClockPopoverProps) {
               </select>
             </label>
 
-            <label>
-              <span>PIN</span>
-              <input
-                type="password"
-                value={pin}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="Codigo personal"
-                onChange={(event) => {
-                  setPin(event.target.value);
-                  setFormError(null);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') submit('entrada');
-                }}
-              />
-            </label>
+            {isAuthenticatedUser ? (
+              <div className="staff-clock-self">
+                <strong>Fichaje personal</strong>
+                <span>Tu sesión ya confirma tu identidad. No necesitas introducir otra credencial.</span>
+              </div>
+            ) : (
+              <label>
+                <span>{selectedTrabajador?.origen === 'usuario' ? 'Contraseña del trabajador' : 'PIN del trabajador'}</span>
+                <input
+                  type="password"
+                  value={pin}
+                  inputMode={selectedTrabajador?.origen === 'usuario' ? 'text' : 'numeric'}
+                  autoComplete={selectedTrabajador?.origen === 'usuario' ? 'current-password' : 'one-time-code'}
+                  placeholder={selectedTrabajador?.origen === 'usuario' ? 'Contraseña de acceso' : 'Código personal'}
+                  onChange={(event) => {
+                    setPin(event.target.value);
+                    setFormError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') submit(ultimoQuery.data?.tipo === 'entrada' ? 'salida' : 'entrada');
+                  }}
+                />
+              </label>
+            )}
 
             <p className="staff-clock-last" aria-live="polite">
               {trabajadoresQuery.isLoading && 'Cargando trabajadores...'}
               {!trabajadoresQuery.isLoading && trabajadoresQuery.isError && 'No se pudo cargar el personal.'}
               {!trabajadoresQuery.isLoading && !trabajadoresQuery.isError && !trabajadores.length && 'No hay trabajadores disponibles.'}
               {!trabajadoresQuery.isLoading && !trabajadoresQuery.isError && trabajadores.length > 0 && !effectiveTrabajadorId && 'Selecciona trabajador.'}
+              {!trabajadoresQuery.isLoading && selectedTrabajador && !isAuthenticatedUser && !selectedTrabajador.pin_configurado && 'Este trabajador no tiene PIN configurado.'}
               {!trabajadoresQuery.isLoading && selectedTrabajador && ultimoQuery.isLoading && 'Cargando ultimo fichaje...'}
-              {!trabajadoresQuery.isLoading && selectedTrabajador && !ultimoQuery.isLoading && lastFichajeLabel(ultimoQuery.data)}
+              {!trabajadoresQuery.isLoading && selectedTrabajador && (isAuthenticatedUser || selectedTrabajador.pin_configurado) && !ultimoQuery.isLoading && lastFichajeLabel(ultimoQuery.data)}
             </p>
 
             {formError && <p className="staff-clock-error" role="alert">{formError}</p>}

@@ -97,6 +97,18 @@ const { paciente, mocks } = vi.hoisted(() => {
       importe_neto: '290',
     }],
   };
+  const trabajoPendiente = {
+    id: 'tp-1',
+    paciente_id: 'pac-1',
+    presupuesto_linea_id: 'lin-1',
+    presupuesto_linea: presupuestoConLinea.lineas[0],
+    tratamiento_id: 'trat-1',
+    tratamiento: presupuestoConLinea.lineas[0].tratamiento,
+    pieza_dental: 16,
+    caras: null,
+    realizado: false,
+    historial_id: null,
+  };
   const trabajoVencido = {
     id: 'trab-1',
     paciente_id: 'pac-1',
@@ -137,6 +149,7 @@ const { paciente, mocks } = vi.hoisted(() => {
     mocks: {
       facturas: [factura],
       presupuestos: [presupuestoConLinea],
+      trabajosPendientes: [trabajoPendiente],
       anticipos: [anticipo],
       trabajosLab: [trabajoVencido],
       createTrabajoLaboratorio: vi.fn().mockResolvedValue({ ...trabajoVencido, id: 'trab-2' }),
@@ -226,6 +239,7 @@ vi.mock('../../lib/api', () => ({
   getSaldoPaciente: vi.fn().mockResolvedValue({ total_facturado: '200', total_cobrado: '120', pendiente: '80' }),
   getTratamientosCatalogo: vi.fn().mockResolvedValue([]),
   getTrabajosLaboratorio: vi.fn().mockResolvedValue(mocks.trabajosLab),
+  getTrabajosPendientesPaciente: vi.fn().mockResolvedValue(mocks.trabajosPendientes),
   openConsentimientoPdf: vi.fn(),
   openDocumentoPaciente: vi.fn(),
   openRecetaClinicaPdf: mocks.openRecetaClinicaPdf,
@@ -256,11 +270,12 @@ describe('Flujo integración cross-módulo', () => {
     mocks.openRecetaClinicaPdf.mockClear();
   });
 
-  it('accion rapida de ficha abre el modal de receta y envia datos correctos', async () => {
+  it('la accion de ficha abre el modal de receta y envia datos correctos', async () => {
     const user = userEvent.setup();
     renderPage();
 
-    const recetaButton = await screen.findByRole('button', { name: /^Nueva receta$/i });
+    await user.click(await screen.findByRole('button', { name: /M[aá]s acciones/i }));
+    const recetaButton = await screen.findByRole('menuitem', { name: /^Nueva receta$/i });
     await waitFor(() => expect(recetaButton).not.toBeDisabled());
     await user.click(recetaButton);
 
@@ -287,9 +302,9 @@ describe('Flujo integración cross-módulo', () => {
     const user = userEvent.setup();
     renderPage();
 
-    // Voy a tab Clinica -> Pendientes
-    await screen.findByRole('button', { name: /^Clinica$/i });
-    await user.click(screen.getByRole('button', { name: /^Clinica$/i }));
+    // Voy a Tratamientos -> Pendientes
+    await screen.findByRole('button', { name: /^Tratamientos$/i });
+    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
     await user.click(screen.getByRole('button', { name: /^Pendientes$/i }));
 
     // Botón "+ Lab" en la fila del tratamiento
@@ -343,13 +358,7 @@ describe('Flujo integración cross-módulo', () => {
     renderPage();
 
     await user.click((await screen.findAllByRole('button', { name: /^Historial$/i }))[0]);
-    await screen.findByText(/Historial de tratamientos/i);
-    expect(screen.queryByRole('button', { name: 'Cobros' })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /^Mas$/i }));
-    await user.click(screen.getByRole('menuitem', { name: /Actividad completa/i }));
     await screen.findByText(/Historial completo/i);
-
     await user.click(screen.getByRole('button', { name: 'Cobros' }));
     // El timeline filtrado debe incluir cobros (titulo = serie/numero) y anticipos
     expect(screen.getAllByText(/A\/100/).length).toBeGreaterThan(0);
@@ -361,9 +370,10 @@ describe('Flujo integración cross-módulo', () => {
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     renderPage();
 
-    await screen.findByRole('button', { name: /Mas acciones/i });
-    await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    await user.click(await screen.findByRole('menuitem', { name: 'WhatsApp' }));
+    await screen.findByRole('button', { name: /M[aá]s acciones/i });
+    await user.click(screen.getByRole('button', { name: /M[aá]s acciones/i }));
+    const whatsappActions = await screen.findAllByRole('menuitem', { name: 'WhatsApp' });
+    await user.click(whatsappActions.at(-1)!);
 
     expect(openSpy).toHaveBeenCalled();
     const url = openSpy.mock.calls[0][0] as string;

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   Building2,
+  Banknote,
   CalendarCheck2,
   CalendarDays,
   ChevronDown,
@@ -28,6 +29,7 @@ const NAV_ICONS: Partial<Record<AppSection, ReactNode>> = {
   hoy: <CalendarCheck2 size={ICON_SIZE} strokeWidth={1.9} />,
   agenda: <CalendarDays size={ICON_SIZE} strokeWidth={1.9} />,
   pacientes: <UsersRound size={ICON_SIZE} strokeWidth={1.9} />,
+  caja: <Banknote size={ICON_SIZE} strokeWidth={1.9} />,
   listados: <ClipboardList size={ICON_SIZE} strokeWidth={1.9} />,
   adminExtras: <Settings2 size={ICON_SIZE} strokeWidth={1.9} />,
   portalPaciente: <CalendarCheck2 size={ICON_SIZE} strokeWidth={1.9} />,
@@ -48,7 +50,7 @@ export default function MainNav() {
   const isDark = theme === 'dark';
   const isAdminArea = ['/admin-extras', '/configuracion'].some((route) => location.pathname.startsWith(route));
   const isAgendaArea = ['/agenda', '/whatsapp'].some((route) => location.pathname.startsWith(route));
-  const isReportsArea = ['/listados', '/caja'].some((route) => location.pathname.startsWith(route));
+  const isReportsArea = location.pathname.startsWith('/listados');
   const isPortalArea = ['/mis-citas', '/portal'].some((route) => location.pathname.startsWith(route));
 
   function isItemActive(item: WorkflowItem) {
@@ -145,8 +147,8 @@ export default function MainNav() {
         <div className="dentcore-titlebar-context">
           {user?.rol === 'paciente'
             ? <span className="title-clock app-launcher-clock">{nowLabel}</span>
-            : <StaffClockPopover label={nowLabel} />}
-          <span className="clinic-chip"><Building2 size={13} strokeWidth={2} aria-hidden="true" /> Clinica Dental</span>
+            : <StaffClockPopover label={nowLabel} currentUserId={user?.id} />}
+          <span className="clinic-chip"><Building2 size={13} strokeWidth={2} aria-hidden="true" /> Clínica Dental</span>
           <span className="role-chip"><ShieldCheck size={13} strokeWidth={2} aria-hidden="true" /> {user?.nombre} - {user?.rol ? ROLE_LABELS[user.rol] : 'Sin rol'}</span>
           <DoctorQuickScheduleDropdown />
           <DoctorNotificationsBell />

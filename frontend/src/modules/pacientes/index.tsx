@@ -45,6 +45,7 @@ import {
   getSesionItemsPaciente,
   getTratamientosCatalogo,
   getTrabajosLaboratorio,
+  getTrabajosPendientesPaciente,
   getWhatsAppComunicaciones,
   importRecetaPlantilla,
   openConsentimientoPdf,
@@ -55,7 +56,6 @@ import {
   revocarConsentimiento,
   updatePagoAnticipadoPaciente,
   updatePaciente,
-  updatePresupuestoLinea,
   updateSesionItem,
   uploadDocumentoPaciente,
 } from '../../lib/api';
@@ -158,7 +158,7 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
 
 const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'pacientes', label: 'Ficha' },
-  { id: 'clinica', label: 'Clinica' },
+  { id: 'clinica', label: 'Tratamientos' },
   { id: 'historial', label: 'Historial' },
 ];
 const PATIENT_PAGE_SIZE = 50;
@@ -184,13 +184,14 @@ function presupuestoEstadoLabel(estado: string) {
 
 export default function PacientesPage() {
   const { user } = useAuth();
+  const canManageBilling = user?.rol === 'admin' || user?.rol === 'recepcion';
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [tab, setTab] = useState<WorkTab>('pacientes');
   const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>('primera');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
-  const [activityHistoryOpen, setActivityHistoryOpen] = useState(false);
+  const [treatmentHistoryOpen, setTreatmentHistoryOpen] = useState(false);
   const [designer, setDesigner] = useState<{ mode: DocumentDesignerMode; tipo?: string } | null>(null);
   const [editingPatient, setEditingPatient] = useState(false);
   const [fullPatientOpen, setFullPatientOpen] = useState(false);
@@ -252,23 +253,32 @@ export default function PacientesPage() {
     queryFn: () => getPresupuestos(active!.id),
     enabled: Boolean(active),
   });
+  const trabajosPendientesQuery = useQuery({
+    queryKey: ['trabajo-pendiente', active?.id],
+    queryFn: () => getTrabajosPendientesPaciente(active!.id),
+    enabled: Boolean(active),
+  });
   const facturasQuery = useQuery({
     queryKey: ['facturas', active?.id],
     queryFn: () => getFacturas(active!.id),
-    enabled: Boolean(active),
+    enabled: Boolean(active) && canManageBilling,
   });
   const pagosAnticipadosQuery = useQuery({
     queryKey: ['pagos-anticipados', active?.id],
     queryFn: () => getPagosAnticipadosPaciente(active!.id),
-    enabled: Boolean(active),
+    enabled: Boolean(active) && canManageBilling,
   });
   const saldoQuery = useQuery({
     queryKey: ['saldo-paciente', active?.id],
     queryFn: () => getSaldoPaciente(active!.id),
-    enabled: Boolean(active),
+    enabled: Boolean(active) && canManageBilling,
   });
   const doctoresQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
-  const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
+  const formasPagoQuery = useQuery({
+    queryKey: ['formas-pago'],
+    queryFn: getFormasPago,
+    enabled: canManageBilling,
+  });
   const tratamientosQuery = useQuery({ queryKey: ['tratamientos-catalogo'], queryFn: () => getTratamientosCatalogo({ solo_activos: true }) });
   const historialQuery = useQuery({
     queryKey: ['historial-paciente', active?.id],
@@ -278,7 +288,7 @@ export default function PacientesPage() {
   const historialSinFacturarQuery = useQuery({
     queryKey: ['historial-sin-facturar', active?.id],
     queryFn: () => getHistorialSinFacturar(active!.id),
-    enabled: Boolean(active) && invoiceCreatorOpen,
+    enabled: Boolean(active) && canManageBilling && invoiceCreatorOpen,
   });
   const citasPacienteQuery = useQuery({
     queryKey: ['citas-paciente', active?.id],
@@ -329,11 +339,20 @@ export default function PacientesPage() {
   });
 
   const presupuestos = presupuestosQuery.data ?? [];
-  const facturas = facturasQuery.data ?? [];
-  const pagosAnticipados = pagosAnticipadosQuery.data ?? [];
+  const trabajosPendientes = trabajosPendientesQuery.data ?? [];
+  const facturas = canManageBilling ? (facturasQuery.data ?? []) : [];
+  const pagosAnticipados = canManageBilling ? (pagosAnticipadosQuery.data ?? []) : [];
   const billingTotals = getBillingTotals(facturas);
-  const totalPendiente = Number(saldoQuery.data?.pendiente ?? billingTotals.pendiente);
-  const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError;
+  const totalPendiente = canManageBilling
+    ? Number(saldoQuery.data?.pendiente ?? billingTotals.pendiente)
+    : 0;
+  const trabajosPendientesError = trabajosPendientesQuery.isError
+    ? (trabajosPendientesQuery.error instanceof Error ? trabajosPendientesQuery.error.message : 'No se pudieron cargar los tratamientos pendientes.')
+    : null;
+  const sesionItemsError = sesionItemsQuery.isError
+    ? (sesionItemsQuery.error instanceof Error ? sesionItemsQuery.error.message : 'No se pudieron cargar los items de la sesion.')
+    : null;
+  const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError || trabajosPendientesQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
   const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
   const canDictarNota = user?.rol === 'admin' || user?.rol === 'doctor';
@@ -558,15 +577,6 @@ export default function PacientesPage() {
       setAnticipoModal(null);
       if (active?.id) invalidatePatientWorkspace(active.id);
       openPatientArea('historial');
-    },
-  });
-
-  const aceptarLineaPendiente = useMutation({
-    mutationFn: async (linea: PresupuestoLinea) => updatePresupuestoLinea(linea.presupuesto_id, linea.id, { aceptado: true }),
-    onSuccess: () => {
-      setContextMenu(null);
-      void presupuestosQuery.refetch();
-      openPatientArea('pendiente');
     },
   });
 
@@ -1032,7 +1042,7 @@ export default function PacientesPage() {
 
   return (
     <>
-      <div className="patient-selector-bar">
+      <div className={`patient-selector-bar${activeMainTab === 'pacientes' ? ' patient-selector-dashboard' : ''}`}>
         <PatientFinder
           pacientes={pacientes}
           selectedId={active?.id ?? null}
@@ -1074,33 +1084,36 @@ export default function PacientesPage() {
             <small className="patient-selector-empty">Sin paciente</small>
           )}
         </div>
-        <PatientActionsMenu
-          paciente={active}
-          busy={nuevoPresupuesto.isPending}
-          handlers={{
-            onNuevaCita: abrirAgendaPaciente,
-            onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
-            onCobrar: () => abrirCobroDesdeFicha(),
-            onSubirDocumento: () => openDocumentsDrawer({ upload: true }),
-            onCrearReceta: () => {
-              setRecetaError(null);
-              setRecetaModalOpen(true);
-            },
-            onPedidoLaboratorio: () => {
-              setPedidoLabError(null);
-              setPedidoLabContext({ open: true, linea: null });
-            },
-            onConsentimiento: () => setDesigner(active ? { mode: 'consentimiento' } : null),
-            onRevocarConsentimiento: abrirRevocarConsentimientoMenu,
-            onCircular: () => setDesigner(active ? { mode: 'circular' } : null),
-            onCuestionarioMedico: () => setDesigner(active ? { mode: 'circular', tipo: 'Cuestionario medico' } : null),
-            onDocumentoLOPD: () => setDesigner(active ? { mode: 'circular', tipo: 'Documento LOPD / proteccion de datos' } : null),
-            onWhatsApp: abrirWhatsAppPaciente,
-            onComentario: () => setComentarioOpen(true),
-            onCopiarDatos: copiarDatosPaciente,
-            onVistaCompleta: () => setFullPatientOpen(true),
-          }}
-        />
+        {activeMainTab !== 'pacientes' && (
+          <PatientActionsMenu
+            paciente={active}
+            busy={nuevoPresupuesto.isPending}
+            canManageBilling={canManageBilling}
+            handlers={{
+              onNuevaCita: abrirAgendaPaciente,
+              onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
+              onCobrar: () => abrirCobroDesdeFicha(),
+              onSubirDocumento: () => openDocumentsDrawer({ upload: true }),
+              onCrearReceta: () => {
+                setRecetaError(null);
+                setRecetaModalOpen(true);
+              },
+              onPedidoLaboratorio: () => {
+                setPedidoLabError(null);
+                setPedidoLabContext({ open: true, linea: null });
+              },
+              onConsentimiento: () => setDesigner(active ? { mode: 'consentimiento' } : null),
+              onRevocarConsentimiento: abrirRevocarConsentimientoMenu,
+              onCircular: () => setDesigner(active ? { mode: 'circular' } : null),
+              onCuestionarioMedico: () => setDesigner(active ? { mode: 'circular', tipo: 'Cuestionario medico' } : null),
+              onDocumentoLOPD: () => setDesigner(active ? { mode: 'circular', tipo: 'Documento LOPD / proteccion de datos' } : null),
+              onWhatsApp: abrirWhatsAppPaciente,
+              onComentario: () => setComentarioOpen(true),
+              onCopiarDatos: copiarDatosPaciente,
+              onVistaCompleta: () => setFullPatientOpen(true),
+            }}
+          />
+        )}
         {hasPatientError && (
           <div className="inline-alert">
             Algunos datos del paciente no se han podido cargar. Revisa la conexion o cambia de paciente para reintentar.
@@ -1132,6 +1145,7 @@ export default function PacientesPage() {
             <PatientForm
               paciente={active}
               facturas={facturas}
+              canManageBilling={canManageBilling}
               historial={historialQuery.data ?? []}
               citas={citasPacienteQuery.data ?? []}
               presupuestos={presupuestos}
@@ -1173,6 +1187,9 @@ export default function PacientesPage() {
             citas={citasPacienteQuery.data ?? []}
             historial={historialQuery.data ?? []}
             presupuestos={presupuestos}
+            trabajosPendientes={trabajosPendientes}
+            trabajosPendientesLoading={trabajosPendientesQuery.isLoading}
+            trabajosPendientesError={trabajosPendientesError}
             documentos={documentosQuery.data ?? []}
             consentimientos={consentimientosQuery.data ?? []}
             recetas={recetasPacienteQuery.data ?? []}
@@ -1204,12 +1221,12 @@ export default function PacientesPage() {
             onDictarNotaSesion={() => setDictationContext({ contexto: 'sesion' })}
             canDictarNota={canDictarNota}
             onSchedulePatient={abrirAgendaPaciente}
-            onOpenCobro={() => abrirCobroDesdeFicha()}
+            onOpenCobro={canManageBilling ? () => abrirCobroDesdeFicha() : undefined}
             onFinalizarTratamientoSesion={(data) => finalizarSesionClinica.mutateAsync(data)}
             onCreateNotaDental={(data) => crearNotaDental.mutateAsync(data)}
             sesionItems={sesionItemsQuery.data ?? []}
-            sesionItemsLoading={sesionItemsQuery.isLoading}
-            sesionItemsError={sesionItemsQuery.isError ? (sesionItemsQuery.error instanceof Error ? sesionItemsQuery.error.message : 'No se pudieron cargar los items de la sesion.') : null}
+            sesionItemsLoading={sesionItemsQuery.isLoading || trabajosPendientesQuery.isLoading}
+            sesionItemsError={sesionItemsError ?? trabajosPendientesError}
             onCreateSesionItem={(input) => crearSesionItem.mutateAsync(input)}
             onUpdateSesionItem={(itemId, cambios) => actualizarSesionItem.mutateAsync({ itemId, cambios })}
             onDeleteSesionItem={(itemId) => eliminarSesionItem.mutateAsync(itemId)}
@@ -1218,22 +1235,26 @@ export default function PacientesPage() {
         )}
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
-            <DentCoreHistoryBillingPanel
+            <HistorialCompletoPanel
               paciente={active}
               historial={historialQuery.data ?? []}
+              citas={citasPacienteQuery.data ?? []}
+              presupuestos={presupuestos}
               facturas={facturas}
-              onFacturar={() => setInvoiceCreatorOpen(true)}
-              onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
-              onCobrar={() => cobrarFactura.mutate()}
-              onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
-              onCobrarImporte={(factura) => setCobroFactura(factura)}
-              onRecibos={abrirRecibos}
-              onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
-              onCrearReceta={() => {
-                setRecetaError(null);
-                setRecetaModalOpen(true);
-              }}
-              onOpenActivity={() => setActivityHistoryOpen(true)}
+              anticipos={pagosAnticipados}
+              documentos={documentosQuery.data ?? []}
+              consentimientos={consentimientosQuery.data ?? []}
+              recetas={recetasPacienteQuery.data ?? []}
+              laboratorio={laboratorioPacienteQuery.data ?? []}
+              notasDentales={notasDentalesQuery.data ?? []}
+              whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
+              onOpenDocumento={abrirDocumento}
+              onOpenConsentimiento={abrirConsentimiento}
+              onOpenFactura={abrirPdfFactura}
+              onOpenReceta={(receta) => abrirRecetaClinica(receta.id)}
+              onOpenTreatmentHistory={() => setTreatmentHistoryOpen(true)}
+              userRole={user?.rol}
+              canManageBilling={canManageBilling}
             />
           </section>
         )}
@@ -1252,9 +1273,13 @@ export default function PacientesPage() {
               <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Consentimiento informado</button>
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Circular / justificante</button>
               <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
-              <span />
-              <button onClick={() => { setInvoiceCreatorOpen(true); setContextMenu(null); }} disabled={!active}>Emitir factura</button>
-              <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={!active}>Registrar cobro</button>
+              {canManageBilling && (
+                <>
+                  <span />
+                  <button onClick={() => { setInvoiceCreatorOpen(true); setContextMenu(null); }} disabled={!active}>Emitir factura</button>
+                  <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={!active}>Registrar cobro</button>
+                </>
+              )}
               <button onClick={() => { openPatientArea('historial'); setContextMenu(null); }}>Historial completo</button>
               <button onClick={copiarDatosPaciente}>Copiar datos</button>
             </>
@@ -1263,13 +1288,14 @@ export default function PacientesPage() {
             <>
               <strong>Tratamiento pendiente</strong>
               <button onClick={() => darCitaParaTratamiento(contextMenu.linea)}>Dar cita para este tratamiento</button>
-              <button onClick={() => aceptarLineaPendiente.mutate(contextMenu.linea)} disabled={aceptarLineaPendiente.isPending}>Marcar aceptado</button>
-              <button onClick={() => facturarLinea.mutate(contextMenu.linea)} disabled={facturarLinea.isPending}>Facturar tratamiento</button>
+              {canManageBilling && (
+                <button onClick={() => facturarLinea.mutate(contextMenu.linea)} disabled={facturarLinea.isPending}>Facturar tratamiento</button>
+              )}
               <button onClick={() => { setDesigner(active ? { mode: 'consentimiento', tipo: contextMenu.linea.tratamiento?.nombre } : null); setContextMenu(null); }}>Consentimiento de tratamiento</button>
               <button onClick={() => { openPatientArea('presupuestos'); setContextMenu(null); }}>Abrir presupuesto</button>
             </>
           )}
-          {contextMenu.kind === 'factura' && (
+          {canManageBilling && contextMenu.kind === 'factura' && (
             <>
               <strong>Factura</strong>
               <button onClick={() => abrirPdfFactura(contextMenu.factura)}>Ver / imprimir PDF</button>
@@ -1296,7 +1322,7 @@ export default function PacientesPage() {
           onSave={(data) => crearPaciente.mutate(data as Parameters<typeof createPaciente>[0])}
         />
       )}
-      {facturaManualOpen && active && (
+      {canManageBilling && facturaManualOpen && active && (
         <FacturaManualModal
           saving={emitirFactura.isPending}
           onClose={() => setFacturaManualOpen(false)}
@@ -1388,37 +1414,35 @@ export default function PacientesPage() {
           </section>
         </div>
       )}
-      {invoiceHistoryOpen && (
+      {canManageBilling && invoiceHistoryOpen && (
         <InvoiceHistoryModal
           facturas={facturas}
           onClose={() => setInvoiceHistoryOpen(false)}
         />
       )}
-      {activityHistoryOpen && active && (
-        <div className="modal-backdrop" onMouseDown={() => setActivityHistoryOpen(false)}>
-          <section className="patient-documents-drawer patient-activity-drawer" onMouseDown={(event) => event.stopPropagation()}>
+      {treatmentHistoryOpen && active && (
+        <div className="modal-backdrop" onMouseDown={() => setTreatmentHistoryOpen(false)}>
+          <section className="patient-documents-drawer patient-history-ledger-drawer" onMouseDown={(event) => event.stopPropagation()}>
             <header className="modal-titlebar">
-              <strong>Actividad completa del paciente</strong>
-              <button type="button" onClick={() => setActivityHistoryOpen(false)}>Cerrar</button>
+              <strong>{canManageBilling ? 'Tratamientos y facturación' : 'Tratamientos realizados'}</strong>
+              <button type="button" onClick={() => setTreatmentHistoryOpen(false)}>Cerrar</button>
             </header>
-            <HistorialCompletoPanel
+            <DentCoreHistoryBillingPanel
               paciente={active}
               historial={historialQuery.data ?? []}
-              citas={citasPacienteQuery.data ?? []}
-              presupuestos={presupuestos}
               facturas={facturas}
-              anticipos={pagosAnticipados}
-              documentos={documentosQuery.data ?? []}
-              consentimientos={consentimientosQuery.data ?? []}
-              recetas={recetasPacienteQuery.data ?? []}
-              laboratorio={laboratorioPacienteQuery.data ?? []}
-              notasDentales={notasDentalesQuery.data ?? []}
-              whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
-              onOpenDocumento={abrirDocumento}
-              onOpenConsentimiento={abrirConsentimiento}
-              onOpenFactura={abrirPdfFactura}
-              onOpenReceta={(receta) => abrirRecetaClinica(receta.id)}
-              userRole={user?.rol}
+              canManageBilling={canManageBilling}
+              onFacturar={() => setInvoiceCreatorOpen(true)}
+              onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
+              onCobrar={() => cobrarFactura.mutate()}
+              onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
+              onCobrarImporte={(factura) => setCobroFactura(factura)}
+              onRecibos={abrirRecibos}
+              onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
+              onCrearReceta={() => {
+                setRecetaError(null);
+                setRecetaModalOpen(true);
+              }}
             />
           </section>
         </div>
@@ -1436,7 +1460,7 @@ export default function PacientesPage() {
           }}
         />
       )}
-      {invoiceCreatorOpen && active && (
+      {canManageBilling && invoiceCreatorOpen && active && (
         <InvoiceCreationModal
           paciente={active}
           lineas={historialSinFacturarQuery.data ?? []}
@@ -1500,7 +1524,7 @@ export default function PacientesPage() {
           onSave={(data) => guardarFichaPaciente.mutate(data)}
         />
       )}
-      {cobroFactura && (
+      {canManageBilling && cobroFactura && (
         <CobroModal
           factura={cobroFactura}
           formasPago={formasPagoQuery.data ?? []}
@@ -1508,7 +1532,7 @@ export default function PacientesPage() {
           onConfirm={(formaPagoId, importe) => cobrarImporteFactura.mutate({ facturaId: cobroFactura.id, formaPagoId, importe })}
         />
       )}
-      {anticipoModal && active && (
+      {canManageBilling && anticipoModal && active && (
         <AnticipoModal
           pacienteNombre={fullName(active)}
           formasPago={formasPagoQuery.data ?? []}
@@ -1523,6 +1547,7 @@ export default function PacientesPage() {
         <PatientFullViewModal
           paciente={active}
           facturas={facturas}
+          canManageBilling={canManageBilling}
           historial={historialQuery.data ?? []}
           citas={citasPacienteQuery.data ?? []}
           presupuestos={presupuestos}
