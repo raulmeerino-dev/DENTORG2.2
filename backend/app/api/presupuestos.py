@@ -66,6 +66,11 @@ FACTURA_LOAD = [
     selectinload(Factura.cobros).selectinload(Cobro.forma_pago),
 ]
 
+TRABAJO_PENDIENTE_LOAD = [
+    selectinload(TrabajoPendiente.presupuesto_linea).selectinload(PresupuestoLinea.tratamiento),
+    selectinload(TrabajoPendiente.tratamiento),
+]
+
 CARAS_TO_SURFACES = {
     "O": "oclusal_incisal",
     "I": "oclusal_incisal",
@@ -887,7 +892,7 @@ async def pasar_a_trabajo_pendiente(
     for tp in creadas:
         r = await db.execute(
             select(TrabajoPendiente)
-            .options(selectinload(TrabajoPendiente.tratamiento))
+            .options(*TRABAJO_PENDIENTE_LOAD)
             .where(TrabajoPendiente.id == tp.id)
         )
         resultado.append(TrabajoPendienteResponse.model_validate(r.scalar_one()))
@@ -907,7 +912,7 @@ async def trabajo_pendiente_paciente(
     ensure_clinic_access(current_user, paciente.clinica_id)
     stmt = (
         select(TrabajoPendiente)
-        .options(selectinload(TrabajoPendiente.tratamiento))
+        .options(*TRABAJO_PENDIENTE_LOAD)
         .where(TrabajoPendiente.paciente_id == paciente_id)
         .order_by(TrabajoPendiente.created_at)
     )
@@ -925,7 +930,7 @@ async def marcar_realizado(
 ) -> TrabajoPendienteResponse:
     result = await db.execute(
         select(TrabajoPendiente)
-        .options(selectinload(TrabajoPendiente.tratamiento))
+        .options(*TRABAJO_PENDIENTE_LOAD)
         .where(TrabajoPendiente.id == tp_id)
     )
     tp = result.scalar_one_or_none()
@@ -937,5 +942,9 @@ async def marcar_realizado(
     await _ensure_historial_for_trabajo_pendiente(db, trabajo=tp)
     await _mark_odontograma_surface_realized(db, trabajo=tp, user=current_user)
     await db.commit()
-    await db.refresh(tp)
-    return TrabajoPendienteResponse.model_validate(tp)
+    refreshed = await db.execute(
+        select(TrabajoPendiente)
+        .options(*TRABAJO_PENDIENTE_LOAD)
+        .where(TrabajoPendiente.id == tp.id)
+    )
+    return TrabajoPendienteResponse.model_validate(refreshed.scalar_one())

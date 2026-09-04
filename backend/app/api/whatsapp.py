@@ -7,7 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
-from app.core.permissions import CurrentUser, ensure_clinic_access, scope_select_by_clinic
+from app.core.permissions import (
+    CurrentUser,
+    RequireStaff,
+    ensure_clinic_access,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.cita import Cita
 from app.models.whatsapp import WhatsAppComunicacion
@@ -118,7 +123,7 @@ async def recibir_respuesta_whatsapp(
     )
 
 
-@router.get("/comunicaciones", response_model=list[WhatsAppInboxItem])
+@router.get("/comunicaciones", response_model=list[WhatsAppInboxItem], dependencies=[RequireStaff])
 async def listar_comunicaciones_whatsapp(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: CurrentUser,
@@ -160,7 +165,11 @@ async def listar_comunicaciones_whatsapp(
     return [_to_inbox_item(item) for item in result.scalars().all()]
 
 
-@router.post("/comunicaciones/{communication_id}/accion", response_model=WhatsAppInboxItem)
+@router.post(
+    "/comunicaciones/{communication_id}/accion",
+    response_model=WhatsAppInboxItem,
+    dependencies=[RequireStaff],
+)
 async def aplicar_accion_whatsapp(
     communication_id: UUID,
     data: WhatsAppActionRequest,
@@ -203,7 +212,11 @@ async def aplicar_accion_whatsapp(
     return _to_inbox_item(refreshed.scalar_one())
 
 
-@router.post("/comunicaciones/{communication_id}/reprogramar", response_model=WhatsAppInboxItem)
+@router.post(
+    "/comunicaciones/{communication_id}/reprogramar",
+    response_model=WhatsAppInboxItem,
+    dependencies=[RequireStaff],
+)
 async def reprogramar_desde_whatsapp(
     communication_id: UUID,
     data: WhatsAppRescheduleRequest,

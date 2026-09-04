@@ -4,10 +4,15 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import Date, case, cast, func, or_, select
+from sqlalchemy import Date, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import CurrentUser, scope_select_by_clinic
+from app.core.permissions import (
+    CurrentUser,
+    RequireBilling,
+    clinic_scope_condition,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.models.cita import Cita, HistorialFaltas
 from app.models.doctor import Doctor
@@ -18,7 +23,7 @@ from app.models.presupuesto import Presupuesto
 from app.models.tratamiento import TratamientoCatalogo
 from app.schemas.extras import IngresosResponse
 
-router = APIRouter()
+router = APIRouter(dependencies=[RequireBilling])
 
 
 def _periodo(fecha_desde: date | None, fecha_hasta: date | None) -> tuple[date, date]:
@@ -27,10 +32,7 @@ def _periodo(fecha_desde: date | None, fecha_hasta: date | None) -> tuple[date, 
 
 
 def _clinic_condition(model: type, current_user: CurrentUser):
-    column = getattr(model, "clinica_id", None)
-    if current_user.rol == "admin" or current_user.clinica_id is None or column is None:
-        return None
-    return or_(column == current_user.clinica_id, column.is_(None))
+    return clinic_scope_condition(model, current_user)
 
 
 def _apply_clinic(stmt, model: type, current_user: CurrentUser):

@@ -287,7 +287,7 @@ def validate_signature_data_url(data_url: str | None, *, require_visible: bool =
         image = PILImage.open(io.BytesIO(raw))
         image.verify()
         image = PILImage.open(io.BytesIO(raw)).convert("RGBA")
-    except (OSError, UnidentifiedImageError, ValueError):
+    except (OSError, SyntaxError, UnidentifiedImageError, ValueError):
         raise InvalidSignatureError("Firma digital corrupta o no legible") from None
 
     if image.width < 2 or image.height < 2:
@@ -308,7 +308,7 @@ def validate_signature_data_url(data_url: str | None, *, require_visible: bool =
         ink_mask = ImageChops.multiply(ink_diff.point(lambda value: 255 if value > 10 else 0), opaque_mask)
         ink_bbox = ink_mask.getbbox()
         ink_pixels = ink_mask.point(lambda value: 1 if value else 0).convert("L")
-        if ink_bbox is None or sum(ink_pixels.getdata()) < 10:
+        if ink_bbox is None or sum(ink_pixels.histogram()[1:]) < 10:
             raise InvalidSignatureError("La firma esta vacia")
 
         bbox_width = ink_bbox[2] - ink_bbox[0]

@@ -98,8 +98,10 @@ async def test_consentimiento_firmado_archiva_pdf_y_documento(
     monkeypatch,
 ):
     from app.api import consentimientos as consentimientos_api
+    from app.api import documentos as documentos_api
 
     monkeypatch.setattr(consentimientos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
+    monkeypatch.setattr(documentos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
     headers = await auth_headers(client, db_session)
     paciente_id = await create_patient(client, headers)
 

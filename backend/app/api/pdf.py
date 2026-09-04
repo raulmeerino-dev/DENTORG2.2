@@ -1,6 +1,6 @@
 ﻿"""
-Router de generaciÃ³n de PDFs â€” facturas y presupuestos.
-Devuelve application/pdf para descarga directa o visualizaciÃ³n en navegador.
+Router de generación de PDFs: facturas y presupuestos.
+Devuelve application/pdf para descarga directa o visualización en navegador.
 """
 from typing import Annotated
 from uuid import UUID
@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, ensure_clinic_access
+from app.core.permissions import CurrentUser, RequireBilling, ensure_clinic_access
 from app.database import get_db
 from app.models.factura import Cobro, DocumentoFiscal, Factura
 from app.models.presupuesto import Presupuesto, PresupuestoLinea
@@ -39,9 +39,9 @@ def _pdf_response(data: bytes, filename: str) -> Response:
     )
 
 
-# â”€â”€â”€ Factura PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Factura PDF
 
-@router.get("/facturas/{factura_id}")
+@router.get("/facturas/{factura_id}", dependencies=[RequireBilling])
 async def pdf_factura(
     factura_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -67,7 +67,7 @@ async def pdf_factura(
     return _pdf_response(pdf_bytes, filename)
 
 
-@router.get("/facturas/{factura_id}/archivo")
+@router.get("/facturas/{factura_id}/archivo", dependencies=[RequireBilling])
 async def pdf_factura_archivado_info(
     factura_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -96,7 +96,7 @@ async def pdf_factura_archivado_info(
     }
 
 
-# â”€â”€â”€ Presupuesto PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Presupuesto PDF
 
 @router.get("/presupuestos/{presupuesto_id}")
 async def pdf_presupuesto(
@@ -154,7 +154,7 @@ async def pdf_presupuesto(
     return _pdf_response(pdf_bytes, filename)
 
 
-@router.get("/cobros/{cobro_id}")
+@router.get("/cobros/{cobro_id}", dependencies=[RequireBilling])
 async def pdf_recibo_cobro(
     cobro_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],

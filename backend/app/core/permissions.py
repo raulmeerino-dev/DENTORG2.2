@@ -17,6 +17,7 @@ ROLE_PACIENTE = "paciente"
 
 CLINICAL_DATA_ROLES = {ROLE_ADMIN, ROLE_DOCTOR, ROLE_AUXILIAR}
 BILLING_ROLES = {ROLE_ADMIN, ROLE_RECEPCION}
+STAFF_ROLES = (ROLE_ADMIN, ROLE_DOCTOR, ROLE_RECEPCION, ROLE_AUXILIAR)
 
 
 class TokenData:
@@ -122,9 +123,9 @@ def ensure_clinic_access(current_user: TokenData, clinica_id: UUID | None) -> No
     los registros legacy sin clinica_id se permiten, pero cualquier clinica_id distinto
     queda bloqueado.
     """
-    if current_user.rol == ROLE_ADMIN or current_user.clinica_id is None or clinica_id is None:
+    if current_user.rol == ROLE_ADMIN or clinica_id is None:
         return
-    if clinica_id != current_user.clinica_id:
+    if current_user.clinica_id is None or clinica_id != current_user.clinica_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tiene acceso a datos de otra clínica.",
@@ -132,8 +133,15 @@ def ensure_clinic_access(current_user: TokenData, clinica_id: UUID | None) -> No
 
 
 def resolve_clinic_id(current_user: TokenData, requested: UUID | None = None) -> UUID | None:
-    if current_user.rol != ROLE_ADMIN and current_user.clinica_id:
-        if requested and requested != current_user.clinica_id:
+    if current_user.rol != ROLE_ADMIN:
+        if current_user.clinica_id is None:
+            if requested is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="El usuario no tiene una clínica asignada.",
+                )
+            return None
+        if requested is not None and requested != current_user.clinica_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No puede asignar registros a otra clínica.",
@@ -142,11 +150,26 @@ def resolve_clinic_id(current_user: TokenData, requested: UUID | None = None) ->
     return requested or current_user.clinica_id
 
 
-def scope_select_by_clinic(stmt: Select, model: type, current_user: TokenData) -> Select:
+def clinic_column_condition(clinica_column, current_user: TokenData):
+    if current_user.rol == ROLE_ADMIN:
+        return None
+    if current_user.clinica_id is None:
+        return clinica_column.is_(None)
+    return (clinica_column == current_user.clinica_id) | (clinica_column.is_(None))
+
+
+def clinic_scope_condition(model: type, current_user: TokenData):
     clinica_column = getattr(model, "clinica_id", None)
-    if current_user.rol == ROLE_ADMIN or current_user.clinica_id is None or clinica_column is None:
+    if clinica_column is None:
+        return None
+    return clinic_column_condition(clinica_column, current_user)
+
+
+def scope_select_by_clinic(stmt: Select, model: type, current_user: TokenData) -> Select:
+    condition = clinic_scope_condition(model, current_user)
+    if condition is None:
         return stmt
-    return stmt.where((clinica_column == current_user.clinica_id) | (clinica_column.is_(None)))
+    return stmt.where(condition)
 
 
 async def require_clinic_access(
@@ -161,5 +184,7 @@ async def require_clinic_access(
 RequireAdmin = Depends(require_roles("admin"))
 RequireDoctor = Depends(require_roles("admin", "doctor"))
 RequireRecepcion = Depends(require_roles("admin", "doctor", "recepcion", "auxiliar"))
+RequireStaff = Depends(require_roles(*STAFF_ROLES))
+RequireBilling = Depends(require_roles("admin", "recepcion"))
 
 CurrentUser = Annotated[TokenData, Depends(get_current_user)]

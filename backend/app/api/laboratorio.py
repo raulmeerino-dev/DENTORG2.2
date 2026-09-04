@@ -9,11 +9,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    clinic_column_condition,
+    ensure_clinic_access,
+)
 from app.database import get_db
 from app.models.cita import Cita
 from app.models.doctor import Doctor
@@ -405,10 +410,9 @@ async def listar_trabajos(
     vencidos: bool = Query(False),    # entrega prevista pasada y aun no recibidos
 ) -> list[TrabajoResponse]:
     q = _trabajo_query().order_by(TrabajoLaboratorio.created_at.desc())
-    if current_user.rol != "admin" and current_user.clinica_id:
-        q = q.join(TrabajoLaboratorio.paciente).where(
-            or_(Paciente.clinica_id == current_user.clinica_id, Paciente.clinica_id.is_(None))
-        )
+    clinic_condition = clinic_column_condition(Paciente.clinica_id, current_user)
+    if clinic_condition is not None:
+        q = q.join(TrabajoLaboratorio.paciente).where(clinic_condition)
     if laboratorio_id:
         q = q.where(TrabajoLaboratorio.laboratorio_id == laboratorio_id)
     if paciente_id:
@@ -777,8 +781,9 @@ async def trabajos_laboratorio_agenda_dia(
         .where(Cita.fecha_hora >= desde, Cita.fecha_hora <= hasta)
         .order_by(Cita.fecha_hora, TrabajoLaboratorio.created_at)
     )
-    if current_user.rol != "admin" and current_user.clinica_id:
-        q = q.where(or_(Cita.clinica_id == current_user.clinica_id, Cita.clinica_id.is_(None)))
+    clinic_condition = clinic_column_condition(Cita.clinica_id, current_user)
+    if clinic_condition is not None:
+        q = q.where(clinic_condition)
     if doctor_id:
         q = q.where(Cita.doctor_id == doctor_id)
     result = await db.execute(q)

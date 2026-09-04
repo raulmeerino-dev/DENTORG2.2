@@ -1,10 +1,14 @@
+import base64
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from io import BytesIO
 from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from PIL import Image as PILImage
+from PIL import ImageDraw
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,6 +32,15 @@ from app.models.usuario import Usuario
 from app.services.audit import write_audit_log
 from app.services.backup_service import extraer_backup_file
 from app.services.portal_invitation_service import hash_portal_token
+
+
+def valid_signature_data_url() -> str:
+    image = PILImage.new("RGBA", (180, 70), (255, 255, 255, 0))
+    draw = ImageDraw.Draw(image)
+    draw.line([(12, 42), (48, 25), (84, 45), (126, 20), (165, 36)], fill=(17, 24, 39, 255), width=4)
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:
@@ -541,15 +554,11 @@ async def test_portal_paciente_citas_documentos_y_firma(client: AsyncClient, db_
     )
     assert audit is not None
 
-    firma_png_1x1 = (
-        "data:image/png;base64,"
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
-    )
     firmado = await client.post(
         f"/api/portal/consentimientos/{consentimiento.id}/firmar",
         headers=headers,
         params=params,
-        json={"firma_paciente_base64": firma_png_1x1},
+        json={"firma_paciente_base64": valid_signature_data_url()},
     )
     assert firmado.status_code == 200
     assert firmado.json()["estado"] == "firmado"
@@ -1120,7 +1129,9 @@ async def test_sesion_realizada_desde_presupuesto_cierra_pendiente(client: Async
 
     pendientes = await client.get(f"/api/presupuestos/trabajo-pendiente/{paciente_id}", headers=headers)
     assert pendientes.status_code == 200
-    assert any(item["presupuesto_linea_id"] == linea_id for item in pendientes.json())
+    pendiente = next(item for item in pendientes.json() if item["presupuesto_linea_id"] == linea_id)
+    assert pendiente["presupuesto_linea"]["id"] == linea_id
+    assert pendiente["presupuesto_linea"]["tratamiento"]["nombre"] == tratamiento.nombre
 
     realizado = await client.post(
         "/api/tratamientos/historial/sesion-realizada",

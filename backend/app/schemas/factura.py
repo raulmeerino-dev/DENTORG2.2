@@ -208,7 +208,7 @@ class FacturaResponse(BaseModel):
     @computed_field  # type: ignore[misc]
     @property
     def total_cobrado(self) -> Decimal:
-        return sum(c.importe for c in self.cobros if c.anulado_at is None)
+        return sum((c.importe for c in self.cobros if c.anulado_at is None), Decimal("0"))
 
     @computed_field  # type: ignore[misc]
     @property

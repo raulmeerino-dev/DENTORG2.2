@@ -125,12 +125,12 @@ class PresupuestoResponse(BaseModel):
     @computed_field  # type: ignore[misc]
     @property
     def total(self) -> Decimal:
-        return sum(linea.importe_neto for linea in self.lineas)
+        return sum((linea.importe_neto for linea in self.lineas), Decimal("0"))
 
     @computed_field  # type: ignore[misc]
     @property
     def total_aceptado(self) -> Decimal:
-        return sum(linea.importe_neto for linea in self.lineas if linea.aceptado)
+        return sum((linea.importe_neto for linea in self.lineas if linea.aceptado), Decimal("0"))
 
     model_config = {"from_attributes": True}
 
@@ -141,6 +141,7 @@ class TrabajoPendienteResponse(BaseModel):
     id: UUID
     paciente_id: UUID
     presupuesto_linea_id: UUID
+    presupuesto_linea: PresupuestoLineaResponse
     tratamiento_id: UUID
     tratamiento: TratamientoResumen | None = None
     pieza_dental: int | None

@@ -65,6 +65,35 @@ async def test_fichaje_usa_trabajador_distinto_al_usuario_logado(
 
 
 @pytest.mark.asyncio
+async def test_fichaje_propio_usa_la_sesion_autenticada_sin_pedir_pin(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    auxiliar = Usuario(
+        username="aux-propio-fichaje",
+        password_hash=hash_password("aux1234"),
+        nombre="Auxiliar autenticada",
+        rol="auxiliar",
+        activo=True,
+    )
+    db_session.add(auxiliar)
+    await db_session.commit()
+
+    token = await _login(client, "aux-propio-fichaje", "aux1234")
+    response = await client.post(
+        "/api/fichajes",
+        json={"trabajador_id": str(auxiliar.id), "pin": "", "tipo": "entrada"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 201
+    fichaje = response.json()["fichaje"]
+    assert fichaje["trabajador_id"] == str(auxiliar.id)
+    assert fichaje["registrado_por_usuario_id"] == str(auxiliar.id)
+    assert fichaje["tipo"] == "entrada"
+
+
+@pytest.mark.asyncio
 async def test_fichaje_rechaza_pin_incorrecto(
     client: AsyncClient,
     db_session: AsyncSession,

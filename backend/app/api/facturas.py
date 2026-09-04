@@ -21,6 +21,7 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import (
     CurrentUser,
     RequireAdmin,
+    RequireBilling,
     ensure_clinic_access,
     resolve_clinic_id,
     scope_select_by_clinic,
@@ -54,7 +55,7 @@ from app.services.verifactu_service import (
     verificar_integridad_serie,
 )
 
-router = APIRouter()
+router = APIRouter(dependencies=[RequireBilling])
 
 _LOAD_FACTURA = [
     selectinload(Factura.paciente),

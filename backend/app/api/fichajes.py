@@ -234,7 +234,9 @@ async def registrar_fichaje(
 ) -> FichajeRegistroResponse:
     _ensure_staff_session(current_user)
     worker = await _resolve_worker(db, current_user, data.trabajador_id)
-    _verify_worker_pin(worker, data.pin)
+    is_authenticated_user = worker.origen == "usuario" and worker.id == current_user.user_id
+    if not is_authenticated_user:
+        _verify_worker_pin(worker, data.pin)
 
     now = datetime.now(UTC)
     fichaje = FichajeTrabajador(

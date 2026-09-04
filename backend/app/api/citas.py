@@ -8,7 +8,7 @@ from urllib.parse import quote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import inspect, or_, select
+from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +16,7 @@ from app.core.crypto import descifrar_bytes
 from app.core.permissions import (
     CurrentUser,
     RequireAdmin,
+    clinic_column_condition,
     ensure_clinic_access,
     resolve_clinic_id,
     scope_select_by_clinic,
@@ -719,10 +720,9 @@ async def listar_telefonear_panel(
         .where(CitaTelefonear.reubicada == False)  # noqa: E712
         .order_by(CitaTelefonear.created_at)
     )
-    if current_user.rol != "admin" and current_user.clinica_id:
-        q = q.join(Paciente, CitaTelefonear.paciente_id == Paciente.id).where(
-            or_(Paciente.clinica_id == current_user.clinica_id, Paciente.clinica_id.is_(None))
-        )
+    clinic_condition = clinic_column_condition(Paciente.clinica_id, current_user)
+    if clinic_condition is not None:
+        q = q.join(Paciente, CitaTelefonear.paciente_id == Paciente.id).where(clinic_condition)
     if doctor_id:
         q = q.where(CitaTelefonear.doctor_id == doctor_id)
     result = await db.execute(q)

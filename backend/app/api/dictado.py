@@ -66,7 +66,7 @@ async def _read_audio(upload: UploadFile, max_bytes: int) -> bytes:
     await upload.close()
     if len(content) > max_bytes:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="Audio demasiado grande.",
         )
     if not content:

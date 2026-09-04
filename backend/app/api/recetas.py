@@ -32,6 +32,7 @@ from app.core.permissions import (
     TokenData,
     ensure_clinic_access,
     resolve_clinic_id,
+    scope_select_by_clinic,
 )
 from app.database import get_db
 from app.models.doctor import Doctor
@@ -331,8 +332,7 @@ async def listar_plantillas(
     current_user: CurrentUser,
 ) -> list[RecetaPlantillaResponse]:
     stmt = select(RecetaPlantilla).where(RecetaPlantilla.activo.is_(True)).order_by(RecetaPlantilla.nombre)
-    if current_user.rol != "admin" and current_user.clinica_id is not None:
-        stmt = stmt.where((RecetaPlantilla.clinica_id == current_user.clinica_id) | (RecetaPlantilla.clinica_id.is_(None)))
+    stmt = scope_select_by_clinic(stmt, RecetaPlantilla, current_user)
     result = await db.execute(stmt)
     return [RecetaPlantillaResponse.model_validate(item) for item in result.scalars().all()]
 

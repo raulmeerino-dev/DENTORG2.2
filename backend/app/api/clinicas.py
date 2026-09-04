@@ -5,7 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
+from app.core.permissions import (
+    CurrentUser,
+    RequireAdmin,
+    clinic_column_condition,
+    ensure_clinic_access,
+)
 from app.database import get_db
 from app.models.clinica import Clinica
 from app.schemas.extras import ClinicaCreate, ClinicaResponse, ClinicaUpdate
@@ -19,8 +24,9 @@ async def listar_clinicas(
     current_user: CurrentUser,
 ) -> list[ClinicaResponse]:
     stmt = select(Clinica).where(Clinica.activa == True).order_by(Clinica.nombre)  # noqa: E712
-    if current_user.rol != "admin" and current_user.clinica_id:
-        stmt = stmt.where(Clinica.id == current_user.clinica_id)
+    condition = clinic_column_condition(Clinica.id, current_user)
+    if condition is not None:
+        stmt = stmt.where(condition)
     result = await db.execute(stmt)
     return [ClinicaResponse.model_validate(item) for item in result.scalars().all()]
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.permissions import (
     CurrentUser,
+    RequireAdmin,
     TokenData,
     ensure_clinic_access,
     require_admin,
@@ -39,7 +40,7 @@ from app.schemas.extras import (
 )
 from app.services.audit import write_audit_log
 
-router = APIRouter()
+router = APIRouter(dependencies=[RequireAdmin])
 
 
 async def _get_producto(db: AsyncSession, producto_id: UUID, current_user: TokenData) -> Producto:

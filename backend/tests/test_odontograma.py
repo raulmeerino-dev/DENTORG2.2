@@ -195,6 +195,7 @@ async def test_odontograma_guarda_piezas_superficies_y_crea_presupuesto(
     )
     assert realizado.status_code == 200
     assert realizado.json()["historial_id"]
+    assert realizado.json()["presupuesto_linea"]["id"] == realizado.json()["presupuesto_linea_id"]
     realizado_contexto = await client.get(
         f"/api/pacientes/{paciente_id}/odontograma/contexto?mode=realizado",
         headers=headers,

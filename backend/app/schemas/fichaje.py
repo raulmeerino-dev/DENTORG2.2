@@ -20,7 +20,7 @@ class TrabajadorFichajeResponse(BaseModel):
 
 class FichajeCreate(BaseModel):
     trabajador_id: UUID
-    pin: str = Field(..., min_length=1, max_length=64)
+    pin: str = Field(default="", max_length=64)
     tipo: TipoFichaje
 
 

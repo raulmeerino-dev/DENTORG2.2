@@ -45,7 +45,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["implante", "cirugia"],
-        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza el tratamiento de implantes dentales indicado por la clÃ­nica. Se explican alternativas, riesgos quirÃºrgicos, posible fracaso del implante, controles posteriores y necesidad de higiene y revisiones.",
+        "contenido": "D./Dña. {{paciente_nombre}} autoriza el tratamiento de implantes dentales indicado por la clínica. Se explican alternativas, riesgos quirúrgicos, posible fracaso del implante, controles posteriores y necesidad de higiene y revisiones.",
     },
     {
         "codigo": "extracciones",
@@ -53,7 +53,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["extraccion", "cirugia"],
-        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza la extracciÃ³n dental indicada. Se informan riesgos de dolor, sangrado, infecciÃ³n, alveolitis, inflamaciÃ³n y posibles complicaciones anatÃ³micas.",
+        "contenido": "D./Dña. {{paciente_nombre}} autoriza la extracción dental indicada. Se informan riesgos de dolor, sangrado, infección, alveolitis, inflamación y posibles complicaciones anatómicas.",
     },
     {
         "codigo": "endodoncia",
@@ -61,7 +61,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["endodoncia"],
-        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza el tratamiento de endodoncia. Se informa de pronÃ³stico, controles, posible dolor postoperatorio, fractura, reinfecciÃ³n o necesidad de retratamiento/extracciÃ³n.",
+        "contenido": "D./Dña. {{paciente_nombre}} autoriza el tratamiento de endodoncia. Se informa de pronóstico, controles, posible dolor postoperatorio, fractura, reinfección o necesidad de retratamiento/extracción.",
     },
     {
         "codigo": "ortodoncia",
@@ -69,7 +69,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["ortodoncia"],
-        "contenido": "D./DÃ±a. {{paciente_nombre}} acepta el tratamiento de ortodoncia y comprende la necesidad de colaboraciÃ³n, higiene, controles, retenedores y posibles variaciones del plan.",
+        "contenido": "D./Dña. {{paciente_nombre}} acepta el tratamiento de ortodoncia y comprende la necesidad de colaboración, higiene, controles, retenedores y posibles variaciones del plan.",
     },
     {
         "codigo": "blanqueamiento",
@@ -77,7 +77,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["blanqueamiento"],
-        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza el blanqueamiento dental. Se informa de sensibilidad temporal, limitaciones estÃ©ticas y necesidad de seguir las indicaciones profesionales.",
+        "contenido": "D./Dña. {{paciente_nombre}} autoriza el blanqueamiento dental. Se informa de sensibilidad temporal, limitaciones estéticas y necesidad de seguir las indicaciones profesionales.",
     },
     {
         "codigo": "limpieza",
@@ -85,7 +85,7 @@ PLANTILLAS_BASE = [
         "version": "2026.04",
         "version_num": 1,
         "tratamientos": ["limpieza", "higiene"],
-        "contenido": "D./DÃ±a. {{paciente_nombre}} autoriza la higiene/profilaxis dental indicada. Se informa de posible sensibilidad, sangrado gingival temporal y recomendaciones de mantenimiento.",
+        "contenido": "D./Dña. {{paciente_nombre}} autoriza la higiene/profilaxis dental indicada. Se informa de posible sensibilidad, sangrado gingival temporal y recomendaciones de mantenimiento.",
     },
 ]
 
@@ -414,7 +414,7 @@ async def crear_consentimiento_paciente(
         version_plantilla = plantilla.version
     if not base:
         base_item = next((item for item in PLANTILLAS_BASE if item["nombre"] == data.tipo or item["codigo"] == data.tipo.lower()), None)
-        base = base_item["contenido"] if base_item else "D./DÃ±a. {{paciente_nombre}} recibe informaciÃ³n suficiente sobre el tratamiento indicado y autoriza su realizaciÃ³n."
+        base = base_item["contenido"] if base_item else "D./Dña. {{paciente_nombre}} recibe información suficiente sobre el tratamiento indicado y autoriza su realización."
         plantilla_version = plantilla_version or (base_item["version"] if base_item else "personalizada")
         version_plantilla = version_plantilla or (base_item["version_num"] if base_item else None)
 
