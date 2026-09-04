@@ -284,6 +284,7 @@ async def seed():
                 ciudad="Madrid",
                 provincia="Madrid",
                 observaciones="Paciente con antecedentes de bruxismo. Alérgico a la penicilina.",
+                datos_salud={"alergias": "Penicilina", "enfermedades": "Bruxismo"},
                 activo=True,
                 **campos_enc,
             )
@@ -291,6 +292,10 @@ async def seed():
             await session.flush()
             print(f"✓ Paciente demo: {pac_demo.apellidos}, {pac_demo.nombre} (Hx{pac_demo.num_historial})")
         else:
+            datos_salud = dict(pac_demo.datos_salud or {})
+            datos_salud.setdefault("alergias", "Penicilina")
+            datos_salud.setdefault("enfermedades", "Bruxismo")
+            pac_demo.datos_salud = datos_salud
             print(f"· Paciente demo ya existe: Hx{pac_demo.num_historial}")
 
         # Segundo paciente para variedad
