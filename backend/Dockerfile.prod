@@ -1,19 +1,40 @@
+FROM python:3.11-slim AS builder
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+COPY pyproject.toml ./
+COPY app ./app
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip wheel --wheel-dir /wheels .
+
 FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 \
+    HOME=/home/dentcore
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /wheels /wheels
+RUN pip install --no-index --find-links=/wheels dentcore-backend \
+    && rm -rf /wheels \
+    && groupadd --system dentcore \
+    && useradd --system --gid dentcore --create-home --home-dir /home/dentcore --shell /usr/sbin/nologin dentcore \
+    && mkdir -p /app/uploads /app/backups \
+    && chown dentcore:dentcore /app/uploads /app/backups
 
-COPY pyproject.toml alembic.ini ./
-COPY app ./app
+COPY alembic.ini ./
 COPY alembic ./alembic
 COPY scripts ./scripts
+COPY docker-entrypoint.sh /usr/local/bin/dentcore-entrypoint
 
-RUN pip install --no-cache-dir .
+RUN chmod 0755 /usr/local/bin/dentcore-entrypoint
 
-RUN mkdir -p /app/uploads
+ENTRYPOINT ["dentcore-entrypoint"]
 
 CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS:-2}"]
