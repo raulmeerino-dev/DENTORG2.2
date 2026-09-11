@@ -1,5 +1,5 @@
-import axios from 'axios';
-import type { AxiosError } from 'axios';
+import axios, { CanceledError } from 'axios';
+import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import type {
   ApiPaciente,
   AuditLogEntry,
@@ -136,6 +136,30 @@ export const AUTH_TOKEN_KEY = 'dentcore_token';
 const DEMO_TOKEN_PREFIX = 'demo:';
 const DEMO_FALLBACK_ENABLED = import.meta.env.VITE_DEMO_FALLBACK === 'true';
 let inMemoryAuthToken: string | null = null;
+let authGeneration = 0;
+let refreshFlight: { generation: number; promise: Promise<string> } | null = null;
+const sessionExpiredListeners = new Set<() => void>();
+
+type SessionRequestConfig = InternalAxiosRequestConfig & {
+  _authGeneration?: number;
+  _authToken?: string;
+  _authRetried?: boolean;
+};
+
+function isAuthBoundary(url = '') {
+  return /^\/?auth\/(login|refresh|logout)(?:[/?#]|$)/.test(url);
+}
+
+export function subscribeToSessionExpiration(listener: () => void) {
+  sessionExpiredListeners.add(listener);
+  return () => { sessionExpiredListeners.delete(listener); };
+}
+
+function expireSession() {
+  const hadToken = Boolean(inMemoryAuthToken);
+  clearStoredAuthToken();
+  if (hadToken) sessionExpiredListeners.forEach((listener) => listener());
+}
 
 if (import.meta.env.PROD && DEMO_FALLBACK_ENABLED) {
   throw new Error('VITE_DEMO_FALLBACK=true no esta permitido en produccion: DentCore debe usar API real.');
@@ -158,6 +182,7 @@ function setStoredAuthToken(token: string) {
 }
 
 export function clearStoredAuthToken() {
+  authGeneration += 1;
   inMemoryAuthToken = null;
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
@@ -218,9 +243,17 @@ export async function checkBackendHealth({ force = false, timeoutMs = 2500 } = {
 }
 
 api.interceptors.request.use((config) => {
+  const sessionConfig = config as SessionRequestConfig;
+  if (sessionConfig._authGeneration !== undefined && sessionConfig._authGeneration !== authGeneration) {
+    throw new CanceledError('La sesión ha cambiado.');
+  }
   const token = getStoredAuthToken();
-  if (token) {
+  if (token && !isAuthBoundary(config.url)) {
     config.headers.Authorization = `Bearer ${token}`;
+    sessionConfig._authGeneration = authGeneration;
+    sessionConfig._authToken = token;
+  } else {
+    config.headers.delete('Authorization');
   }
   return config;
 });
@@ -269,9 +302,37 @@ async function describeAxiosError(error: AxiosError): Promise<string> {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    const config = response.config as SessionRequestConfig;
+    if (config._authGeneration !== undefined && config._authGeneration !== authGeneration) {
+      throw new CanceledError('La sesión ha cambiado.');
+    }
+    return response;
+  },
   async (error) => {
     const axiosError = error as AxiosError;
+    const config = axiosError.config as SessionRequestConfig | undefined;
+    if (config?._authGeneration !== undefined && config._authGeneration !== authGeneration) {
+      return Promise.reject(new CanceledError('La sesión ha cambiado.'));
+    }
+    if (axiosError.response?.status === 401 && config?._authToken && !isAuthBoundary(config.url)) {
+      if (config._authRetried) {
+        expireSession();
+      } else {
+        config._authRetried = true;
+        try {
+          // Late 401s from the old token reuse the token already renewed by another request.
+          if (config._authToken === getStoredAuthToken()) await refreshAuthToken();
+          if (config._authGeneration !== authGeneration || !getStoredAuthToken()) {
+            throw new CanceledError('La sesión ha cambiado.');
+          }
+          return api.request(config);
+        } catch (refreshError) {
+          return Promise.reject(refreshError);
+        }
+      }
+    }
+    if (axios.isCancel(error)) return Promise.reject(error);
     if (axiosError?.isAxiosError) {
       logEndpointFailure(axiosError);
       axiosError.message = await describeAxiosError(axiosError);
@@ -346,11 +407,15 @@ export async function openOrDownloadBlob(
 }
 
 export async function login(username: string, password: string, otp?: string) {
+  clearStoredAuthToken();
+  const generation = authGeneration;
   try {
     const { data } = await api.post<{ access_token: string }>('/auth/login', { username, password, otp });
+    if (generation !== authGeneration) throw new CanceledError('La sesión ha cambiado.');
     setStoredAuthToken(data.access_token);
     return data.access_token;
   } catch (error) {
+    if (generation !== authGeneration || axios.isCancel(error)) throw error;
     const demo = demoLogin(username, password, error);
     if (!demo) throw error;
     setStoredAuthToken(demo);
@@ -358,15 +423,32 @@ export async function login(username: string, password: string, otp?: string) {
   }
 }
 
-export async function refreshAuthToken() {
-  const { data } = await api.post<{ access_token: string }>('/auth/refresh');
-  setStoredAuthToken(data.access_token);
-  return data.access_token;
+export function refreshAuthToken() {
+  if (refreshFlight?.generation === authGeneration) return refreshFlight.promise;
+  const generation = authGeneration;
+  const promise = (async () => {
+    try {
+      const { data } = await api.post<{ access_token: string }>('/auth/refresh', undefined, { timeout: 10_000 });
+      if (generation !== authGeneration) throw new CanceledError('La sesión ha cambiado.');
+      if (typeof data.access_token !== 'string' || !data.access_token.trim()) {
+        throw new Error('No se pudo renovar la sesión. Vuelve a iniciar sesión.');
+      }
+      setStoredAuthToken(data.access_token);
+      return data.access_token;
+    } catch (error) {
+      if (generation === authGeneration) expireSession();
+      throw error;
+    } finally {
+      if (refreshFlight?.generation === generation) refreshFlight = null;
+    }
+  })();
+  refreshFlight = { generation, promise };
+  return promise;
 }
 
 export async function logout() {
-  await api.post('/auth/logout').catch(() => undefined);
   clearStoredAuthToken();
+  await api.post('/auth/logout').catch(() => undefined);
 }
 
 export async function getMe() {

@@ -121,6 +121,16 @@ def clear_refresh_cookie(response: Response) -> None:
     )
 
 
+def _refresh_unauthorized(response: Response, detail: str) -> HTTPException:
+    clear_refresh_cookie(response)
+    # HTTPException replaces the injected Response; forward the deletion header.
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"Set-Cookie": response.headers["set-cookie"]},
+    )
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(
     credentials: LoginRequest,
@@ -178,68 +188,36 @@ async def refresh_token(
         refresh_token_value = request.cookies.get(settings.refresh_cookie_name)
 
     if not refresh_token_value:
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion no disponible o expirada",
-        )
+        raise _refresh_unauthorized(response, "Sesion no disponible o expirada")
 
     payload = verify_refresh_token(refresh_token_value)
     if not payload:
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token invalido o expirado",
-        )
+        raise _refresh_unauthorized(response, "Refresh token invalido o expirado")
 
     session_id = payload.get("sid")
     refresh_nonce = payload.get("rnonce")
     if not session_id or not refresh_nonce:
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token invalido o incompleto",
-        )
+        raise _refresh_unauthorized(response, "Refresh token invalido o incompleto")
     try:
         session_uuid = UUID(session_id)
-        user_uuid = UUID(payload["sub"])
+        user_uuid = UUID(payload.get("sub", ""))
     except (ValueError, TypeError):
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion invalida",
-        ) from None
+        raise _refresh_unauthorized(response, "Sesion invalida") from None
 
     auth_session = await db.get(AuthSession, session_uuid)
     if not auth_session or auth_session.usuario_id != user_uuid:
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion no encontrada",
-        )
+        raise _refresh_unauthorized(response, "Sesion no encontrada")
     if auth_session.revoked_at is not None or auth_session.expires_at <= datetime.now(UTC):
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion revocada o expirada",
-        )
+        raise _refresh_unauthorized(response, "Sesion revocada o expirada")
     if auth_session.refresh_nonce != refresh_nonce:
         await _revoke_session(db, auth_session)
         await db.commit()
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion invalidada por rotacion o posible reutilizacion",
-        )
+        raise _refresh_unauthorized(response, "Sesion invalidada por rotacion o posible reutilizacion")
     request_user_agent = _user_agent(request)
     if auth_session.user_agent and request_user_agent and auth_session.user_agent != request_user_agent:
         await _revoke_session(db, auth_session)
         await db.commit()
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Sesion invalidada por cambio de agente",
-        )
+        raise _refresh_unauthorized(response, "Sesion invalidada por cambio de agente")
 
     result = await db.execute(
         select(Usuario).where(Usuario.id == payload["sub"], Usuario.activo == True)  # noqa: E712
@@ -248,11 +226,7 @@ async def refresh_token(
     if not usuario:
         await _revoke_session(db, auth_session)
         await db.commit()
-        clear_refresh_cookie(response)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no encontrado o desactivado",
-        )
+        raise _refresh_unauthorized(response, "Usuario no encontrado o desactivado")
 
     auth_session.refresh_nonce = uuid4().hex
     auth_session.last_used_at = datetime.now(UTC)

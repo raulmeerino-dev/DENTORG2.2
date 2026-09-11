@@ -31,6 +31,7 @@ import { TrabajoPendientePanel } from './TrabajoPendiente';
 import { buildPatientExitChecklist } from './patientExitChecklist';
 import type { PatientExitActionTarget, PatientExitChecklistItem } from './patientExitChecklist';
 import { ClinicalDictationButton } from './ClinicalDictation';
+import { useSessionDraft } from '../../auth/sessionDrafts';
 
 export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
 
@@ -515,7 +516,7 @@ function SessionWorkspace({
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [quickNote, setQuickNote] = useState('');
+  const [quickNote, setQuickNote] = useSessionDraft(`session-note:${paciente?.id}:${selectedId ?? 'none'}`);
   const [savingNote, setSavingNote] = useState(false);
   const pendingMaterialize = useRef<Map<string, Promise<SessionTreatment | null>>>(new Map());
   const materializedAlias = useRef<Map<string, SessionTreatment>>(new Map());
@@ -558,16 +559,6 @@ function SessionWorkspace({
       cancelled = true;
     };
   }, [baseSessionItems]);
-
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) setQuickNote('');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedId]);
 
   function updateLocal(patch: Partial<SessionTreatment>) {
     if (!selected) return;

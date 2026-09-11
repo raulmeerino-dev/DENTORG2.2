@@ -22,9 +22,12 @@ from app.models.cita import Cita, CitaTelefonear
 from app.models.clinica import Clinica
 from app.models.doctor import Doctor
 from app.models.factura import Factura
+from app.models.historial import HistorialClinico
 from app.models.laboratorio import Laboratorio, TrabajoLaboratorio
 from app.models.paciente import Paciente
 from app.models.receta import RecetaPlantilla
+from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.models.usuario import Usuario
 
 
 def bearer_headers(
@@ -32,9 +35,10 @@ def bearer_headers(
     *,
     clinic_id: UUID | None = None,
     patient_id: UUID | None = None,
+    user_id: UUID | None = None,
 ) -> dict[str, str]:
     claims = {
-        "sub": str(uuid4()),
+        "sub": str(user_id or uuid4()),
         "username": f"authz-{role}-{uuid4().hex[:8]}",
         "rol": role,
         "clinica_id": str(clinic_id) if clinic_id else None,
@@ -279,6 +283,168 @@ async def test_assigned_staff_cannot_cross_clinics(
     assert own.status_code == 200
     assert foreign.status_code == 403
     assert create_foreign.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_clinical_history_enforces_clinic_role_and_related_resources(
+    client: AsyncClient,
+    db_session: AsyncSession,
+) -> None:
+    clinic_a = Clinica(nombre=f"Historial A {uuid4().hex[:8]}", activa=True)
+    clinic_b = Clinica(nombre=f"Historial B {uuid4().hex[:8]}", activa=True)
+    family = FamiliaTratamiento(nombre=f"Familia {uuid4().hex[:8]}", activo=True)
+    db_session.add_all([clinic_a, clinic_b, family])
+    await db_session.flush()
+
+    doctor_a = Doctor(nombre="Doctora A", clinica_id=clinic_a.id, activo=True)
+    doctor_b = Doctor(nombre="Doctor B", clinica_id=clinic_b.id, activo=True)
+    patient_a = Paciente(nombre="Paciente", apellidos="Historial A", clinica_id=clinic_a.id)
+    patient_b = Paciente(nombre="Paciente", apellidos="Historial B", clinica_id=clinic_b.id)
+    treatment = TratamientoCatalogo(
+        familia_id=family.id,
+        codigo=f"AUTH-{uuid4().hex[:8]}",
+        nombre="Tratamiento autorizado",
+        precio=Decimal("90.00"),
+        iva_porcentaje=Decimal("0.00"),
+        requiere_pieza=True,
+        requiere_caras=False,
+        activo=True,
+    )
+    db_session.add_all([doctor_a, doctor_b, patient_a, patient_b, treatment])
+    await db_session.flush()
+
+    doctor_user_a = Usuario(
+        username=f"history-doctor-a-{uuid4().hex[:8]}",
+        password_hash="not-used",
+        nombre="Doctor A",
+        rol="doctor",
+        clinica_id=clinic_a.id,
+        doctor_id=doctor_a.id,
+        activo=True,
+    )
+    doctor_user_b = Usuario(
+        username=f"history-doctor-b-{uuid4().hex[:8]}",
+        password_hash="not-used",
+        nombre="Doctor B",
+        rol="doctor",
+        clinica_id=clinic_b.id,
+        doctor_id=doctor_b.id,
+        activo=True,
+    )
+    reception_user_a = Usuario(
+        username=f"history-reception-a-{uuid4().hex[:8]}",
+        password_hash="not-used",
+        nombre="Recepcion A",
+        rol="recepcion",
+        clinica_id=clinic_a.id,
+        activo=True,
+    )
+    db_session.add_all([doctor_user_a, doctor_user_b, reception_user_a])
+    await db_session.flush()
+
+    existing_a = HistorialClinico(
+        paciente_id=patient_a.id,
+        tratamiento_id=treatment.id,
+        doctor_id=doctor_a.id,
+        fecha=date.today(),
+        procedimiento="Registro de clinica A",
+        estado="realizado",
+    )
+    existing_b = HistorialClinico(
+        paciente_id=patient_b.id,
+        tratamiento_id=treatment.id,
+        doctor_id=doctor_b.id,
+        fecha=date.today(),
+        procedimiento="Registro de clinica B",
+        estado="realizado",
+    )
+    db_session.add_all([existing_a, existing_b])
+    await db_session.commit()
+
+    doctor_a_headers = bearer_headers(
+        "doctor",
+        clinic_id=clinic_a.id,
+        user_id=doctor_user_a.id,
+    )
+    doctor_b_headers = bearer_headers(
+        "doctor",
+        clinic_id=clinic_b.id,
+        user_id=doctor_user_b.id,
+    )
+    reception_a_headers = bearer_headers(
+        "recepcion",
+        clinic_id=clinic_a.id,
+        user_id=reception_user_a.id,
+    )
+    create_payload = {
+        "paciente_id": str(patient_a.id),
+        "tratamiento_id": str(treatment.id),
+        "doctor_id": str(doctor_a.id),
+        "pieza_dental": 24,
+        "fecha": date.today().isoformat(),
+        "procedimiento": "Tratamiento valido",
+        "estado": "realizado",
+        "importe": "90.00",
+    }
+
+    own_read = await client.get(
+        f"/api/tratamientos/historial/{patient_a.id}",
+        headers=doctor_a_headers,
+    )
+    cross_read = await client.get(
+        f"/api/tratamientos/historial/{patient_b.id}",
+        headers=doctor_a_headers,
+    )
+    reception_write = await client.post(
+        "/api/tratamientos/historial",
+        headers=reception_a_headers,
+        json=create_payload,
+    )
+    cross_patient_write = await client.post(
+        "/api/tratamientos/historial",
+        headers=doctor_a_headers,
+        json={**create_payload, "paciente_id": str(patient_b.id)},
+    )
+    cross_doctor_write = await client.post(
+        "/api/tratamientos/historial",
+        headers=doctor_a_headers,
+        json={**create_payload, "doctor_id": str(doctor_b.id)},
+    )
+    valid_write = await client.post(
+        "/api/tratamientos/historial",
+        headers=doctor_a_headers,
+        json=create_payload,
+    )
+
+    assert own_read.status_code == 200
+    assert {row["id"] for row in own_read.json()} == {str(existing_a.id)}
+    assert cross_read.status_code == 403
+    assert reception_write.status_code == 403
+    assert cross_patient_write.status_code == 403
+    assert cross_doctor_write.status_code == 403
+    assert valid_write.status_code == 201
+
+    created_id = valid_write.json()["id"]
+    reception_patch = await client.patch(
+        f"/api/tratamientos/historial/{created_id}",
+        headers=reception_a_headers,
+        json={"observaciones": "No autorizada"},
+    )
+    cross_clinic_patch = await client.patch(
+        f"/api/tratamientos/historial/{created_id}",
+        headers=doctor_b_headers,
+        json={"observaciones": "No autorizada"},
+    )
+    valid_patch = await client.patch(
+        f"/api/tratamientos/historial/{created_id}",
+        headers=doctor_a_headers,
+        json={"observaciones": "Evolucion autorizada"},
+    )
+
+    assert reception_patch.status_code == 403
+    assert cross_clinic_patch.status_code == 403
+    assert valid_patch.status_code == 200
+    assert valid_patch.json()["observaciones"] == "Evolucion autorizada"
 
 
 @pytest.mark.asyncio

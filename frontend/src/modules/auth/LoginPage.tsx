@@ -1,20 +1,23 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
+import { getReturnLocation } from '../../auth/returnLocation';
 import dentcoreLogo from '../../assets/branding/dentcore-clinic-logo-192.png';
 import './login.css';
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth();
+  const location = useLocation();
+  const returnLocation = getReturnLocation(location.state);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  if (isAuthenticated) return <Navigate to="/pacientes" replace />;
+  if (isAuthenticated) return <Navigate to={returnLocation ?? '/pacientes'} state={returnLocation?.state} replace />;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -44,6 +47,7 @@ export default function LoginPage() {
           <p className="eyebrow">Acceso profesional</p>
           <h1 id="login-title">Entrar en la clínica</h1>
           <p>Usa las credenciales asignadas a tu perfil.</p>
+          {returnLocation && <p role="status">Inicia sesión para volver al punto donde estabas. Los cambios sin guardar no se han enviado.</p>}
         </div>
 
         <div className="login-fields">

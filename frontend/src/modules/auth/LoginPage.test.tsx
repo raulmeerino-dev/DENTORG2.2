@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import LoginPage from './LoginPage';
 
@@ -41,5 +41,29 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /entrar/i }));
 
     expect(authState.login).toHaveBeenCalledWith('admin', 'admin1234', '123456');
+  });
+
+  it('returns to the original path, query, hash and navigation state after login', async () => {
+    authState.isAuthenticated = true;
+    function Destination() {
+      const location = useLocation();
+      return <p>{JSON.stringify({ path: location.pathname + location.search + location.hash, state: location.state })}</p>;
+    }
+    render(<MemoryRouter initialEntries={[{ pathname: '/login', state: { from: {
+      pathname: '/pacientes', search: '?paciente_id=pac-1', hash: '#sesion', state: { action: 'note' },
+    } } }]}><Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/pacientes" element={<Destination />} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText('{"path":"/pacientes?paciente_id=pac-1#sesion","state":{"action":"note"}}')).toBeInTheDocument();
+  });
+
+  it.each(['https://evil.example', '//evil.example', '/\\evil.example', '/login'])('rejects unsafe or looping return path %s', async (pathname) => {
+    authState.isAuthenticated = true;
+    render(<MemoryRouter initialEntries={[{ pathname: '/login', state: { from: { pathname } } }]}><Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/pacientes" element={<p>Destino seguro</p>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText('Destino seguro')).toBeInTheDocument();
   });
 });

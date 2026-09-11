@@ -36,8 +36,9 @@ const PATIENT_ROLES: UserRole[] = ['paciente'];
 
 function Protected({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
   if (isLoading) return <div className="loading-page">Cargando sesión...</div>;
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
   return children;
 }
 

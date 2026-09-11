@@ -7,7 +7,7 @@ from datetime import date as date_type
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -15,6 +15,9 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import CurrentUser, RequireAdmin, ensure_clinic_access
 from app.database import get_db
 from app.models.cita import Cita
+from app.models.doctor import Doctor
+from app.models.factura import Factura
+from app.models.gabinete import Gabinete
 from app.models.historial import HistorialClinico, NotaDental
 from app.models.odontograma import (
     Odontograma,
@@ -44,6 +47,7 @@ from app.schemas.tratamiento import (
     TratamientoResponse,
     TratamientoUpdate,
 )
+from app.services.audit import write_audit_log
 
 router = APIRouter()
 
@@ -302,13 +306,133 @@ async def desactivar_tratamiento(
 
 # ─── HISTORIAL CLÍNICO ────────────────────────────────────────────────────────
 
+CLINICAL_HISTORY_WRITE_ROLES = {"admin", "doctor", "auxiliar"}
+
+
+def _ensure_clinical_history_write_role(current_user: CurrentUser) -> None:
+    if current_user.rol not in CLINICAL_HISTORY_WRITE_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="No puede modificar el historial clinico.",
+        )
+
+
+async def _get_history_patient_or_404(db: AsyncSession, paciente_id: UUID) -> Paciente:
+    paciente = await db.get(Paciente, paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    return paciente
+
+
+async def _get_history_entry_or_404(db: AsyncSession, entrada_id: UUID) -> HistorialClinico:
+    result = await db.execute(
+        select(HistorialClinico)
+        .options(
+            selectinload(HistorialClinico.tratamiento),
+            selectinload(HistorialClinico.doctor),
+        )
+        .where(HistorialClinico.id == entrada_id)
+    )
+    historial = result.scalar_one_or_none()
+    if not historial:
+        raise HTTPException(status_code=404, detail="Entrada de historial no encontrada")
+    return historial
+
+
+def _ensure_same_clinic(
+    paciente: Paciente,
+    related_clinic_id: UUID | None,
+    *,
+    resource_name: str,
+) -> None:
+    """Impide enlazar recursos de dos clinicas nominales diferentes.
+
+    Los recursos legacy sin clinica permanecen compatibles hasta que P0-003
+    asigne su propietario de forma segura.
+    """
+    if (
+        paciente.clinica_id is not None
+        and related_clinic_id is not None
+        and paciente.clinica_id != related_clinic_id
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=f"{resource_name} pertenece a otra clinica.",
+        )
+
+
+async def _validate_history_links(
+    db: AsyncSession,
+    *,
+    paciente: Paciente,
+    current_user: CurrentUser,
+    tratamiento_id: UUID | None = None,
+    doctor_id: UUID | None = None,
+    gabinete_id: UUID | None = None,
+    factura_id: UUID | None = None,
+    presupuesto_linea_id: UUID | None = None,
+    cita_id: UUID | None = None,
+) -> None:
+    if tratamiento_id is not None and not await db.get(TratamientoCatalogo, tratamiento_id):
+        raise HTTPException(status_code=404, detail="Tratamiento no encontrado")
+
+    if doctor_id is not None:
+        doctor = await db.get(Doctor, doctor_id)
+        if not doctor:
+            raise HTTPException(status_code=404, detail="Doctor no encontrado")
+        ensure_clinic_access(current_user, doctor.clinica_id)
+        _ensure_same_clinic(paciente, doctor.clinica_id, resource_name="El doctor")
+
+    if gabinete_id is not None and not await db.get(Gabinete, gabinete_id):
+        raise HTTPException(status_code=404, detail="Gabinete no encontrado")
+
+    if factura_id is not None:
+        factura = await db.get(Factura, factura_id)
+        if not factura or factura.paciente_id != paciente.id:
+            raise HTTPException(status_code=404, detail="Factura no encontrada para el paciente")
+        ensure_clinic_access(current_user, factura.clinica_id)
+        _ensure_same_clinic(paciente, factura.clinica_id, resource_name="La factura")
+
+    if presupuesto_linea_id is not None:
+        result = await db.execute(
+            select(PresupuestoLinea)
+            .options(selectinload(PresupuestoLinea.presupuesto))
+            .where(PresupuestoLinea.id == presupuesto_linea_id)
+        )
+        linea = result.scalar_one_or_none()
+        if not linea or not linea.presupuesto or linea.presupuesto.paciente_id != paciente.id:
+            raise HTTPException(
+                status_code=404,
+                detail="Linea de presupuesto no encontrada para el paciente",
+            )
+        ensure_clinic_access(current_user, linea.presupuesto.clinica_id)
+        _ensure_same_clinic(
+            paciente,
+            linea.presupuesto.clinica_id,
+            resource_name="El presupuesto",
+        )
+        if tratamiento_id is not None and linea.tratamiento_id != tratamiento_id:
+            raise HTTPException(
+                status_code=409,
+                detail="La linea de presupuesto no corresponde al tratamiento indicado.",
+            )
+
+    if cita_id is not None:
+        cita = await db.get(Cita, cita_id)
+        if not cita or cita.paciente_id != paciente.id:
+            raise HTTPException(status_code=404, detail="Cita no encontrada para el paciente")
+        ensure_clinic_access(current_user, cita.clinica_id)
+        _ensure_same_clinic(paciente, cita.clinica_id, resource_name="La cita")
+
 @router.get("/historial/{paciente_id}", response_model=list[HistorialResponse])
 async def historial_paciente(
     paciente_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
     pieza: int | None = Query(None, description="Filtrar por pieza FDI"),
 ) -> list[HistorialResponse]:
+    paciente = await _get_history_patient_or_404(db, paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
     stmt = (
         select(HistorialClinico)
         .options(
@@ -328,10 +452,36 @@ async def historial_paciente(
 async def registrar_tratamiento(
     data: HistorialCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
+    request: Request,
 ) -> HistorialResponse:
+    _ensure_clinical_history_write_role(current_user)
+    paciente = await _get_history_patient_or_404(db, data.paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    await _validate_history_links(
+        db,
+        paciente=paciente,
+        current_user=current_user,
+        tratamiento_id=data.tratamiento_id,
+        doctor_id=data.doctor_id,
+        gabinete_id=data.gabinete_id,
+        factura_id=data.factura_id,
+        presupuesto_linea_id=data.presupuesto_linea_id,
+        cita_id=data.cita_id,
+    )
     entrada = HistorialClinico(**data.model_dump())
     db.add(entrada)
+    await db.flush()
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="HISTORIAL_CLINICO_CREAR",
+        entity_type="historial_clinico",
+        entity_id=entrada.id,
+        new_values=data.model_dump(mode="json"),
+        clinica_id=paciente.clinica_id,
+        request=request,
+    )
     await db.commit()
     await db.refresh(entrada)
     result = await db.execute(
@@ -783,42 +933,55 @@ async def actualizar_entrada_historial(
     entrada_id: UUID,
     data: HistorialUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: CurrentUser,
+    current_user: CurrentUser,
+    request: Request,
 ) -> HistorialResponse:
-    result = await db.execute(
-        select(HistorialClinico)
-        .options(
-            selectinload(HistorialClinico.tratamiento),
-            selectinload(HistorialClinico.doctor),
-        )
-        .where(HistorialClinico.id == entrada_id)
+    _ensure_clinical_history_write_role(current_user)
+    historial = await _get_history_entry_or_404(db, entrada_id)
+    paciente = await _get_history_patient_or_404(db, historial.paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
+    await _validate_history_links(
+        db,
+        paciente=paciente,
+        current_user=current_user,
+        factura_id=data.factura_id,
+        presupuesto_linea_id=data.presupuesto_linea_id,
+        cita_id=data.cita_id,
     )
-    h = result.scalar_one_or_none()
-    if not h:
-        raise HTTPException(status_code=404, detail="Entrada de historial no encontrada")
-    for f, v in data.model_dump(exclude_none=True).items():
-        setattr(h, f, v)
+    changes = data.model_dump(exclude_none=True)
+    old_values = {
+        field: getattr(historial, field)
+        for field in changes
+    }
+    for field, value in changes.items():
+        setattr(historial, field, value)
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="HISTORIAL_CLINICO_EDITAR",
+        entity_type="historial_clinico",
+        entity_id=historial.id,
+        old_values={key: str(value) if value is not None else None for key, value in old_values.items()},
+        new_values=data.model_dump(mode="json", exclude_none=True),
+        clinica_id=paciente.clinica_id,
+        request=request,
+    )
     await db.commit()
-    result2 = await db.execute(
-        select(HistorialClinico)
-        .options(
-            selectinload(HistorialClinico.tratamiento),
-            selectinload(HistorialClinico.doctor),
-        )
-        .where(HistorialClinico.id == entrada_id)
-    )
-    return HistorialResponse.model_validate(result2.scalar_one())
+    return HistorialResponse.model_validate(await _get_history_entry_or_404(db, entrada_id))
 
 
 @router.delete("/historial/{entrada_id}", status_code=204, dependencies=[RequireAdmin])
 async def eliminar_entrada_historial(
     entrada_id: UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> None:
     """Elimina una entrada de historial (solo admin, por error de registro)."""
     result = await db.execute(select(HistorialClinico).where(HistorialClinico.id == entrada_id))
     h = result.scalar_one_or_none()
     if not h:
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
+    paciente = await _get_history_patient_or_404(db, h.paciente_id)
+    ensure_clinic_access(current_user, paciente.clinica_id)
     await db.delete(h)
     await db.commit()

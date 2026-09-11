@@ -8,8 +8,10 @@ import {
   login as loginRequest,
   logout as logoutRequest,
   refreshAuthToken,
+  subscribeToSessionExpiration,
 } from '../lib/api';
 import type { UsuarioMe } from '../types/api';
+import { clearSessionDrafts, setSessionDraftOwner } from './sessionDrafts';
 
 interface AuthContextValue {
   user: UsuarioMe | null;
@@ -26,6 +28,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hasToken, setHasToken] = useState(() => Boolean(getStoredAuthToken()));
   const [isBootstrapping, setIsBootstrapping] = useState(() => !getStoredAuthToken());
 
+  useEffect(() => subscribeToSessionExpiration(() => {
+    setHasToken(false);
+    setSessionDraftOwner(null);
+    void queryClient.cancelQueries();
+    queryClient.clear();
+  }), [queryClient]);
+
   useEffect(() => {
     let cancelled = false;
     if (getStoredAuthToken()) {
@@ -39,8 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setHasToken(true);
       })
       .catch(() => {
-        clearStoredAuthToken();
-        if (!cancelled) setHasToken(false);
+        if (!cancelled && !getStoredAuthToken()) setHasToken(false);
       })
       .finally(() => {
         if (!cancelled) setIsBootstrapping(false);
@@ -53,27 +61,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['me', hasToken],
-    queryFn: getMe,
+    queryFn: async () => {
+      const user = await getMe();
+      setSessionDraftOwner(user);
+      return user;
+    },
     enabled: hasToken && !isBootstrapping,
     retry: false,
   });
 
   const value = useMemo<AuthContextValue>(() => ({
-    user: data ?? null,
+    user: hasToken ? data ?? null : null,
     isLoading: isBootstrapping || isLoading,
-    isAuthenticated: Boolean(data),
+    isAuthenticated: hasToken && Boolean(data),
     login: async (username, password, otp) => {
       await loginRequest(username, password, otp);
       setHasToken(true);
       await queryClient.invalidateQueries({ queryKey: ['me'] });
     },
     logout: async () => {
-      await logoutRequest();
       clearStoredAuthToken();
       setHasToken(false);
+      clearSessionDrafts();
+      void queryClient.cancelQueries();
       queryClient.clear();
+      await logoutRequest();
     },
-  }), [data, isBootstrapping, isLoading, queryClient]);
+  }), [data, hasToken, isBootstrapping, isLoading, queryClient]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
