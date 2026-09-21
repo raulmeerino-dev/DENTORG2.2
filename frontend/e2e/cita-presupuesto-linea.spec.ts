@@ -189,7 +189,7 @@ test('guardar, refrescar y conservar cita vinculada a linea de presupuesto', asy
   await page.getByLabel('Usuario').fill('admin');
   await page.locator('input[type="password"]').fill('admin1234');
   await page.getByRole('button', { name: 'Entrar' }).click();
-  await expect(page).toHaveURL(/\/pacientes/);
+  await expect(page).not.toHaveURL(/\/login/);
 
   await page.evaluate(([pacienteId, lineaId]) => {
     sessionStorage.setItem('dentcore_agenda_action', 'new');
@@ -198,7 +198,7 @@ test('guardar, refrescar y conservar cita vinculada a linea de presupuesto', asy
     sessionStorage.setItem('dentcore_selected_presupuesto_linea_id', lineaId);
   }, [patient.id, presupuestoLineaId]);
 
-  await page.goto(`/agenda?fecha=${todayIso()}`);
+  await page.goto(`/jornada?vista=agenda&fecha=${todayIso()}`);
   await expect(page.getByText('Nueva cita')).toBeVisible();
   await expect(page.getByLabel(/Tratamiento previsto/i)).toHaveValue('Endodoncia 36');
 

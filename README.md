@@ -9,11 +9,12 @@ Software web de gestion dental orientado a clinica, con flujo operativo profesio
 
 ## Modulos principales
 
-- Hoy: centro operativo diario y BI resumido.
-- Agenda: citas por doctor, huecos, telefono, estados visuales y recordatorios.
+- Jornada: centro operativo diario con perspectivas Operativa y Agenda, filtros compartidos, En sala global y entrega clínica a recepción mediante Pendiente de salida.
+- Agenda: citas por doctor y gabinete opcional, duración habitual, huecos, pacientes provisionales, urgencias y solapes auditados, retrasos y recordatorios.
 - Pacientes: ficha, primera visita, odontograma, presupuestos, pendientes, realizados, historial/facturacion, documentos y consentimientos.
 - Caja: cobros, facturas, recibos, saldo y arqueo diario.
-- Admin: listados, configuracion, clinicas, usuarios/roles, tratamientos, horarios, inventario, laboratorio, auditoria, backups y cumplimiento fiscal.
+- Listados: informes clínicos, económicos y de actividad.
+- Ajustes: configuración, clínicas, usuarios/roles, tratamientos, horarios, inventario, laboratorio, auditoría y backups, según permisos.
 - Portal paciente: invitaciones publicas con token expirado/revocable, citas, documentos y firma de consentimientos.
 
 ## Arranque con Docker
@@ -104,6 +105,8 @@ cd backend
 ```
 
 Nota: los tests backend necesitan PostgreSQL accesible segun `TEST_DATABASE_URL`. En este entorno local ha fallado cuando el host `postgres:5432` no resuelve.
+
+El circuito real de Jornada se valida con Chromium, FastAPI y PostgreSQL aislado. Arranque, datos densos y ensayo de restauración: [pruebas E2E](frontend/e2e/README.md).
 
 ## Documentacion
 

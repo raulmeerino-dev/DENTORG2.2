@@ -27,6 +27,7 @@ Cobertura actual:
 - Auth: login correcto, login incorrecto, refresh token, acceso sin token y bloqueo de fuerza bruta.
 - Pacientes: crear, listar, editar y bloqueo entre clinicas.
 - Citas: crear, bloquear solapamiento, buscar hueco, recordatorio, reprogramar y anulacion.
+- Jornada: llegada idempotente, atención, finalización clínica, salida de recepción, urgencias auditadas, permisos y aislamiento por clínica.
 - Portal paciente: resumen, citas, documentos, consentimientos y firma.
 - Tratamientos/historial: registrar tratamiento clinico y filtrar por pieza.
 - Dictado clinico: permisos, multi-clinica, tamano de audio, proveedor no configurado, transcripcion y guardado como nota.
@@ -38,6 +39,7 @@ Cobertura actual:
 - Dashboard BI: agregados clinicos y economicos.
 - Backups: creacion cifrada y verificable.
 - Backups offline: `python -m scripts.backup_tool restore-check` descifra, extrae y valida un kit de restauracion en seco.
+- Restore aislado: `python -m scripts.backup_tool restore-isolated` importa un backup verificado en PostgreSQL local vacío y comprueba valores, claves foráneas y secuencias. Rechaza destinos no aislados y bases ya ocupadas.
 - Preflight comercial: CORS, backups y aviso de validacion externa.
 - Auditoria: consulta admin de eventos auditados.
 
@@ -76,6 +78,7 @@ Cobertura actual:
 - Agenda: creacion desde Pacientes con paciente, tratamiento y linea de presupuesto precargados.
 - API frontend: mutaciones criticas sin fallback demo de escritura.
 - E2E Playwright: guardar una cita desde una linea de presupuesto, refrescar navegador y comprobar que existe conservando `presupuesto_linea_id`.
+- E2E real de Jornada: recepción → llegada → En sala → atención → finalización → salida, filtros persistentes, notificación única, paciente provisional y urgencia con solape. Activación y runtime aislado en [frontend/e2e/README.md](../frontend/e2e/README.md).
 
 ## CI
 
@@ -102,8 +105,15 @@ Frontend:
 
 El job backend valida migraciones como delta real: primero `alembic upgrade 0041` y despues `alembic upgrade head`.
 
+Jornada full-stack (`jornada-e2e`):
+
+- PostgreSQL 16 y base `dentcore_jornada_test` independientes de los otros jobs.
+- Migraciones completas, datos densos sintéticos, API FastAPI real y Chromium.
+- `DENTCORE_REAL_E2E=1`; pruebas de Jornada activadas expresamente.
+- Conserva trazas de Playwright y logs de API cuando hay un fallo.
+
 ## Limitaciones actuales
 
 - En Windows local, `pytest` falla si `TEST_DATABASE_URL` apunta a `postgres:5432` y ese host no existe. Usar `127.0.0.1` con el puerto real del PostgreSQL local.
 - Vite avisa de chunk frontend grande; se puede resolver con code splitting por rutas en una fase de optimizacion.
-- Falta suite E2E de navegador con backend real para "guardar, refrescar y comprobar que existe" en paciente, presupuesto, cita, sesion realizada, factura y cobro.
+- Jornada dispone de E2E con backend y PostgreSQL reales. Sigue pendiente el recorrido completo de navegador que una presupuesto, acto clínico, factura y cobro, además de las pruebas de integración backend existentes.

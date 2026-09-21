@@ -59,3 +59,72 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run test:e2e
+
+  jornada-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dentcore
+          POSTGRES_PASSWORD: dentcore_e2e_only
+          POSTGRES_DB: dentcore_jornada_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://dentcore:dentcore_e2e_only@127.0.0.1:5432/dentcore_jornada_test
+      DB_ENCRYPTION_KEY: dentcore-e2e-db-key-local-only-32-chars
+      BACKUP_ENCRYPTION_KEY: dentcore-e2e-backup-key-local-only-32-chars
+      JWT_SECRET_KEY: dentcore-e2e-jwt-local-only
+      ENVIRONMENT: development
+      FRONTEND_URL: http://127.0.0.1:5173
+      VITE_API_BASE_URL: http://127.0.0.1:8011/api
+      DENTCORE_E2E_API_URL: http://127.0.0.1:8011/api
+      DENTCORE_REAL_E2E: '1'
+      CLINIC_TIMEZONE: Europe/Madrid
+      TZ: Europe/Madrid
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend and migrate isolated database
+        working-directory: backend
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m alembic upgrade head
+          python -m scripts.seed_demo
+          python -m scripts.seed_jornada
+      - name: Start real API
+        working-directory: backend
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8011 > ../backend-e2e.log 2>&1 &
+          curl --retry 20 --retry-delay 1 --retry-connrefused --fail http://127.0.0.1:8011/api/health
+      - name: Install browser dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Run real Jornada circuit
+        working-directory: frontend
+        run: node node_modules/@playwright/test/cli.js test jornada-real --workers=1 --forbid-only
+      - name: Preserve failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jornada-e2e-failure
+          path: |
+            frontend/test-results/
+            backend-e2e.log
+          retention-days: 7
