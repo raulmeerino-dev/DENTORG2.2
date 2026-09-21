@@ -74,7 +74,7 @@ class WhatsAppActionRequest(BaseModel):
 
 class WhatsAppRescheduleRequest(BaseModel):
     fecha_hora: datetime
-    duracion_min: int | None = Field(None, ge=10, le=480)
+    duracion_min: int | None = Field(None, ge=5, le=480, multiple_of=5)
     gabinete_id: UUID | None = None
     forzar_fuera_horario: bool = False
     note: str | None = Field(None, max_length=500)

@@ -89,6 +89,23 @@ SESION_CLINICA_LOAD_OPTIONS = (
 )
 
 
+async def _lock_session_patient(db: AsyncSession, paciente_id: UUID) -> Paciente | None:
+    return await db.scalar(
+        select(Paciente).where(Paciente.id == paciente_id).with_for_update()
+        .execution_options(populate_existing=True)
+    )
+
+
+async def _ensure_open_session_appointment(db: AsyncSession, cita_id: UUID | None, paciente_id: UUID) -> None:
+    if not cita_id:
+        return
+    cita = await db.scalar(select(Cita).where(Cita.id == cita_id).execution_options(populate_existing=True))
+    if not cita or cita.paciente_id != paciente_id:
+        raise HTTPException(status_code=404, detail="Cita no encontrada para el paciente")
+    if cita.finalizada_at or cita.estado in {"atendida", "anulada", "falta", "cancelled_by_patient"}:
+        raise HTTPException(status_code=409, detail="La visita ya está cerrada; no admite nuevos tratamientos en curso.")
+
+
 async def _get_sesion_item_or_404(
     db: AsyncSession,
     paciente_id: UUID,
@@ -135,10 +152,13 @@ async def crear_sesion_item(
 ) -> SesionClinicaItemResponse:
     _ensure_sesion_role(current_user)
 
-    paciente = await db.get(Paciente, paciente_id)
+    paciente = await _lock_session_patient(db, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)
+
+    if data.estado == "en_curso":
+        await _ensure_open_session_appointment(db, data.cita_id, paciente_id)
 
     if data.tratamiento_id:
         tratamiento = await db.get(TratamientoCatalogo, data.tratamiento_id)
@@ -192,7 +212,7 @@ async def actualizar_sesion_item(
 ) -> SesionClinicaItemResponse:
     _ensure_sesion_role(current_user)
 
-    paciente = await db.get(Paciente, paciente_id)
+    paciente = await _lock_session_patient(db, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)
@@ -205,6 +225,8 @@ async def actualizar_sesion_item(
         )
 
     cambios = data.model_dump(exclude_unset=True)
+    if (data.estado or item.estado) == "en_curso":
+        await _ensure_open_session_appointment(db, cambios.get("cita_id", item.cita_id), paciente_id)
     if "caras" in cambios:
         cambios["caras"] = normalize_caras(cambios["caras"])
     if cambios.get("estado") == "realizado":
@@ -231,7 +253,7 @@ async def eliminar_sesion_item(
 ) -> None:
     _ensure_sesion_role(current_user)
 
-    paciente = await db.get(Paciente, paciente_id)
+    paciente = await _lock_session_patient(db, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)
@@ -252,7 +274,7 @@ async def finalizar_tratamiento_sesion(
     if current_user.rol not in {"admin", "doctor", "auxiliar"}:
         raise HTTPException(status_code=403, detail="No puede finalizar tratamientos clinicos.")
 
-    paciente = await db.get(Paciente, data.paciente_id)
+    paciente = await _lock_session_patient(db, data.paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)

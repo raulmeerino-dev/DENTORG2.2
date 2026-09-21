@@ -66,7 +66,7 @@ from app.domains.scheduling.persistence.cita import (
 )
 from app.domains.scheduling.schemas.cita import CitaCancelar, CitaResponse
 
-PORTAL_CITA_ESTADOS_BLOQUEADOS = {"anulada", "falta", "cancelled_by_patient", "atendida", "en_clinica"}
+PORTAL_CITA_ESTADOS_BLOQUEADOS = {"anulada", "falta", "cancelled_by_patient", "atendida", "en_clinica", "en_atencion"}
 
 
 _PORTAL_PUBLIC_RATE_LIMIT: dict[str, list[datetime]] = {}
@@ -237,6 +237,8 @@ async def _get_public_cita(db: AsyncSession, cita_id: UUID, paciente: Paciente) 
         select(Cita)
         .options(selectinload(Cita.doctor))
         .where(Cita.id == cita_id, Cita.paciente_id == paciente.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     if not cita:
         raise HTTPException(status_code=404, detail="Cita no encontrada")
@@ -579,7 +581,7 @@ async def portal_public_firmar_consentimiento(consentimiento_id: UUID, data: Por
 
 
 async def _ensure_cita_de_paciente(db: AsyncSession, cita_id: UUID, paciente: Paciente, current_user: TokenData) -> Cita:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
     if cita.paciente_id != paciente.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cita no encontrada")
@@ -648,7 +650,7 @@ async def portal_citas(db: AsyncSession, current_user: TokenData, paciente_id: U
     paciente = await _get_portal_paciente(db, current_user, paciente_id)
     result = await db.execute(
         select(Cita)
-        .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
+        .options(selectinload(Cita.paciente), selectinload(Cita.doctor), selectinload(Cita.gabinete))
         .where(
             Cita.paciente_id == paciente.id,
             Cita.fecha_hora >= datetime.now(timezone.utc),

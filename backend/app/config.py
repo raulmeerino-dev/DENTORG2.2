@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
-from pydantic import model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://dentcore:dentcore_dev_pass@localhost:5432/dentcore"
@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     cors_allowed_methods: str = "GET,POST,PUT,PATCH,DELETE,OPTIONS"
     cors_allowed_headers: str = "Authorization,Content-Type,Accept,X-Request-ID"
     sql_echo: bool = False
+
+    # Jornada: waiting thresholds, configurable without changing clinical state.
+    waiting_room_warning_minutes: int = Field(10, ge=1, le=240)
+    waiting_room_critical_minutes: int = Field(20, ge=1, le=480)
+    appointment_default_duration_minutes: int = Field(30, ge=5, le=480, multiple_of=5)
 
     # Seguridad
     login_rate_limit_attempts: int = 5

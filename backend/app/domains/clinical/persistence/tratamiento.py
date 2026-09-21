@@ -35,6 +35,7 @@ class TratamientoCatalogo(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
     iva_porcentaje: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False, default=0)
     requiere_pieza: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     requiere_caras: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    duracion_habitual_min: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
     familia: Mapped["FamiliaTratamiento"] = relationship("FamiliaTratamiento", back_populates="tratamientos")
 

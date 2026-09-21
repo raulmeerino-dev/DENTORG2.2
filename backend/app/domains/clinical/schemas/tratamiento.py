@@ -31,6 +31,7 @@ class FamiliaResponse(BaseModel):
 # ─── Catálogo de tratamientos ─────────────────────────────────────────────────
 
 class TratamientoCreate(BaseModel):
+    duracion_habitual_min: int | None = Field(None, ge=5, le=480, multiple_of=5)
     familia_id: UUID
     codigo: str | None = Field(None, max_length=20)
     nombre: str = Field(..., min_length=1, max_length=150)
@@ -41,6 +42,7 @@ class TratamientoCreate(BaseModel):
 
 
 class TratamientoUpdate(BaseModel):
+    duracion_habitual_min: int | None = Field(None, ge=5, le=480, multiple_of=5)
     familia_id: UUID | None = None
     codigo: str | None = Field(None, max_length=20)
     nombre: str | None = Field(None, max_length=150)
@@ -52,6 +54,7 @@ class TratamientoUpdate(BaseModel):
 
 
 class TratamientoResponse(BaseModel):
+    duracion_habitual_min: int | None = None
     id: UUID
     familia_id: UUID
     familia: FamiliaResponse | None = None

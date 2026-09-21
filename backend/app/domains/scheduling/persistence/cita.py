@@ -1,7 +1,19 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, SmallInteger, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    SmallInteger,
+    String,
+    Text,
+    false,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,6 +24,7 @@ EstadoCitaEnum = Enum(
     "programada",
     "confirmada",
     "en_clinica",
+    "en_atencion",
     "atendida",
     "falta",
     "anulada",
@@ -33,6 +46,9 @@ TipoFaltaEnum = Enum(
 
 class Cita(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "citas"
+    __table_args__ = (
+        Index("ix_citas_pendiente_salida", "clinica_id", "finalizada_at", postgresql_where=text("salida_resuelta_at IS NULL AND finalizada_at IS NOT NULL")),
+    )
 
     paciente_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=False, index=True
@@ -63,6 +79,12 @@ class Cita(UUIDMixin, TimestampMixin, Base):
     recordatorio_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     confirmado_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     motivo_cancelacion: Mapped[str | None] = mapped_column(String(80), nullable=True)
+
+    llegada_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    atencion_iniciada_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finalizada_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    salida_resuelta_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    solape_urgencia: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
 
     # Relaciones
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="citas")  # noqa: F821

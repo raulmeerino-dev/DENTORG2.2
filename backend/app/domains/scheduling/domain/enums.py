@@ -5,6 +5,7 @@ class EstadoCita(StrEnum):
     programada = "programada"
     confirmada = "confirmada"
     en_clinica = "en_clinica"
+    en_atencion = "en_atencion"
     atendida = "atendida"
     falta = "falta"
     anulada = "anulada"

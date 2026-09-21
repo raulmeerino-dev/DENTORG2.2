@@ -9,10 +9,15 @@ Responsabilidades:
 from datetime import datetime, timedelta
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import TokenData
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.scheduling.domain.visit_states import BLOCKING_STATES
 from app.domains.scheduling.persistence.cita import Cita
+from app.domains.scheduling.persistence.gabinete import Gabinete
 from app.domains.scheduling.persistence.horario import HorarioDoctor, HorarioExcepcion
 from app.domains.scheduling.schemas.cita import HuecoLibre
 
@@ -27,15 +32,14 @@ async def hay_solapamiento(
     """
     Comprueba si existe solapamiento con citas ya programadas/confirmadas/en_clinica
     del mismo doctor en ese bloque horario.
-    Ignora urgencias y citas anuladas/faltas.
+    Incluye urgencias y citas con flags de mensajería; ignora citas anuladas/faltas.
     """
     fecha_fin = fecha_hora + timedelta(minutes=duracion_min)
 
     q = select(Cita).where(
         and_(
             Cita.doctor_id == doctor_id,
-            Cita.estado.in_(["programada", "confirmada", "en_clinica"]),
-            Cita.es_urgencia == False,  # noqa: E712 — urgencias no bloquean
+            Cita.estado.in_(BLOCKING_STATES),
             # Overlap: inicio de nueva < fin de existente AND fin de nueva > inicio de existente
             Cita.fecha_hora < fecha_fin,
             (Cita.fecha_hora + timedelta(minutes=1) * Cita.duracion_min) > fecha_hora,
@@ -45,7 +49,7 @@ async def hay_solapamiento(
         q = q.where(Cita.id != excluir_cita_id)
 
     result = await db.execute(q)
-    return result.scalar_one_or_none() is not None
+    return result.scalars().first() is not None
 
 
 async def hay_solapamiento_gabinete(
@@ -62,7 +66,7 @@ async def hay_solapamiento_gabinete(
     q = select(Cita).where(
         and_(
             Cita.gabinete_id == gabinete_id,
-            Cita.estado.in_(["programada", "confirmada", "en_clinica"]),
+            Cita.estado.in_(BLOCKING_STATES),
             Cita.fecha_hora < fecha_fin,
             (Cita.fecha_hora + timedelta(minutes=1) * Cita.duracion_min) > fecha_hora,
         )
@@ -70,7 +74,7 @@ async def hay_solapamiento_gabinete(
     if excluir_cita_id:
         q = q.where(Cita.id != excluir_cita_id)
     result = await db.execute(q)
-    return result.scalar_one_or_none() is not None
+    return result.scalars().first() is not None
 
 
 async def get_horario_dia(
@@ -153,6 +157,7 @@ async def buscar_huecos_libres(
     solo_manana: bool = False,
     solo_tarde: bool = False,
     max_resultados: int = 20,
+    gabinete_id: UUID | None = None,
 ) -> list[HuecoLibre]:
     """
     Busca huecos de `duracion_min` minutos dentro del horario del doctor
@@ -194,6 +199,8 @@ async def buscar_huecos_libres(
                     ocupado = await hay_solapamiento(
                         db, doctor_id, slot_inicio, duracion_min
                     )
+                    if not ocupado and gabinete_id:
+                        ocupado = await hay_solapamiento_gabinete(db, gabinete_id, slot_inicio, duracion_min)
                     if not ocupado:
                         huecos.append(
                             HuecoLibre(
@@ -211,3 +218,38 @@ async def buscar_huecos_libres(
         fecha_actual += timedelta(days=1)
 
     return huecos
+
+
+async def validar_reserva(
+    db: AsyncSession,
+    *,
+    current_user: TokenData,
+    cita_id: UUID | None,
+    doctor_id: UUID,
+    gabinete_id: UUID | None,
+    fecha_hora: datetime,
+    duracion_min: int,
+    es_urgencia: bool,
+    forzar_fuera_horario: bool,
+) -> dict[str, bool]:
+    if forzar_fuera_horario and current_user.rol != "admin":
+        raise HTTPException(status_code=403, detail="Solo admin puede forzar una cita fuera de horario")
+    # Serialize booking the same resource so simultaneous requests cannot both
+    # pass availability checks before committing their appointment.
+    await db.execute(select(Doctor.id).where(Doctor.id == doctor_id).with_for_update())
+    if gabinete_id:
+        gabinete = await db.scalar(select(Gabinete).where(Gabinete.id == gabinete_id, Gabinete.activo.is_(True)).with_for_update())
+        if not gabinete:
+            raise HTTPException(status_code=404, detail="Gabinete no encontrado o inactivo")
+    solapamiento = await hay_solapamiento(db, doctor_id, fecha_hora, duracion_min, excluir_cita_id=cita_id)
+    gabinete_ocupado = await hay_solapamiento_gabinete(db, gabinete_id, fecha_hora, duracion_min, excluir_cita_id=cita_id)
+    if not es_urgencia:
+        if solapamiento:
+            raise HTTPException(status_code=409, detail="El doctor ya tiene una cita en ese horario")
+        if gabinete_ocupado:
+            raise HTTPException(status_code=409, detail="El gabinete ya tiene una cita en ese horario")
+    if not es_urgencia and not forzar_fuera_horario:
+        dentro_disponibilidad = await esta_dentro_disponibilidad(db, doctor_id, fecha_hora, duracion_min)
+        if not dentro_disponibilidad:
+            raise HTTPException(status_code=409, detail="La cita queda fuera del horario configurado del doctor")
+    return {"doctor": solapamiento, "gabinete": gabinete_ocupado}

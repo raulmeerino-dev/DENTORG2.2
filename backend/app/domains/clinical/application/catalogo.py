@@ -100,6 +100,8 @@ async def actualizar_tratamiento(
         raise HTTPException(status_code=404, detail="Tratamiento no encontrado")
     for f, v in data.model_dump(exclude_none=True).items():
         setattr(t, f, v)
+    if "duracion_habitual_min" in data.model_fields_set:
+        t.duracion_habitual_min = data.duracion_habitual_min
     await db.commit()
     await db.refresh(t)
     result2 = await db.execute(

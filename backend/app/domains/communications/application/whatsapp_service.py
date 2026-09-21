@@ -8,14 +8,14 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from typing import Any
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.audit_log import write_audit_log
 from app.core.crypto import descifrar_bytes
-from app.core.permissions import TokenData
+from app.core.permissions import TokenData, ensure_clinic_access
 from app.domains.communications.persistence.whatsapp import WhatsAppComunicacion
 from app.domains.communications.schemas.whatsapp import (
     WhatsAppRescheduleRequest,
@@ -23,9 +23,7 @@ from app.domains.communications.schemas.whatsapp import (
 )
 from app.domains.patients.persistence.paciente import Paciente
 from app.domains.scheduling.application.agenda_service import (
-    esta_dentro_disponibilidad,
-    hay_solapamiento,
-    hay_solapamiento_gabinete,
+    validar_reserva,
 )
 from app.domains.scheduling.persistence.cita import (
     Cita,
@@ -172,6 +170,8 @@ def _snapshot_cita(cita: Cita) -> dict[str, Any]:
         "fecha_hora": cita.fecha_hora.isoformat(),
         "duracion_min": cita.duracion_min,
         "estado": cita.estado,
+        "es_urgencia": cita.es_urgencia,
+        "solape_urgencia": cita.solape_urgencia,
         "motivo": cita.motivo,
         "observaciones": cita.observaciones,
         "motivo_cancelacion": cita.motivo_cancelacion,
@@ -209,6 +209,8 @@ async def _find_target_appointment(db: AsyncSession, paciente: Paciente | None) 
             Cita.estado.in_(MATCHABLE_APPOINTMENT_STATES),
         )
         .order_by(Cita.recordatorio_enviado.desc(), Cita.recordatorio_at.desc(), Cita.fecha_hora)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     cita = result.scalars().first()
     if cita:
@@ -422,12 +424,17 @@ async def apply_whatsapp_action(
     user: TokenData,
     request: Request | None = None,
 ) -> str | None:
-    cita = await db.get(Cita, communication.appointment_id) if communication.appointment_id else None
+    cita = await db.scalar(select(Cita).where(Cita.id == communication.appointment_id).with_for_update().execution_options(populate_existing=True)) if communication.appointment_id else None
     applied_status: str | None = None
 
     if action in {"ignore", "mark_reviewed"}:
         communication.processed = True
         return None
+
+    if cita:
+        ensure_clinic_access(user, cita.clinica_id)
+        if cita.estado not in MATCHABLE_APPOINTMENT_STATES or cita.atencion_iniciada_at:
+            raise HTTPException(status_code=409, detail="La visita ya ha llegado o está cerrada. Gestione la atención desde Jornada.")
 
     if action == "manual_review":
         communication.processed = False
@@ -502,23 +509,25 @@ async def reschedule_whatsapp_appointment(
 ) -> str:
     if not communication.appointment_id:
         raise ValueError("La comunicacion no tiene cita asociada.")
-    cita = await db.get(Cita, communication.appointment_id)
+    cita = await db.scalar(select(Cita).where(Cita.id == communication.appointment_id).with_for_update().execution_options(populate_existing=True))
     if not cita:
         raise ValueError("Cita no encontrada.")
+    ensure_clinic_access(user, cita.clinica_id)
+    if cita.estado not in MATCHABLE_APPOINTMENT_STATES or cita.atencion_iniciada_at:
+        raise ValueError("La visita ya ha llegado o está cerrada; no puede reprogramarse desde WhatsApp.")
     if data.forzar_fuera_horario and user.rol != "admin":
         raise ValueError("Solo admin puede forzar una cita fuera de horario.")
 
     duracion = data.duracion_min or cita.duracion_min
-    gabinete_id = data.gabinete_id if data.gabinete_id is not None else cita.gabinete_id
-    if not data.forzar_fuera_horario:
-        if await hay_solapamiento(db, cita.doctor_id, data.fecha_hora, duracion, excluir_cita_id=cita.id):
-            raise ValueError("El doctor ya tiene una cita en ese horario.")
-        if await hay_solapamiento_gabinete(db, gabinete_id, data.fecha_hora, duracion, excluir_cita_id=cita.id):
-            raise ValueError("El gabinete ya tiene una cita en ese horario.")
-        if not await esta_dentro_disponibilidad(db, cita.doctor_id, data.fecha_hora, duracion):
-            raise ValueError("La cita queda fuera del horario configurado del doctor.")
+    gabinete_id = data.gabinete_id if "gabinete_id" in data.model_fields_set else cita.gabinete_id
+    conflictos = await validar_reserva(
+        db, current_user=user, cita_id=cita.id, doctor_id=cita.doctor_id,
+        gabinete_id=gabinete_id, fecha_hora=data.fecha_hora, duracion_min=duracion,
+        es_urgencia=cita.es_urgencia, forzar_fuera_horario=data.forzar_fuera_horario,
+    )
 
     old = _snapshot_cita(cita)
+    cita.solape_urgencia = cita.es_urgencia and any(conflictos.values())
     cita.fecha_hora = data.fecha_hora
     cita.duracion_min = duracion
     cita.gabinete_id = gabinete_id

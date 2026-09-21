@@ -17,9 +17,6 @@ from app.core.permissions import (
     resolve_clinic_id,
     scope_select_by_clinic,
 )
-from app.domains.communications.application.notificaciones import (
-    create_patient_waiting_notification,
-)
 from app.domains.communications.application.whatsapp_service import record_outbound_whatsapp
 from app.domains.communications.schemas.recordatorio import RecordatorioCreate, RecordatorioResponse
 from app.domains.identity.persistence.doctor import Doctor
@@ -27,11 +24,15 @@ from app.domains.laboratory.persistence.laboratorio import TrabajoLaboratorio
 from app.domains.patients.persistence.paciente import Paciente
 from app.domains.scheduling.application.agenda_service import (
     buscar_huecos_libres,
-    esta_dentro_disponibilidad,
     get_horario_dia,
-    hay_solapamiento,
-    hay_solapamiento_gabinete,
+    validar_reserva,
 )
+from app.domains.scheduling.application.visit_lifecycle import (
+    VISIT_STATES,
+    apply_visit_state,
+    ensure_visit_not_started,
+)
+from app.domains.scheduling.domain.visit_states import operational_state
 from app.domains.scheduling.persistence.cita import (
     Cita,
     CitaCambio,
@@ -56,15 +57,19 @@ from app.domains.scheduling.schemas.cita import (
 from app.domains.treatment_plans.persistence.presupuesto import PresupuestoLinea
 
 
-async def _get_cita_or_404(db: AsyncSession, cita_id: UUID) -> Cita:
+async def _get_cita_or_404(db: AsyncSession, cita_id: UUID, *, lock: bool = False) -> Cita:
+    if lock:
+        await db.execute(select(Cita.id).where(Cita.id == cita_id).with_for_update())
     result = await db.execute(
         select(Cita)
         .options(
             selectinload(Cita.paciente),
             selectinload(Cita.doctor),
+            selectinload(Cita.gabinete),
             selectinload(Cita.trabajos_laboratorio).selectinload(TrabajoLaboratorio.laboratorio),
         )
         .where(Cita.id == cita_id)
+        .execution_options(populate_existing=True)
     )
     cita = result.scalar_one_or_none()
     if not cita:
@@ -148,6 +153,14 @@ async def _to_response(db: AsyncSession, cita: Cita) -> CitaResponse:
             "fecha_hora": cita.fecha_hora,
             "duracion_min": cita.duracion_min,
             "estado": cita.estado,
+            "estado_operativo": operational_state(cita.estado, confirmed=cita.confirmado_at is not None),
+            "llegada_at": cita.llegada_at,
+            "atencion_iniciada_at": cita.atencion_iniciada_at,
+            "finalizada_at": cita.finalizada_at,
+            "salida_resuelta_at": cita.salida_resuelta_at,
+            "pendiente_salida": bool(cita.estado == "atendida" and cita.finalizada_at and not cita.salida_resuelta_at),
+            "solape_urgencia": cita.solape_urgencia,
+            "gabinete_nombre": cita.gabinete.nombre if cita.gabinete else None,
             "es_urgencia": cita.es_urgencia,
             "motivo": cita.motivo,
             "observaciones": cita.observaciones,
@@ -205,6 +218,12 @@ def _snapshot_cita(cita: Cita) -> dict:
         "fecha_hora": cita.fecha_hora.isoformat(),
         "duracion_min": cita.duracion_min,
         "estado": cita.estado,
+        "llegada_at": cita.llegada_at.isoformat() if cita.llegada_at else None,
+        "atencion_iniciada_at": cita.atencion_iniciada_at.isoformat() if cita.atencion_iniciada_at else None,
+        "finalizada_at": cita.finalizada_at.isoformat() if cita.finalizada_at else None,
+        "salida_resuelta_at": cita.salida_resuelta_at.isoformat() if cita.salida_resuelta_at else None,
+        "es_urgencia": cita.es_urgencia,
+        "solape_urgencia": cita.solape_urgencia,
         "motivo": cita.motivo,
         "observaciones": cita.observaciones,
         "motivo_cancelacion": cita.motivo_cancelacion,
@@ -280,33 +299,6 @@ async def _validate_presupuesto_linea_for_cita(
     ensure_clinic_access(current_user, presupuesto.clinica_id)
 
 
-async def _validar_cita_operativa(
-    db: AsyncSession,
-    *,
-    current_user: TokenData,
-    cita_id: UUID | None,
-    doctor_id: UUID,
-    gabinete_id: UUID | None,
-    fecha_hora: datetime,
-    duracion_min: int,
-    es_urgencia: bool,
-    forzar_fuera_horario: bool,
-) -> None:
-    if forzar_fuera_horario and current_user.rol != "admin":
-        raise HTTPException(status_code=403, detail="Solo admin puede forzar una cita fuera de horario")
-    if not es_urgencia:
-        solapamiento = await hay_solapamiento(db, doctor_id, fecha_hora, duracion_min, excluir_cita_id=cita_id)
-        if solapamiento:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El doctor ya tiene una cita en ese horario")
-        gabinete_ocupado = await hay_solapamiento_gabinete(db, gabinete_id, fecha_hora, duracion_min, excluir_cita_id=cita_id)
-        if gabinete_ocupado:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El gabinete ya tiene una cita en ese horario")
-    if not es_urgencia and not forzar_fuera_horario:
-        dentro_disponibilidad = await esta_dentro_disponibilidad(db, doctor_id, fecha_hora, duracion_min)
-        if not dentro_disponibilidad:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="La cita queda fuera del horario configurado del doctor")
-
-
 async def _registrar_falta_si_procede(
     db: AsyncSession,
     cita: Cita,
@@ -325,23 +317,13 @@ async def _registrar_falta_si_procede(
     db.add(falta)
 
 
-async def _notificar_llegada_si_procede(
-    db: AsyncSession,
-    cita: Cita,
-    estado_anterior: str | None,
-    estado_nuevo: str,
-) -> None:
-    if estado_nuevo != "en_clinica" or estado_anterior == "en_clinica":
-        return
-    await create_patient_waiting_notification(db, cita)
-
-
-async def listar_citas(db: AsyncSession, current_user: TokenData, doctor_id: UUID | None, paciente_id: UUID | None, fecha_desde: datetime | None, fecha_hasta: datetime | None, estado: str | None) -> list[CitaResponse]:
+async def listar_citas(db: AsyncSession, current_user: TokenData, doctor_id: UUID | None, paciente_id: UUID | None, fecha_desde: datetime | None, fecha_hasta: datetime | None, estado: str | None, pendiente_salida: bool | None = None) -> list[CitaResponse]:
     q = (
         select(Cita)
         .options(
             selectinload(Cita.paciente),
             selectinload(Cita.doctor),
+            selectinload(Cita.gabinete),
             selectinload(Cita.trabajos_laboratorio).selectinload(TrabajoLaboratorio.laboratorio),
         )
         .order_by(Cita.fecha_hora)
@@ -357,6 +339,9 @@ async def listar_citas(db: AsyncSession, current_user: TokenData, doctor_id: UUI
         q = q.where(Cita.fecha_hora <= fecha_hasta)
     if estado:
         q = q.where(Cita.estado == estado)
+    if pendiente_salida is not None:
+        pending = (Cita.estado == "atendida") & Cita.finalizada_at.is_not(None) & Cita.salida_resuelta_at.is_(None)
+        q = q.where(pending if pendiente_salida else ~pending)
 
     result = await db.execute(q)
     citas_orm = result.scalars().all()
@@ -386,7 +371,7 @@ async def crear_cita(data: CitaCreate, request: Request, db: AsyncSession, curre
         current_user=current_user,
     )
 
-    await _validar_cita_operativa(
+    conflictos = await validar_reserva(
         db,
         current_user=current_user,
         cita_id=None,
@@ -398,8 +383,11 @@ async def crear_cita(data: CitaCreate, request: Request, db: AsyncSession, curre
         forzar_fuera_horario=data.forzar_fuera_horario,
     )
 
-    campos = data.model_dump(exclude={"forzar_fuera_horario"})
+    campos = data.model_dump(exclude={"forzar_fuera_horario", "motivo_solape"})
     campos["clinica_id"] = resolve_clinic_id(current_user, pac.clinica_id or doc.clinica_id)
+    campos["solape_urgencia"] = data.es_urgencia and any(conflictos.values())
+    if data.estado == "confirmada":
+        campos["confirmado_at"] = datetime.now(timezone.utc)
     cita = Cita(**campos)
     db.add(cita)
     await db.flush()
@@ -408,7 +396,8 @@ async def crear_cita(data: CitaCreate, request: Request, db: AsyncSession, curre
         cita=cita,
         current_user=current_user,
         accion="crear",
-        new_values=_snapshot_cita(cita),
+        new_values={**_snapshot_cita(cita), "solapes": conflictos},
+        motivo=data.motivo_solape or ("Urgencia autorizada" if cita.solape_urgencia else None),
         request=request,
     )
     await db.commit()
@@ -416,7 +405,7 @@ async def crear_cita(data: CitaCreate, request: Request, db: AsyncSession, curre
     return await _to_response(db, await _get_cita_or_404(db, cita.id))
 
 
-async def buscar_hueco(db: AsyncSession, current_user: TokenData, doctor_id: UUID, duracion_min: int, desde: datetime, hasta: datetime, solo_manana: bool, solo_tarde: bool, max_resultados: int) -> list[HuecoLibre]:
+async def buscar_hueco(db: AsyncSession, current_user: TokenData, doctor_id: UUID, duracion_min: int, desde: datetime, hasta: datetime, solo_manana: bool, solo_tarde: bool, max_resultados: int, gabinete_id: UUID | None = None) -> list[HuecoLibre]:
     doctor = await db.get(Doctor, doctor_id)
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
@@ -430,6 +419,7 @@ async def buscar_hueco(db: AsyncSession, current_user: TokenData, doctor_id: UUI
         solo_manana=solo_manana,
         solo_tarde=solo_tarde,
         max_resultados=max_resultados,
+        gabinete_id=gabinete_id,
     )
 
 
@@ -446,6 +436,7 @@ async def buscar_hueco_post(data: BuscarHuecoRequest, db: AsyncSession, current_
         hasta=data.hasta,
         solo_manana=data.solo_manana,
         solo_tarde=data.solo_tarde,
+        gabinete_id=data.gabinete_id,
     )
 
 
@@ -470,17 +461,20 @@ async def disponibilidad_doctor(db: AsyncSession, current_user: TokenData, docto
 
 
 async def reprogramar_cita(cita_id: UUID, data: CitaReprogramar, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
+    ensure_visit_not_started(cita)
     old = _snapshot_cita(cita)
     doctor_destino = data.doctor_id or cita.doctor_id
     doctor = await db.get(Doctor, doctor_destino)
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
     ensure_clinic_access(current_user, doctor.clinica_id)
+    if cita.clinica_id and doctor.clinica_id and cita.clinica_id != doctor.clinica_id:
+        raise HTTPException(status_code=409, detail="Cita y doctor pertenecen a clínicas distintas")
     nueva_duracion = data.duracion_min or cita.duracion_min
-    nuevo_gabinete = data.gabinete_id if data.gabinete_id is not None else cita.gabinete_id
-    await _validar_cita_operativa(
+    nuevo_gabinete = data.gabinete_id if "gabinete_id" in data.model_fields_set else cita.gabinete_id
+    conflictos = await validar_reserva(
         db,
         current_user=current_user,
         cita_id=cita.id,
@@ -491,6 +485,7 @@ async def reprogramar_cita(cita_id: UUID, data: CitaReprogramar, request: Reques
         es_urgencia=cita.es_urgencia,
         forzar_fuera_horario=data.forzar_fuera_horario,
     )
+    cita.solape_urgencia = cita.es_urgencia and any(conflictos.values())
     cita.doctor_id = doctor_destino
     cita.gabinete_id = nuevo_gabinete
     cita.fecha_hora = data.fecha_hora
@@ -507,7 +502,7 @@ async def reprogramar_cita(cita_id: UUID, data: CitaReprogramar, request: Reques
         accion="reprogramar",
         old_values=old,
         new_values=_snapshot_cita(cita),
-        motivo=data.motivo,
+        motivo=data.motivo_solape or data.motivo,
         request=request,
     )
     await db.commit()
@@ -515,14 +510,16 @@ async def reprogramar_cita(cita_id: UUID, data: CitaReprogramar, request: Reques
 
 
 async def cambiar_estado_cita(cita_id: UUID, data: CitaEstadoUpdate, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
     old = _snapshot_cita(cita)
     nuevo_estado = data.estado.value
-    if nuevo_estado != cita.estado:
+    if nuevo_estado in VISIT_STATES:
+        await apply_visit_state(db, cita, current_user, nuevo_estado)
+    elif nuevo_estado != cita.estado:
+        ensure_visit_not_started(cita)
         await _registrar_falta_si_procede(db, cita, nuevo_estado)
-        await _notificar_llegada_si_procede(db, cita, cita.estado, nuevo_estado)
-    cita.estado = nuevo_estado
+        cita.estado = nuevo_estado
     if nuevo_estado == "confirmada" and cita.confirmado_at is None:
         cita.confirmado_at = datetime.now(timezone.utc)
     if data.motivo:
@@ -552,8 +549,9 @@ async def confirmar_cita(cita_id: UUID, request: Request, db: AsyncSession, curr
 
 
 async def cancelar_cita(cita_id: UUID, data: CitaCancelar, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
+    ensure_visit_not_started(cita)
     old = _snapshot_cita(cita)
     cita.estado = "anulada"
     cita.motivo_cancelacion = data.motivo_cancelacion
@@ -590,8 +588,9 @@ async def cancelar_cita(cita_id: UUID, data: CitaCancelar, request: Request, db:
 
 
 async def marcar_falta_cita(cita_id: UUID, data: CitaCancelar, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
+    ensure_visit_not_started(cita)
     old = _snapshot_cita(cita)
     cita.estado = "falta"
     cita.motivo_cancelacion = data.motivo_cancelacion
@@ -650,7 +649,7 @@ async def obtener_cita(cita_id: UUID, db: AsyncSession, current_user: TokenData)
 
 
 async def enviar_recordatorio(cita_id: UUID, data: RecordatorioCreate, request: Request, db: AsyncSession, current_user: TokenData) -> RecordatorioResponse:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
     old = _snapshot_cita(cita)
     paciente = cita.paciente or await db.get(Paciente, cita.paciente_id)
@@ -705,7 +704,7 @@ async def enviar_recordatorio(cita_id: UUID, data: RecordatorioCreate, request: 
 
 
 async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
     old = _snapshot_cita(cita)
     if "presupuesto_linea_id" in data.model_fields_set:
@@ -720,16 +719,19 @@ async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db:
     nueva_fecha = data.fecha_hora or cita.fecha_hora
     nueva_duracion = data.duracion_min or cita.duracion_min
     nueva_urgencia = data.es_urgencia if data.es_urgencia is not None else cita.es_urgencia
-    nuevo_gabinete = data.gabinete_id if data.gabinete_id is not None else cita.gabinete_id
+    nuevo_gabinete = data.gabinete_id if "gabinete_id" in data.model_fields_set else cita.gabinete_id
 
     doctor_destino = data.doctor_id or cita.doctor_id
     doctor = await db.get(Doctor, doctor_destino)
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
     ensure_clinic_access(current_user, doctor.clinica_id)
+    if cita.clinica_id and doctor.clinica_id and cita.clinica_id != doctor.clinica_id:
+        raise HTTPException(status_code=409, detail="Cita y doctor pertenecen a clínicas distintas")
 
-    if data.fecha_hora or data.duracion_min or data.doctor_id or data.gabinete_id is not None:
-        await _validar_cita_operativa(
+    if data.fecha_hora or data.duracion_min or data.doctor_id or "gabinete_id" in data.model_fields_set or data.es_urgencia is not None:
+        ensure_visit_not_started(cita)
+        conflictos = await validar_reserva(
             db,
             current_user=current_user,
             cita_id=cita_id,
@@ -740,12 +742,15 @@ async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db:
             es_urgencia=nueva_urgencia,
             forzar_fuera_horario=bool(data.forzar_fuera_horario),
         )
+        cita.solape_urgencia = nueva_urgencia and any(conflictos.values())
 
     # Registrar falta/anulación antes de cambiar el estado
     nuevo_estado = data.estado.value if data.estado else None
-    if nuevo_estado and nuevo_estado != cita.estado:
+    if nuevo_estado in VISIT_STATES:
+        await apply_visit_state(db, cita, current_user, nuevo_estado)
+    elif nuevo_estado and nuevo_estado != cita.estado:
+        ensure_visit_not_started(cita)
         await _registrar_falta_si_procede(db, cita, nuevo_estado)
-        await _notificar_llegada_si_procede(db, cita, cita.estado, nuevo_estado)
         if nuevo_estado == "confirmada" and cita.confirmado_at is None:
             cita.confirmado_at = datetime.now(timezone.utc)
         if nuevo_estado in {"anulada", "falta"} and data.motivo_cancelacion and not cita.motivo_cancelacion:
@@ -754,7 +759,7 @@ async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db:
     if data.recordatorio_enviado and cita.recordatorio_at is None and data.recordatorio_at is None:
         cita.recordatorio_at = datetime.now(timezone.utc)
 
-    for field, value in data.model_dump(exclude_unset=True, exclude={"forzar_fuera_horario"}).items():
+    for field, value in data.model_dump(exclude_unset=True, exclude={"forzar_fuera_horario", "motivo_solape"}).items():
         setattr(cita, field, value)
 
     new = _snapshot_cita(cita)
@@ -766,7 +771,7 @@ async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db:
             accion="actualizar",
             old_values=old,
             new_values=new,
-            motivo=data.motivo_cancelacion,
+            motivo=data.motivo_solape or data.motivo_cancelacion,
             request=request,
         )
     await db.commit()
@@ -775,8 +780,9 @@ async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db:
 
 async def anular_cita(cita_id: UUID, db: AsyncSession, current_user: TokenData) -> None:
     """Soft-delete: pone estado = anulada."""
-    cita = await _get_cita_or_404(db, cita_id)
+    cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
+    ensure_visit_not_started(cita)
     if cita.estado != "anulada":
         await _registrar_falta_si_procede(db, cita, "anulada")
         cita.estado = "anulada"

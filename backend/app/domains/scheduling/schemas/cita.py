@@ -1,21 +1,25 @@
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from app.domains.patients.schemas.paciente import PacienteBase
 from app.domains.scheduling.domain.enums import EstadoCita
 
 ESTADOS_CITA = tuple(item.value for item in EstadoCita)
 
 
 class CitaCreate(BaseModel):
+    estado: Literal["programada", "confirmada"] = "programada"
     paciente_id: UUID
     doctor_id: UUID
     gabinete_id: UUID | None = None
     presupuesto_linea_id: UUID | None = None
     fecha_hora: datetime
-    duracion_min: int = Field(30, ge=10, le=480, multiple_of=10)
+    duracion_min: int = Field(30, ge=5, le=480, multiple_of=5)
     es_urgencia: bool = False
+    motivo_solape: str | None = Field(None, max_length=500)
     forzar_fuera_horario: bool = False
     motivo: str | None = Field(None, max_length=500)
     observaciones: str | None = Field(None, max_length=1000)
@@ -31,9 +35,10 @@ class CitaUpdate(BaseModel):
     gabinete_id: UUID | None = None
     presupuesto_linea_id: UUID | None = None
     fecha_hora: datetime | None = None
-    duracion_min: int | None = Field(None, ge=10, le=480)
+    duracion_min: int | None = Field(None, ge=5, le=480, multiple_of=5)
     estado: EstadoCita | None = None
     es_urgencia: bool | None = None
+    motivo_solape: str | None = Field(None, max_length=500)
     forzar_fuera_horario: bool | None = None
     motivo: str | None = None
     observaciones: str | None = None
@@ -44,12 +49,20 @@ class CitaUpdate(BaseModel):
     confirmado_at: datetime | None = None
     motivo_cancelacion: str | None = Field(None, max_length=80)
 
+    @field_validator("doctor_id", "fecha_hora", "duracion_min", "estado", "es_urgencia", "recordatorio_enviado")
+    @classmethod
+    def cannot_clear_required_fields(cls, value):
+        if value is None:
+            raise ValueError("Este dato es obligatorio y no puede vaciarse")
+        return value
+
 
 class CitaReprogramar(BaseModel):
     doctor_id: UUID | None = None
     gabinete_id: UUID | None = None
     fecha_hora: datetime
-    duracion_min: int | None = Field(None, ge=10, le=480)
+    duracion_min: int | None = Field(None, ge=5, le=480, multiple_of=5)
+    motivo_solape: str | None = Field(None, max_length=500)
     forzar_fuera_horario: bool = False
     motivo: str | None = Field(None, max_length=500)
 
@@ -138,6 +151,14 @@ class CitaResponse(BaseModel):
     recordatorio_at: datetime | None
     confirmado_at: datetime | None
     motivo_cancelacion: str | None
+    llegada_at: datetime | None = None
+    atencion_iniciada_at: datetime | None = None
+    finalizada_at: datetime | None = None
+    salida_resuelta_at: datetime | None = None
+    pendiente_salida: bool = False
+    solape_urgencia: bool = False
+    gabinete_nombre: str | None = None
+    estado_operativo: Literal["programada", "confirmada", "en_sala", "en_atencion", "finalizada", "cancelada", "no_presentado"] = "programada"
     # Datos denormalizados para UI
     paciente: PacienteResumen | None = None
     doctor: DoctorResumen | None = None
@@ -148,7 +169,8 @@ class CitaResponse(BaseModel):
 
 class BuscarHuecoRequest(BaseModel):
     doctor_id: UUID
-    duracion_min: int = Field(30, ge=10, le=480, multiple_of=10)
+    gabinete_id: UUID | None = None
+    duracion_min: int = Field(30, ge=5, le=480, multiple_of=5)
     desde: datetime
     hasta: datetime
     solo_manana: bool = False  # Si true, solo devuelve huecos antes de las 14h
@@ -223,3 +245,25 @@ class CitaTelefonearResponse(BaseModel):
     doctor: DoctorResumen | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ResolverSalida(BaseModel):
+    observaciones: str | None = Field(None, max_length=1000)
+
+
+class JornadaConfigResponse(BaseModel):
+    espera_aviso_min: int
+    espera_critica_min: int
+    duracion_habitual_min: int = 30
+
+
+class PacienteProvisionalCreate(PacienteBase):
+    nombre: str = Field(..., min_length=1, max_length=100)
+    telefono: str | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def meaningful_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Indique el nombre del paciente")
+        return value.strip()
