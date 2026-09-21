@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from app.services.pdf_service import (
+from app.core.documents.pdf import (
     generar_documento_clinico_pdf,
     generar_factura_pdf,
     generar_presupuesto_pdf,

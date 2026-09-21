@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
 from app.core.throttling import clear_login_failures
-from app.models.usuario import Usuario
+from app.domains.identity.persistence.usuario import Usuario
 
 
 @pytest.mark.asyncio

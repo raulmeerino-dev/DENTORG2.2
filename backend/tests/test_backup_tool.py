@@ -3,7 +3,7 @@ import hashlib
 import json
 
 from app.config import get_settings
-from app.services.backup_service import _encrypt
+from app.core.backups.service import _encrypt
 from scripts import backup_tool
 
 

@@ -15,15 +15,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
 
+from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy mapper
 from app.core.crypto import cifrar_campos_paciente
 from app.database import AsyncSessionLocal
-from app.models.cita import Cita, CitaTelefonear
-from app.models.doctor import Doctor
-from app.models.gabinete import Gabinete
-from app.models.historial import HistorialClinico
-from app.models.paciente import Paciente
-from app.models.presupuesto import Presupuesto, PresupuestoLinea
-from app.models.tratamiento import TratamientoCatalogo
+from app.domains.clinical.persistence.historial import HistorialClinico
+from app.domains.clinical.persistence.tratamiento import TratamientoCatalogo
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.persistence.cita import Cita, CitaTelefonear
+from app.domains.scheduling.persistence.gabinete import Gabinete
+from app.domains.treatment_plans.persistence.presupuesto import Presupuesto, PresupuestoLinea
 
 
 async def seed():

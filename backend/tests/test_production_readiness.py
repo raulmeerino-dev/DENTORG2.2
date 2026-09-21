@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from app.config import Settings
-from app.services.production_readiness import build_production_readiness_report
+from app.core.production_readiness import build_production_readiness_report
 
 
 def _strong_production_settings(**overrides) -> Settings:

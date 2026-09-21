@@ -13,7 +13,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from app.services.backup_service import extraer_backup_file, inspeccionar_backup_file
+from app.core.backups.service import extraer_backup_file, inspeccionar_backup_file
 
 
 def _write_json(payload: dict, *, error: bool = False) -> None:
@@ -47,6 +47,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Directorio opcional para conservar el kit extraido; si se omite, usa un temporal.",
     )
+
+    restore = subparsers.add_parser(
+        "restore-isolated", help="Restaura y verifica en una BD PostgreSQL local vacia de ensayo."
+    )
+    restore.add_argument("--file", required=True, type=Path)
+    restore.add_argument("--expected-hash", required=True)
+    restore.add_argument("--output-dir", required=True, type=Path)
+    restore.add_argument("--database-url", required=True, help="BD local dentcore_restore_<id>_test vacia.")
 
     return parser
 
@@ -90,6 +98,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "restore-check":
             _write_json(_restore_check(args.file, args.expected_hash, args.output_dir))
+            return 0
+        if args.command == "restore-isolated":
+            from scripts.restore_isolated import restore_kit, validate_target
+
+            validate_target(args.database_url)
+            manifest = extraer_backup_file(args.file, args.output_dir, args.expected_hash)
+            _validate_restore_kit(args.output_dir, manifest)
+            restored = restore_kit(args.database_url, args.output_dir)
+            _write_json({**manifest, **restored, "dry_run": False, "restore_ready": True})
             return 0
     except Exception as exc:
         _write_json({"ok": False, "error": str(exc)}, error=True)

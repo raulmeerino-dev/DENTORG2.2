@@ -15,9 +15,16 @@ from sqlalchemy import select
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from app.data.tratamientos_base import FAMILIAS_TRATAMIENTO_BASE, TRATAMIENTOS_BASE  # noqa: E402
+from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy mapper
 from app.database import AsyncSessionLocal  # noqa: E402
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo  # noqa: E402
+from app.domains.clinical.domain.tratamientos_base import (  # noqa: E402
+    FAMILIAS_TRATAMIENTO_BASE,
+    TRATAMIENTOS_BASE,
+)
+from app.domains.clinical.persistence.tratamiento import (  # noqa: E402
+    FamiliaTratamiento,
+    TratamientoCatalogo,
+)
 
 
 def normalizar(texto: str) -> str:

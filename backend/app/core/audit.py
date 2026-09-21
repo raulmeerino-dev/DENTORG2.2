@@ -66,8 +66,8 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
         return response
 
     async def _write_audit_entry(self, request: Request, response: Response) -> None:
+        from app.core.persistence.audit_log import AuditLog
         from app.database import AsyncSessionLocal
-        from app.models.audit_log import AuditLog
 
         user_id: UUID | None = None
         clinica_id: UUID | None = None

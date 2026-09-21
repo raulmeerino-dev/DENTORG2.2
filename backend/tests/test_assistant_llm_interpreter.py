@@ -4,8 +4,7 @@ import logging
 import pytest
 
 from app.config import Settings
-from app.schemas.assistant import AssistantInterpretRequest, DraftPatchInterpretRequest
-from app.services.assistant_llm_interpreter import (
+from app.domains.ai.application.assistant_llm_interpreter import (
     ALLOWED_INTENTS,
     ASSISTANT_INTENT_JSON_SCHEMA,
     OLLAMA_INTENT_JSON_SCHEMA,
@@ -17,12 +16,13 @@ from app.services.assistant_llm_interpreter import (
     interpret_assistant_intent,
     interpret_assistant_intent_with_debug,
 )
-from app.services.draft_patch_interpreter import (
+from app.domains.ai.application.draft_patch_interpreter import (
     DRAFT_PATCH_ACTIONS,
     DRAFT_PATCH_JSON_SCHEMA,
     DRAFT_PATCH_SYSTEM_PROMPT,
     DraftPatchInterpreter,
 )
+from app.domains.ai.schemas.assistant import AssistantInterpretRequest, DraftPatchInterpretRequest
 
 
 def test_llm_interpreter_payload_uses_structured_outputs_and_safe_context():
@@ -256,7 +256,7 @@ async def test_ollama_interpreter_uses_same_chat_json_schema_and_extracts_budget
     FakeAsyncClient.next_post_payload = {
         "message": {"role": "assistant", "content": f"JSON:\n{json.dumps(ollama_expected)}\nfin"}
     }
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
     request = AssistantInterpretRequest.model_validate(
         {
             "userText": "hazme un presu para cesar gutierrez de una endodoncia en el 24 y otra en el 23",
@@ -349,7 +349,7 @@ async def test_provider_selector_uses_ollama(monkeypatch):
             ),
         }
     }
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
     request = AssistantInterpretRequest.model_validate(
         {
             "userText": "Busca a Carmen.",
@@ -423,7 +423,7 @@ async def test_provider_selector_returns_debug_metadata_for_openai_fallback(monk
             }
         )
     }
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
     request = AssistantInterpretRequest.model_validate(
         {
             "userText": "haz presupuesto para Cesar de endodoncia en 24",
@@ -464,8 +464,8 @@ async def test_ollama_logs_raw_response_when_json_is_not_assistant_intent(monkey
     FakeAsyncClient.next_post_payload = {
         "message": {"role": "assistant", "content": "Claro, voy a buscar a Carmen."}
     }
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
-    caplog.set_level(logging.WARNING, logger="app.services.assistant_llm_interpreter")
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    caplog.set_level(logging.WARNING, logger="app.domains.ai.application.assistant_llm_interpreter")
     request = AssistantInterpretRequest.model_validate(
         {
             "userText": "Busca a Carmen.",
@@ -530,8 +530,8 @@ async def test_ollama_logs_raw_response_when_unknown(monkeypatch, caplog):
             ),
         }
     }
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
-    caplog.set_level(logging.WARNING, logger="app.services.assistant_llm_interpreter")
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    caplog.set_level(logging.WARNING, logger="app.domains.ai.application.assistant_llm_interpreter")
     request = AssistantInterpretRequest.model_validate(
         {
             "userText": "Busca a Carmen.",
@@ -560,7 +560,7 @@ async def test_ollama_logs_raw_response_when_unknown(monkeypatch, caplog):
 @pytest.mark.asyncio
 async def test_llm_health_reports_ollama_model_availability(monkeypatch):
     FakeAsyncClient.next_get_payload = {"models": [{"name": "qwen2.5:14b-instruct"}]}
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
 
     health = await check_llm_health(
         Settings(
@@ -623,7 +623,7 @@ async def test_auto_provider_falls_back_from_unavailable_ollama_to_openai(monkey
             }
         )
     }
-    monkeypatch.setattr("app.services.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr("app.domains.ai.application.assistant_llm_interpreter.httpx.AsyncClient", FakeAsyncClient)
     request = AssistantInterpretRequest.model_validate(
         {
             "userText": "Busca a Carmen.",

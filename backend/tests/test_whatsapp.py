@@ -7,12 +7,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.cita import Cita, CitaCambio, CitaTelefonear
-from app.models.doctor import Doctor
-from app.models.horario import HorarioDoctor
-from app.models.paciente import Paciente
-from app.models.usuario import Usuario
-from app.models.whatsapp import WhatsAppComunicacion
+from app.domains.communications.persistence.whatsapp import WhatsAppComunicacion
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.persistence.cita import Cita, CitaCambio, CitaTelefonear
+from app.domains.scheduling.persistence.horario import HorarioDoctor
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:

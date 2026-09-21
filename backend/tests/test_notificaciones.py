@@ -6,9 +6,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.doctor import Doctor
-from app.models.horario import HorarioDoctor
-from app.models.usuario import Usuario
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.scheduling.persistence.horario import HorarioDoctor
 
 
 async def auth_headers(

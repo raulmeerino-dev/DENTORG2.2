@@ -7,13 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.doctor import Doctor
-from app.models.documento import DocumentoPaciente
-from app.models.factura import FormaPago
-from app.models.historial import HistorialClinico
-from app.models.presupuesto import Presupuesto, PresupuestoLinea
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
-from app.models.usuario import Usuario
+from app.domains.billing.persistence.factura import FormaPago
+from app.domains.clinical.persistence.documento import DocumentoPaciente
+from app.domains.clinical.persistence.historial import HistorialClinico
+from app.domains.clinical.persistence.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.treatment_plans.persistence.presupuesto import Presupuesto, PresupuestoLinea
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession, *, rol: str = "admin") -> dict[str, str]:

@@ -11,12 +11,12 @@ from PIL import Image as PILImage
 from PIL import ImageDraw
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.documents.pdf import generar_documento_clinico_pdf
 from app.core.security import hash_password
-from app.models.doctor import Doctor
-from app.models.documento import DocumentoPaciente
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
-from app.models.usuario import Usuario
-from app.services.pdf_service import generar_documento_clinico_pdf
+from app.domains.clinical.persistence.documento import DocumentoPaciente
+from app.domains.clinical.persistence.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:
@@ -97,8 +97,8 @@ async def test_consentimiento_firmado_archiva_pdf_y_documento(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import consentimientos as consentimientos_api
-    from app.api import documentos as documentos_api
+    from app.domains.clinical.application import consentimientos as consentimientos_api
+    from app.domains.clinical.application import documentos as documentos_api
 
     monkeypatch.setattr(consentimientos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
     monkeypatch.setattr(documentos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
@@ -156,7 +156,7 @@ async def test_consentimiento_rechaza_estado_firmado_y_firmas_invalidas(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import consentimientos as consentimientos_api
+    from app.domains.clinical.application import consentimientos as consentimientos_api
 
     monkeypatch.setattr(consentimientos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
     headers = await auth_headers(client, db_session)
@@ -196,7 +196,7 @@ async def test_documento_clinico_pdf_descarga_y_archivo_inexistente(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import documentos as documentos_api
+    from app.domains.clinical.application import documentos as documentos_api
 
     monkeypatch.setattr(documentos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
     headers = await auth_headers(client, db_session)
@@ -234,7 +234,7 @@ async def test_subida_documento_valida_mime_real_extension_y_categoria(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import documentos as documentos_api
+    from app.domains.clinical.application import documentos as documentos_api
 
     monkeypatch.setattr(documentos_api, "UPLOAD_ROOT", tmp_path / "pacientes")
     headers = await auth_headers(client, db_session)
@@ -304,8 +304,8 @@ async def test_pdfs_factura_presupuesto_y_receta_validos(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import recetas as recetas_api
-    from app.services import fiscal_document_service
+    from app.domains.billing.application import fiscal_document_service
+    from app.domains.clinical.application import recetas as recetas_api
 
     monkeypatch.setattr(fiscal_document_service, "get_settings", lambda: SimpleNamespace(storage_root=str(tmp_path)))
     monkeypatch.setattr(recetas_api, "PLANTILLA_ROOT", tmp_path / "recetas" / "plantillas")
@@ -400,7 +400,7 @@ async def test_receta_rechaza_firma_y_plantilla_invalidas(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import recetas as recetas_api
+    from app.domains.clinical.application import recetas as recetas_api
 
     monkeypatch.setattr(recetas_api, "PLANTILLA_ROOT", tmp_path / "recetas" / "plantillas")
     monkeypatch.setattr(recetas_api, "PACIENTE_UPLOAD_ROOT", tmp_path / "pacientes")
@@ -434,8 +434,8 @@ async def test_receta_mock_provider_genera_pdf_sin_certificacion_real(
     tmp_path,
     monkeypatch,
 ):
-    from app.api import recetas as recetas_api
-    from app.services import receta_provider_service
+    from app.domains.clinical.application import receta_provider_service
+    from app.domains.clinical.application import recetas as recetas_api
 
     monkeypatch.setattr(recetas_api, "PLANTILLA_ROOT", tmp_path / "recetas" / "plantillas")
     monkeypatch.setattr(recetas_api, "PACIENTE_UPLOAD_ROOT", tmp_path / "pacientes")

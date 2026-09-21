@@ -17,17 +17,17 @@ from app.core.permissions import (
 )
 from app.core.security import create_access_token
 from app.database import get_db
+from app.domains.billing.persistence.factura import Factura
+from app.domains.clinical.persistence.historial import HistorialClinico
+from app.domains.clinical.persistence.receta import RecetaPlantilla
+from app.domains.clinical.persistence.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.domains.identity.persistence.clinica import Clinica
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.laboratory.persistence.laboratorio import Laboratorio, TrabajoLaboratorio
+from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.persistence.cita import Cita, CitaTelefonear
 from app.main import app
-from app.models.cita import Cita, CitaTelefonear
-from app.models.clinica import Clinica
-from app.models.doctor import Doctor
-from app.models.factura import Factura
-from app.models.historial import HistorialClinico
-from app.models.laboratorio import Laboratorio, TrabajoLaboratorio
-from app.models.paciente import Paciente
-from app.models.receta import RecetaPlantilla
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
-from app.models.usuario import Usuario
 
 
 def bearer_headers(

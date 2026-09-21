@@ -6,11 +6,11 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.cita import Cita
-from app.models.doctor import Doctor
-from app.models.laboratorio import Laboratorio
-from app.models.paciente import Paciente
-from app.models.usuario import Usuario
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.laboratory.persistence.laboratorio import Laboratorio
+from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.persistence.cita import Cita
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:

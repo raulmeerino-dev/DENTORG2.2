@@ -13,9 +13,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
 
+from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy mapper
 from app.core.security import hash_password
 from app.database import AsyncSessionLocal
-from app.models.usuario import Usuario
+from app.domains.identity.persistence.usuario import Usuario
 
 
 async def crear_admin():

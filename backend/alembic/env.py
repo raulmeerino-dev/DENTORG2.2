@@ -4,10 +4,10 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 from app.config import get_settings
-from app.database import Base
 
 # Importar todos los modelos para que Alembic los detecte
-from app.models import *  # noqa: F401, F403
+from app.core.model_registry import *  # noqa: F401, F403
+from app.database import Base
 
 config = context.config
 settings = get_settings()

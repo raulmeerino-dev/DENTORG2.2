@@ -6,15 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.persistence.audit_log import AuditLog
 from app.core.security import hash_password
-from app.models.audit_log import AuditLog
-from app.models.clinica import Clinica
-from app.models.dictado import DictadoClinico
-from app.models.doctor import Doctor
-from app.models.historial import NotaDental
-from app.models.paciente import Paciente
-from app.models.usuario import Usuario
-from app.services.audio_transcription_service import TranscriptionResult
+from app.domains.ai.application.audio_transcription_service import TranscriptionResult
+from app.domains.ai.persistence.dictado import DictadoClinico
+from app.domains.clinical.persistence.historial import NotaDental
+from app.domains.identity.persistence.clinica import Clinica
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.patients.persistence.paciente import Paciente
 
 
 async def auth_headers(
@@ -63,7 +63,7 @@ async def test_doctor_puede_transcribir_para_paciente_de_su_clinica(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    import app.api.dictado as dictado_api
+    import app.domains.ai.api.dictado as dictado_api
 
     clinica, doctor, paciente = await clinical_context(db_session)
     headers = await auth_headers(client, db_session, rol="doctor", clinica_id=clinica.id, doctor_id=doctor.id)
@@ -177,7 +177,7 @@ async def test_guardar_nota_crea_nota_general_y_registra_auditoria(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    import app.api.dictado as dictado_api
+    import app.domains.ai.api.dictado as dictado_api
 
     clinica, doctor, paciente = await clinical_context(db_session)
     headers = await auth_headers(client, db_session, rol="doctor", clinica_id=clinica.id, doctor_id=doctor.id)

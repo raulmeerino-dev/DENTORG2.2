@@ -5,37 +5,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from app.api import (
-    admin,
-    assistant,
-    auth,
-    citas,
-    clinicas,
-    consentimientos,
-    dictado,
-    doctores,
-    documentos,
-    facturas,
-    fichajes,
-    inventario,
-    laboratorio,
-    notificaciones,
-    odontograma,
-    pacientes,
-    pdf,
-    portal,
-    presupuestos,
-    recetas,
-    reportes,
-    sync_import,
-    tratamientos,
-    whatsapp,
-)
 from app.config import get_settings
+from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy mapper
 from app.core.audit import AuditLogMiddleware
+from app.core.backups.scheduler import start_backup_scheduler
 from app.core.http_security import SecurityHeadersMiddleware
 from app.core.permissions import RequireStaff
-from app.services.backup_scheduler import start_backup_scheduler
+from app.domains.ai.api import assistant, dictado
+from app.domains.billing.api import facturas, pdf
+from app.domains.clinical.api import consentimientos, documentos, odontograma, recetas, tratamientos
+from app.domains.communications.api import notificaciones, whatsapp
+from app.domains.identity.api import admin, auth, clinicas, doctores, fichajes
+from app.domains.inventory.api import inventario
+from app.domains.laboratory.api import laboratorio
+from app.domains.patients.api import pacientes, portal, sync_import
+from app.domains.reporting.api import reportes
+from app.domains.scheduling.api import citas
+from app.domains.treatment_plans.api import presupuestos
 
 settings = get_settings()
 

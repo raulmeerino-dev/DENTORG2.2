@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.usuario import Usuario
+from app.domains.identity.persistence.usuario import Usuario
 
 
 async def _login(client: AsyncClient, username: str, password: str) -> str:

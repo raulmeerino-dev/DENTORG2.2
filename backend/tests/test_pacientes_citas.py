@@ -13,25 +13,25 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.audit_log import write_audit_log
+from app.core.backups.service import extraer_backup_file
+from app.core.persistence.audit_log import AuditLog
+from app.core.persistence.backup import BackupRegistro
 from app.core.security import hash_password
-from app.models.audit_log import AuditLog
-from app.models.backup import BackupRegistro
-from app.models.cita import Cita
-from app.models.clinica import Clinica
-from app.models.consentimiento import Consentimiento
-from app.models.doctor import Doctor
-from app.models.documento import DocumentoPaciente
-from app.models.factura import Cobro, Factura, FormaPago
-from app.models.historial import HistorialClinico
-from app.models.horario import HorarioDoctor
-from app.models.paciente import Paciente
-from app.models.portal_invitation import PortalInvitation
-from app.models.presupuesto import Presupuesto
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
-from app.models.usuario import Usuario
-from app.services.audit import write_audit_log
-from app.services.backup_service import extraer_backup_file
-from app.services.portal_invitation_service import hash_portal_token
+from app.domains.billing.persistence.factura import Cobro, Factura, FormaPago
+from app.domains.clinical.persistence.consentimiento import Consentimiento
+from app.domains.clinical.persistence.documento import DocumentoPaciente
+from app.domains.clinical.persistence.historial import HistorialClinico
+from app.domains.clinical.persistence.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.domains.identity.persistence.clinica import Clinica
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
+from app.domains.patients.application.portal_invitation_service import hash_portal_token
+from app.domains.patients.persistence.paciente import Paciente
+from app.domains.patients.persistence.portal_invitation import PortalInvitation
+from app.domains.scheduling.persistence.cita import Cita
+from app.domains.scheduling.persistence.horario import HorarioDoctor
+from app.domains.treatment_plans.persistence.presupuesto import Presupuesto
 
 
 def valid_signature_data_url() -> str:
@@ -1166,7 +1166,11 @@ async def test_sesion_realizada_crea_pieza_nueva_en_odontograma_existente(client
     """Regresion: si el paciente ya tiene un odontograma activo pero la pieza no existe,
     finalizar la sesion creaba MissingGreenlet al acceder a piece.superficies sobre la
     nueva OdontogramaPieza (relacion lazy en contexto async)."""
-    from app.models.odontograma import Odontograma, OdontogramaPieza, OdontogramaSuperficie
+    from app.domains.clinical.persistence.odontograma import (
+        Odontograma,
+        OdontogramaPieza,
+        OdontogramaSuperficie,
+    )
 
     headers = await auth_headers(client, db_session)
     doctor = Doctor(nombre="Dra. Greenlet", color_agenda="#0f766e", activo=True)
@@ -1478,7 +1482,7 @@ async def test_backup_copia_externa_y_extraccion_offline(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ):
-    import app.api.admin as admin_api
+    import app.domains.identity.api.admin as admin_api
 
     old_admin_settings = admin_api.settings
     external_dir = tmp_path / "custodia-externa"

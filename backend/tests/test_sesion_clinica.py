@@ -11,9 +11,9 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password
-from app.models.doctor import Doctor
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
-from app.models.usuario import Usuario
+from app.domains.clinical.persistence.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.domains.identity.persistence.doctor import Doctor
+from app.domains.identity.persistence.usuario import Usuario
 
 
 async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[str, str]:
@@ -264,7 +264,7 @@ async def test_patch_rechaza_estado_realizado(client: AsyncClient, db_session: A
 @pytest.mark.asyncio
 async def test_otra_clinica_no_ve_la_sesion(client: AsyncClient, db_session: AsyncSession):
     """RLS basico: un usuario de otra clinica no puede leer o crear items."""
-    from app.models.clinica import Clinica
+    from app.domains.identity.persistence.clinica import Clinica
 
     clinica_a = Clinica(nombre="Clinica A", activa=True)
     clinica_b = Clinica(nombre="Clinica B", activa=True)

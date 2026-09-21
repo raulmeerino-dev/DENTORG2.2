@@ -12,8 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy import select
 
+from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy mapper
 from app.database import AsyncSessionLocal
-from app.models.tratamiento import FamiliaTratamiento, TratamientoCatalogo
+from app.domains.clinical.persistence.tratamiento import FamiliaTratamiento, TratamientoCatalogo
 
 # Familias que usaremos (nombre → (icono, orden))
 FAMILIAS_DEF = {
