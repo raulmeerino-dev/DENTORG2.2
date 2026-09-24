@@ -2,6 +2,16 @@
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.
 
+## 2026-09-25 — Altura del shell y contexto clínico
+
+El sidebar ocupa exactamente el viewport, conserva el logo y divide navegación diaria/secundaria. Los grupos no se contraen: cuando falta altura, toda la navegación se recorre dentro del sidebar sin mover el workspace. Agenda tiene acceso directo y comparte filtros con Jornada. Caja no aparece para doctor/auxiliar; Administración y Ajustes mantienen sus permisos existentes.
+
+Primera visita utiliza un único scroll clínico, contexto compacto y navegación entre valoración, exploración y plan/guardar. El odontograma se abre bajo demanda, también en presupuestos. Historial pasa a cronología con resumen y detalle de visita; muestra piezas sólo a partir de vínculos reales. Los documentos coincidentes en fecha se distinguen de los registros vinculados. Se retira un panel histórico sin consumidores que montaba el odontograma completo.
+
+La revisión real comprueba 1366×768, 1440×900 y 1920×1080, llegada al final de Primera visita y visitas con/sin información dental. El sidebar se prueba con administrador, recepción y doctor, además de alturas de 400, 256 y 240 px: todos los enlaces son alcanzables y el scroll central permanece independiente. Evidencias locales: `output/playwright/sidebar-*` y `clinical-*`.
+
+TypeScript, build y ESLint correctos; 347 pruebas unitarias pasan con dos workers. Los once E2E existentes pasan entre la ejecución principal y las repeticiones dirigidas. Las regresiones detectadas y corregidas incluyen una transición de URL atrasada que perdía filtros de Jornada y la apertura automática de Primera visita al entrar en Tratamientos. Los fixtures E2E consultan límites de día con zona horaria explícita y eligen huecos dentro del horario para que las repeticiones no fallen por citas sintéticas de madrugada. Sin migraciones ni cambios de datos productivos.
+
 ## 2026-09-25 — Adaptación a zoom y ventanas pequeñas
 
 Pacientes y tareas dedicadas permiten desplazar la cabecera junto al contenido cuando la ventana tiene poca altura. Caja, Registros y Archivos mantienen tablas y paginación accesibles aunque los filtros/resúmenes ocupen varias filas. Jornada conserva el acceso al calendario tras desplegar filtros. No se reduce la tipografía ni se ocultan funciones para simular que todo cabe.

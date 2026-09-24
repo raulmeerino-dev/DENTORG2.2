@@ -2,6 +2,12 @@
 
 La composición de la aplicación vive en `frontend/src/app/shell`. La navegación, clínica, usuario, asistente, En sala y estado de sincronización permanecen montados al cambiar de sección. El contenido central dispone de toda la altura restante; cada workspace gestiona su desplazamiento.
 
+El sidebar ocupa `100dvh`: logo sin contracción y navegación flexible con `min-height: 0` y scroll vertical propio. Sus grupos no se comprimen; el secundario utiliza `margin-top: auto` cuando sobra altura y entra en el mismo scroll cuando falta. Ningún enlace requiere desplazar el documento o el workspace central. Jornada y Agenda comparten filtros, pero cada perspectiva tiene su acceso y estado activo. Caja permanece restringida a recepción/administración; Administración y Ajustes conservan el permiso de administrador existente.
+
+En el área clínica, `.dc-patient-body` es el dueño del scroll vertical: Primera visita, sesiones, pendientes, cronología y detalle crecen de forma natural. No añadir `height: 100%` ni un segundo `overflow-y: auto` a sus paneles interiores. Primera visita mantiene contexto del paciente y navegación interna entre valoración, exploración y plan; el odontograma se monta al abrir exploración. Presupuestos también ofrece el mapa bajo demanda. Al entrar en Tratamientos se prioriza el trabajo pendiente.
+
+Historial muestra eventos cronológicos con resumen desplegable y acceso al detalle. Una visita sólo muestra piezas y registros dentales vinculados por `cita_id` o por su tratamiento; una coincidencia de fecha se identifica separadamente. No usar el odontograma actual como supuesto estado histórico. El modelo actual no conserva snapshots completos por visita: se muestran los registros existentes sin inventar comparaciones antes/después.
+
 ## Elegir una superficie
 
 | Duración y contexto | Superficie | Implementación |
