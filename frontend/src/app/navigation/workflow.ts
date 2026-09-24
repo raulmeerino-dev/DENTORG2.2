@@ -29,6 +29,7 @@ export interface WorkflowItem {
 
 export const GLOBAL_LAUNCHER_IDS: AppSection[] = [
   'hoy',
+  'agenda',
   'pacientes',
   'caja',
   'listados',

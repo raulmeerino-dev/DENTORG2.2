@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getClinicas } from '../../api/identity';
 import { Building2, Banknote, CalendarDays, ClipboardList, FolderOpen, BriefcaseBusiness, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
@@ -32,18 +32,21 @@ export default function MainNav() {
   const clock = now.toLocaleDateString('es-ES', { timeZone: getClinicTimeZone(), day: '2-digit', month: 'short' }) + ' · ' + now.toLocaleTimeString('es-ES', { timeZone: getClinicTimeZone(), hour: '2-digit', minute: '2-digit' });
   return <>
     <a className="dc-skip-link" href="#main-workspace">Ir al área de trabajo</a>
-    <aside className="dc-sidebar">
+    <aside className="dc-sidebar" aria-label="Barra lateral">
       <NavLink to={user?.rol === 'paciente' ? '/mis-citas' : '/jornada'} className="dc-brand" aria-label="DentCore"><img src={dentcoreLogo} alt="" /><strong>DentCore</strong></NavLink>
       <nav className="dc-navigation" aria-label="Navegación principal">
         {(['daily', 'secondary'] as const).map(group => <div className={`dc-nav-group dc-nav-group-${group}`} key={group} role="group" aria-label={group === 'daily' ? 'Trabajo diario' : 'Consulta y administración'}>
         {navItems.filter(item => (item.group ?? 'daily') === group).map(item => {
           const Icon = icons[item.id] ?? CalendarDays;
-          const active = item.id === 'hoy' ? ['/jornada', '/hoy', '/agenda', '/whatsapp'].some(path => location.pathname.startsWith(path)) : location.pathname.startsWith(item.route!);
-          return <NavLink key={item.id} to={item.route!} className={`dc-nav-link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}><Icon size={18} aria-hidden="true" /><span>{item.label}</span></NavLink>;
+          const agendaActive = location.pathname === '/agenda' || (location.pathname === '/jornada' && new URLSearchParams(location.search).get('vista') === 'agenda');
+          const active = item.id === 'agenda' ? agendaActive : item.id === 'hoy' ? !agendaActive && ['/jornada', '/hoy', '/whatsapp'].some(path => location.pathname.startsWith(path)) : location.pathname.startsWith(item.route!);
+          const jornadaParams = new URLSearchParams(location.pathname === '/jornada' ? location.search : '');
+          if (item.id === 'agenda' || item.id === 'hoy') jornadaParams.set('vista', item.id === 'agenda' ? 'agenda' : 'operativa');
+          const route = item.id === 'agenda' || item.id === 'hoy' ? `/jornada?${jornadaParams}` : item.route!;
+          return <Link key={item.id} to={route} className={`dc-nav-link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}><Icon size={18} aria-hidden="true" /><span>{item.label}</span></Link>;
         })}
         </div>)}
       </nav>
-      <div className="dc-sidebar-footer"><span>Gestión clínica</span><small>DentCore Clinic</small></div>
     </aside>
     <header className="dc-topbar">
       <div className="dc-clinic" title={clinicLabel}><Building2 size={16} aria-hidden="true" /><span>{clinicLabel}</span></div>

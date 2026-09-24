@@ -32,10 +32,10 @@ describe('workflow permissions', () => {
       .filter((item) => canAccess(role, item))
       .map((item) => item.label);
 
-    expect(labelsFor('recepcion')).toEqual(['Jornada', 'Pacientes', 'Caja', 'Registros', 'Archivos']);
-    expect(labelsFor('doctor')).toEqual(['Jornada', 'Pacientes', 'Registros', 'Archivos']);
-    expect(labelsFor('auxiliar')).toEqual(['Jornada', 'Pacientes', 'Registros', 'Archivos']);
-    expect(labelsFor('admin')).toEqual(['Jornada', 'Pacientes', 'Caja', 'Registros', 'Archivos', 'Administración', 'Ajustes']);
+    expect(labelsFor('recepcion')).toEqual(['Jornada', 'Agenda', 'Pacientes', 'Caja', 'Registros', 'Archivos']);
+    expect(labelsFor('doctor')).toEqual(['Jornada', 'Agenda', 'Pacientes', 'Registros', 'Archivos']);
+    expect(labelsFor('auxiliar')).toEqual(['Jornada', 'Agenda', 'Pacientes', 'Registros', 'Archivos']);
+    expect(labelsFor('admin')).toEqual(['Jornada', 'Agenda', 'Pacientes', 'Caja', 'Registros', 'Archivos', 'Administración', 'Ajustes']);
     expect(labelsFor('paciente')).toEqual(['Portal paciente']);
 
     const whatsapp = WORKFLOW_ITEMS.find((item) => item.id === 'whatsapp');

@@ -24,14 +24,17 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Archivos' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Administración' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Ajustes' })).toBeVisible();
-    expect(screen.queryByRole('link', { name: 'Agenda' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Agenda' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
     expect(await screen.findByText('Clínica de prueba')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Asistente' })).toBeVisible();
   });
   it('restricts reception and clinical navigation by role', () => {
-    renderNav('doctor', '/jornada?vista=agenda');
-    expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
+    renderNav('doctor', '/jornada?vista=agenda&fecha=2026-09-25&doctor_id=doc-1');
+    expect(screen.getByRole('link', { name: 'Agenda' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Jornada' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Jornada' }).getAttribute('href')).toContain('doctor_id=doc-1');
+    expect(screen.getByRole('link', { name: 'Jornada' }).getAttribute('href')).toContain('vista=operativa');
     expect(screen.getByRole('link', { name: 'Pacientes' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Caja' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Registros' })).toBeVisible();
