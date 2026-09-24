@@ -17,6 +17,8 @@ Software web de gestion dental orientado a clinica, con flujo operativo profesio
 - Ajustes: configuración, clínicas, usuarios/roles, tratamientos, horarios, inventario, laboratorio, auditoría y backups, según permisos.
 - Portal paciente: invitaciones publicas con token expirado/revocable, citas, documentos y firma de consentimientos.
 
+La organización del shell permanente, los workspaces, las tareas dedicadas y los tokens visuales se describe en [Superficies de trabajo](docs/application-workspaces.md).
+
 ## Arranque con Docker
 
 El entorno local completo incluye PostgreSQL, migraciones, datos demo, backend y frontend con fallback SPA:

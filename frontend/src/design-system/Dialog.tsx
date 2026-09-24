@@ -21,7 +21,7 @@ export function Dialog({ label, onClose, closeDisabled = false, className = '', 
     document.addEventListener('keydown', onKeyDown, true);
     return () => { document.removeEventListener('keydown', onKeyDown, true); if (previousFocus?.isConnected) previousFocus.focus(); };
   }, []);
-  return createPortal(<div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !closeDisabled) onClose(); }}>
+  return createPortal(<div className="dc-dialog-backdrop" onMouseDown={event => { if (event.target === event.currentTarget && !closeDisabled) onClose(); }}>
     <section ref={panel} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} className={className}>{children}</section>
   </div>, document.body);
 }

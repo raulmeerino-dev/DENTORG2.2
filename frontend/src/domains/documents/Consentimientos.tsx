@@ -1,8 +1,11 @@
+import { PatientTaskContext } from '../patients/PatientTaskContext';
 import { useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { ApiPaciente, Consentimiento, PlantillaConsentimiento } from '../../api/types';
 import { formatDate } from '../../shared/format';
 import { fullName } from '../patients/patientName';
+import { TaskSurface } from '../../design-system/TaskSurface';
+import './document-workspace.css';
 
 export type DocumentDesignerMode = 'consentimiento' | 'circular';
 
@@ -30,6 +33,7 @@ const CIRCULAR_TEXTOS: Record<string, string> = {
 function renderTemplate(text: string, paciente: ApiPaciente) {
   return text
     .replaceAll('{{paciente}}', fullName(paciente))
+    .replaceAll('{{paciente_nombre}}', fullName(paciente))
     .replaceAll('{{historia}}', String(paciente.num_historial))
     .replaceAll('{{fecha}}', new Date().toISOString().slice(0, 10));
 }
@@ -89,7 +93,10 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
 
   function point(event: ReactPointerEvent<HTMLCanvasElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    return {
+      x: (event.clientX - rect.left) * event.currentTarget.width / (rect.width || event.currentTarget.width),
+      y: (event.clientY - rect.top) * event.currentTarget.height / (rect.height || event.currentTarget.height),
+    };
   }
 
   function start(event: ReactPointerEvent<HTMLCanvasElement>) {
@@ -143,6 +150,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
   return (
     <div className="signature-box">
       <canvas
+        aria-label="Firma manuscrita"
         ref={canvasRef}
         width={520}
         height={150}
@@ -151,7 +159,7 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
         onPointerUp={stop}
         onPointerLeave={stop}
       />
-      <button onClick={clear}>Limpiar firma</button>
+      <button type="button" onClick={clear}>Limpiar firma</button>
     </div>
   );
 }
@@ -163,6 +171,8 @@ export function DocumentDesignerModal({
   initialTipo,
   onClose,
   onSave,
+  saving = false,
+  errorMessage,
 }: {
   mode: DocumentDesignerMode;
   paciente: ApiPaciente;
@@ -170,6 +180,8 @@ export function DocumentDesignerModal({
   initialTipo?: string;
   onClose: () => void;
   onSave: (data: { tipo: string; titulo: string; contenido: string; firmaDataUrl: string | null }) => void;
+  saving?: boolean;
+  errorMessage?: string | null;
 }) {
   const defaultTipo = initialTipo || (mode === 'consentimiento' ? plantillas[0]?.nombre || 'Consentimiento personalizado' : 'Justificante de asistencia');
   const textos = mode === 'consentimiento' ? CONSENTIMIENTO_TEXTOS : CIRCULAR_TEXTOS;
@@ -180,6 +192,7 @@ export function DocumentDesignerModal({
   const [firmaDataUrl, setFirmaDataUrl] = useState<string | null>(null);
   const [templateMsg, setTemplateMsg] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [view, setView] = useState<'edit' | 'preview'>('edit');
 
   function loadTemplate(nextTipo: string) {
     const plantilla = mode === 'consentimiento' ? plantillas.find((item) => item.nombre === nextTipo) : null;
@@ -214,14 +227,15 @@ export function DocumentDesignerModal({
     : Object.keys(CIRCULAR_TEXTOS);
 
   return (
-    <div className="modal-backdrop">
-      <section className="document-modal">
-        <div className="modal-titlebar">
-          <strong>{mode === 'consentimiento' ? 'Consentimiento informado' : 'Circular personalizada'}</strong>
-          <button onClick={onClose}>Cerrar</button>
-        </div>
-        <div className="document-editor-grid">
-          <aside>
+    <TaskSurface
+      title={mode === 'consentimiento' ? 'Consentimiento informado' : 'Circular personalizada'}
+      context={<PatientTaskContext paciente={paciente} />}
+      onClose={onClose}
+      className="dc-document-task"
+      actions={<button type="button" className="primary-action" disabled={saving || !contenido.trim() || !titulo.trim()} onClick={saveDocument}>{saving ? 'Guardando…' : 'Guardar PDF en ficha'}</button>}
+    >
+        <div className="dc-document-layout">
+          <aside className="dc-document-settings" aria-label="Datos del documento">
             <label>Tipo
               <select value={tipo} onChange={(event) => loadTemplate(event.target.value)}>
                 {options.map((item) => <option key={item} value={item}>{item}</option>)}
@@ -230,27 +244,45 @@ export function DocumentDesignerModal({
             <label>Titulo
               <input value={titulo} onChange={(event) => setTitulo(event.target.value)} />
             </label>
-            <button onClick={loadLocalTemplate}>Cargar plantilla guardada</button>
-            <button onClick={saveLocalTemplate}>Guardar plantilla</button>
-            <button onClick={() => window.print()}>Imprimir vista</button>
+            <details>
+              <summary>Plantillas de este equipo</summary>
+              <button type="button" onClick={loadLocalTemplate}>Cargar plantilla guardada</button>
+              <button type="button" onClick={saveLocalTemplate}>Guardar plantilla</button>
+            </details>
             {templateMsg && <span className="inline-alert" role="status">{templateMsg}</span>}
-          </aside>
-          <main>
-            <label>Texto del documento
-              <textarea value={contenido} onChange={(event) => setContenido(event.target.value)} />
-            </label>
-            <SignaturePad onChange={(dataUrl) => {
-              setFirmaDataUrl(dataUrl);
-              if (dataUrl) setSaveError('');
-            }} />
-            {saveError && <div className="inline-alert" role="alert">{saveError}</div>}
-            <div className="modal-actions">
-              <button onClick={saveDocument}>Guardar PDF en ficha</button>
-              <button onClick={onClose}>Cancelar</button>
+            <div className="dc-document-signature">
+              <h2>{mode === 'consentimiento' ? 'Firma del paciente' : 'Firma'}</h2>
+              <SignaturePad onChange={(dataUrl) => {
+                setFirmaDataUrl(dataUrl);
+                if (dataUrl) setSaveError('');
+              }} />
+              <p>{firmaDataUrl ? 'Firma recogida. Revisa el documento antes de guardarlo.' : 'Firma sobre el recuadro.'}</p>
             </div>
+            {(saveError || errorMessage) && <div className="inline-alert" role="alert">{saveError || errorMessage}</div>}
+          </aside>
+          <main className="dc-document-main">
+            <nav className="dc-document-tabs" aria-label="Vista del documento">
+              <button type="button" aria-pressed={view === 'edit'} onClick={() => setView('edit')}>Editar texto</button>
+              <button type="button" aria-pressed={view === 'preview'} onClick={() => setView('preview')}>Vista previa</button>
+              <button type="button" onClick={() => {
+                setView('preview');
+                window.requestAnimationFrame(() => window.print());
+              }}>Imprimir vista</button>
+            </nav>
+            {view === 'edit' ? (
+              <label className="dc-document-editor">Texto del documento
+                <textarea value={contenido} onChange={(event) => setContenido(event.target.value)} />
+              </label>
+            ) : (
+              <article className="dc-document-preview" aria-label="Vista previa del documento">
+                <h2>{titulo}</h2>
+                <p className="dc-document-patient">{fullName(paciente)} · Historia {paciente.num_historial}</p>
+                <div>{contenido}</div>
+                {firmaDataUrl && <img src={firmaDataUrl} alt="Firma recogida" />}
+              </article>
+            )}
           </main>
         </div>
-      </section>
-    </div>
+    </TaskSurface>
   );
 }

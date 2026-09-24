@@ -5,8 +5,9 @@
 .jornada-perspectives button { display: flex; align-items: center; gap: 6px; min-height: 30px; border: 0; padding: 5px 12px; border-radius: 4px; background: transparent; font-size: 12px; font-weight: 500; }
 .jornada-perspectives button[aria-pressed="true"] { background: var(--dc-surface); color: var(--dc-primary); box-shadow: 0 1px 3px #122a421a; font-weight: 650; }
 .jornada-date { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dc-muted); }
-.jornada-new { background: var(--dc-primary); color: var(--dc-surface); border: 1px solid var(--dc-primary); border-radius: 4px; min-height: 32px; padding: 5px 12px; }
+.jornada-new { background: var(--dc-primary); color: var(--dc-on-primary); border: 1px solid var(--dc-primary); border-radius: 4px; min-height: 32px; padding: 5px 12px; }
 .jornada-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); }
+.jornada-filter-toggle { display: none; }
 .jornada-filters label { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--dc-muted); }
 .jornada-filters select { max-width: 220px; font-size: 12px; }
 .jornada-search { flex: 1; min-width: 180px; max-width: 420px; }
@@ -57,11 +58,16 @@
   .jornada-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 8px; }
   .jornada-toolbar .dc-toolbar-content { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; gap: 6px; }
   .jornada-perspectives button { padding-inline: 6px; }
-  .jornada-date input { font-size: 12px; width: 132px; min-width: 0; }
+  .jornada-perspectives { flex-shrink: 0; }
+  .jornada-perspectives button { font-size: 11px; gap: 4px; }
+  .jornada-date input { font-size: 11px; width: 122px; min-width: 0; }
   .jornada-toolbar h1 { width: 100%; }
   .jornada-date { margin-left: 0; font-size: 0; }
   .jornada-new { margin-left: auto; }
-  .jornada-filters { padding: 8px; gap: 6px; }
+  .jornada-filter-toggle { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; border: 0; border-bottom: 1px solid var(--dc-border); border-radius: 0; padding: 4px 8px; font-size: 11px; text-align: left; }
+  .jornada-filter-toggle span { margin-left: auto; color: var(--dc-muted); }
+  .jornada-filters { display: none; padding: 8px; gap: 6px; }
+  .jornada-filters.is-open { display: flex; }
   .jornada-filters label:not(.jornada-search) { flex: 1; flex-direction: column; align-items: stretch; min-width: 130px; }
   .jornada-filters select { max-width: none; }
   .jornada-search { max-width: none; }

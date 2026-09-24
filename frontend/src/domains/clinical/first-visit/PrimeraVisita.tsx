@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, ClipboardList, Save } from 'lucide-react';
 import type { ApiPaciente, UserRole } from '../../../api/types';
 import { formatDate } from '../../../shared/format';
 import { PatientOdontogramFlow } from '../odontogram';
+import './first-visit-workspace.css';
 
 export type PrimeraVisitaData = {
   fecha?: string;
@@ -71,9 +72,9 @@ export function PrimeraVisitaPanel({
   }
 
   return (
-    <section className="desk-panel first-visit-panel">
-      <div className="first-visit-overview">
-        <span className="first-visit-overview-icon" aria-hidden="true">
+    <section className="dc-first-visit-panel">
+      <div className="dc-first-visit-overview">
+        <span className="dc-first-visit-overview-icon" aria-hidden="true">
           <ClipboardList size={18} strokeWidth={2} />
         </span>
         <div>
@@ -83,9 +84,9 @@ export function PrimeraVisitaPanel({
         </div>
         <button
           type="button"
-          className="first-visit-toggle"
+          className="dc-first-visit-toggle"
           aria-expanded={editorOpen}
-          aria-controls="first-visit-editor"
+          aria-controls="dc-first-visit-editor"
           onClick={() => setEditorOpen((current) => !current)}
           disabled={!paciente}
         >
@@ -94,15 +95,15 @@ export function PrimeraVisitaPanel({
         </button>
       </div>
       {editorOpen && (
-        <div id="first-visit-editor" className="first-visit-editor" aria-label="Valoración de primera visita">
-          <div className="first-visit-editor-heading">
+        <div id="dc-first-visit-editor" className="dc-first-visit-editor" aria-label="Valoración de primera visita">
+          <div className="dc-first-visit-editor-heading">
             <div>
               <strong>Datos de primera visita</strong>
               <span>Base clínica estructurada</span>
             </div>
             {hasUnsavedChanges && <small>Cambios sin guardar</small>}
           </div>
-          <div className="first-visit-grid">
+          <div className="dc-first-visit-grid">
             <label>Fecha primera visita
               <input type="date" value={data.fecha ?? ''} onChange={(event) => update('fecha', event.target.value)} disabled={!paciente} />
             </label>
@@ -134,7 +135,7 @@ export function PrimeraVisitaPanel({
               <textarea value={data.observaciones_boca ?? ''} onChange={(event) => update('observaciones_boca', event.target.value)} disabled={!paciente} />
             </label>
           </div>
-          <div className="first-visit-editor-actions">
+          <div className="dc-first-visit-editor-actions">
             <button type="button" onClick={() => setEditorOpen(false)}>Cerrar edición</button>
             <button type="button" className="primary-action" onClick={() => onSave(data)} disabled={!paciente || saving}>
               <Save size={15} strokeWidth={2} aria-hidden="true" />

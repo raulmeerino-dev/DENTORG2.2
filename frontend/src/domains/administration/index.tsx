@@ -13,6 +13,7 @@ import type { AdminTabId } from './tabs';
 import { AdminReportes } from './AdminReportes';
 import { ConfiguracionWorkspace } from './ConfiguracionWorkspace';
 import type { FicheroTab } from './configuracionTabs';
+import './administration.css';
 
 type Tab = AdminTabId;
 type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
@@ -207,6 +208,7 @@ export default function AdminExtrasPage() {
     return (
       <ConfiguracionWorkspace
         activeTab={configTab}
+        onTabChange={(next) => selectTab(next === 'roles' ? 'usuarios' : next)}
         embedded
         showTabs={false}
         showToolbar={false}
@@ -236,33 +238,35 @@ export default function AdminExtrasPage() {
   }
 
   return (
-    <section className="page page-shell fichero-screen admin-extras">
-      <div className="toolbar">
-        <div>
-          <p className="eyebrow">Admin</p>
-          <h1>Administracion</h1>
-        </div>
+    <section className="settings-workspace" aria-label="Ajustes">
+      <header className="settings-toolbar">
+        <h1>Ajustes</h1>
+        <span>{ADMIN_TABS.find(item => item.id === tab)?.label}</span>
         <span className={online ? 'online-pill' : 'offline-pill'}>{online ? 'Con conexión' : 'Sin conexión'}</span>
-      </div>
+      </header>
 
-      <nav className="file-tabs">
+      <div className="settings-body">
+      <nav className="settings-navigation" aria-label="Configuración de la clínica">
         {ADMIN_TABS.map((item) => (
-          <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => selectTab(item.id)}>
+          <button type="button" aria-current={tab === item.id ? "page" : undefined} key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => selectTab(item.id)}>
             {item.label}
           </button>
         ))}
       </nav>
+      <div className="settings-content">
+      {[crearClinica.error, crearProducto.error, actualizarProducto.error, registrarMovimiento.error, crearProveedor.error, crearPedido.error, marcarPedidoEnviado.error, recibirPedido.error, importar.error].filter(Boolean).map((error, index) => <p key={index} className="inline-alert" role="alert">{error instanceof Error ? error.message : 'No se pudo completar la operación.'}</p>)}
+      {((tab === 'clinicas' && clinicasQuery.isError) || (tab === 'inventario' && (inventarioQuery.isError || proveedoresQuery.isError || pedidosQuery.isError)) || (tab === 'auditoria' && auditoriaQuery.isError)) && <p className="inline-alert" role="alert">No se pudieron cargar los datos. Revisa la conexión.</p>}
 
       {tab === 'clinicas' && (
-        <div className="fichero-grid">
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Clínicas</strong></div>
+        <div className="settings-split">
+          <section className="settings-section">
+            <div className="settings-caption"><strong>Clínicas</strong></div>
             <table className="dentcore-table"><thead><tr><th>Nombre</th><th>Dirección</th><th>Activa</th></tr></thead><tbody>
               {(clinicasQuery.data ?? []).map((clinica) => <tr key={clinica.id}><td>{clinica.nombre}</td><td>{clinica.direccion}</td><td>{clinica.activa ? 'Sí' : 'No'}</td></tr>)}
             </tbody></table>
           </section>
-          <form className="desk-panel settings-form" onSubmit={submitClinica}>
-            <div className="panel-caption"><strong>Nueva clínica</strong></div>
+          <form className="settings-section settings-form-body" onSubmit={submitClinica}>
+            <div className="settings-caption"><strong>Nueva clínica</strong></div>
             <label>Nombre<input value={clinicaForm.nombre} onChange={(e) => setClinicaForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
             <label>Dirección<input value={clinicaForm.direccion} onChange={(e) => setClinicaForm((p) => ({ ...p, direccion: e.target.value }))} /></label>
             <button type="submit">Crear clínica</button>
@@ -273,9 +277,9 @@ export default function AdminExtrasPage() {
       {['general', 'usuarios', 'doctores', 'tratamientos', 'agenda', 'laboratorio', 'documentos'].includes(tab) && renderConfigTab(tab)}
 
       {tab === 'inventario' && (
-        <div className="fichero-grid inventory-layout">
-          <section className="desk-panel inventory-stock-panel">
-            <div className="panel-caption">
+        <div className="settings-split inventory-layout">
+          <section className="settings-section inventory-stock-panel">
+            <div className="settings-caption">
               <strong>Stock y alertas</strong>
               <span>{(inventarioQuery.data ?? []).filter((producto) => producto.stock_act < producto.stock_min).length} bajo mínimo</span>
             </div>
@@ -300,7 +304,7 @@ export default function AdminExtrasPage() {
             </table>
           </section>
 
-          <div className="desk-panel settings-form inventory-side">
+          <div className="settings-section settings-form-body inventory-side">
             <details className="admin-create-panel">
               <summary>Nuevo producto</summary>
               <form onSubmit={submitProducto}>
@@ -345,7 +349,7 @@ export default function AdminExtrasPage() {
             )}
           </div>
 
-          <section className="desk-panel settings-form">
+          <section className="settings-section settings-form-body">
             <details className="admin-create-panel">
               <summary>Nuevo proveedor</summary>
               <form onSubmit={submitProveedor}>
@@ -366,7 +370,7 @@ export default function AdminExtrasPage() {
             </div>
           </section>
 
-          <section className="desk-panel settings-form">
+          <section className="settings-section settings-form-body">
             <details className="admin-create-panel">
               <summary>Nuevo pedido</summary>
               <form onSubmit={submitPedido}>
@@ -413,8 +417,8 @@ export default function AdminExtrasPage() {
       {tab === 'reportes' && <AdminReportes />}
 
       {tab === 'auditoria' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Auditoría clínica y administrativa</strong></div>
+        <section className="settings-section">
+          <div className="settings-caption"><strong>Auditoría clínica y administrativa</strong></div>
           <table className="dentcore-table">
             <thead><tr><th>Fecha</th><th>Acción</th><th>Entidad</th><th>Usuario</th><th>IP</th></tr></thead>
             <tbody>
@@ -433,8 +437,8 @@ export default function AdminExtrasPage() {
       )}
 
       {tab === 'backups' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Backups y modo offline</strong></div>
+        <section className="settings-section">
+          <div className="settings-caption"><strong>Backups y modo offline</strong></div>
           <p>La app marca "Sin conexión" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
           <div className="editor-actions">
             <button onClick={async () => {
@@ -455,8 +459,8 @@ export default function AdminExtrasPage() {
       )}
 
       {tab === 'importacion' && (
-        <section className="desk-panel settings-form">
-          <div className="panel-caption"><strong>Importar pacientes CSV</strong></div>
+        <section className="settings-section settings-form-body">
+          <div className="settings-caption"><strong>Importar pacientes CSV</strong></div>
           <input type="file" accept=".csv,text/csv" onChange={async (event) => {
             const file = event.target.files?.[0];
             if (file) setImportText(await file.text());
@@ -470,14 +474,14 @@ export default function AdminExtrasPage() {
       {tab === 'seguridad' && (
         <div className="admin-security-stack">
           {renderConfigTab(tab)}
-          <section className="desk-panel settings-form">
-            <div className="panel-caption"><strong>Doble factor</strong><span>Cuenta administradora</span></div>
+          <section className="settings-section settings-form-body">
+            <div className="settings-caption"><strong>Doble factor</strong><span>Cuenta administradora</span></div>
             <button onClick={async () => setTwoFactor(await enableTwoFactor())}>Activar/mostrar QR 2FA</button>
             {twoFactor?.qrDataUrl && <img className="qr-preview" src={twoFactor.qrDataUrl} alt="QR 2FA" />}
             {twoFactor && <p>Secret: {twoFactor.secret}</p>}
           </section>
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Modo offline y sincronizacion</strong><span>Cola local del navegador</span></div>
+          <section className="settings-section">
+            <div className="settings-caption"><strong>Modo offline y sincronizacion</strong><span>Cola local del navegador</span></div>
             <p>La app marca "Sin conexion" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
             <div className="editor-actions">
               <button onClick={async () => {
@@ -497,6 +501,8 @@ export default function AdminExtrasPage() {
           </section>
         </div>
       )}
+      </div>
+      </div>
     </section>
   );
 }

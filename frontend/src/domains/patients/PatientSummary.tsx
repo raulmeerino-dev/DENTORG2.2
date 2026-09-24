@@ -22,12 +22,15 @@ Wallet,
 import type { MouseEvent,ReactNode } from 'react';
 import { formatDate, money } from '../../shared/format';
 import { fullName } from './patientName';
+import { nextPatientAppointment, patientAppointmentLabel } from './patientContext';
+import { useMinuteClock } from '../../shared/time/useMinuteClock';
 import type { ApiPaciente,Cita,Consentimiento,DocumentoPaciente,Factura,HistorialClinico,Presupuesto,TrabajoLaboratorio } from '../../api/types';
 import { getBillingTotals,getFacturasPendientes,getFacturasRecientes,getPagosParciales } from '../billing/patient-account/billingUtils';
 import { PatientOdontogramSummary } from '../clinical/odontogram/PatientOdontogramSummary';
 import { readableHealthItems } from './healthDisplay';
 import { PatientIdentityChips } from './PatientIdentityChips';
 import { buildPatientStatus,type PatientStatusSeverity } from './patientStatus';
+import './patient-workspace.css';
 
 const STATUS_SEVERITY_TONE: Record<PatientStatusSeverity, 'success' | 'info' | 'warning' | 'danger'> = {
   ok: 'success',
@@ -36,15 +39,15 @@ const STATUS_SEVERITY_TONE: Record<PatientStatusSeverity, 'success' | 'info' | '
   critical: 'danger',
 };
 
-function CardHead({ icon, title, status, statusTone, action }: { icon: ReactNode; title: string; status?: string; statusTone?: 'success' | 'warning' | 'danger' | 'info' | 'muted'; action?: ReactNode }) {
+function PanelHead({ icon, title, status, statusTone, action }: { icon: ReactNode; title: string; status?: string; statusTone?: 'success' | 'warning' | 'danger' | 'info' | 'muted'; action?: ReactNode }) {
   return (
-    <div className="patient-card-head">
+    <div className="dc-summary-card-head">
       <h3>
-        <span className="patient-card-head-icon" aria-hidden="true">{icon}</span>
+        <span className="dc-summary-card-head-icon" aria-hidden="true">{icon}</span>
         {title}
       </h3>
-      <div className="patient-card-head-right">
-        {status && <span className={`patient-card-chip patient-card-chip-${statusTone ?? 'muted'}`}>{status}</span>}
+      <div className="dc-summary-card-head-right">
+        {status && <span className={`dc-summary-card-chip dc-summary-card-chip-${statusTone ?? 'muted'}`}>{status}</span>}
         {action}
       </div>
     </div>
@@ -53,6 +56,7 @@ function CardHead({ icon, title, status, statusTone, action }: { icon: ReactNode
 
 export function PatientForm({
   paciente,
+  embedded = false,
   facturas,
   historial,
   citas,
@@ -84,6 +88,7 @@ export function PatientForm({
   onHistorialFacturas,
 }: {
   paciente: ApiPaciente | null;
+  embedded?: boolean;
   facturas: Factura[];
   historial: HistorialClinico[];
   citas: Cita[];
@@ -122,10 +127,8 @@ export function PatientForm({
   const healthAlertText = healthItems.map((item) => `${item.label}: ${item.value}`).join(' · ');
   const recentHistory = historial.slice().sort((a, b) => b.fecha.localeCompare(a.fecha));
   const lastVisit = recentHistory[0] ?? null;
-  const nowIso = new Date().toISOString();
-  const nextCita = citas
-    .filter((cita) => cita.fecha_hora >= nowIso && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado))
-    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
+  const now = useMinuteClock();
+  const nextCita = nextPatientAppointment(citas, now);
   const lastTreatment = lastVisit?.procedimiento || lastVisit?.tratamiento?.nombre || 'Sin tratamiento registrado';
   const lastComment = lastVisit?.observaciones || lastVisit?.diagnostico || 'Sin comentario clinico en esta entrada.';
   const nextTreatment = nextCita?.motivo || 'Sin tratamiento indicado';
@@ -201,15 +204,15 @@ export function PatientForm({
   }
 
   return (
-    <div className="patient-form-grid patient-hub-grid patient-bento">
+    <div className="dc-patient-summary">
       {temporal && (
-        <button type="button" className="patient-banner patient-banner-warning" onClick={onEdit}>
+        <button type="button" className="dc-summary-banner dc-summary-banner-warning" onClick={onEdit}>
           <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
           <span>Paciente temporal: completar datos en clinica</span>
         </button>
       )}
       {laboratorioVencidos.length > 0 && (
-        <button type="button" className="patient-banner patient-banner-danger" onClick={onOpenPendientes}>
+        <button type="button" className="dc-summary-banner dc-summary-banner-danger" onClick={onOpenPendientes}>
           <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
           <span>{laboratorioVencidos.length} pedido{laboratorioVencidos.length === 1 ? '' : 's'} de laboratorio sin recibir con fecha de entrega vencida</span>
           <em>Revisar tratamientos</em>
@@ -217,16 +220,16 @@ export function PatientForm({
       )}
 
       {/* CABECERA: identidad + alertas + saldo + acciones */}
-      <section className="patient-hub-head">
-        <div className="patient-avatar">{initials}</div>
-        <div className="patient-hub-identity">
+      {!embedded && <section className="dc-summary-hub-head">
+        <div className="dc-summary-avatar">{initials}</div>
+        <div className="dc-summary-hub-identity">
           <span>Paciente</span>
           <strong>{fullName(paciente) || 'Sin seleccionar'}</strong>
           <em>H {paciente?.num_historial ?? '-'} · {paciente?.telefono || paciente?.telefono2 || 'sin telefono'} · {paciente?.dni_nie || 'sin DNI'}</em>
           {paciente && patientStatusAction ? (
             <button
               type="button"
-              className={`patient-card-chip patient-card-chip-${statusTone} patient-status-action`}
+              className={`dc-summary-card-chip dc-summary-card-chip-${statusTone} dc-summary-status-action`}
               title={patientStatus.description}
               aria-label={`Estado del paciente: ${patientStatus.label}. ${patientStatus.description} Acción: ${patientStatusAction.label}`}
               onClick={patientStatusAction.run}
@@ -239,7 +242,7 @@ export function PatientForm({
             </button>
           ) : paciente ? (
             <span
-              className={`patient-card-chip patient-card-chip-${statusTone}`}
+              className={`dc-summary-card-chip dc-summary-card-chip-${statusTone}`}
               title={patientStatus.description}
               aria-label={`Estado del paciente: ${patientStatus.label}. ${patientStatus.description}`}
             >
@@ -248,21 +251,21 @@ export function PatientForm({
           ) : null}
           <PatientIdentityChips paciente={paciente} />
         </div>
-        <div className={`patient-hub-alert ${hasAlertasReales ? 'has-alerts' : ''}`}>
+        <div className={`dc-summary-hub-alert ${hasAlertasReales ? 'has-alerts' : ''}`}>
           <span><AlertTriangle size={11} strokeWidth={2.2} aria-hidden="true" /> Alertas</span>
           <strong title={alertText}>{alertText}</strong>
         </div>
         {canManageBilling && (
-          <div className={`patient-hub-balance ${totals.pendiente > 0 ? 'has-debt' : ''}`}>
+          <div className={`dc-summary-hub-balance ${totals.pendiente > 0 ? 'has-debt' : ''}`}>
             <span><Wallet size={11} strokeWidth={2.2} aria-hidden="true" /> Saldo</span>
             <strong>{money(totals.pendiente)}</strong>
             <em>{money(totals.cobrado)} cobrado</em>
           </div>
         )}
-        <div className="patient-hub-head-actions">
+        <div className="dc-summary-hub-head-actions">
           <button
             type="button"
-            className="patient-header-primary"
+            className="dc-summary-header-primary"
             onClick={onOpenCitas}
             disabled={!paciente}
           >
@@ -272,7 +275,7 @@ export function PatientForm({
           {canManageBilling && (
             <button
               type="button"
-              className={totals.pendiente > 0 ? 'patient-header-secondary patient-action-danger' : 'patient-header-secondary'}
+              className={totals.pendiente > 0 ? 'dc-summary-header-secondary dc-summary-action-danger' : 'dc-summary-header-secondary'}
               onClick={() => onRegistrarCobro(facturasPendientes[0] ?? null)}
               disabled={!paciente}
             >
@@ -280,12 +283,12 @@ export function PatientForm({
               <span>Cobrar</span>
             </button>
           )}
-          <details className="patient-more-actions">
+          <details className="dc-summary-more-actions">
             <summary role="button" aria-label="Más acciones del paciente">
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
               <span>Más acciones</span>
             </summary>
-            <div className="patient-header-actions-menu" role="menu" aria-label="Más acciones del paciente">
+            <div className="dc-summary-header-actions-menu" role="menu" aria-label="Más acciones del paciente">
               <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onEdit)} disabled={!paciente}>
                 <Edit3 size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Editar datos</span>
@@ -341,42 +344,43 @@ export function PatientForm({
             </div>
           </details>
         </div>
-      </section>
+      </section>}
 
       {/* FLOW STRIP: contadores rápidos */}
-      <section className="patient-flow-strip" aria-label="Flujo clinico del paciente">
+      <section className="dc-summary-flow-strip" aria-label="Flujo clinico del paciente">
+        {embedded && (patientStatusAction ? <button type="button" className={`dc-summary-card-chip dc-summary-card-chip-${statusTone}`} title={patientStatus.description} onClick={patientStatusAction.run}>{patientStatus.label}<ArrowRight size={12} aria-hidden="true" /></button> : <span className={`dc-summary-card-chip dc-summary-card-chip-${statusTone}`} title={patientStatus.description}>{patientStatus.label}</span>)}
         <button type="button" onClick={onOpenCitas} disabled={!paciente}>Citas <strong>{citas.length}</strong></button>
         <button type="button" onClick={onOpenPresupuestos} disabled={!paciente}>Presupuestos <strong>{presupuestos.length}</strong></button>
-        <button type="button" className={pendientes.length ? 'patient-flow-warning' : ''} onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
+        <button type="button" className={pendientes.length ? 'dc-summary-flow-warning' : ''} onClick={onOpenPendientes} disabled={!paciente}>Pendientes <strong>{pendientes.length}</strong></button>
         <button type="button" onClick={onOpenRealizados} disabled={!paciente}>Realizados <strong>{realizados.length}</strong></button>
         {canManageBilling && (
-          <button type="button" className={facturasPendientes.length ? 'patient-flow-danger' : ''} onClick={onOpenFacturacion} disabled={!paciente}>Facturación <strong>{facturasPendientes.length}</strong></button>
+          <button type="button" className={facturasPendientes.length ? 'dc-summary-flow-danger' : ''} onClick={onOpenFacturacion} disabled={!paciente}>Facturación <strong>{facturasPendientes.length}</strong></button>
         )}
-        <button type="button" className={consentimientosPendientes ? 'patient-flow-warning' : ''} onClick={onOpenConsentimientos} disabled={!paciente}>CI pte. <strong>{consentimientosPendientes}</strong></button>
+        <button type="button" className={consentimientosPendientes ? 'dc-summary-flow-warning' : ''} onClick={onOpenConsentimientos} disabled={!paciente}>CI pte. <strong>{consentimientosPendientes}</strong></button>
         <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
       </section>
 
       {/* COL IZQ — clínica: odontograma + observaciones */}
-      <div className="patient-bento-col patient-bento-col-clinica">
+      <div className="dc-summary-bento-col dc-summary-bento-col-clinica">
         <PatientOdontogramSummary
           presupuestos={presupuestos}
           historial={historial}
           onOpenDetail={onOpenOdontogramaDetail}
         />
 
-        <section className="patient-clinical-notes-card">
-          <CardHead
+        <section className="dc-summary-clinical-notes-card">
+          <PanelHead
             icon={<ClipboardList size={14} strokeWidth={2} />}
             title="Alertas y observaciones"
             status={hasAlertasReales ? 'revisar' : 'sin alertas'}
             statusTone={hasAlertasReales ? 'warning' : 'muted'}
-            action={<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>}
+            action={<>{canDictarNota && <button type="button" onClick={onDictarNota} disabled={!paciente}>Dictar nota</button>}<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button></>}
           />
-          <div className="patient-clinical-notes-body">
+          <div className="dc-summary-clinical-notes-body">
             <div>
               <b>Salud</b>
               {healthItems.length > 0 ? (
-                <dl className="patient-health-list">
+                <dl className="dc-summary-health-list">
                   {healthItems.map((item) => (
                     <div key={item.key}>
                       <dt>{item.label}</dt>
@@ -397,22 +401,22 @@ export function PatientForm({
       </div>
 
       {/* COL CENTRAL — operativa: cita, visita, cobros */}
-      <div className="patient-bento-col patient-bento-col-operativa">
-      <section className="patient-next-card">
-        <CardHead
+      <div className="dc-summary-bento-col dc-summary-bento-col-operativa">
+      <section className="dc-summary-next-card">
+        <PanelHead
           icon={<CalendarClock size={14} strokeWidth={2} />}
           title="Próxima cita"
           status={nextCita?.estado ?? 'sin cita'}
           statusTone={nextCita ? 'info' : 'muted'}
           action={<button type="button" onClick={onOpenCitas} disabled={!paciente}>Ver citas</button>}
         />
-        <strong>{nextCita ? `${formatDate(nextCita.fecha_hora)} · ${nextCita.fecha_hora.slice(11, 16)}` : 'Sin cita programada'}</strong>
+        <strong>{nextCita ? patientAppointmentLabel(nextCita.fecha_hora) : 'Sin cita programada'}</strong>
         <p><b>Tratamiento:</b> {nextTreatment}</p>
         <small>{nextComment}</small>
       </section>
 
-      <section className="patient-last-card">
-        <CardHead
+      <section className="dc-summary-last-card">
+        <PanelHead
           icon={<History size={14} strokeWidth={2} />}
           title="Última visita"
           status={lastVisit?.estado ?? 'sin historial'}
@@ -424,26 +428,26 @@ export function PatientForm({
         <small>{lastVisit?.doctor?.nombre ? `Doctor: ${lastVisit.doctor.nombre}` : 'Sin profesional asociado'}</small>
       </section>
 
-      {canManageBilling && <section className="patient-billing-card">
-        <CardHead
+      {canManageBilling && <section className="dc-summary-billing-card">
+        <PanelHead
           icon={<CreditCard size={14} strokeWidth={2} />}
           title="Cobros / facturas"
           status={facturasPendientes.length ? `${facturasPendientes.length} pte.` : 'al día'}
           statusTone={facturasPendientes.length ? 'danger' : 'success'}
           action={<button type="button" onClick={onHistorialFacturas} disabled={!paciente}>Facturas</button>}
         />
-        <div className="patient-billing-totals">
+        <div className="dc-summary-billing-totals">
           <span><b>Saldo</b><strong className={totals.pendiente > 0 ? 'debt' : ''}>{money(totals.pendiente)}</strong></span>
           <span><b>Cobrado</b><strong>{money(totals.cobrado)}</strong></span>
           <span><b>Parciales</b><strong>{pagosParciales.length}</strong></span>
         </div>
-        <div className="patient-billing-actions">
+        <div className="dc-summary-billing-actions">
           <button type="button" onClick={() => onRegistrarCobro(facturasPendientes[0] ?? null)} disabled={!paciente}>
             {facturasPendientes.length ? 'Registrar cobro' : 'Registrar anticipo'}
           </button>
           <button type="button" onClick={onEmitirFactura} disabled={!paciente}>Emitir factura</button>
         </div>
-        <div className="patient-billing-list">
+        <div className="dc-summary-billing-list">
           {ultimaFacturas.slice(0, 3).map((factura) => (
             <button type="button" key={factura.id} onClick={() => Number(factura.pendiente) > 0 ? onRegistrarCobro(factura) : onOpenFacturacion()}>
               <span>{factura.serie}/{factura.numero}</span>
@@ -459,16 +463,16 @@ export function PatientForm({
       </div>
 
       {/* COL DERECHA — administrativa: ficha rica + docs/CI */}
-      <div className="patient-bento-col patient-bento-col-admin">
-      <section className="patient-admin-card">
-        <CardHead
+      <div className="dc-summary-bento-col dc-summary-bento-col-admin">
+      <section className="dc-summary-admin-card">
+        <PanelHead
           icon={<User size={14} strokeWidth={2} />}
           title="Datos administrativos"
           status={paciente?.num_historial ? `H ${paciente.num_historial}` : undefined}
           statusTone="info"
           action={<button type="button" onClick={onEdit} disabled={!paciente}>Editar</button>}
         />
-        <dl className="patient-admin-grid">
+        <dl className="dc-summary-admin-grid">
           <div><dt>DNI / NIF</dt><dd>{paciente?.dni_nie || '—'}</dd></div>
           <div><dt>Nacimiento</dt><dd>{paciente?.fecha_nacimiento ? `${formatDate(paciente.fecha_nacimiento)}${edad !== null ? ` · ${edad} años` : ''}` : '—'}</dd></div>
           <div><dt>Sexo</dt><dd>{sexoLabel || '—'}</dd></div>
@@ -485,15 +489,15 @@ export function PatientForm({
         </dl>
       </section>
 
-      <section className="patient-documents-summary-card">
-        <CardHead
+      <section className="dc-summary-documents-summary-card">
+        <PanelHead
           icon={<FileText size={14} strokeWidth={2} />}
           title="Documentos y consentimientos"
           status={consentimientosPendientes ? `${consentimientosPendientes} CI pte.` : `${documentos.length} docs · ${consentimientos.length} CI`}
           statusTone={consentimientosPendientes ? 'warning' : 'info'}
           action={<button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Ver todos</button>}
         />
-        <div className="patient-documents-summary-grid">
+        <div className="dc-summary-documents-summary-grid">
           <div>
             <strong>Últimos documentos</strong>
             {ultimosDocumentos.map((documento) => (
@@ -517,7 +521,7 @@ export function PatientForm({
             {!ultimosConsentimientos.length && <p>Sin consentimientos creados.</p>}
           </div>
         </div>
-        <footer className="patient-documents-summary-actions">
+        <footer className="dc-summary-documents-summary-actions">
           <button type="button" onClick={onSubirDocumento} disabled={!paciente}>Subir doc.</button>
           <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo CI</button>
         </footer>

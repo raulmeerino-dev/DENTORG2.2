@@ -1,83 +1,13 @@
 /* Product workspace: one predictable page scroll, with local scrolling only for dense tools. */
 
-.main-content > :is(.patient-screen, .caja-screen, .listados-screen, .admin-extras, .whatsapp-inbox-page) {
+.main-content > :is(.admin-extras) {
   flex: 0 0 auto !important;
   height: auto !important;
   min-height: 0 !important;
   overflow: visible !important;
-}
-
-:where(button, a, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--dc-primary) 34%, transparent) !important;
-  outline-offset: 2px;
 }
 
 /* Keep the active patient and its frequent actions available during long records. */
-.main-content > .patient-selector-bar {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-}
-
-.main-content > .patient-selector-bar.patient-selector-dashboard {
-  grid-template-columns: minmax(360px, 1fr) minmax(280px, 420px) !important;
-}
-
-.patient-hub-identity > .patient-status-action {
-  appearance: none;
-  max-width: 100%;
-  min-height: 28px !important;
-  display: inline-flex !important;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 5px 8px;
-  padding: 4px 6px 4px 8px !important;
-  border-style: solid;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.patient-status-action > span {
-  min-width: 0;
-  line-height: 1.25;
-  white-space: normal;
-}
-
-.patient-status-action > em {
-  min-height: 18px;
-  display: inline-flex !important;
-  align-items: center;
-  gap: 4px;
-  border-left: 1px solid currentColor;
-  padding-left: 8px;
-  font-style: normal;
-  line-height: 1;
-  white-space: nowrap;
-  opacity: 0.9;
-}
-
-.patient-status-action:hover {
-  filter: saturate(1.08) brightness(0.97);
-}
-
-.main-content > .patient-screen, .patient-screen > .patient-desk, .patient-screen > .patient-desk > *, .patient-dashboard-mode .patient-desk > div, .patient-screen.no-bottom-bar .patient-desk > div {
-  height: auto !important;
-  min-height: 0 !important;
-  overflow: visible !important;
-}
-
-.patient-screen > .patient-desk {
-  flex: 0 0 auto !important;
-  grid-template-rows: auto !important;
-}
-
-.patient-screen .patient-form-grid.patient-bento, .patient-screen .clinical-workspace, .patient-screen .clinical-workspace > :not(.clinical-subtabs):not(.treatment-subtabs), .patient-screen .budget-main-workspace, .patient-screen .history-complete-workspace, .patient-screen .complete-history-panel, .patient-screen .complete-history-layout {
-  flex: 0 0 auto !important;
-  height: auto !important;
-  min-height: 0 !important;
-  overflow: visible !important;
-}
 
 /* Hoy reads as one continuous shift overview instead of a clipped dashboard. */
 
@@ -107,10 +37,6 @@
 }
 
 /* Embedded odontograms keep horizontal panning inside the chart, not the whole form. */
-.patient-screen .first-visit-panel {
-  display: grid;
-  gap: 10px;
-}
 
 .first-visit-overview {
   display: grid;
@@ -230,48 +156,12 @@
   color: #ffffff;
 }
 
-.patient-screen .first-visit-panel, .patient-screen .first-visit-panel .odontogram-flow-panel, .patient-screen .first-visit-panel .od-page, .patient-screen .first-visit-panel .od-shell, .patient-screen .first-visit-panel .od-workspace-card, .patient-screen .first-visit-panel .od-layout {
-  width: 100% !important;
-  max-width: 100% !important;
-  min-width: 0 !important;
-}
-
-.patient-screen .first-visit-panel .od-chart-area {
-  max-width: 100% !important;
-  overflow-x: auto !important;
-  overscroll-behavior-x: contain;
-}
-
-.patient-screen .clinical-subtabs {
-  scrollbar-width: none;
-  scroll-snap-type: x proximity;
-}
-
-.patient-screen .clinical-subtabs::-webkit-scrollbar {
-  display: none;
-}
-
-.patient-screen .clinical-subtabs > button {
-  scroll-snap-align: start;
-}
-
-@media (max-width: 1180px) {
-}
-
 @media (max-width: 1100px) {
 
   .agenda-dentcore .agenda-slots {
     height: auto !important;
     max-height: none !important;
     overflow: visible !important;
-  }
-
-  .patient-screen .first-visit-panel .odontogram-flow-panel .od-layout {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-
-  .patient-screen .first-visit-panel .odontogram-flow-panel .od-side-panel {
-    position: static !important;
   }
 }
 
@@ -283,10 +173,6 @@
 }
 
 @media (max-width: 820px) {
-
-  .main-content > .patient-selector-bar {
-    position: static;
-  }
 
   .first-visit-grid {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -313,29 +199,9 @@
     grid-column: 1 / -1;
     grid-row: 2;
   }
-
-  .patient-screen .first-visit-panel .od-page {
-    --od-chart-grid-width: 760px;
-  }
-
-  .patient-screen .first-visit-panel :is(.od-teeth-row, .od-occlusal-row, .od-number-row, .od-arch-stack) {
-    min-width: 760px !important;
-  }
-
-  .patient-screen .first-visit-panel .od-arch-block {
-    grid-template-columns: 54px minmax(760px, 1fr) !important;
-  }
-
-  .patient-screen .first-visit-panel :is(.od-midline, .od-legend) {
-    margin-left: 62px !important;
-  }
 }
 
 /* Wide clinical contexts use the viewport instead of compressing the workspace into a generic modal. */
-.patient-budget-panel {
-  width: min(1240px, calc(100vw - 32px)) !important;
-  max-width: calc(100vw - 32px) !important;
-}
 
 .patient-history-ledger-drawer {
   width: min(1180px, calc(100vw - 32px)) !important;
@@ -376,7 +242,7 @@
 }
 
 @media (max-width: 680px) {
-  .patient-budget-panel, .patient-history-ledger-drawer {
+  .patient-history-ledger-drawer {
     width: calc(100vw - 16px) !important;
     max-width: calc(100vw - 16px) !important;
   }
@@ -430,29 +296,6 @@
 
   .admin-extras > .file-tabs {
     margin-inline: -1px;
-  }
-}
-
-@media (max-width: 520px) {
-  .patient-screen > .patient-module-tabs {
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 4px !important;
-  }
-
-  .patient-screen > .patient-module-tabs button {
-    min-width: 0 !important;
-    gap: 4px !important;
-    padding: 8px 5px !important;
-    font-size: 0.75rem !important;
-    line-height: 1 !important;
-    white-space: nowrap !important;
-  }
-
-  .patient-screen > .patient-module-tabs .tab-icon, .patient-screen > .patient-module-tabs .tab-icon svg {
-    width: 14px !important;
-    height: 14px !important;
-    flex: 0 0 14px !important;
   }
 }
 
@@ -540,17 +383,6 @@
   min-height: 220px;
 }
 
-.patient-screen .session-empty-state {
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  min-height: 150px;
-  padding: 18px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-}
-
 .session-empty-action {
   align-self: center;
 }
@@ -562,7 +394,7 @@
 }
 
 @media (max-width: 720px) {
-  .pending-work-empty, .patient-screen .session-empty-state {
+  .pending-work-empty {
     grid-template-columns: 38px minmax(0, 1fr);
   }
 

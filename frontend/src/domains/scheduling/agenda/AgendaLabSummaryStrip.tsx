@@ -12,16 +12,16 @@ export function AgendaLabSummaryStrip({
 }) {
   const hasLabSignal = summary.total > 0 || summary.suspectedWithoutWork > 0;
   return (
-    <div className={`agenda-lab-summary${labOnly ? ' active' : ''}`} aria-label="Resumen laboratorio agenda">
+    <div className={`dc-agenda-lab-summary${labOnly ? ' active' : ''}`} aria-label="Resumen laboratorio agenda">
       <button type="button" onClick={onToggleLabOnly}>
         <span>Trabajos de laboratorio hoy</span>
         <strong>{summary.total}</strong>
       </button>
-      <span className="agenda-lab-summary-ok">Listos: {summary.ready}</span>
-      <span className="agenda-lab-summary-pending">Pendientes: {summary.pending}</span>
-      <span className={summary.delayed ? 'agenda-lab-summary-danger' : ''}>Retrasados: {summary.delayed}</span>
+      <span className="dc-agenda-lab-summary-ok">Listos: {summary.ready}</span>
+      <span className="dc-agenda-lab-summary-pending">Pendientes: {summary.pending}</span>
+      <span className={summary.delayed ? 'dc-agenda-lab-summary-danger' : ''}>Retrasados: {summary.delayed}</span>
       {summary.suspectedWithoutWork > 0 && (
-        <span className="agenda-lab-summary-soft">Sin asociar: {summary.suspectedWithoutWork}</span>
+        <span className="dc-agenda-lab-summary-soft">Sin asociar: {summary.suspectedWithoutWork}</span>
       )}
       {!hasLabSignal && <em>Sin señales de laboratorio en el dia visible.</em>}
     </div>

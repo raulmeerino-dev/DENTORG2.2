@@ -1,3 +1,4 @@
+import { PatientTaskContext } from '../../patients/PatientTaskContext';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import type {
@@ -11,6 +12,8 @@ import type {
 import { formatDate } from '../../../shared/format';
 import { fullName } from '../../patients/patientName';
 import { SignaturePad } from '../../documents/Consentimientos';
+import { TaskSurface } from '../../../design-system/TaskSurface';
+import './prescription-workspace.css';
 
 export type RecetaSubmitAction = 'draft' | 'emit_local' | 'send_provider';
 
@@ -231,16 +234,11 @@ export function RecetaModal({
   }
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <TaskSurface title="Nueva receta" context={<PatientTaskContext paciente={paciente} />} onClose={onClose} className="dc-prescription-task">
       <form
-        className="receta-modal"
-        onMouseDown={(event) => event.stopPropagation()}
+        className="dc-prescription-form"
         onSubmit={onFormSubmit}
       >
-        <header className="modal-titlebar">
-          <strong>Nueva receta - {fullName(paciente)}</strong>
-          <button type="button" onClick={onClose}>Cerrar</button>
-        </header>
 
         <div className="inline-alert receta-provider-alert" role="status">
           {providerWarning}
@@ -272,6 +270,8 @@ export function RecetaModal({
           )}
 
           {onImportPlantilla && (
+            <details className="dc-prescription-import">
+            <summary>Importar plantilla</summary>
             <div className="receta-template-upload">
               <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={handlePlantillaFile} />
               <input
@@ -304,6 +304,7 @@ export function RecetaModal({
                 {importingPlantilla ? 'Importando...' : 'Importar'}
               </button>
             </div>
+            </details>
           )}
         </section>
 
@@ -406,12 +407,12 @@ export function RecetaModal({
 
         {errorMessage && <div className="inline-alert" role="alert">{errorMessage}</div>}
 
-        <footer className="modal-actions">
+        <footer className="dc-prescription-actions">
           <button type="button" onClick={onClose}>Cancelar</button>
           <button type="button" disabled={!canSaveDraft} onClick={() => submit('draft')}>
             {saving ? 'Guardando...' : 'Guardar borrador'}
           </button>
-          <button type="submit" disabled={!canEmitLocal}>
+          <button type="submit" className="primary-action" disabled={!canEmitLocal}>
             {saving ? 'Emitiendo...' : 'Emitir local'}
           </button>
           <button type="button" disabled={!canSendProvider} onClick={() => submit('send_provider')}>
@@ -419,7 +420,7 @@ export function RecetaModal({
           </button>
         </footer>
       </form>
-    </div>
+    </TaskSurface>
   );
 }
 

@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Calendar, FileText, TrendingUp, Wallet, CheckCircle2 } from 'lucide-react';
 import { getFacturas, getFormasPago, registrarCobro } from '../../../api/billing';
-import { getIngresosReporte, getReportKpis } from '../../../api/reporting';
+import { getIngresosReporte, getReportKpis, getReportPacientes } from '../../../api/reporting';
 import type { Factura, FormaPago } from '../../../api/types';
 import { formatDate, money } from '../../../shared/format';
+import { Dialog } from '../../../design-system';
+import './cash-register.css';
 
 function todayIso() {
   const now = new Date();
@@ -21,12 +23,16 @@ function CobroInlineModal({
   factura,
   formasPago,
   saving,
+  error,
+  patientName,
   onClose,
   onConfirm,
 }: {
   factura: Factura;
   formasPago: FormaPago[];
   saving: boolean;
+  error?: string;
+  patientName: string;
   onClose: () => void;
   onConfirm: (formaPagoId: string, importe: number) => void;
 }) {
@@ -36,13 +42,13 @@ function CobroInlineModal({
   const valid = formaPagoId && Number.isFinite(importe) && importe > 0;
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
-      <section className="patient-edit-modal" style={{ maxWidth: 400 }} onMouseDown={(e) => e.stopPropagation()}>
+    <Dialog label="Registrar cobro" onClose={onClose} closeDisabled={saving} className="cash-payment-dialog">
         <div className="modal-titlebar">
           <strong>Registrar cobro</strong>
-          <button type="button" onClick={onClose}>Cerrar</button>
+          <button type="button" disabled={saving} onClick={onClose}>Cerrar</button>
         </div>
-        <div className="patient-edit-grid" style={{ padding: '1rem', gap: '0.75rem', display: 'flex', flexDirection: 'column' }}>
+        <div className="cash-payment-fields">
+          <strong>{patientName}</strong>
           <p style={{ margin: 0 }}>
             Factura {factura.serie}-{factura.numero} · Pendiente: <strong>{money(factura.pendiente)}</strong>
           </p>
@@ -63,8 +69,9 @@ function CobroInlineModal({
             />
           </label>
         </div>
+        {error && <p className="inline-alert" role="alert">{error}</p>}
         <footer className="modal-actions">
-          <button type="button" onClick={onClose}>Cancelar</button>
+          <button type="button" disabled={saving} onClick={onClose}>Cancelar</button>
           <button
             type="button"
             className="primary-action"
@@ -74,8 +81,7 @@ function CobroInlineModal({
             {saving ? 'Registrando...' : 'Registrar cobro'}
           </button>
         </footer>
-      </section>
-    </div>
+    </Dialog>
   );
 }
 
@@ -88,7 +94,8 @@ export default function CajaPage() {
 
   const facturasQuery = useQuery({ queryKey: ['caja-facturas'], queryFn: () => getFacturas() });
   const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
-  const kpisQuery = useQuery({ queryKey: ['caja-kpis'], queryFn: () => getReportKpis() });
+  const pacientesQuery = useQuery({ queryKey: ['report-pacientes'], queryFn: getReportPacientes });
+  const kpisQuery = useQuery({ queryKey: ['caja-kpis', mesDesde, today], queryFn: () => getReportKpis({ fecha_desde: mesDesde, fecha_hasta: today }) });
   const ingresosQuery = useQuery({
     queryKey: ['caja-ingresos', mesDesde, today],
     queryFn: () => getIngresosReporte(mesDesde, today),
@@ -97,17 +104,26 @@ export default function CajaPage() {
   const cobrarMutation = useMutation({
     mutationFn: ({ facturaId, formaPagoId, importe }: { facturaId: string; formaPagoId: string; importe: number }) =>
       registrarCobro(facturaId, formaPagoId, importe),
-    onSuccess: () => {
+    onSuccess: (factura) => {
       setCobroTarget(null);
       void queryClient.invalidateQueries({ queryKey: ['caja-facturas'] });
       void queryClient.invalidateQueries({ queryKey: ['caja-kpis'] });
       void queryClient.invalidateQueries({ queryKey: ['caja-ingresos'] });
+      void queryClient.invalidateQueries({ queryKey: ['facturas-global'] });
+      void queryClient.invalidateQueries({ queryKey: ['facturas', factura.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['saldo-paciente', factura.paciente_id] });
+      void queryClient.invalidateQueries({ queryKey: ['report-pacientes'] });
+      void queryClient.invalidateQueries({ queryKey: ['report-kpis'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-report-kpis'] });
+      void queryClient.invalidateQueries({ queryKey: ['admin-report-dashboard'] });
     },
   });
 
   const facturas = facturasQuery.data ?? [];
   const formasPago = formasPagoQuery.data ?? [];
   const kpis = kpisQuery.data;
+  const patientNames = new Map((pacientesQuery.data ?? []).map(patient => [patient.id, `${patient.apellidos}, ${patient.nombre}`]));
+  const patientLabel = (id: string) => patientNames.get(id) ?? `Paciente · ${id.slice(0, 8)}`;
 
   const pendientes = facturas.filter((f) => Number(f.pendiente) > 0);
   const cobradashoy = facturas.filter((f) => f.cobros.some((c) => c.fecha.slice(0, 10) === today && !c.anulado_at));
@@ -123,62 +139,65 @@ export default function CajaPage() {
   const rows = tab === 'pendientes' ? pendientes : tab === 'hoy' ? emitidashoy : facturas;
 
   return (
-    <section className="page page-shell fichero-screen caja-screen">
-      <div className="panel-caption" style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
-        <strong>Caja</strong>
-        <span>Cobros, facturas y arqueo diario</span>
-      </div>
+    <section className="cash-workspace" aria-label="Caja">
+      <header className="cash-toolbar">
+        <h1>Caja</h1><span>Cobros y facturas</span><time dateTime={today}>{formatDate(today)}</time>
+      </header>
 
       {facturasQuery.isError && (
-        <div className="inline-alert">No se han podido cargar las facturas. Revisa la conexión.</div>
+        <div className="inline-alert" role="alert">No se han podido cargar las facturas. <button type="button" onClick={() => void facturasQuery.refetch()}>Reintentar</button></div>
       )}
 
-      <div className="dashboard-metrics caja-metrics">
-        <div className={totalPendiente > 0 ? 'kpi-card kpi-card-danger' : 'kpi-card'}>
+      {(kpisQuery.isError || ingresosQuery.isError) && <div className="inline-alert" role="alert">No se ha podido cargar el resumen del mes.</div>}
+      {formasPagoQuery.isError && <div className="inline-alert" role="alert">No se han podido cargar las formas de pago.</div>}
+      {pacientesQuery.isError && <div className="inline-alert" role="alert">No se han podido cargar los nombres de pacientes. Las facturas conservan su enlace a la ficha.</div>}
+
+      <div className="cash-totals" aria-label="Resumen de caja">
+        <div className={totalPendiente > 0 ? 'cash-total cash-total--pending' : 'cash-total'}>
           <span><AlertCircle size={12} strokeWidth={2.2} aria-hidden="true" /> Pendiente de cobro</span>
-          <strong>{money(totalPendiente)}</strong>
-          <small>{pendientes.length} facturas</small>
+          <strong>{facturasQuery.data ? money(totalPendiente) : '—'}</strong>
+          <small>{facturasQuery.data ? `${pendientes.length} facturas` : 'Sin datos disponibles'}</small>
         </div>
-        <div className="kpi-card kpi-card-success">
+        <div className="cash-total cash-total--paid">
           <span><CheckCircle2 size={12} strokeWidth={2.2} aria-hidden="true" /> Cobrado hoy</span>
-          <strong>{money(totalCobradoHoy)}</strong>
-          <small>{cobradashoy.length} cobros</small>
+          <strong>{facturasQuery.data ? money(totalCobradoHoy) : '—'}</strong>
+          <small>{facturasQuery.data ? `${cobradashoy.length} facturas con cobros` : 'Sin datos disponibles'}</small>
         </div>
-        <div className="kpi-card kpi-card-info">
+        <div className="cash-total">
           <span><FileText size={12} strokeWidth={2.2} aria-hidden="true" /> Facturado hoy</span>
-          <strong>{money(totalEmitidoHoy)}</strong>
-          <small>{emitidashoy.length} facturas</small>
+          <strong>{facturasQuery.data ? money(totalEmitidoHoy) : '—'}</strong>
+          <small>{facturasQuery.data ? `${emitidashoy.length} facturas` : 'Sin datos disponibles'}</small>
         </div>
-        <div className="kpi-card">
+        <div className="cash-total">
           <span><Calendar size={12} strokeWidth={2.2} aria-hidden="true" /> Facturado este mes</span>
           <strong>{kpis ? money(kpis.facturacion.total_facturado) : '—'}</strong>
           <small>{kpis ? `${kpis.facturacion.num_facturas} facturas` : 'cargando...'}</small>
         </div>
-        <div className="kpi-card">
+        <div className="cash-total">
           <span><Wallet size={12} strokeWidth={2.2} aria-hidden="true" /> Cobrado este mes</span>
           <strong>{kpis ? money(kpis.facturacion.total_cobrado) : '—'}</strong>
           <small>{kpis ? `ticket medio ${money(kpis.facturacion.ticket_medio ?? 0)}` : ''}</small>
         </div>
-        <div className="kpi-card">
+        <div className="cash-total">
           <span><TrendingUp size={12} strokeWidth={2.2} aria-hidden="true" /> Ingresos mes (bruto)</span>
           <strong>{ingresosQuery.data ? money(ingresosQuery.data.total) : '—'}</strong>
           <small>{ingresosQuery.data ? `pac ${money(ingresosQuery.data.pac)} · seg ${money(ingresosQuery.data.seg)}` : ''}</small>
         </div>
       </div>
 
-      <div className="caja-tabs" aria-label="Filtros de facturas de caja">
-        <button className={tab === 'pendientes' ? 'active' : ''} onClick={() => setTab('pendientes')}>
+      <div className="cash-tabs" aria-label="Filtros de facturas de caja">
+        <button type="button" aria-pressed={tab === 'pendientes'} className={tab === 'pendientes' ? 'active' : ''} onClick={() => setTab('pendientes')}>
           Pendientes de cobro ({pendientes.length})
         </button>
-        <button className={tab === 'hoy' ? 'active' : ''} onClick={() => setTab('hoy')}>
+        <button type="button" aria-pressed={tab === 'hoy'} className={tab === 'hoy' ? 'active' : ''} onClick={() => setTab('hoy')}>
           Emitidas hoy ({emitidashoy.length})
         </button>
-        <button className={tab === 'todas' ? 'active' : ''} onClick={() => setTab('todas')}>
+        <button type="button" aria-pressed={tab === 'todas'} className={tab === 'todas' ? 'active' : ''} onClick={() => setTab('todas')}>
           Todas las facturas ({facturas.length})
         </button>
       </div>
 
-      <div className="caja-table-wrap">
+      <div className="cash-ledger" tabIndex={0} role="region" aria-label="Facturas de caja">
         <table className="dentcore-table">
           <thead>
             <tr>
@@ -204,7 +223,7 @@ export default function CajaPage() {
                   <td>{factura.serie}-{factura.numero}</td>
                   <td>
                     <Link to={`/pacientes?paciente_id=${factura.paciente_id}`} className="dashboard-patient-link">
-                      Paciente
+                      {patientLabel(factura.paciente_id)}
                     </Link>
                   </td>
                   <td className="num">{money(factura.total)}</td>
@@ -217,8 +236,8 @@ export default function CajaPage() {
                     {pending > 0 && (
                       <button
                         type="button"
-                        onClick={() => setCobroTarget(factura)}
-                        disabled={cobrarMutation.isPending}
+                        onClick={() => { cobrarMutation.reset(); setCobroTarget(factura); }}
+                        disabled={cobrarMutation.isPending || !formasPago.length}
                       >
                         Cobrar
                       </button>
@@ -230,7 +249,7 @@ export default function CajaPage() {
                 </tr>
               );
             })}
-            {!facturasQuery.isLoading && !rows.length && (
+            {!facturasQuery.isLoading && !facturasQuery.isError && !rows.length && (
               <tr><td colSpan={8}>
                 {tab === 'pendientes' ? 'No hay facturas pendientes de cobro.' : 'No hay facturas en este filtro.'}
               </td></tr>
@@ -244,6 +263,8 @@ export default function CajaPage() {
           factura={cobroTarget}
           formasPago={formasPago}
           saving={cobrarMutation.isPending}
+          patientName={patientLabel(cobroTarget.paciente_id)}
+          error={cobrarMutation.error ? (cobrarMutation.error instanceof Error ? cobrarMutation.error.message : 'No se pudo registrar el cobro.') : undefined}
           onClose={() => setCobroTarget(null)}
           onConfirm={(formaPagoId, importe) => cobrarMutation.mutate({ facturaId: cobroTarget.id, formaPagoId, importe })}
         />

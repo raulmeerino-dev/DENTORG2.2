@@ -62,7 +62,7 @@ export function TrabajoPendientePanel({
   const pendingCountLabel = `${rows.length} ${rows.length === 1 ? 'tratamiento' : 'tratamientos'}`;
 
   return (
-    <section className="desk-panel pending-work-panel">
+    <section className="dc-pending-workspace">
       <div className="panel-caption">
         <strong>Tratamientos pendientes</strong>
         <span>{rows.length ? `${pendingCountLabel} por realizar y su cita vinculada.` : 'Trabajo aceptado que todavía debe planificarse o realizarse.'}</span>
@@ -94,7 +94,7 @@ export function TrabajoPendientePanel({
       )}
       {rows.length > 0 && (
         <>
-          <div className="pending-work-table-wrap">
+          <div className="dc-pending-table">
             <table className="dentcore-table">
               <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Importe</th><th>Cita</th><th>Estado</th><th>Acción</th></tr></thead>
               <tbody>
@@ -128,7 +128,7 @@ export function TrabajoPendientePanel({
               </tbody>
             </table>
           </div>
-          <details className="odontogram-support-panel" open>
+          <details className="dc-pending-map">
             <summary>Mapa de pendientes por pieza</summary>
             <PatientOdontogramFlow
               paciente={paciente ?? null}

@@ -27,7 +27,8 @@ describe('Parrilla por profesional', () => {
     expect(screen.getByText('María Fernández')).toBeInTheDocument();
     expect(screen.getByText('Gabinete 2')).toBeInTheDocument();
     const busy = container.querySelector('[data-doctor-id="one"][data-slot="09:20"]') as HTMLElement;
-    expect(within(busy).getByRole('button', { name: 'Reservado hasta 09:45' })).toBeInTheDocument();
+    expect(busy).toHaveAttribute('data-occupied', 'true');
+    expect(screen.getByRole('article', { name: /Cita de María Fernández, 09:15/ })).toHaveAttribute('title', expect.stringContaining('09:15–09:45'));
     expect(within(busy).queryByRole('button', { name: /Nueva cita/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nueva cita 09:20 · Dr. Manuel Díaz' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Nueva cita 09:45 · Dra. Elena Ruiz' })).toBeInTheDocument();

@@ -419,8 +419,8 @@ export function SessionWorkspace({
   }
 
   return (
-    <div className="clinical-session-stack">
-      <div className={`clinical-session-workbench ${selected ? '' : 'is-empty'}`.trim()}>
+    <div className="dc-session-stack">
+      <div className={`dc-session-workbench ${selected ? '' : 'is-empty'}`.trim()}>
         <section className="desk-panel clinical-session-board">
         <div className="session-board-head">
           <div>

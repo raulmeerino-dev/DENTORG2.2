@@ -26,7 +26,7 @@
   align-items: center;
   gap: 12px;
   padding-bottom: 18px;
-  border-bottom: 1px solid var(--dc-border-soft);
+  border-bottom: 1px solid var(--dc-border);
 }
 
 .login-brand img {
@@ -56,7 +56,7 @@
 .login-brand small,
 .login-intro > p:last-child,
 .login-security-note {
-  color: var(--dc-text-muted);
+  color: var(--dc-muted);
 }
 
 .login-brand small {
@@ -108,7 +108,7 @@
 }
 
 .login-label-row small {
-  color: var(--dc-text-muted);
+  color: var(--dc-muted);
   font-size: 0.7rem;
   font-weight: 620;
 }

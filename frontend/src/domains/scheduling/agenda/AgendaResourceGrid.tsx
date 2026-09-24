@@ -29,15 +29,15 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
   const configuredEnds = visibleDoctors.flatMap(doctor => horarios[doctor.id]?.find(horario => horario.dia_semana === weekdayIndex(day))?.bloques.map(block => minutesFromTime(block.fin)) ?? []);
   const startMinute = slots.length ? minutesFromTime(slots[0]) : 9 * 60;
   const endMinute = Math.max(startMinute + 60, ...configuredEnds, ...allCitas.filter(cita => !doctorId || cita.doctor_id === doctorId).map(cita => minutesFromTime(localAppointmentTime(cita.fecha_hora)) + cita.duracion_min));
-  const scale = 2.4;
+  const scale = 3.2;
   const minutes = new Set(slots.map(minutesFromTime));
   for (let minute = startMinute; minute < endMinute; minute += 10) minutes.add(minute);
   minutes.add(endMinute);
   const timeline = Array.from(minutes).filter(minute => minute >= startMinute && minute <= endMinute).sort((a, b) => a - b);
   const height = (endMinute - startMinute) * scale;
 
-  return <main className="agenda-resource-workspace" aria-label="Agenda por profesional">
-    <div className="agenda-status-legend" aria-label="Leyenda de estados de cita">
+  return <section className="agenda-resource-workspace" aria-label="Agenda por profesional">
+    <div className="dc-agenda-status-legend" aria-label="Leyenda de estados de cita">
       {AGENDA_STATUS_LEGEND.map(status => <span className={STATUS_META[status].className} key={status}><b>{STATUS_META[status].mark}</b>{STATUS_META[status].label}</span>)}
     </div>
     {!slots.length ? <div className="agenda-empty-day">
@@ -95,7 +95,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
                 {regular && <p>{cita.motivo || 'Cita dental'}</p>}
                 {extended && lab && <span className="agenda-resource-lab">Lab: {labShortName(lab)}</span>}
                 {regular && <div className="agenda-resource-appointment-state" title={statusDetails}>
-                  <span className={conflicts.length || cita.es_urgencia ? 'agenda-urgency-flag' : ''}>{cita.es_urgencia ? 'Urgencia · ' : ''}{conflicts.length ? 'Solape · ' : ''}{timing.overtime ? `+${timing.overtime} min` : visual.label}{cita.gabinete_nombre ? ` · ${cita.gabinete_nombre}` : ''}{labAlerts.length ? ' · Lab pendiente' : ''}</span>
+                  <span className={conflicts.length || cita.es_urgencia ? 'agenda-urgency-flag' : ''}>{cita.es_urgencia ? 'Urgencia · ' : ''}{conflicts.length ? 'Solape · ' : ''}{timing.overtime ? `+${timing.overtime} min` : visual.label}{cita.gabinete_nombre && <> · <span>{cita.gabinete_nombre}</span></>}{labAlerts.length ? ' · Lab pendiente' : ''}</span>
                   {action && <button type="button" disabled={busy} aria-label={actionLabel} onClick={event => { event.stopPropagation(); onAction(cita, action); }}>{action === 'finalizar' ? 'Finalizar' : actionLabel}</button>}
                   {!action && status === 'programada' && <button type="button" disabled={busy} onClick={event => { event.stopPropagation(); onConfirm(cita); }}>Confirmar</button>}
                 </div>}
@@ -106,5 +106,5 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
         </div>
       </div>
     </div>}
-  </main>;
+  </section>;
 }

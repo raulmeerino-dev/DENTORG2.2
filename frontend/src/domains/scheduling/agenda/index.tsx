@@ -558,9 +558,9 @@ export default function AgendaPage() {
             })}
           </div>
 
-          <div className="pending-call-panel">
-            <div className="panel-caption"><strong>Telefonear</strong><span>Arrastre a un hueco</span></div>
-            <table className="dentcore-table">
+          <div className="dc-pending-call-panel">
+            <div className="dc-calls-caption"><strong>Telefonear</strong><span>Arrastre a un hueco</span></div>
+            <table className="dc-calls-list">
               <thead><tr><th>Nombre</th><th>Telefono</th><th>Motivo</th><th></th></tr></thead>
               <tbody>
                 {(telefonearQuery.data ?? []).map((item: TelefonearPendiente) => (

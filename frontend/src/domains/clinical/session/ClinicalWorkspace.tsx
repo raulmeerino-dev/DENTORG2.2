@@ -24,6 +24,8 @@ import type { PrimeraVisitaData } from '../first-visit/PrimeraVisita';
 import { PrimeraVisitaPanel } from '../first-visit/PrimeraVisita';
 import { SessionWorkspace } from './SessionWorkspace';
 import { VisitsWorkspace } from './VisitsWorkspace';
+import { TaskSurface } from '../../../design-system/TaskSurface';
+import { PatientTaskContext } from '../../patients/PatientTaskContext';
 
 export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
 
@@ -120,8 +122,8 @@ export function ClinicalWorkspace({
   userRole?: UserRole | null;
 }) {
   return (
-    <section className="clinical-workspace">
-      <nav className="treatment-subtabs clinical-subtabs" aria-label="Secciones de clínica">
+    <section className="dc-clinical-workspace">
+      <nav className="dc-clinical-tabs" aria-label="Secciones de clínica">
         {CLINICAL_TABS.map((item) => (
           <button
             key={item.id}
@@ -138,12 +140,14 @@ export function ClinicalWorkspace({
       </nav>
 
       {activeTab === 'primera' && (
+        <TaskSurface title="Primera visita" context={paciente ? <PatientTaskContext paciente={paciente} /> : 'Selecciona un paciente'} onClose={() => onTabChange('pendiente')} backLabel="Volver a tratamientos" className="dc-firstvisit-task">
         <PrimeraVisitaPanel
           paciente={paciente}
           onSave={onSavePrimeraVisita}
           saving={savingPrimeraVisita}
           userRole={userRole}
         />
+        </TaskSurface>
       )}
       {activeTab === 'pendiente' && (
         <TrabajoPendientePanel

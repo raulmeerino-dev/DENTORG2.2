@@ -1,0 +1,15 @@
+.dc-task-surface { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; background: var(--dc-surface); color: var(--dc-text); }
+.dc-task-header { display: flex; align-items: center; gap: var(--dc-space-4); flex: 0 0 auto; padding: var(--dc-space-3) var(--dc-space-4); border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); }
+.dc-task-back { display: inline-flex; align-items: center; gap: var(--dc-space-2); white-space: nowrap; }
+.dc-task-heading { min-width: 0; flex: 1; }
+.dc-task-heading h1 { margin: 0; color: var(--dc-text); font-size: var(--dc-font-heading); font-weight: 650; line-height: 1.4; }
+.dc-task-heading h1:focus { outline: none; }
+.dc-task-context { color: var(--dc-muted); font-size: var(--dc-font-body); overflow-wrap: anywhere; }
+.dc-task-clinical-alert { color: var(--dc-danger); font-weight: 600; }
+.dc-task-actions { display: flex; flex-wrap: wrap; gap: var(--dc-space-2); }
+.dc-task-body { flex: 1; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
+@media (max-width: 700px) {
+  .dc-task-header { gap: var(--dc-space-2); flex-wrap: wrap; padding: var(--dc-space-2); }
+  .dc-task-back span { display: none; }
+  .dc-task-actions { width: 100%; }
+}

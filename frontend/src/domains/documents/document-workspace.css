@@ -1,0 +1,38 @@
+.dc-document-layout { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); min-height: 100%; }
+.dc-document-settings { display: flex; flex-direction: column; align-items: stretch; gap: var(--dc-space-4); padding: var(--dc-space-4); border-right: 1px solid var(--dc-border); background: var(--dc-surface-soft); min-width: 0; }
+.dc-document-settings label, .dc-document-editor { display: flex; flex-direction: column; gap: var(--dc-space-2); font-size: var(--dc-font-body); font-weight: 600; }
+.dc-document-settings input, .dc-document-settings select { width: 100%; min-width: 0; }
+.dc-document-settings details summary { cursor: pointer; color: var(--dc-muted); }
+.dc-document-settings details button { margin-top: var(--dc-space-2); width: 100%; }
+.dc-document-signature { border-top: 1px solid var(--dc-border); padding-top: var(--dc-space-4); }
+.dc-document-signature h2 { font-size: var(--dc-font-body); margin: 0 0 var(--dc-space-2); }
+.dc-document-signature p { font-size: var(--dc-font-small); color: var(--dc-muted); }
+.dc-document-signature .signature-box { display: flex; flex-direction: column; align-items: stretch; gap: var(--dc-space-2); }
+.dc-document-signature canvas { width: 100%; height: 125px; border: 1px solid var(--dc-border-strong); background: white; touch-action: none; }
+.dc-document-main { min-width: 0; display: flex; flex-direction: column; }
+.dc-document-tabs { display: flex; gap: var(--dc-space-2); padding: var(--dc-space-2) var(--dc-space-4); border-bottom: 1px solid var(--dc-border); }
+.dc-document-tabs button[aria-pressed="true"] { color: var(--dc-primary); background: var(--dc-primary-soft); border-color: var(--dc-primary); }
+.dc-document-editor { flex: 1; padding: var(--dc-space-4); }
+.dc-document-editor textarea { flex: 1; min-height: 410px; resize: vertical; padding: var(--dc-space-4); line-height: 1.7; font-size: var(--dc-font-body); }
+.dc-document-preview { padding: clamp(20px, 4vw, 60px); min-height: 500px; line-height: 1.8; overflow-wrap: anywhere; }
+.dc-document-preview h2 { font-size: 20px; margin: 0 0 var(--dc-space-4); }
+.dc-document-preview > div { white-space: pre-wrap; }
+.dc-document-patient { color: var(--dc-muted); border-bottom: 1px solid var(--dc-border); padding-bottom: var(--dc-space-4); }
+.dc-document-preview img { max-width: min(100%, 300px); display: block; margin-top: var(--dc-space-5); background: white; }
+@media (max-width: 900px) { .dc-document-layout { grid-template-columns: minmax(220px, .75fr) minmax(0, 1.25fr); } }
+@media (max-width: 650px) {
+  .dc-document-layout { grid-template-columns: 1fr; min-height: 0; }
+  .dc-document-main { grid-row: 1; }
+  .dc-document-settings { grid-row: 2; border-right: 0; border-top: 1px solid var(--dc-border); }
+  .dc-document-signature canvas { max-width: 520px; }
+  .dc-document-tabs { flex-wrap: wrap; padding: var(--dc-space-2); }
+  .dc-document-editor textarea { min-height: 330px; }
+}
+@media print {
+  html:has(.dc-document-task), body:has(.dc-document-task) { height: auto !important; overflow: visible !important; }
+  body:has(.dc-document-task) * { visibility: hidden; }
+  body:has(.dc-document-task) :is(#root, .app-shell, .main-content, .dc-patient-workspace, .dc-patient-view, .dc-task-surface, .dc-task-body, .dc-document-layout, .dc-document-main) { display: block !important; position: static !important; width: 100% !important; height: auto !important; min-height: 0 !important; max-height: none !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; contain: none !important; }
+  body:has(.dc-document-task) .app-shell > :not(.main-content), body:has(.dc-document-task) .dc-patient-workspace > :not(.dc-patient-view), body:has(.dc-document-task) .dc-patient-view > :not(.dc-document-task), body:has(.dc-document-task) :is(.dc-task-header, .dc-document-settings, .dc-document-tabs) { display: none !important; }
+  body:has(.dc-document-task) .dc-document-preview, body:has(.dc-document-task) .dc-document-preview * { visibility: visible; }
+  body:has(.dc-document-task) .dc-document-preview { position: static; min-height: 0; overflow: visible; padding: 10mm; color: #111; background: white; }
+}

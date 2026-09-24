@@ -162,7 +162,7 @@ export function PatientActionsMenu({
           title={recetaEnabled ? undefined : 'Disponible cuando hay paciente'}
         >
           <Pill size={14} strokeWidth={1.8} aria-hidden="true" />
-          <span>Recetas</span>
+          <span>Nueva receta</span>
         </button>
         <button type="button" role="menuitem" onClick={fire(handlers.onConsentimiento)}>
           <FileSignature size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -235,25 +235,34 @@ export function PatientActionsMenu({
   return (
     <div className="patient-actions" ref={containerRef}>
       <div className="patient-actions-primary" aria-label="Acciones rapidas del paciente">
-        <button type="button" onClick={handlers.onNuevaCita} disabled={noPatient}>
+        <button type="button" aria-label="Nueva cita" title="Nueva cita" onClick={handlers.onNuevaCita} disabled={noPatient}>
           <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />
           <span>Nueva cita</span>
         </button>
+        <button type="button" aria-label="Nuevo presupuesto" title="Nuevo presupuesto" onClick={handlers.onNuevoPresupuesto} disabled={noPatient || busy}>
+          <Receipt size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Nuevo presupuesto</span>
+        </button>
         {canManageBilling && (
-          <button type="button" onClick={handlers.onCobrar} disabled={noPatient}>
+          <button type="button" aria-label="Cobrar" title="Cobrar" onClick={handlers.onCobrar} disabled={noPatient}>
             <CreditCard size={14} strokeWidth={2} aria-hidden="true" />
             <span>Cobrar</span>
           </button>
         )}
+        <button type="button" aria-label="Subir documento" title="Subir documento" onClick={handlers.onSubirDocumento} disabled={noPatient}>
+          <Upload size={14} strokeWidth={2} aria-hidden="true" />
+          <span>Subir documento</span>
+        </button>
         <button
           ref={moreButtonRef}
+          data-task-return
           type="button"
           className="patient-actions-more"
           onClick={toggleMenu}
           disabled={noPatient}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label="Mas acciones"
+          aria-label="Mas acciones del paciente"
         >
           <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
           <span className="sr-only">Mas acciones</span>

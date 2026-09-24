@@ -1,0 +1,17 @@
+.dc-prescription-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, .45fr); align-items: start; gap: var(--dc-space-4); padding: var(--dc-space-4); min-width: 0; }
+.dc-prescription-form > .receta-provider-alert { grid-column: 1 / -1; margin: 0; font-size: var(--dc-font-body); }
+.dc-prescription-form > .receta-template-panel { grid-column: 2; grid-row: 2; padding: var(--dc-space-3); border: 0; border-left: 1px solid var(--dc-border); border-radius: 0; box-shadow: none; background: var(--dc-surface-soft); }
+.dc-prescription-form > .receta-grid { grid-column: 1; grid-row: 2 / span 3; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--dc-space-3); }
+.dc-prescription-form .receta-grid label { display: flex; flex-direction: column; gap: var(--dc-space-1); min-width: 0; font-size: var(--dc-font-body); font-weight: 500; text-transform: none; letter-spacing: normal; }
+.dc-prescription-form .receta-grid .wide { grid-column: 1 / -1; }
+.dc-prescription-form input, .dc-prescription-form select, .dc-prescription-form textarea { width: 100%; min-width: 0; }
+.dc-prescription-form input[type="checkbox"] { width: auto; }
+.dc-prescription-form .receta-template-upload { display: grid; grid-template-columns: 1fr; gap: var(--dc-space-2); }
+.dc-prescription-import > summary { cursor: pointer; padding: var(--dc-space-2) 0; font-size: var(--dc-font-body); color: var(--dc-primary); }
+.dc-prescription-form > .receta-preview { grid-column: 2; display: flex; flex-direction: column; gap: var(--dc-space-2); margin: 0; padding: var(--dc-space-3); border: 0; border-left: 1px solid var(--dc-border); border-radius: 0; background: var(--dc-surface-soft); box-shadow: none; }
+.dc-prescription-form > .receta-firma-block { grid-column: 2; padding: var(--dc-space-3); border: 0; border-left: 1px solid var(--dc-border); border-radius: 0; margin: 0; }
+.dc-prescription-form .signature-box canvas { max-width: 100%; height: 150px; touch-action: none; background: white; }
+.dc-prescription-form > .inline-alert, .dc-prescription-actions { grid-column: 1 / -1; }
+.dc-prescription-actions { position: sticky; bottom: calc(-1 * var(--dc-space-4)); display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--dc-space-2); padding: var(--dc-space-3) 0; background: var(--dc-surface); border-top: 1px solid var(--dc-border); }
+@media (max-width: 860px) { .dc-prescription-form { grid-template-columns: 1fr; } .dc-prescription-form > .receta-template-panel, .dc-prescription-form > .receta-grid, .dc-prescription-form > .receta-preview, .dc-prescription-form > .receta-firma-block { grid-column: 1; grid-row: auto; } }
+@media (max-width: 520px) { .dc-prescription-form > .receta-grid { grid-template-columns: 1fr; } }

@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getClinicas, getDoctores } from '../../api/identity';
 import { getReportCitasDoctor, getReportDashboard, getReportKpis, getReportPacientes, getReportTopTratamientos } from '../../api/reporting';
-import { getTratamientosCatalogo } from '../../api/treatmentCatalog';
+import { getTrabajosLaboratorio } from '../../api/laboratory';
+import './reports.css';
 
 type ReportKind = 'resumen' | 'financiero' | 'agenda' | 'pacientes' | 'doctores' | 'tratamientos' | 'laboratorio' | 'exportaciones';
-type ExportFormat = 'csv' | 'pdf';
 
 const REPORT_TYPES: Array<{ id: ReportKind; label: string; description: string }> = [
   { id: 'resumen', label: 'Resumen general', description: 'KPIs principales de direccion.' },
@@ -15,7 +14,7 @@ const REPORT_TYPES: Array<{ id: ReportKind; label: string; description: string }
   { id: 'doctores', label: 'Doctores', description: 'Actividad y ocupacion por doctor.' },
   { id: 'tratamientos', label: 'Tratamientos', description: 'Produccion por tratamiento.' },
   { id: 'laboratorio', label: 'Laboratorio', description: 'Retrasos, entregas y costes pendientes.' },
-  { id: 'exportaciones', label: 'Exportaciones', description: 'Salida CSV/PDF preparada para direccion.' },
+  { id: 'exportaciones', label: 'Exportaciones', description: 'Informes disponibles en CSV.' },
 ];
 
 function todayIso() {
@@ -53,7 +52,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, unknown>>) {
 function BarValue({ value, max, color }: { value: number; max: number; color?: string | null }) {
   const width = max > 0 ? Math.max(3, Math.round((value / max) * 100)) : 0;
   return (
-    <span className="admin-report-bar">
+    <span className="analysis-bar">
       <i style={{ width: `${width}%`, background: color || undefined }} />
       <b>{value}</b>
     </span>
@@ -64,23 +63,13 @@ export function AdminReportes() {
   const [desde, setDesde] = useState(monthStartIso());
   const [hasta, setHasta] = useState(todayIso());
   const [reportKind, setReportKind] = useState<ReportKind>('resumen');
-  const [doctorId, setDoctorId] = useState('');
-  const [clinicaId, setClinicaId] = useState('');
-  const [tratamientoId, setTratamientoId] = useState('');
-  const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const params = useMemo(() => ({
     fecha_desde: desde,
     fecha_hasta: hasta,
-    doctor_id: doctorId || undefined,
-    clinica_id: clinicaId || undefined,
-    tratamiento_id: tratamientoId || undefined,
-  }), [clinicaId, desde, doctorId, hasta, tratamientoId]);
+  }), [desde, hasta]);
 
   const dashboardQuery = useQuery({ queryKey: ['admin-report-dashboard', params], queryFn: () => getReportDashboard(params) });
   const kpisQuery = useQuery({ queryKey: ['admin-report-kpis', params], queryFn: () => getReportKpis(params) });
-  const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
-  const doctoresCatalogQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
-  const tratamientosCatalogQuery = useQuery({ queryKey: ['tratamientos-catalogo', 'reportes'], queryFn: () => getTratamientosCatalogo({ solo_activos: true }) });
   const pacientesQuery = useQuery({ queryKey: ['admin-report-pacientes'], queryFn: getReportPacientes, enabled: reportKind === 'pacientes' });
   const tratamientosQuery = useQuery({
     queryKey: ['admin-report-tratamientos', params],
@@ -93,6 +82,7 @@ export function AdminReportes() {
     enabled: reportKind === 'doctores' || reportKind === 'agenda' || reportKind === 'resumen',
   });
 
+  const laboratorioQuery = useQuery({ queryKey: ['trabajos-laboratorio-pendientes'], queryFn: () => getTrabajosLaboratorio({ pendientes: true }), enabled: reportKind === 'laboratorio' });
   const dashboard = dashboardQuery.data;
   const kpis = kpisQuery.data ?? dashboard?.kpis;
   const ingresos = dashboard?.series.ingresos_mensuales ?? [];
@@ -106,8 +96,8 @@ export function AdminReportes() {
     [dashboard?.doctores, doctoresQuery.data],
   );
   const pacientes = useMemo(
-    () => pacientesQuery.data ?? dashboard?.pacientes_deuda ?? [],
-    [dashboard?.pacientes_deuda, pacientesQuery.data],
+    () => pacientesQuery.data ?? [],
+    [pacientesQuery.data],
   );
   const maxDoctor = Math.max(...doctores.map((row) => row.total), 1);
 
@@ -144,17 +134,20 @@ export function AdminReportes() {
       }));
     }
     if (reportKind === 'laboratorio') {
-      return [
-        { indicador: 'Pendientes laboratorio', valor: dashboard?.alertas.presupuestos_pendientes ?? 0 },
-        { indicador: 'Retrasos revisables', valor: dashboard?.alertas.faltas_periodo ?? 0 },
-        { indicador: 'Deuda vinculada', valor: dashboard?.alertas.deuda_pendiente ?? 0 },
-      ];
+      return (laboratorioQuery.data ?? []).map(row => ({
+        paciente: row.paciente ? `${row.paciente.apellidos}, ${row.paciente.nombre}` : '',
+        laboratorio: row.laboratorio?.nombre ?? '',
+        trabajo: row.descripcion,
+        estado: row.estado,
+        entrega_prevista: row.fecha_entrega_prevista ?? '',
+        precio: row.precio ?? 0,
+      }));
     }
     if (reportKind === 'exportaciones') {
       return [
-        { reporte: 'Financiero', formato: exportFormat.toUpperCase(), periodo: `${desde} - ${hasta}` },
-        { reporte: 'Agenda', formato: exportFormat.toUpperCase(), periodo: `${desde} - ${hasta}` },
-        { reporte: 'Pacientes con deuda', formato: exportFormat.toUpperCase(), periodo: `${desde} - ${hasta}` },
+        { reporte: 'Financiero', formato: 'CSV', periodo: `${desde} - ${hasta}` },
+        { reporte: 'Agenda', formato: 'CSV', periodo: `${desde} - ${hasta}` },
+        { reporte: 'Pacientes con deuda', formato: 'CSV', periodo: `${desde} - ${hasta}` },
       ];
     }
     return [
@@ -163,206 +156,71 @@ export function AdminReportes() {
       { indicador: 'Tratamientos realizados', valor: kpis?.tratamientos_realizados ?? 0 },
       { indicador: 'Presupuestos', valor: kpis?.presupuestos.total ?? 0 },
     ];
-  }, [dashboard?.alertas.deuda_pendiente, dashboard?.alertas.faltas_periodo, dashboard?.alertas.presupuestos_pendientes, desde, doctores, exportFormat, hasta, kpis, pacientes, reportKind, topTratamientos]);
+  }, [desde, doctores, laboratorioQuery.data, hasta, kpis, pacientes, reportKind, topTratamientos]);
 
-  const loading = dashboardQuery.isLoading || kpisQuery.isLoading;
-  const hasError = dashboardQuery.isError || kpisQuery.isError;
+  const detailQuery = reportKind === 'pacientes' ? pacientesQuery : reportKind === 'tratamientos' ? tratamientosQuery : reportKind === 'doctores' || reportKind === 'agenda' ? doctoresQuery : reportKind === 'laboratorio' ? laboratorioQuery : dashboardQuery;
+  const loading = dashboardQuery.isLoading || kpisQuery.isLoading || detailQuery.isLoading;
+  const hasError = dashboardQuery.isError || kpisQuery.isError || detailQuery.isError;
+  const report = REPORT_TYPES.find(item => item.id === reportKind)!;
 
   return (
-    <section className="admin-reportes">
-      {hasError && <div className="inline-alert">No se han podido cargar todos los reportes. Revisa la conexion o usa modo demo explicitamente.</div>}
-
-      <div className="admin-report-header">
-        <div>
-          <div className="panel-caption">
-            <strong>Reportes</strong>
-            <span>Generales y personalizados</span>
-          </div>
-          <h2>Control visual de clinica</h2>
-        </div>
-        <div className="admin-report-filters">
-          <label>Desde<input type="date" value={desde} onChange={(event) => setDesde(event.target.value)} /></label>
-          <label>Hasta<input type="date" value={hasta} onChange={(event) => setHasta(event.target.value)} /></label>
-          <label>Clinica
-            <select value={clinicaId} onChange={(event) => setClinicaId(event.target.value)}>
-              <option value="">Todas</option>
-              {(clinicasQuery.data ?? []).map((clinica) => <option key={clinica.id} value={clinica.id}>{clinica.nombre}</option>)}
-            </select>
-          </label>
-          <label>Doctor
-            <select value={doctorId} onChange={(event) => setDoctorId(event.target.value)}>
-              <option value="">Todos</option>
-              {(doctoresCatalogQuery.data ?? []).map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>)}
-            </select>
-          </label>
-          <label>Tratamiento
-            <select value={tratamientoId} onChange={(event) => setTratamientoId(event.target.value)}>
-              <option value="">Todos</option>
-              {(tratamientosCatalogQuery.data ?? []).slice(0, 80).map((tratamiento) => <option key={tratamiento.id} value={tratamiento.id}>{tratamiento.nombre}</option>)}
-            </select>
-          </label>
-          <button type="button" onClick={() => downloadCsv(`reporte-${reportKind}-${desde}-${hasta}.csv`, customRows)}>
-            Exportar CSV
-          </button>
-        </div>
+    <section className="analysis-workspace" aria-label="Reportes de clínica">
+      <header className="analysis-toolbar">
+        <h2>Reportes</h2>
+        <label>Tipo de reporte
+          <select value={reportKind} onChange={event => setReportKind(event.target.value as ReportKind)}>
+            {REPORT_TYPES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </label>
+        <button type="button" disabled={loading || hasError || !customRows.length} onClick={() => downloadCsv(`reporte-${reportKind}-${desde}-${hasta}.csv`, customRows)}>Exportar CSV</button>
+      </header>
+      <div className="analysis-filters">
+        <label>Desde<input type="date" value={desde} max={hasta} onChange={event => setDesde(event.target.value)} /></label>
+        <label>Hasta<input type="date" value={hasta} min={desde} onChange={event => setHasta(event.target.value)} /></label>
       </div>
-
-      {loading && <div className="patient-loading-strip" aria-label="Cargando reportes"><span /><span /><span /></div>}
-
-      <div className="admin-report-kpis">
-        <article>
-          <span>Facturado</span>
-          <strong>{money(kpis?.facturacion.total_facturado)}</strong>
-          <small>{kpis?.facturacion.num_facturas ?? 0} facturas</small>
-        </article>
-        <article>
-          <span>Cobrado</span>
-          <strong>{money(kpis?.facturacion.total_cobrado)}</strong>
-          <small>Pendiente {money(kpis?.facturacion.pendiente)}</small>
-        </article>
-        <article>
-          <span>Presupuestos</span>
-          <strong>{kpis?.presupuestos.total ?? 0}</strong>
-          <small>Aceptacion {pct(kpis?.presupuestos.aceptacion_rate)}</small>
-        </article>
-        <article>
-          <span>Agenda</span>
-          <strong>{kpis?.citas.total ?? 0}</strong>
-          <small>No-show {pct(kpis?.citas.no_show_rate)}</small>
-        </article>
-        <article>
-          <span>Pacientes nuevos</span>
-          <strong>{kpis?.pacientes_nuevos ?? 0}</strong>
-          <small>Periodo seleccionado</small>
-        </article>
-        <article>
-          <span>Tratamientos</span>
-          <strong>{kpis?.tratamientos_realizados ?? 0}</strong>
-          <small>Realizados</small>
-        </article>
-        <article>
-          <span>Deuda</span>
-          <strong>{money(dashboard?.alertas.deuda_pendiente ?? kpis?.facturacion.pendiente)}</strong>
-          <small>Pendiente de cobro</small>
-        </article>
-        <article>
-          <span>Alertas</span>
-          <strong>{(dashboard?.alertas.citas_sin_confirmar ?? 0) + (dashboard?.alertas.presupuestos_pendientes ?? 0)}</strong>
-          <small>Citas y presupuestos</small>
-        </article>
-      </div>
-
-      <div className="admin-report-layout">
-        <section className="desk-panel admin-report-main">
-          <div className="panel-caption"><strong>Generales</strong><span>Vistas rapidas de direccion</span></div>
-          <div className="admin-general-report-grid">
-            {REPORT_TYPES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={reportKind === item.id ? 'active' : ''}
-                onClick={() => setReportKind(item.id)}
-              >
-                <strong>{item.label}</strong>
-                <span>{item.description}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="admin-report-chart">
-            <div className="panel-caption"><strong>Evolucion mensual</strong><span>Facturado y cobrado</span></div>
-            <div className="admin-month-bars">
-              {ingresos.map((row) => (
-                <div key={row.mes}>
-                  <span>{row.mes}</span>
-                  <i style={{ height: `${Math.max(4, (row.facturado / maxFacturado) * 100)}%` }} />
-                  <em>{money(row.facturado)}</em>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="admin-report-chart admin-report-chart-split">
-            <div>
-              <div className="panel-caption"><strong>Tratamientos top</strong><span>Volumen e importe</span></div>
-              <table className="dentcore-table">
-                <thead><tr><th>Tratamiento</th><th>Cant.</th><th>Importe</th></tr></thead>
-                <tbody>
-                  {topTratamientos.slice(0, 8).map((row) => <tr key={row.tratamiento}><td>{row.tratamiento}</td><td>{row.cantidad}</td><td>{money(row.importe ?? 0)}</td></tr>)}
-                  {!topTratamientos.length && <tr><td colSpan={3}>Sin tratamientos en el periodo.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <div>
-              <div className="panel-caption"><strong>Presupuestos</strong><span>Aceptados / rechazados</span></div>
-              <div className="admin-status-bars">
-                {Object.entries(kpis?.presupuestos.por_estado ?? {}).map(([estado, total]) => (
-                  <p key={estado}><span>{estado}</span><BarValue value={total} max={Math.max(kpis?.presupuestos.total ?? 1, 1)} /></p>
-                ))}
-              </div>
-            </div>
+      {hasError && <p className="inline-alert" role="alert">No se han podido cargar todos los reportes. Revisa la conexión.</p>}
+      {loading && <p className="analysis-loading" role="status">Cargando reportes…</p>}
+      <div className="analysis-content" aria-busy={loading}>
+        {(reportKind === 'resumen' || reportKind === 'financiero') && <div className="analysis-summary">
+          <div><span>Facturado</span><strong>{kpis ? money(kpis.facturacion.total_facturado) : '—'}</strong><small>{kpis?.facturacion.num_facturas ?? '—'} facturas</small></div>
+          <div><span>Cobrado</span><strong>{kpis ? money(kpis.facturacion.total_cobrado) : '—'}</strong><small>Pendiente {kpis ? money(kpis.facturacion.pendiente) : '—'}</small></div>
+          <div><span>Presupuestos</span><strong>{kpis?.presupuestos.total ?? '—'}</strong><small>Aceptación {pct(kpis?.presupuestos.aceptacion_rate)}</small></div>
+          <div><span>Agenda</span><strong>{kpis?.citas.total ?? '—'}</strong><small>Ausencias {pct(kpis?.citas.no_show_rate)}</small></div>
+        </div>}
+        <section className="analysis-result">
+          <div className="analysis-caption"><strong>{report.label}</strong><span>{reportKind === 'pacientes' ? 'Todos los pacientes · saldo y actividad acumulados' : reportKind === 'laboratorio' ? 'Todos los trabajos pendientes · sin filtro de periodo' : report.description}</span></div>
+          <div className="analysis-table-scroll" tabIndex={0} role="region" aria-label={report.label}>
+            <table className="dentcore-table">
+              <thead><tr>{Object.keys(customRows[0] ?? { resultado: '' }).map(header => <th key={header}>{header.replaceAll('_', ' ')}</th>)}</tr></thead>
+              <tbody>
+                {customRows.map((row, index) => <tr key={index}>{Object.values(row).map((value, cellIndex) => <td key={cellIndex}>{typeof value === 'number' ? String(value).replace('.', ',') : value}</td>)}</tr>)}
+                {!loading && !hasError && !customRows.length && <tr><td>Sin datos para ese reporte.</td></tr>}
+              </tbody>
+            </table>
           </div>
         </section>
-
-        <aside className="desk-panel admin-report-side">
-          <div className="panel-caption"><strong>Doctores</strong><span>Actividad del periodo</span></div>
-          <div className="admin-doctor-bars">
-            {doctores.slice(0, 6).map((doctor) => (
-              <p key={doctor.doctor_id ?? doctor.doctor}>
-                <span><i style={{ background: doctor.color ?? '#0f8ea0' }} />{doctor.doctor}</span>
-                <BarValue value={doctor.total} max={maxDoctor} color={doctor.color} />
-              </p>
-            ))}
+        {(reportKind === 'resumen' || reportKind === 'financiero') && <section className="analysis-section">
+          <div className="analysis-caption"><strong>Evolución mensual</strong><span>Facturado y cobrado · año {hasta.slice(0, 4)}</span></div>
+          <div className="analysis-months">{ingresos.map(row => <div key={row.mes}><span>Mes {row.mes}</span><BarValue value={row.facturado} max={maxFacturado} /><span>{money(row.facturado)}</span><small>Cobrado {money(row.cobrado)}</small></div>)}</div>
+        </section>}
+        {reportKind === 'resumen' && <details className="analysis-detail">
+          <summary>Actividad, presupuestos y alertas</summary>
+          <div className="analysis-columns">
+            <section><div className="analysis-caption"><strong>Tratamientos top</strong><span>Volumen e importe</span></div><table className="dentcore-table"><thead><tr><th>Tratamiento</th><th>Cant.</th><th>Importe</th></tr></thead><tbody>{topTratamientos.map(row => <tr key={row.tratamiento}><td>{row.tratamiento}</td><td>{row.cantidad}</td><td>{money(row.importe ?? 0)}</td></tr>)}</tbody></table></section>
+            <section><div className="analysis-caption"><strong>Presupuestos</strong></div><div className="analysis-state-list">{Object.entries(kpis?.presupuestos.por_estado ?? {}).map(([estado, total]) => <p key={estado}><span>{estado}</span><BarValue value={total} max={Math.max(kpis?.presupuestos.total ?? 1, 1)} /></p>)}</div></section>
           </div>
-          <div className="panel-caption"><strong>Alertas operativas</strong><span>Resumen general</span></div>
-          <div className="admin-report-alerts">
-            <p><strong>{dashboard?.alertas.citas_sin_confirmar ?? 0}</strong><span>Citas sin confirmar</span></p>
-            <p><strong>{dashboard?.alertas.pacientes_en_clinica ?? 0}</strong><span>Pacientes en clinica</span></p>
-            <p><strong>{dashboard?.alertas.presupuestos_pendientes ?? 0}</strong><span>Presupuestos pendientes</span></p>
-            <p><strong>{money(dashboard?.alertas.deuda_pendiente ?? 0)}</strong><span>Deuda pendiente</span></p>
+          <div className="analysis-summary">
+            <div><span>Citas sin confirmar</span><strong>{dashboard?.alertas.citas_sin_confirmar ?? '—'}</strong></div>
+            <div><span>Pacientes en clínica</span><strong>{dashboard?.alertas.pacientes_en_clinica ?? '—'}</strong></div>
+            <div><span>Presupuestos pendientes</span><strong>{dashboard?.alertas.presupuestos_pendientes ?? '—'}</strong></div>
+            <div><span>Deuda pendiente</span><strong>{dashboard ? money(dashboard.alertas.deuda_pendiente) : '—'}</strong></div>
           </div>
-        </aside>
+        </details>}
+        {(reportKind === 'doctores' || reportKind === 'agenda' || reportKind === 'resumen') && <section className="analysis-section">
+          <div className="analysis-caption"><strong>Doctores</strong><span>Actividad del periodo</span></div>
+          <div className="analysis-doctors">{doctores.map(doctor => <p key={doctor.doctor_id ?? doctor.doctor}><span>{doctor.doctor}</span><BarValue value={doctor.total} max={maxDoctor} color={doctor.color} /></p>)}</div>
+        </section>}
       </div>
-
-      <section className="desk-panel admin-custom-report">
-        <div className="panel-caption"><strong>Reporte personalizado</strong><span>Elige tipo, fechas y exporta</span></div>
-        <div className="admin-report-builder">
-          <label>Tipo de reporte
-            <select value={reportKind} onChange={(event) => setReportKind(event.target.value as ReportKind)}>
-              {REPORT_TYPES.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-            </select>
-          </label>
-          <label>Formato
-            <select value={exportFormat} onChange={(event) => setExportFormat(event.target.value as ExportFormat)}>
-              <option value="csv">CSV</option>
-              <option value="pdf">PDF preparado</option>
-            </select>
-          </label>
-          <label>Segmento
-            <select defaultValue="todos">
-              <option value="todos">Toda la clinica</option>
-              <option value="doctor">Por doctor</option>
-              <option value="tratamiento">Por tratamiento</option>
-              <option value="paciente">Por paciente</option>
-            </select>
-          </label>
-        </div>
-
-        <table className="dentcore-table">
-          <thead>
-            <tr>
-              {Object.keys(customRows[0] ?? { resultado: '' }).map((header) => <th key={header}>{header}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {customRows.map((row, index) => (
-              <tr key={index}>
-                {Object.values(row).map((value, cellIndex) => <td key={cellIndex}>{typeof value === 'number' ? String(value).replace('.', ',') : value}</td>)}
-              </tr>
-            ))}
-            {!customRows.length && <tr><td>Sin datos para ese reporte.</td></tr>}
-          </tbody>
-        </table>
-      </section>
     </section>
   );
 }

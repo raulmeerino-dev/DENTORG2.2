@@ -178,6 +178,7 @@ describe('RecetaModal', () => {
       />,
     );
     const archivo = new File(['%PDF-1.4 test'], 'modelo-receta.pdf', { type: 'application/pdf' });
+    await user.click(screen.getByText('Importar plantilla'));
     await user.upload(screen.getByLabelText(/Plantilla de receta/).querySelector('input[type="file"]') as HTMLInputElement, archivo);
     await user.click(screen.getByRole('button', { name: /Importar/ }));
     expect(onImportPlantilla).toHaveBeenCalledWith(expect.objectContaining({

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { getClinicas } from '../../api/identity';
 import { Building2, Banknote, CalendarDays, ClipboardList, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
 import { useAuth } from '../../domains/identity/session/AuthContext';
 import { GLOBAL_LAUNCHER_IDS, ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../navigation/workflow';
@@ -15,6 +17,9 @@ const icons: Partial<Record<AppSection, typeof CalendarDays>> = { hoy: CalendarD
 export default function MainNav() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const clinics = useQuery({ queryKey: ['clinicas', user?.clinica_id], queryFn: getClinicas, enabled: user?.rol !== 'paciente', staleTime: 300_000 });
+  const clinic = clinics.data?.find(item => item.id === user?.clinica_id) ?? (clinics.data?.length === 1 ? clinics.data[0] : undefined);
+  const clinicLabel = clinic?.nombre ?? (clinics.isError ? 'Clínica no disponible' : clinics.data && clinics.data.length > 1 ? 'Todas las clínicas' : 'Clínica Dental');
   const [theme, setTheme] = useState(() => localStorage.getItem('dentcore-theme') ?? 'light');
   const [now, setNow] = useState(() => new Date());
   const navItems = WORKFLOW_ITEMS.filter(item => GLOBAL_LAUNCHER_IDS.includes(item.id) && item.route && canAccess(user?.rol, item));
@@ -25,6 +30,7 @@ export default function MainNav() {
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
   const clock = now.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) + ' · ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
   return <>
+    <a className="dc-skip-link" href="#main-workspace">Ir al área de trabajo</a>
     <aside className="dc-sidebar">
       <NavLink to={user?.rol === 'paciente' ? '/mis-citas' : '/jornada'} className="dc-brand" aria-label="DentCore"><img src={dentcoreLogo} alt="" /><strong>DentCore</strong></NavLink>
       <nav className="dc-navigation" aria-label="Navegación principal">
@@ -37,7 +43,7 @@ export default function MainNav() {
       <div className="dc-sidebar-footer"><span>Gestión clínica</span><small>DentCore Clinic</small></div>
     </aside>
     <header className="dc-topbar">
-      <div className="dc-clinic"><Building2 size={16} aria-hidden="true" /><span>Clínica Dental</span></div>
+      <div className="dc-clinic" title={clinicLabel}><Building2 size={16} aria-hidden="true" /><span>{clinicLabel}</span></div>
       {user?.rol !== 'paciente' && <button type="button" className="dc-assistant-trigger" aria-label="Asistente" onClick={() => window.dispatchEvent(new Event('dentcore:open-assistant'))}><Sparkles size={15} aria-hidden="true" /><span>Asistente</span><kbd>Ctrl Espacio</kbd></button>}
       <div className="dc-topbar-actions">
         {user?.rol !== 'paciente' && <EnSala />}

@@ -1,0 +1,26 @@
+.cash-workspace { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; color: var(--dc-text); background: var(--dc-surface); overflow: hidden; }
+.cash-toolbar { display: flex; flex-wrap: wrap; gap: var(--dc-space-3); align-items: center; min-height: 44px; padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); }
+.cash-toolbar h1 { margin: 0; font-size: var(--dc-font-heading); }
+.cash-toolbar span, .cash-toolbar time { color: var(--dc-muted); font-size: var(--dc-font-body); }
+.cash-toolbar time { margin-left: auto; }
+.cash-totals { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); flex: none; border-bottom: 1px solid var(--dc-border); }
+.cash-total { display: flex; flex-direction: column; gap: var(--dc-space-1); min-width: 0; padding: var(--dc-space-3); border-right: 1px solid var(--dc-border); }
+.cash-total:last-child { border-right: 0; }
+.cash-total span, .cash-total small { color: var(--dc-muted); font-size: var(--dc-font-small); }
+.cash-total span { display: flex; gap: var(--dc-space-1); align-items: center; }
+.cash-total strong { font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cash-total--pending strong { color: var(--dc-danger); }
+.cash-total--paid strong { color: var(--dc-success); }
+.cash-tabs { display: flex; gap: var(--dc-space-1); flex-wrap: wrap; padding: var(--dc-space-2) var(--dc-space-3); background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border); }
+.cash-tabs button { min-height: var(--dc-control-height); border-radius: var(--dc-radius-sm); }
+.cash-tabs button.active { color: var(--dc-primary); background: var(--dc-primary-soft); border-color: var(--dc-primary); }
+.cash-ledger { flex: 1; min-height: 0; min-width: 0; overflow: auto; scrollbar-gutter: stable; }
+.cash-ledger .dentcore-table { min-width: 780px; width: 100%; }
+.cash-ledger .dentcore-table th { position: sticky; top: 0; z-index: 1; background: var(--dc-surface-soft); }
+.cash-ledger .dentcore-table :is(th, td) { padding: var(--dc-space-2) var(--dc-space-3); white-space: nowrap; }
+.cash-ledger .dentcore-table .row-pending td:nth-child(6) { color: var(--dc-danger); font-weight: 600; }
+.cash-payment-dialog { width: min(420px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); overflow: auto; background: var(--dc-surface); border: 1px solid var(--dc-border-strong); border-radius: var(--dc-radius-lg); box-shadow: var(--dc-shadow-menu); }
+.cash-payment-fields { display: flex; flex-direction: column; gap: var(--dc-space-3); padding: var(--dc-space-4); }
+.cash-payment-fields label { display: grid; gap: var(--dc-space-1); }
+@media (max-width: 1150px) { .cash-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cash-total:nth-child(-n+3) { border-bottom: 1px solid var(--dc-border); } }
+@media (max-width: 600px) { .cash-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cash-total { padding: var(--dc-space-2); border-bottom: 1px solid var(--dc-border); } .cash-total strong { font-size: 16px; } .cash-toolbar span { display: none; } }

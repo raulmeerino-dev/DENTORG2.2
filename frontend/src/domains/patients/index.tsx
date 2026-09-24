@@ -48,6 +48,11 @@ import { PatientEditModal } from './PatientEditModal';
 import { PatientFinder } from './PatientFinder';
 import { PatientFullViewModal } from './PatientFullViewModal';
 import { PatientForm } from './PatientSummary';
+import { PatientTaskContext } from './PatientTaskContext';
+import { nextPatientAppointment, patientAge, patientAllergies, patientAppointmentLabel } from './patientContext';
+import { useMinuteClock } from '../../shared/time/useMinuteClock';
+import { TaskSurface } from '../../design-system/TaskSurface';
+import './patient-workspace.css';
 
 
 export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
@@ -146,6 +151,18 @@ function presupuestoEstadoLabel(estado: string) {
 }
 
 export default function PacientesPage() {
+  const [searchParams] = useSearchParams();
+  const explicitPatient = searchParams.get('paciente_id');
+  const patientScope = explicitPatient !== null
+    ? explicitPatient.trim()
+    : sessionStorage.getItem('dentcore_selected_patient_id');
+  // All drafts, selections and mutations belong to this patient. A global
+  // patient switch replaces the workspace synchronously, including cached data.
+  return <PatientWorkspace key={patientScope || 'unselected-patient'} />;
+}
+
+function PatientWorkspace() {
+  const workspaceTime = useMinuteClock();
   const { user } = useAuth();
   const canManageBilling = user?.rol === 'admin' || user?.rol === 'recepcion';
   const queryClient = useQueryClient();
@@ -175,6 +192,7 @@ export default function PacientesPage() {
   const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion' } | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
+  const dedicatedTaskOpen = Boolean(designer || recetaModalOpen || presupuestoPanelOpen);
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOffset, setPatientOffset] = useState(0);
   const deferredPatientSearch = useDeferredValue(patientSearch);
@@ -323,7 +341,8 @@ export default function PacientesPage() {
     : null;
   const hasPatientError = pacientesQuery.isError || pacienteDetalleQuery.isError || historialQuery.isError || citasPacienteQuery.isError || trabajosPendientesQuery.isError;
   const hasPatientLoading = pacientesQuery.isLoading || (Boolean(active?.id) && pacienteDetalleQuery.isLoading);
-  const alergias = typeof active?.datos_salud?.alergias === 'string' ? active.datos_salud.alergias : '';
+  const alergias = patientAllergies(active);
+  const proximaCita = nextPatientAppointment(citasPacienteQuery.data ?? [], workspaceTime);
   const canDictarNota = user?.rol === 'admin' || user?.rol === 'doctor';
   const hasPreviousPatientPage = patientOffset > 0;
   const hasNextPatientPage = pacientes.length === PATIENT_PAGE_SIZE;
@@ -333,6 +352,11 @@ export default function PacientesPage() {
 
   useEffect(() => {
     function runPatientFastAction(action: PatientFastActionName) {
+      if (dedicatedTaskOpen) {
+        document.querySelector<HTMLElement>('.dc-task-heading h1')?.focus({ preventScroll: true });
+        toast.info('Termina la tarea actual o vuelve a la ficha antes de abrir otra acción.');
+        return;
+      }
       if (action === 'new') {
         setNuevoPacienteOpen(true);
         return;
@@ -367,7 +391,7 @@ export default function PacientesPage() {
       if (timeout !== null) window.clearTimeout(timeout);
       window.removeEventListener('dentcore:patient-fast-action', handlePatientFastAction);
     };
-  }, []);
+  }, [dedicatedTaskOpen]);
 
   useEffect(() => {
     if (!active?.id) return;
@@ -1009,9 +1033,13 @@ export default function PacientesPage() {
     );
   }
 
+  if ((!active && hasPatientLoading) || (active && urlPatientId !== active.id)) {
+    return <div className="dc-patient-workspace" role="status">Abriendo ficha del paciente…</div>;
+  }
+
   return (
-    <>
-      <div className={`patient-selector-bar${activeMainTab === 'pacientes' ? ' patient-selector-dashboard' : ''}`}>
+    <div className="dc-patient-workspace">
+      <div className="dc-patient-header" hidden={dedicatedTaskOpen}>
         <PatientFinder
           pacientes={pacientes}
           selectedId={active?.id ?? null}
@@ -1032,19 +1060,21 @@ export default function PacientesPage() {
             setTab('pacientes');
           }}
         />
-        <div className="patient-selector-current" aria-label="Paciente activo">
+        <div className="dc-patient-identity" aria-label="Paciente activo">
           {active ? (
             <>
               <strong title={fullName(active)}>{fullName(active)}</strong>
               <small>
                 <b>H {active.num_historial}</b>
+                {patientAge(active) !== null && <> · {patientAge(active)} años</>}
                 {active.telefono && <> · {active.telefono}</>}
               </small>
+              {proximaCita && <small className="dc-patient-next-appointment">Próxima: {patientAppointmentLabel(proximaCita.fecha_hora)}</small>}
               {(alergias || totalPendiente > 0) && (
-                <div className="patient-selector-chips">
-                  {alergias && <span className="patient-selector-chip patient-selector-chip-danger" title={`Alérgico: ${alergias}`}>Alergia</span>}
-                  {totalPendiente > 0 && (
-                    <span className="patient-selector-chip patient-selector-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
+                <div className="dc-patient-chips">
+                  {alergias && <span className="dc-patient-chip dc-patient-chip-danger" title={`Alérgico: ${alergias}`}>Alergias: {alergias}</span>}
+                  {canManageBilling && totalPendiente > 0 && (
+                    <span className="dc-patient-chip dc-patient-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
                   )}
                 </div>
               )}
@@ -1053,7 +1083,7 @@ export default function PacientesPage() {
             <small className="patient-selector-empty">Sin paciente</small>
           )}
         </div>
-        {activeMainTab !== 'pacientes' && (
+        {(
           <PatientActionsMenu
             paciente={active}
             busy={nuevoPresupuesto.isPending}
@@ -1096,22 +1126,24 @@ export default function PacientesPage() {
           </div>
         )}
       </div>
-      <section className={`page page-shell patient-screen${activeMainTab === 'pacientes' ? ' patient-dashboard-mode' : ' no-bottom-bar'}`} onClick={() => setContextMenu(null)}>
-        <nav className="patient-module-tabs">
+      <section className="dc-patient-view" onClick={() => setContextMenu(null)}>
+        <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen}>
           {WORK_TABS.map((item) => (
             <button
               key={item.id}
               className={activeMainTab === item.id ? 'active' : ''}
+              aria-current={activeMainTab === item.id ? 'page' : undefined}
               onClick={() => openPatientArea(item.id)}
             >
               <span className="tab-icon">{TAB_ICONS[item.id]}</span>{item.label}
             </button>
           ))}
         </nav>
-      <main className="patient-desk">
+      <div className="dc-patient-body" hidden={dedicatedTaskOpen}>
         {activeMainTab === 'pacientes' && (
           <div onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
             <PatientForm
+              embedded
               paciente={active}
               facturas={facturas}
               canManageBilling={canManageBilling}
@@ -1227,7 +1259,7 @@ export default function PacientesPage() {
             />
           </section>
         )}
-      </main>
+      </div>
       {contextMenu && (
         <div className="context-menu patient-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
           {contextMenu.kind === 'paciente' && (
@@ -1364,24 +1396,14 @@ export default function PacientesPage() {
         />
       )}
       {presupuestoPanelOpen && active && (
-        <div className="modal-backdrop patient-context-panel-backdrop" onMouseDown={() => setPresupuestoPanelOpen(false)}>
-          <section
-            className="patient-context-panel patient-budget-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Presupuestos de ${fullName(active)}`}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <header className="modal-titlebar patient-context-panel-head">
-              <div>
-                <strong>Presupuestos</strong>
-                <span>{fullName(active)} - H {active.num_historial}</span>
-              </div>
-              <button type="button" onClick={() => setPresupuestoPanelOpen(false)}>Cerrar</button>
-            </header>
-            {renderPresupuestosContextPanel()}
-          </section>
-        </div>
+        <TaskSurface
+          title="Presupuestos"
+          context={<PatientTaskContext paciente={active} />}
+          onClose={() => setPresupuestoPanelOpen(false)}
+          className="dc-budget-task"
+        >
+          {renderPresupuestosContextPanel()}
+        </TaskSurface>
       )}
       {canManageBilling && invoiceHistoryOpen && (
         <InvoiceHistoryModal
@@ -1446,6 +1468,8 @@ export default function PacientesPage() {
           paciente={active}
           plantillas={plantillasQuery.data ?? []}
           initialTipo={designer.tipo}
+          saving={guardarDocumentoDisenado.isPending}
+          errorMessage={guardarDocumentoDisenado.error instanceof Error ? guardarDocumentoDisenado.error.message : null}
           onClose={() => setDesigner(null)}
           onSave={(data) => guardarDocumentoDisenado.mutate(data)}
         />
@@ -1532,6 +1556,6 @@ export default function PacientesPage() {
         />
       )}
     </section>
-    </>
+    </div>
   );
 }

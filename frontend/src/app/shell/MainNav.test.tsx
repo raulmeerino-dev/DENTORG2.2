@@ -6,6 +6,7 @@ import MainNav from './MainNav';
 
 const authState = vi.hoisted(() => ({ user: { id: 'user-1', nombre: 'Administrador', rol: 'admin' }, logout: vi.fn() }));
 vi.mock('../../domains/identity/session/AuthContext', () => ({ useAuth: () => authState }));
+vi.mock('../../api/identity', () => ({ getClinicas: async () => [{ id: 'clinic-1', nombre: 'Clínica de prueba' }] }));
 vi.mock('../../domains/scheduling/workspace/EnSala', () => ({ default: () => <button>En sala</button> }));
 vi.mock('../../domains/identity/components/StaffClockPopover', () => ({ default: () => null }));
 vi.mock('../../domains/scheduling/components/DoctorNotificationsBell', () => ({ default: () => null }));
@@ -14,7 +15,7 @@ function renderNav(role: string, path = '/jornada') {
   return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><MainNav /></MemoryRouter></QueryClientProvider>);
 }
 describe('Persistent navigation', () => {
-  it('shows one Jornada entry and keeps administration contextual', () => {
+  it('shows the clinic and keeps the main workspaces in one navigation', async () => {
     renderNav('admin');
     expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Pacientes' })).toBeVisible();
@@ -23,6 +24,8 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Ajustes' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Agenda' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+    expect(await screen.findByText('Clínica de prueba')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Asistente' })).toBeVisible();
   });
   it('restricts reception and clinical navigation by role', () => {
     renderNav('doctor', '/jornada?vista=agenda');

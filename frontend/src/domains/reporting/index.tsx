@@ -6,6 +6,7 @@ import { canRoleAccess } from '../../app/navigation/workflow';
 import { getFacturas, openFacturaPdf } from '../../api/billing';
 import { getReportCitasDoctor, getReportKpis, getReportPacientes, getReportTopTratamientos } from '../../api/reporting';
 import { getTrabajosLaboratorio } from '../../api/laboratory';
+import './reporting.css';
 
 const LISTADOS = ['caja', 'pacientes', 'agenda', 'clinica', 'laboratorio', 'control'] as const;
 type ListadoTab = typeof LISTADOS[number];
@@ -23,14 +24,22 @@ function dateText(value?: string | null) {
 export default function ListadosPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<ListadoTab>('caja');
-  const facturasQuery = useQuery({ queryKey: ['facturas-global'], queryFn: () => getFacturas() });
-  const kpisQuery = useQuery({ queryKey: ['report-kpis'], queryFn: getReportKpis });
-  const pacientesQuery = useQuery({ queryKey: ['report-pacientes'], queryFn: getReportPacientes });
-  const topTratamientosQuery = useQuery({ queryKey: ['report-top-tratamientos'], queryFn: getReportTopTratamientos });
-  const citasDoctorQuery = useQuery({ queryKey: ['report-citas-doctor'], queryFn: getReportCitasDoctor });
-  const laboratorioQuery = useQuery({ queryKey: ['trabajos-laboratorio-pendientes'], queryFn: () => getTrabajosLaboratorio({ pendientes: true }) });
+  const today = new Date();
+  const todayText = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const monthStart = `${todayText.slice(0, 7)}-01`;
+  const [desde, setDesde] = useState(monthStart);
+  const [hasta, setHasta] = useState(todayText);
+  const period = { fecha_desde: desde, fecha_hasta: hasta };
+  const invalidPeriod = !desde || !hasta || desde > hasta;
+  const facturasQuery = useQuery({ queryKey: ['facturas-global'], queryFn: () => getFacturas(), enabled: tab === 'caja' });
+  const kpisQuery = useQuery({ queryKey: ['report-kpis', period], queryFn: () => getReportKpis(period), enabled: !invalidPeriod });
+  const pacientesQuery = useQuery({ queryKey: ['report-pacientes'], queryFn: getReportPacientes, enabled: tab === 'pacientes' });
+  const topTratamientosQuery = useQuery({ queryKey: ['report-top-tratamientos', period], queryFn: () => getReportTopTratamientos(period), enabled: tab === 'clinica' && !invalidPeriod });
+  const citasDoctorQuery = useQuery({ queryKey: ['report-citas-doctor', period], queryFn: () => getReportCitasDoctor(period), enabled: tab === 'agenda' && !invalidPeriod });
+  const laboratorioQuery = useQuery({ queryKey: ['trabajos-laboratorio-pendientes'], queryFn: () => getTrabajosLaboratorio({ pendientes: true }), enabled: tab === 'laboratorio' });
 
-  const facturas = facturasQuery.data ?? [];
+  const facturas = (facturasQuery.data ?? []).filter((factura) => (!desde || factura.fecha.slice(0, 10) >= desde) && (!hasta || factura.fecha.slice(0, 10) <= hasta));
+  const activeQuery = tab === 'caja' ? facturasQuery : tab === 'pacientes' ? pacientesQuery : tab === 'agenda' ? citasDoctorQuery : tab === 'clinica' ? topTratamientosQuery : tab === 'laboratorio' ? laboratorioQuery : kpisQuery;
   const kpis = kpisQuery.data;
   const canSeeCaja = canRoleAccess(user?.rol, ['admin', 'recepcion']);
   const canSeeClinica = canRoleAccess(user?.rol, ['admin', 'doctor']);
@@ -42,34 +51,45 @@ export default function ListadosPage() {
   }
 
   return (
-    <section className="page listados-screen">
-      <div className="toolbar">
-        <div>
-          <p className="eyebrow">Listados</p>
-          <h1>Control diario, caja, clinica y actividad</h1>
-        </div>
-        <div className="metric-inline"><span>Facturado</span><strong>{money(kpis?.facturacion.total_facturado ?? 0)}</strong></div>
-        <div className="metric-inline"><span>Cobrado</span><strong>{money(kpis?.facturacion.total_cobrado ?? 0)}</strong></div>
-        <div className="metric-inline"><span>Pendiente</span><strong>{money(kpis?.facturacion.pendiente ?? 0)}</strong></div>
-      </div>
+    <section className="reporting-workspace" aria-label="Listados">
+      <header className="reporting-toolbar">
+        <h1>Listados</h1>
+        {tab !== 'pacientes' && tab !== 'laboratorio' && <div className="reporting-period">
+          <label>Desde<input type="date" value={desde} max={hasta || undefined} onChange={event => setDesde(event.target.value)} /></label>
+          <label>Hasta<input type="date" value={hasta} min={desde || undefined} onChange={event => setHasta(event.target.value)} /></label>
+          <button type="button" onClick={() => { setDesde(monthStart); setHasta(todayText); }}>Este mes</button>
+        </div>}
+        {tab === 'pacientes' && <span>Todos los pacientes</span>}
+        {tab === 'laboratorio' && <span>Todos los trabajos pendientes</span>}
+      </header>
+      {canSeeCaja && tab === 'caja' && <div className="reporting-totals" aria-label="Resumen del periodo">
+        <div><span>Facturado</span><strong>{kpis ? money(kpis.facturacion.total_facturado) : '—'}</strong></div>
+        <div><span>Cobrado</span><strong>{kpis ? money(kpis.facturacion.total_cobrado) : '—'}</strong></div>
+        <div><span>Pendiente</span><strong>{kpis ? money(kpis.facturacion.pendiente) : '—'}</strong></div>
+      </div>}
 
-      <nav className="file-tabs">
+      <nav className="reporting-tabs" aria-label="Tipo de listado">
         {LISTADOS.map((item) => (
-          <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
+          <button type="button" aria-pressed={tab === item} key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>
             {item === 'caja' && 'Caja/Facturas'}
             {item === 'pacientes' && 'Pacientes'}
             {item === 'agenda' && 'Agenda'}
-            {item === 'clinica' && 'Clinica'}
-            {item === 'laboratorio' && 'Protesicos'}
+            {item === 'clinica' && 'Clínica'}
+            {item === 'laboratorio' && 'Laboratorio'}
             {item === 'control' && 'Control'}
           </button>
         ))}
       </nav>
+      {invalidPeriod && <div className="inline-alert" role="alert">Selecciona un periodo válido: inicio y fin, en ese orden.</div>}
+      {(activeQuery.isError || kpisQuery.isError) && <div className="inline-alert" role="alert">No se ha podido cargar el listado. <button type="button" onClick={() => { void activeQuery.refetch(); void kpisQuery.refetch(); }}>Reintentar</button></div>}
+      {activeQuery.isLoading && <div className="reporting-status" role="status">Cargando listado…</div>}
+      <div className="reporting-result" aria-busy={activeQuery.isFetching}>
+
 
       {tab === 'caja' && (
-        <section className="desk-panel">
-          <div className="panel-caption">
-            <strong>Facturacion, cobros y saldos</strong>
+        <section className="reporting-panel">
+          <div className="reporting-caption">
+            <strong>Facturación, cobros y saldos</strong>
             {!canSeeCaja && <span className="access-pill locked">Importes visibles segun permisos</span>}
           </div>
           <table className="dentcore-table">
@@ -89,15 +109,15 @@ export default function ListadosPage() {
                   <td><button type="button" onClick={() => abrirFacturaPdf(factura.id)}>Abrir</button></td>
                 </tr>
               ))}
-              {!facturas.length && <tr><td colSpan={8}>Sin facturas en el listado.</td></tr>}
+              {!facturasQuery.isLoading && !facturasQuery.isError && !facturas.length && <tr><td colSpan={8}>Sin facturas en el listado.</td></tr>}
             </tbody>
           </table>
         </section>
       )}
 
       {tab === 'pacientes' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Pacientes y saldos operativos</strong><span>Busqueda, seguimiento y prioridad de llamada</span></div>
+        <section className="reporting-panel">
+          <div className="reporting-caption"><strong>Pacientes y saldos operativos</strong><span>Seguimiento y prioridad de llamada</span></div>
           <table className="dentcore-table">
             <thead><tr><th>Historial</th><th>Paciente</th><th>F. nacimiento</th><th>Citas</th><th>Saldo</th><th>Activo</th></tr></thead>
             <tbody>
@@ -117,8 +137,8 @@ export default function ListadosPage() {
       )}
 
       {tab === 'agenda' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Citas por doctor</strong><span>Actividad, asistencia y faltas</span></div>
+        <section className="reporting-panel">
+          <div className="reporting-caption"><strong>Citas por doctor</strong><span>Actividad, asistencia y faltas</span></div>
           <table className="dentcore-table">
             <thead><tr><th>Doctor</th><th>Total citas</th><th>Atendidas</th><th>Faltas</th><th>Color agenda</th></tr></thead>
             <tbody>
@@ -134,12 +154,12 @@ export default function ListadosPage() {
       )}
 
       {tab === 'clinica' && (
-        <section className="desk-panel">
-          <div className="panel-caption">
-            <strong>Actividad clinica</strong>
+        <section className="reporting-panel">
+          <div className="reporting-caption">
+            <strong>Actividad clínica</strong>
             {!canSeeClinica && <span className="access-pill locked">Detalle clinico limitado para recepcion</span>}
           </div>
-          <div className="metrics-strip">
+          <div className="reporting-totals">
             <div><span>Tratamientos realizados</span><strong>{kpis?.tratamientos_realizados ?? 0}</strong></div>
             <div><span>Presupuestos</span><strong>{kpis?.presupuestos.total ?? 0}</strong></div>
             <div><span>Pacientes nuevos</span><strong>{kpis?.pacientes_nuevos ?? 0}</strong></div>
@@ -157,8 +177,8 @@ export default function ListadosPage() {
       )}
 
       {tab === 'laboratorio' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Trabajos de laboratorio pendientes</strong><span>Salida, recepcion, incidencia y entrega</span></div>
+        <section className="reporting-panel">
+          <div className="reporting-caption"><strong>Trabajos de laboratorio pendientes</strong><span>Salida, recepcion, incidencia y entrega</span></div>
           <table className="dentcore-table">
             <thead><tr><th>Paciente</th><th>Laboratorio</th><th>Trabajo</th><th>Pieza</th><th>Estado</th><th>Entrega prevista</th><th>Precio</th></tr></thead>
             <tbody>
@@ -182,9 +202,9 @@ export default function ListadosPage() {
       )}
 
       {tab === 'control' && (
-        <section className="desk-panel control-map">
-          <div className="panel-caption"><strong>Cuadro de control</strong><span>Lo que una clinica necesita tener a mano</span></div>
-          <div className="file-card-grid documents-map">
+        <section className="reporting-panel">
+          <div className="reporting-caption"><strong>Cuadro de control</strong><span>Lo que una clinica necesita tener a mano</span></div>
+          <div className="reporting-help">
             <div><strong>Recepcion</strong><span>Hoy, llamadas, huecos, pacientes nuevos, avisos y cobros pendientes.</span></div>
             <div><strong>Doctor</strong><span>Agenda propia, historia clinica, planes, realizados y laboratorio.</span></div>
             <div><strong>Direccion</strong><span>Produccion, caja, pendientes, faltas, presupuestos y actividad por doctor.</span></div>
@@ -192,6 +212,7 @@ export default function ListadosPage() {
           </div>
         </section>
       )}
+      </div>
     </section>
   );
 }

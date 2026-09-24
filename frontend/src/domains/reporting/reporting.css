@@ -1,0 +1,25 @@
+.reporting-workspace { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; background: var(--dc-surface); color: var(--dc-text); }
+.reporting-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--dc-space-3); padding: var(--dc-space-2) var(--dc-space-3); min-height: 44px; border-bottom: 1px solid var(--dc-border); }
+.reporting-toolbar h1 { margin: 0; font-size: var(--dc-font-heading); }
+.reporting-toolbar > span { color: var(--dc-muted); }
+.reporting-period { display: flex; gap: var(--dc-space-2); align-items: center; flex-wrap: wrap; }
+.reporting-period label { display: flex; align-items: center; gap: var(--dc-space-1); color: var(--dc-muted); font-size: var(--dc-font-small); }
+.reporting-period input { min-width: 0; width: 142px; min-height: var(--dc-control-height); }
+.reporting-tabs { display: flex; flex-wrap: wrap; gap: var(--dc-space-1); padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); }
+.reporting-tabs button.active { background: var(--dc-primary-soft); color: var(--dc-primary); border-color: var(--dc-primary); }
+.reporting-totals { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--dc-border); }
+.reporting-totals > div { display: flex; align-items: baseline; gap: var(--dc-space-2); padding: var(--dc-space-2) var(--dc-space-3); border-right: 1px solid var(--dc-border); }
+.reporting-totals span { color: var(--dc-muted); font-size: var(--dc-font-small); }
+.reporting-totals strong { font-variant-numeric: tabular-nums; }
+.reporting-result { flex: 1; min-width: 0; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
+.reporting-panel { min-width: 0; }
+.reporting-caption { display: flex; align-items: center; flex-wrap: wrap; gap: var(--dc-space-3); padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); }
+.reporting-caption span { color: var(--dc-muted); font-size: var(--dc-font-small); }
+.reporting-panel .dentcore-table { width: 100%; min-width: 720px; }
+.reporting-panel .dentcore-table th { position: sticky; top: 0; z-index: 1; background: var(--dc-surface-soft); }
+.reporting-panel .dentcore-table :is(th, td) { padding: var(--dc-space-2) var(--dc-space-3); }
+.reporting-help { display: grid; }
+.reporting-help > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: var(--dc-space-3); padding: var(--dc-space-3); border-bottom: 1px solid var(--dc-border); }
+.reporting-help span, .reporting-status { color: var(--dc-muted); }
+.reporting-status { padding: var(--dc-space-3); }
+@media (max-width: 600px) { .reporting-help > div { grid-template-columns: 1fr; gap: var(--dc-space-1); } .reporting-period { width: 100%; } }

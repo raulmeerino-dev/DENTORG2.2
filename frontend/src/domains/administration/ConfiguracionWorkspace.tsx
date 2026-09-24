@@ -1,3 +1,4 @@
+import './administration.css';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -454,11 +455,11 @@ export function ConfiguracionWorkspace({
   }
 
   return (
-    <section className={`page fichero-screen${embedded ? ' admin-config-embedded' : ''}`}>
-      {showToolbar && <div className="toolbar">
+    <section className={`settings-config${embedded ? ' settings-config--embedded' : ''}`}>
+      {showToolbar && <div className="settings-toolbar">
         <div>
-          <p className="eyebrow">Admin</p>
-          <h1>Ajustes generales de la clínica</h1>
+
+          <h1>Ajustes de la clínica</h1>
         </div>
         <div className="role-status">
           <span>Rol activo</span>
@@ -466,7 +467,7 @@ export function ConfiguracionWorkspace({
         </div>
       </div>}
 
-      {showTabs && <nav className="file-tabs">
+      {showTabs && <nav className="settings-config-tabs">
         {FICHEROS.map((item) => (
           <button key={item} className={tab === item ? 'active' : ''} onClick={() => selectTab(item)}>
             {item === 'general' && 'General'}
@@ -482,19 +483,19 @@ export function ConfiguracionWorkspace({
       </nav>}
 
       {tab === 'general' && (
-        <div className="settings-overview-grid">
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Resumen de ajustes</strong><AccessPill allowed={isAdmin} /></div>
-            <div className="settings-kpis">
+        <div className="settings-overview">
+          <section className="settings-section">
+            <div className="settings-caption"><strong>Resumen de ajustes</strong><AccessPill allowed={isAdmin} /></div>
+            <div className="settings-summary">
               <button onClick={() => selectTab('doctores')}><strong>{doctores.length}</strong><span>Doctores/auxiliares</span></button>
               <button onClick={() => selectTab('tratamientos')}><strong>{tratamientos.length}</strong><span>Tratamientos activos</span></button>
               <button onClick={() => selectTab('agenda')}><strong>{horariosQuery.data?.length ?? 0}</strong><span>Horarios del doctor</span></button>
               <button onClick={() => selectTab('roles')}><strong>{WORKFLOW_ITEMS.length}</strong><span>Secciones con permisos</span></button>
             </div>
           </section>
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Ficheros administrativos</strong><AccessPill allowed={isAdmin} /></div>
-            <div className="file-card-grid">
+          <section className="settings-section">
+            <div className="settings-caption"><strong>Ficheros administrativos</strong><AccessPill allowed={isAdmin} /></div>
+            <div className="settings-reference-list">
               <div><strong>Doctores</strong><span>Nombre, especialidad, color de agenda, comisión y activo.</span></div>
               <div><strong>Tratamientos</strong><span>Precios, IVA, familia, iconos, pieza/caras y estado.</span></div>
               <div><strong>Horarios</strong><span>Agenda semanal por profesional, intervalos y festivos.</span></div>
@@ -503,8 +504,8 @@ export function ConfiguracionWorkspace({
               <div><strong>Datos clínica</strong><span>Empresa, locales, series y documentos.</span></div>
             </div>
           </section>
-          <section className="desk-panel">
-            <div className="panel-caption">
+          <section className="settings-section">
+            <div className="settings-caption">
               <strong>Formas de pago</strong>
               <span>Configuracion minima</span>
             </div>
@@ -529,9 +530,9 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'doctores' && (
-        <div className="fichero-grid">
-          <section className="desk-panel">
-            <div className="panel-caption"><strong>Doctores, auxiliares y colores</strong><AccessPill allowed={isAdmin} /></div>
+        <div className="settings-split">
+          <section className="settings-section">
+            <div className="settings-caption"><strong>Doctores, auxiliares y colores</strong><AccessPill allowed={isAdmin} /></div>
             <table className="dentcore-table">
               <thead><tr><th>Color</th><th>Nombre</th><th>Especialidad</th><th>%</th><th>Tipo</th><th>Activo</th></tr></thead>
               <tbody>
@@ -552,8 +553,8 @@ export function ConfiguracionWorkspace({
               </tbody>
             </table>
           </section>
-          <section className="desk-panel treatment-editor-panel">
-            <div className="panel-caption"><strong>{doctorForm.id ? 'Editar profesional' : 'Nuevo profesional'}</strong><AccessPill allowed={isAdmin} /></div>
+          <section className="settings-section treatment-editor-panel">
+            <div className="settings-caption"><strong>{doctorForm.id ? 'Editar profesional' : 'Nuevo profesional'}</strong><AccessPill allowed={isAdmin} /></div>
             <div className="treatment-editor doctor-editor">
               <label className="wide">Nombre
                 <input value={doctorForm.nombre} disabled={!isAdmin} onChange={(event) => setDoctorForm((prev) => ({ ...prev, nombre: event.target.value }))} />
@@ -580,9 +581,9 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'tratamientos' && (
-        <div className="fichero-grid wide-left treatment-catalog-layout">
-          <section className="desk-panel treatment-catalog-panel">
-            <div className="panel-caption">
+        <div className="settings-split wide-left treatment-catalog-layout">
+          <section className="settings-section treatment-catalog-panel">
+            <div className="settings-caption">
               <strong>Catalogo de tratamientos</strong>
               <AccessPill allowed={isAdmin || canEditClinical} />
               <input
@@ -622,8 +623,8 @@ export function ConfiguracionWorkspace({
               </table>
             </div>
           </section>
-          <section className="desk-panel treatment-editor-panel">
-            <div className="panel-caption"><strong>{tratamientoForm.id ? 'Editar tratamiento' : 'Nuevo tratamiento'}</strong><AccessPill allowed={canEditTreatments} /></div>
+          <section className="settings-section treatment-editor-panel">
+            <div className="settings-caption"><strong>{tratamientoForm.id ? 'Editar tratamiento' : 'Nuevo tratamiento'}</strong><AccessPill allowed={canEditTreatments} /></div>
             <div className="treatment-editor">
               <label>Codigo
                 <input value={tratamientoForm.codigo} disabled={!canEditTreatments} onChange={(event) => setTratamientoForm((prev) => ({ ...prev, codigo: event.target.value }))} />
@@ -672,8 +673,8 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'agenda' && (
-        <section className="desk-panel">
-          <div className="panel-caption horario-caption">
+        <section className="settings-section">
+          <div className="settings-caption horario-caption">
             <strong>Horarios semanales por doctor</strong>
             <AccessPill allowed={isAdmin} />
             <select value={activeDoctor} onChange={(e) => setDoctorId(e.target.value)}>
@@ -770,8 +771,8 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'laboratorio' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Laboratorios y protesicos</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
+        <section className="settings-section">
+          <div className="settings-caption"><strong>Laboratorios y protesicos</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
           <table className="dentcore-table">
             <thead><tr><th>Nombre</th><th>Contacto</th><th>Telefono</th><th>WhatsApp</th><th>Email</th><th>Notas</th><th>Activo</th></tr></thead>
             <tbody>
@@ -787,9 +788,9 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'documentos' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Archivo documental</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
-          <div className="file-card-grid documents-map">
+        <section className="settings-section">
+          <div className="settings-caption"><strong>Archivo documental</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
+          <div className="settings-reference-list settings-documents">
             <div><strong>Clinicos</strong><span>Radiografias, fotografias, informes y adjuntos.</span></div>
             <div><strong>Consentimientos</strong><span>Plantillas, firma, version y trazabilidad.</span></div>
             <div><strong>Facturas PDF</strong><span>Documento fiscal original archivado y copia marcada.</span></div>
@@ -799,15 +800,15 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'seguridad' && (
-        <section className="desk-panel security-map">
-          <div className="panel-caption">
+        <section className="settings-section security-map">
+          <div className="settings-caption">
             <strong>Seguridad, privacidad y copias</strong>
             <AccessPill allowed={isAdmin} />
             <button disabled={!isAdmin || crearBackupMutation.isPending} onClick={() => crearBackupMutation.mutate()}>
               Crear backup cifrado
             </button>
           </div>
-          <div className="security-grid">
+          <div className="settings-security-summary">
             <div><strong>Accesos</strong><span>Usuarios por rol, sesiones con caducidad, bloqueo por intentos y permisos por modulo.</span><em>Activo</em></div>
             <div><strong>Historia clinica</strong><span>Acceso restringido, auditoria de lectura y separacion entre notas generales y clinicas.</span><em>Reforzado</em></div>
             <div><strong>Archivos medicos</strong><span>Subida validada por firma real de archivo, limite de tamano y descarga sin cache.</span><em>Protegido</em></div>
@@ -815,8 +816,8 @@ export function ConfiguracionWorkspace({
             <div><strong>Facturacion</strong><span>Facturas selladas sin borrado destructivo, RF encadenado y PDF fiscal persistido.</span><em>SIF</em></div>
             <div><strong>Auditoria</strong><span>Registro de acciones criticas, accesos a datos sensibles y cambios de agenda/documentos.</span><em>Activo</em></div>
           </div>
-          <div className="desk-panel compact-panel">
-            <div className="panel-caption">
+          <div className="settings-section compact-panel">
+            <div className="settings-caption">
               <strong>Preflight comercial</strong>
               <span className={`status-pill ${readinessQuery.data?.overall ?? 'warn'}`}>
                 {readinessQuery.data?.overall === 'ok' && 'Listo'}
@@ -880,8 +881,8 @@ export function ConfiguracionWorkspace({
       )}
 
       {tab === 'roles' && (
-        <section className="desk-panel">
-          <div className="panel-caption"><strong>Mapa de roles y permisos visibles</strong><AccessPill allowed={isAdmin} /></div>
+        <section className="settings-section">
+          <div className="settings-caption"><strong>Mapa de roles y permisos visibles</strong><AccessPill allowed={isAdmin} /></div>
           <table className="dentcore-table">
             <thead><tr><th>Seccion</th><th>Admin</th><th>Doctor</th><th>Recepcion</th><th>Contenido</th></tr></thead>
             <tbody>

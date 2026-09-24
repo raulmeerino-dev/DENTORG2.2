@@ -24,8 +24,8 @@ export function AgendaDayBrief({
   onSearchCita: () => void;
 }) {
   return (
-    <div className="agenda-day-brief" aria-label="Resumen operativo de agenda">
-      <button type="button" className="agenda-day-brief-main" onClick={nextCita ? onOpenNext : onSearchSlot}>
+    <div className="dc-agenda-day-brief" aria-label="Resumen operativo de agenda">
+      <button type="button" className="dc-agenda-day-brief-main" onClick={nextCita ? onOpenNext : onSearchSlot}>
         <span>Siguiente</span>
         <strong>{nextCita ? `${localAppointmentTime(nextCita.fecha_hora)} · ${patientName(nextCita)}` : 'Sin siguiente cita'}</strong>
         <em>{nextCita?.motivo || 'Buscar un hueco libre'}</em>

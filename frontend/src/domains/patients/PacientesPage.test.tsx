@@ -1,7 +1,7 @@
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
-import { render,screen,waitFor,within } from '@testing-library/react';
+import { act,render,screen,waitFor,within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter,useLocation } from 'react-router-dom';
+import { MemoryRouter,useLocation,useNavigate } from 'react-router-dom';
 import { beforeEach,describe,expect,it,vi } from 'vitest';
 import PacientesPage from './index';
 
@@ -11,7 +11,7 @@ vi.mock('../identity/session/AuthContext', () => ({
   }),
 }));
 
-const { createPresupuestoMock, getPacienteMock, getPacientesMock, getPresupuestosMock, resetPresupuestos } = vi.hoisted(() => {
+const { createPresupuestoMock, getPacienteMock, getPacientesMock, getPresupuestosMock, resetPresupuestos, pacientesFixture } = vi.hoisted(() => {
   const basePresupuesto = {
     id: 'pres-1',
     paciente_id: 'pac-1',
@@ -42,7 +42,7 @@ const { createPresupuestoMock, getPacienteMock, getPacientesMock, getPresupuesto
     presupuestosStore = [created, ...presupuestosStore.filter((item) => item.id !== created.id)];
     return created;
   });
-  const getPresupuestosMock = vi.fn(async () => presupuestosStore);
+  const getPresupuestosMock = vi.fn(async (pacienteId: string) => presupuestosStore.filter((item) => item.paciente_id === pacienteId));
   const paciente = {
     id: 'pac-1',
     num_historial: 91312,
@@ -79,6 +79,7 @@ const { createPresupuestoMock, getPacienteMock, getPacientesMock, getPresupuesto
     getPacientesMock,
     getPresupuestosMock,
     resetPresupuestos,
+    pacientesFixture: [paciente, paciente2],
   };
 });
 
@@ -260,11 +261,14 @@ vi.mock('../../api/treatmentCatalog', () => ({
 
 function LocationProbe() {
   const location = useLocation();
-  return <span data-testid="location-probe">{location.pathname}{location.search}</span>;
+  const navigate = useNavigate();
+  return <><span data-testid="location-probe">{location.pathname}{location.search}</span><button type="button" onClick={() => navigate('/pacientes?paciente_id=pac-2')}>Abrir paciente B desde navegación global</button></>;
 }
 
 function renderPage(initialEntries = ['/pacientes']) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  for (const paciente of pacientesFixture) queryClient.setQueryData(['paciente-detalle', paciente.id], paciente);
+  queryClient.setQueryData(['pacientes', { q: '', limit: 50, offset: 0 }], pacientesFixture);
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={initialEntries}>
@@ -281,8 +285,64 @@ describe('PacientesPage structure', () => {
     createPresupuestoMock.mockClear();
     getPacienteMock.mockClear();
     getPacientesMock.mockClear();
+    getPacientesMock.mockImplementation(async () => pacientesFixture);
     getPresupuestosMock.mockClear();
     window.sessionStorage.clear();
+  });
+
+  it('mantiene búsqueda y foco mientras llegan resultados de otro filtro', async () => {
+    const user = userEvent.setup();
+    renderPage(['/pacientes?paciente_id=pac-1']);
+    await waitFor(() => expect(getPacientesMock).toHaveBeenCalled());
+    let resolveSearch!: (value: typeof pacientesFixture) => void;
+    const pendingSearch = new Promise<typeof pacientesFixture>((resolve) => { resolveSearch = resolve; });
+    getPacientesMock.mockImplementation(() => pendingSearch);
+    const finder = screen.getByRole('textbox', { name: 'Buscar paciente' });
+    await user.type(finder, 'Ojeda');
+    expect(finder).toHaveFocus();
+    expect(finder).toHaveValue('Ojeda');
+    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('Cesar Gutierrez Velez');
+    await act(async () => { resolveSearch(pacientesFixture); await pendingSearch; });
+    expect(finder).toHaveFocus();
+  });
+
+  it.each(['receta', 'consentimiento', 'presupuesto'] as const)('aísla %s al cambiar de paciente desde navegación global con ambos pacientes en caché', async (task) => {
+    const user = userEvent.setup();
+    renderPage(['/pacientes?paciente_id=pac-1']);
+    if (task === 'presupuesto') {
+      await user.click(screen.getByRole('button', { name: /^Presupuestos\s+\d+$/i }));
+      await screen.findByRole('region', { name: /^Presupuestos$/i });
+    } else {
+      await user.click(screen.getByRole('button', { name: /Mas acciones del paciente/i }));
+      await user.click(screen.getByRole('menuitem', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' }));
+      await user.type(screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' }), 'Borrador exclusivo paciente A');
+    }
+    await user.click(screen.getByRole('button', { name: 'Abrir paciente B desde navegación global' }));
+    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('Pilar Ojeda Calvo');
+    expect(screen.queryByRole('heading', { name: /Nueva receta|Consentimiento informado|^Presupuestos$/ })).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue(/Borrador exclusivo paciente A/)).not.toBeInTheDocument();
+    if (task !== 'presupuesto') {
+      await user.click(screen.getByRole('button', { name: /Mas acciones del paciente/i }));
+      await user.click(screen.getByRole('menuitem', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' }));
+      expect(screen.getByRole('region', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' })).toHaveTextContent('Pilar Ojeda Calvo');
+      expect(screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' })).not.toHaveValue('Borrador exclusivo paciente A');
+    } else {
+      await user.click(screen.getByRole('button', { name: /^Presupuestos\s+\d+$/i }));
+      await waitFor(() => expect(screen.getByRole('region', { name: /^Presupuestos$/i })).toHaveTextContent('No hay presupuestos'));
+    }
+  });
+
+  it.each(['receta', 'consentimiento'] as const)('conserva el borrador de %s y una única tarea cuando IA pide abrir presupuestos', async (task) => {
+    const user = userEvent.setup();
+    renderPage(['/pacientes?paciente_id=pac-1']);
+    await user.click(screen.getByRole('button', { name: /Mas acciones del paciente/i }));
+    await user.click(screen.getByRole('menuitem', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' }));
+    const field = screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' });
+    await user.type(field, 'Borrador conservado');
+    act(() => window.dispatchEvent(new CustomEvent('dentcore:patient-fast-action', { detail: { action: 'budgets' } })));
+    expect(screen.queryByRole('region', { name: /^Presupuestos$/i })).not.toBeInTheDocument();
+    expect(field).toHaveValue('Borrador conservado');
+    expect(screen.getByRole('heading', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' })).toHaveFocus();
   });
 
   it('seleccionar paciente actualiza la URL canonica', async () => {
@@ -381,7 +441,7 @@ describe('PacientesPage structure', () => {
     await user.click(createButton);
 
     await waitFor(() => expect(createPresupuestoMock).toHaveBeenCalledWith('pac-1', 'doc-1'));
-    expect(await screen.findByRole('dialog', { name: /Presupuestos de Cesar Gutierrez Velez/i })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: /^Presupuestos$/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Presupuesto #2/i)).toBeInTheDocument());
   });
 

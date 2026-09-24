@@ -5,6 +5,7 @@ import { CalendarClock, Check, Eye, RotateCcw, Search, UserRound, X } from 'luci
 import { aplicarAccionWhatsApp, getWhatsAppComunicaciones, reprogramarWhatsAppComunicacion } from '../../../api/communications';
 import { buscarHuecosLibres } from '../../../api/scheduling';
 import type { HuecoLibre, WhatsAppInboxItem } from '../../../api/types';
+import './whatsapp.css';
 
 type InboxFilter = 'pending' | 'all' | 'processed';
 type Turno = 'todo' | 'manana' | 'tarde';
@@ -153,30 +154,31 @@ export default function WhatsAppPage() {
   }
 
   return (
-    <section className="page page-shell whatsapp-inbox-page">
-      <header className="whatsapp-page-head">
+    <section className="communications-workspace" aria-label="Respuestas WhatsApp">
+      <header className="communications-toolbar">
         <div>
           <span>WhatsApp</span>
           <strong>Respuestas de pacientes</strong>
         </div>
-        <div className="whatsapp-page-filters" role="tablist" aria-label="Filtro de respuestas WhatsApp">
+        <div className="communications-filters" role="group" aria-label="Filtro de respuestas WhatsApp">
           {[
             ['pending', 'Pendientes'],
             ['all', 'Todas'],
             ['processed', 'Procesadas'],
           ].map(([id, label]) => (
-            <button key={id} type="button" className={filter === id ? 'active' : ''} onClick={() => setFilter(id as InboxFilter)}>
+            <button key={id} type="button" aria-pressed={filter === id} className={filter === id ? 'active' : ''} onClick={() => setFilter(id as InboxFilter)}>
               {label}
             </button>
           ))}
         </div>
       </header>
 
+      {inboxQuery.isError && <div className="inline-alert" role="alert">No se pudieron cargar las respuestas. <button type="button" onClick={() => void inboxQuery.refetch()}>Reintentar</button></div>}
       {actionError && <div className="inline-alert">{actionError}</div>}
 
-      <div className="whatsapp-inbox-layout">
-        <section className="whatsapp-inbox-table-wrap">
-          <table className="dentcore-table whatsapp-inbox-table">
+      <div className={`communications-layout${target ? " communications-layout--detail" : ""}`}>
+        <section className="communications-ledger" tabIndex={0} aria-label="Bandeja de respuestas">
+          <table className="dentcore-table communications-table">
             <thead>
               <tr>
                 <th>Recibido</th>
@@ -195,7 +197,7 @@ export default function WhatsAppPage() {
                   <td>{dateTimeLabel(item.received_at ?? item.created_at)}</td>
                   <td>{patientLabel(item)}</td>
                   <td>{appointmentLabel(item)}</td>
-                  <td className="whatsapp-message-cell">{item.message_body}</td>
+                  <td className="communications-message">{item.message_body}</td>
                   <td>{item.interpreted_intent ? INTENT_LABEL[item.interpreted_intent] ?? item.interpreted_intent : '-'}</td>
                   <td>
                     <span className={`status-pill status-${item.appointment?.estado ?? 'sin-cita'}`}>
@@ -204,7 +206,7 @@ export default function WhatsAppPage() {
                     <small>{item.processed ? 'Procesado' : 'Pendiente'}</small>
                   </td>
                   <td>
-                    <div className="table-actions whatsapp-table-actions">
+                    <div className="table-actions communications-actions">
                       <button type="button" title="Confirmar cita" disabled={actionMutation.isPending || !item.appointment_id} onClick={() => actionMutation.mutate({ item, action: 'confirm' })}><Check size={14} /></button>
                       <button type="button" title="Pendiente de reprogramacion" disabled={actionMutation.isPending || !item.appointment_id} onClick={() => actionMutation.mutate({ item, action: 'mark_pending' })}><RotateCcw size={14} /></button>
                       <button type="button" title="Cancelar cita" disabled={actionMutation.isPending || !item.appointment_id} onClick={() => actionMutation.mutate({ item, action: 'cancel' })}><X size={14} /></button>
@@ -219,20 +221,21 @@ export default function WhatsAppPage() {
                   </td>
                 </tr>
               ))}
-              {!inboxQuery.isLoading && !items.length && <tr><td colSpan={7}>No hay respuestas con este filtro.</td></tr>}
+              {!inboxQuery.isLoading && !inboxQuery.isError && !items.length && <tr><td colSpan={7}>No hay respuestas con este filtro.</td></tr>}
             </tbody>
           </table>
         </section>
 
-        <aside className="whatsapp-reschedule-panel">
+        {target && <aside className="communications-reschedule">
           <header>
-            <strong>Reprogramacion asistida</strong>
+            <strong>Reprogramación asistida</strong>
+            <button type="button" onClick={() => setRescheduleTargetId(null)} aria-label="Cerrar reprogramación">Cerrar</button>
             <span>{target ? patientLabel(target) : 'Selecciona una respuesta con solicitud de cambio'}</span>
           </header>
 
           {target ? (
             <>
-              <div className="whatsapp-slot-filters">
+              <div className="communications-slot-filters">
                 <label>Desde<input type="date" value={slotDesde} onChange={(event) => setSlotDesde(event.target.value)} /></label>
                 <label>Rango
                   <select value={slotDias} onChange={(event) => setSlotDias(event.target.value)}>
@@ -250,7 +253,8 @@ export default function WhatsAppPage() {
                   </select>
                 </label>
               </div>
-              <div className="whatsapp-slot-list">
+              {slotsQuery.isError && <div className="inline-alert" role="alert">No se pudieron cargar los huecos libres.</div>}
+              <div className="communications-slots">
                 {slotsQuery.isLoading && <p>Buscando huecos...</p>}
                 {!slotsQuery.isLoading && (slotsQuery.data ?? []).map((hueco) => (
                   <button
@@ -264,13 +268,13 @@ export default function WhatsAppPage() {
                     <em>{hueco.duracion_min} min</em>
                   </button>
                 ))}
-                {!slotsQuery.isLoading && !(slotsQuery.data ?? []).length && <p>No hay huecos libres con esos filtros.</p>}
+                {!slotsQuery.isLoading && !slotsQuery.isError && !(slotsQuery.data ?? []).length && <p>No hay huecos libres con esos filtros.</p>}
               </div>
             </>
           ) : (
             <p>Las respuestas con estado "Solicita cambio" permiten buscar huecos libres del mismo doctor y mover la cita manualmente.</p>
           )}
-        </aside>
+        </aside>}
       </div>
     </section>
   );

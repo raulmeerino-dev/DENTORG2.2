@@ -1,6 +1,6 @@
 /* Context and its provider intentionally share one typed boundary. */
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext, useLayoutEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -17,6 +17,7 @@ export function dayAppointmentsQuery(day: string) {
 }
 
 interface JornadaState {
+  perspective: 'agenda' | 'operativa'; setPerspective: (value: 'agenda' | 'operativa') => void;
   day: string; setDay: (value: string) => void;
   doctorId: string; setDoctorId: (value: string) => void;
   gabineteId: string; setGabineteId: (value: string) => void;
@@ -34,6 +35,16 @@ const JornadaContext = createContext<JornadaState | null>(null);
 
 export function JornadaProvider({ children }: { children: ReactNode }) {
   const [params, setParams] = useSearchParams();
+  const pendingParams = useRef(params);
+  useLayoutEffect(() => { pendingParams.current = params; }, [params]);
+  function updateParams(update: (next: URLSearchParams) => void, replace = true) {
+    // Router updates do not queue like React setState. Compose rapid filter and
+    // perspective changes against one pending snapshot before navigation settles.
+    const next = new URLSearchParams(pendingParams.current);
+    update(next);
+    pendingParams.current = next;
+    setParams(next, { replace });
+  }
   const requestedDay = params.get('fecha') ?? '';
   const parsedDay = new Date(`${requestedDay}T12:00:00`);
   const day = /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) && !Number.isNaN(parsedDay.getTime()) && localAppointmentDate(parsedDay.toISOString()) === requestedDay ? requestedDay : todayIso();
@@ -51,31 +62,27 @@ export function JornadaProvider({ children }: { children: ReactNode }) {
   ), [citasQuery.data, doctorId, gabineteId, searchQuery, status]);
 
   function change(key: string, value: string | null) {
-    setParams(previous => {
-      const next = new URLSearchParams(previous);
+    updateParams(next => {
       if (value) next.set(key, value); else next.delete(key);
       if (key === 'fecha') next.delete('cita_id');
-      return next;
-    }, { replace: true });
+    });
   }
 
   return <JornadaContext.Provider value={{
+    perspective: params.get('vista') === 'agenda' ? 'agenda' : 'operativa',
+    setPerspective: value => change('vista', value),
     day, setDay: value => change('fecha', value),
     doctorId, setDoctorId: value => change('doctor_id', value),
     gabineteId, setGabineteId: value => change('gabinete_id', value),
     searchQuery, setSearchQuery: value => change('q', value),
     status, setStatus: value => change('estado', value),
     selectedCitaId: params.get('cita_id'), selectCita: value => change('cita_id', value),
-    focusCita: cita => setParams(previous => {
-      const next = new URLSearchParams(previous);
+    focusCita: cita => updateParams(next => {
       next.set('fecha', localAppointmentDate(cita.fecha_hora)); next.set('doctor_id', cita.doctor_id); next.set('cita_id', cita.id);
-      return next;
-    }),
-    focusSlot: slot => setParams(previous => {
-      const next = new URLSearchParams(previous);
+    }, false),
+    focusSlot: slot => updateParams(next => {
       next.set('fecha', slot.day); next.set('doctor_id', slot.doctorId); next.delete('cita_id');
-      return next;
-    }),
+    }, false),
     citasQuery, citas, doctores: doctorsQuery.data ?? [],
   }}>{children}</JornadaContext.Provider>;
 }

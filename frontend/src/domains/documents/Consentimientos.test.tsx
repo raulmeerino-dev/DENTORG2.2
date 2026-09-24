@@ -36,6 +36,17 @@ const plantillas: PlantillaConsentimiento[] = [{
 }];
 
 describe('DocumentDesignerModal', () => {
+  it('permite revisar y editar en una tarea sin modal y conserva el contexto del paciente', async () => {
+    const user = userEvent.setup();
+    render(<DocumentDesignerModal mode="consentimiento" paciente={paciente} plantillas={[{ ...plantillas[0], contenido: 'Documento para {{paciente_nombre}}.' }]} onClose={vi.fn()} onSave={vi.fn()} />);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Consentimiento informado' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Texto del documento' })).toHaveValue('Documento para Pilar PDF.');
+    await user.click(screen.getByRole('button', { name: 'Vista previa' }));
+    expect(screen.getByRole('article', { name: 'Vista previa del documento' })).toHaveTextContent('Documento para Pilar PDF.');
+    await user.click(screen.getByRole('button', { name: 'Editar texto' }));
+    expect(screen.getByRole('textbox', { name: 'Texto del documento' })).toHaveValue('Documento para Pilar PDF.');
+  });
   it('bloquea guardar consentimiento desde plantilla si el canvas esta vacio', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();

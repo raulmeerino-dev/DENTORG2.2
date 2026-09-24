@@ -42,8 +42,9 @@ describe('PatientActionsMenu', () => {
     expect(screen.getByRole('button', { name: 'Cobrar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Mas acciones/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Nuevo ppto/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Recetas' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Subir doc/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Nueva receta' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Subir documento/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Nuevo presupuesto$/i })).toBeInTheDocument();
   });
 
   it('deshabilita todo si no hay paciente', () => {
@@ -106,7 +107,7 @@ describe('PatientActionsMenu', () => {
     expect(handlers.onNuevoPresupuesto).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    await user.click(screen.getByRole('menuitem', { name: 'Recetas' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Nueva receta' }));
     expect(onCrearReceta).toHaveBeenCalledTimes(1);
 
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
@@ -139,7 +140,7 @@ describe('PatientActionsMenu', () => {
     const handlers = makeHandlers();
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    expect(screen.getByRole('menuitem', { name: 'Recetas' })).toBeDisabled();
+    expect(screen.getByRole('menuitem', { name: 'Nueva receta' })).toBeDisabled();
     expect(screen.getByRole('menuitem', { name: 'Pedido de laboratorio' })).toBeDisabled();
     // Label cambiado en F1
     expect(screen.getByRole('menuitem', { name: 'Documento cuestionario medico' })).toBeInTheDocument();
@@ -152,7 +153,7 @@ describe('PatientActionsMenu', () => {
     const handlers = makeHandlers({ onCrearReceta, onPedidoLaboratorio });
     render(<PatientActionsMenu paciente={paciente} handlers={handlers} />);
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
-    await user.click(screen.getByRole('menuitem', { name: 'Recetas' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Nueva receta' }));
     expect(onCrearReceta).toHaveBeenCalledTimes(1);
     await user.click(screen.getByRole('button', { name: /Mas acciones/i }));
     const labBtn = screen.getByRole('menuitem', { name: 'Pedido de laboratorio' });

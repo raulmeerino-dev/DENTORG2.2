@@ -75,10 +75,14 @@ export function PatientFinder({
   }
 
   return (
-    <div className="patient-finder">
+    <div className="dc-patient-finder" onBlur={(event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) setResultsOpen(false);
+    }} onKeyDown={(event) => {
+      if (event.key === 'Escape') setResultsOpen(false);
+    }}>
       <button
         type="button"
-        className="patient-new-shortcut"
+        className="dc-patient-new-shortcut"
         onClick={onNew}
         title="Nueva ficha de paciente"
         aria-label="Nueva ficha de paciente"
@@ -90,29 +94,30 @@ export function PatientFinder({
           <line x1="12" y1="17" x2="20" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </button>
-      <label className="patient-search-label">
+      <label className="dc-patient-search-label">
         <input
           id="patient-search-input"
+          aria-label="Buscar paciente"
           value={query}
           onChange={(event) => {
             updateQuery(event.target.value);
             setResultsOpen(true);
           }}
           onFocus={() => setResultsOpen(true)}
-          onBlur={() => setTimeout(() => setResultsOpen(false), 160)}
           placeholder="Buscar paciente..."
           autoComplete="off"
         />
       </label>
       {resultsOpen && (
-        <div className="patient-live-results patient-finder-results">
+        <div className="dc-patient-live-results dc-patient-finder-results">
           {loading && <span>Buscando pacientes...</span>}
           {filtered.map((paciente) => (
             <button
               type="button"
               className={paciente.id === selectedId ? 'active' : ''}
               key={paciente.id}
-              onMouseDown={(e) => { e.preventDefault(); selectPaciente(paciente); }}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => selectPaciente(paciente)}
             >
               <strong>{paciente.apellidos}, {paciente.nombre}</strong>
               <span>{paciente.telefono ?? 'sin telefono'} · H{String(paciente.num_historial).padStart(4, '0')}</span>
@@ -120,14 +125,12 @@ export function PatientFinder({
           ))}
           {!loading && !filtered.length && <span>No hay pacientes con ese criterio. Revisa telefono, DNI o crea una ficha nueva.</span>}
           {(pageLabel || hasPreviousPage || hasNextPage) && (
-            <div className="patient-finder-pagination" aria-label="Paginacion de pacientes">
+            <div className="dc-patient-finder-pagination" aria-label="Paginacion de pacientes">
               <button
                 type="button"
                 disabled={!hasPreviousPage}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onPreviousPage?.();
-                }}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onPreviousPage?.()}
               >
                 Anterior
               </button>
@@ -135,10 +138,8 @@ export function PatientFinder({
               <button
                 type="button"
                 disabled={!hasNextPage}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  onNextPage?.();
-                }}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => onNextPage?.()}
               >
                 Siguiente
               </button>

@@ -57,13 +57,13 @@ export function PatientOdontogramSummary({
 
   function renderArch(teeth: number[], label: string) {
     return (
-      <div className="mini-odontogram-arch" aria-label={label}>
+      <div className="dc-mini-odontogram-arch" aria-label={label}>
         {teeth.map((piece) => {
           const state = toothStates.get(piece) ?? 'neutral';
           return (
             <span
               key={piece}
-              className={`mini-tooth mini-tooth-${state}`}
+              className={`dc-mini-tooth dc-mini-tooth-${state}`}
               title={`${piece} - ${state}`}
               aria-label={`Pieza ${piece}: ${state}`}
             >
@@ -77,34 +77,34 @@ export function PatientOdontogramSummary({
   }
 
   return (
-    <section className="patient-odontogram-summary-card" aria-label="Resumen odontograma">
-      <div className="patient-card-head">
+    <section className="dc-summary-odontogram-panel" aria-label="Resumen odontograma">
+      <div className="dc-summary-card-head">
         <h3>
-          <span className="patient-card-head-icon" aria-hidden="true">
+          <span className="dc-summary-card-head-icon" aria-hidden="true">
             <ScanLine size={14} strokeWidth={2.2} />
           </span>
           Resumen odontograma
         </h3>
-        <div className="patient-card-head-right">
+        <div className="dc-summary-card-head-right">
           <span>{teethWithClinicalData} piezas con datos</span>
           <button type="button" onClick={onOpenDetail} aria-label="Ver detalle en Tratamientos">Detalle</button>
         </div>
       </div>
-      <div className="mini-odontogram" data-testid="mini-odontogram" role="img" aria-label="Mini odontograma resumen">
+      <div className="dc-mini-odontogram" data-testid="mini-odontogram" role="img" aria-label="Mini odontograma resumen">
         {renderArch(UPPER_TEETH, 'Mini arcada superior')}
         {renderArch(LOWER_TEETH, 'Mini arcada inferior')}
       </div>
-      <div className="mini-odontogram-footer">
+      <div className="dc-mini-odontogram-footer">
         <span data-testid="mini-odontogram-pendientes"><b>Pendientes:</b> {pendingLines.length}</span>
         <span data-testid="mini-odontogram-realizados"><b>Realizados:</b> {realizedEntries.length}</span>
         <span data-testid="mini-odontogram-presupuestados"><b>Presupuestados:</b> {plannedLines.length}</span>
-        <span className="mini-odontogram-update"><b>Actualizado</b> {lastUpdate}</span>
+        <span className="dc-mini-odontogram-update"><b>Actualizado</b> {lastUpdate}</span>
       </div>
-      <div className="mini-odontogram-legend" aria-label="Leyenda odontograma resumen">
-        <span><i className="mini-tooth-pendiente" />Pendiente</span>
-        <span><i className="mini-tooth-presupuestado" />Presupuestado</span>
-        <span><i className="mini-tooth-realizado" />Realizado</span>
-        <span><i className="mini-tooth-neutral" />Neutro</span>
+      <div className="dc-mini-odontogram-legend" aria-label="Leyenda odontograma resumen">
+        <span><i className="dc-mini-tooth-pendiente" />Pendiente</span>
+        <span><i className="dc-mini-tooth-presupuestado" />Presupuestado</span>
+        <span><i className="dc-mini-tooth-realizado" />Realizado</span>
+        <span><i className="dc-mini-tooth-neutral" />Neutro</span>
       </div>
     </section>
   );

@@ -8,12 +8,12 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <MainNav />
-      <AppStatus />
-      <main className="main-content">
+      <main className="main-content" id="main-workspace" tabIndex={-1}>
         <ErrorBoundary>
           <Outlet />
         </ErrorBoundary>
       </main>
+      <AppStatus />
       <AssistantFloatingButton />
     </div>
   );

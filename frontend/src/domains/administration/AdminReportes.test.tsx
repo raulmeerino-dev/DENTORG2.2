@@ -4,13 +4,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { AdminReportes } from './AdminReportes';
 
-vi.mock('../../api/identity', () => ({
-  getClinicas: vi.fn().mockResolvedValue([{ id: 'clinica-1', nombre: 'Clinica Dental', direccion: 'Calle', activa: true }]),
-  getDoctores: vi.fn().mockResolvedValue([{ id: 'doc-1', nombre: 'Dra. Ruiz', color_agenda: '#0891a4', activo: true }]),
-}));
-
-vi.mock('../../api/treatmentCatalog', () => ({
-  getTratamientosCatalogo: vi.fn().mockResolvedValue([{ id: 'trat-1', nombre: 'Limpieza', precio: '60.00', activo: true }]),
+vi.mock('../../api/laboratory', () => ({
+  getTrabajosLaboratorio: vi.fn().mockResolvedValue([{ id: 'lab-1', descripcion: 'Corona de zirconio', estado: 'enviado', laboratorio: { nombre: 'Laboratorio Central' }, paciente: { nombre: 'Ana', apellidos: 'Garcia' }, precio: '120.00', fecha_entrega_prevista: '2026-09-30' }]),
 }));
 
 vi.mock('../../api/reporting', () => ({
@@ -58,12 +53,9 @@ describe('AdminReportes', () => {
 
     renderReportes();
 
-    expect(await screen.findByText(/Control visual de clinica/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Reportes' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Desde/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Hasta/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Doctor/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Clinica/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Tratamiento/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Facturado/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Cobrado/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Presupuestos/i).length).toBeGreaterThan(0);
@@ -72,6 +64,11 @@ describe('AdminReportes', () => {
 
     await user.click(screen.getByRole('button', { name: /Exportar CSV/i }));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
+
+    await user.selectOptions(screen.getByLabelText('Tipo de reporte'), 'laboratorio');
+    expect(await screen.findByText('Corona de zirconio')).toBeInTheDocument();
+    expect(screen.getByText('Laboratorio Central')).toBeInTheDocument();
+    expect(screen.queryByText('Retrasos revisables')).not.toBeInTheDocument();
 
     createObjectURL.mockRestore();
     revokeObjectURL.mockRestore();
