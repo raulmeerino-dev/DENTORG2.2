@@ -7,9 +7,10 @@ import type { ApiPaciente, Cita, TratamientoCatalogo } from '../../../api/types'
 import { CitaModal } from './CitaModal';
 import { localDayRange, slotIso } from './agendaTime';
 
-const mocks = vi.hoisted(() => ({ getCitas: vi.fn(), getWhatsAppComunicaciones: vi.fn() }));
+const mocks = vi.hoisted(() => ({ getCitas: vi.fn(), getWhatsAppComunicaciones: vi.fn(), getPacientes: vi.fn(), getPaciente: vi.fn() }));
 vi.mock('../../../api/scheduling', () => ({ getCitas: mocks.getCitas }));
 vi.mock('../../../api/communications', () => ({ getWhatsAppComunicaciones: mocks.getWhatsAppComunicaciones }));
+vi.mock('../../../api/patients', () => ({ getPacientes: mocks.getPacientes, getPaciente: mocks.getPaciente }));
 
 const paciente = { id: 'patient-1', nombre: 'Ana', apellidos: 'García', num_historial: 42, telefono: null } as ApiPaciente;
 const doctor = { id: 'doctor-1', nombre: 'Dra. Ruiz', especialidad: null, color_agenda: null, activo: true };
@@ -29,9 +30,43 @@ beforeEach(() => {
   sessionStorage.clear();
   mocks.getCitas.mockReset().mockResolvedValue([]);
   mocks.getWhatsAppComunicaciones.mockReset().mockResolvedValue([]);
+  mocks.getPacientes.mockReset().mockResolvedValue([]);
+  mocks.getPaciente.mockReset().mockResolvedValue(null);
 });
 
 describe('Cita: contexto y disponibilidad', () => {
+  it('busca pacientes fuera de la primera página y permite citarlos', async () => {
+    const remoto = { ...paciente, id: 'patient-remote', nombre: 'Beatriz', num_historial: 501 };
+    mocks.getPacientes.mockResolvedValue([remoto]);
+    mocks.getPaciente.mockResolvedValue(remoto);
+    const { user, onSubmit } = setup({ draft: { day: '2026-09-21', slot: '09:00', doctorId: doctor.id } });
+    await user.type(screen.getByLabelText('Buscar paciente'), 'Beatriz');
+    await screen.findByRole('option', { name: /501 - García, Beatriz/ });
+    expect(mocks.getPacientes).toHaveBeenCalledWith({ q: 'Beatriz', limit: 50 });
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Paciente' }), remoto.id);
+    await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ paciente_id: remoto.id }));
+  });
+
+  it('carga el paciente del contexto aunque no esté en la primera página', async () => {
+    const remoto = { ...paciente, id: 'patient-remote', nombre: 'Beatriz', num_historial: 501 };
+    mocks.getPaciente.mockResolvedValue(remoto);
+    const { user, onSubmit } = setup({ draft: { day: '2026-09-21', slot: '09:00', doctorId: doctor.id, pacienteId: remoto.id } });
+    await screen.findByText('Beatriz García');
+    expect(mocks.getPaciente).toHaveBeenCalledWith(remoto.id);
+    expect(screen.queryByLabelText('Buscar paciente')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ paciente_id: remoto.id }));
+  });
+
+  it('muestra el error de búsqueda remota sin fingir que no existen coincidencias', async () => {
+    mocks.getPacientes.mockRejectedValue(new Error('Sin conexión'));
+    const { user } = setup({ draft: { day: '2026-09-21', slot: '09:00', doctorId: doctor.id } });
+    await user.type(screen.getByLabelText('Buscar paciente'), 'Beatriz');
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se ha podido completar la búsqueda');
+    expect(screen.queryByText(/No hay coincidencias/)).not.toBeInTheDocument();
+  });
+
   it('conserva fecha, hora local, doctor y duración del hueco sin volver a preguntarlos', async () => {
     const { onSubmit, user } = setup({ defaultDuration: 20, draft: { day: '2026-09-21', slot: '00:30', doctorId: doctor.id, pacienteId: paciente.id, duration: 45 } });
     expect(screen.queryByLabelText('Fecha')).not.toBeInTheDocument();

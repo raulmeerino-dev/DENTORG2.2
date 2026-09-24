@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import type { FormEvent } from 'react';
-import { useMemo,useState } from 'react';
+import { useEffect,useMemo,useState } from 'react';
 import { getWhatsAppComunicaciones } from '../../../api/communications';
+import { getPaciente,getPacientes } from '../../../api/patients';
 import { getCitas } from '../../../api/scheduling';
 import type { ApiPaciente,Cita,Doctor,Gabinete,TratamientoCatalogo,WhatsAppInboxItem } from '../../../api/types';
 import { findPaciente,patientMatchesQuery } from './agendaSearch';
@@ -106,13 +107,36 @@ export function CitaModal({
   const [creatingTemp, setCreatingTemp] = useState(false);
   const [showTempPatient, setShowTempPatient] = useState(false);
   const [tempError, setTempError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setSearchQuery(query.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
+
+  const patientSearch = useQuery({
+    queryKey: ['pacientes', 'appointment-search', searchQuery],
+    queryFn: () => getPacientes({ q: searchQuery, limit: 50 }),
+    enabled: showPatientPicker && patientResultsOpen && Boolean(searchQuery),
+  });
+  const patientDetail = useQuery({
+    queryKey: ['paciente-detalle', pacienteId],
+    queryFn: () => getPaciente(pacienteId),
+    enabled: Boolean(pacienteId) && !findPaciente(pacientes, pacienteId) && temporaryPaciente?.id !== pacienteId,
+  });
+  const availablePatients = useMemo(() => {
+    const unique = new Map(pacientes.map(patient => [patient.id, patient]));
+    for (const patient of patientSearch.data ?? []) unique.set(patient.id, patient);
+    if (patientDetail.data) unique.set(patientDetail.data.id, patientDetail.data);
+    return [...unique.values()];
+  }, [pacientes, patientSearch.data, patientDetail.data]);
 
   const filteredPatients = useMemo(() => {
-    if (!query.trim()) return pacientes;
-    return pacientes.filter((paciente) => patientMatchesQuery(paciente, query));
-  }, [pacientes, query]);
+    if (!query.trim()) return availablePatients;
+    return availablePatients.filter((paciente) => patientMatchesQuery(paciente, query));
+  }, [availablePatients, query]);
 
-  const selectedPaciente = temporaryPaciente?.id === pacienteId ? temporaryPaciente : findPaciente(pacientes, pacienteId);
+  const selectedPaciente = temporaryPaciente?.id === pacienteId ? temporaryPaciente : findPaciente(availablePatients, pacienteId);
   const patientsForSelect = selectedPaciente && !filteredPatients.some((paciente) => paciente.id === selectedPaciente.id)
     ? [selectedPaciente, ...filteredPatients]
     : filteredPatients;
@@ -204,6 +228,7 @@ export function CitaModal({
         </header>
 
         <div className="appointment-form-grid">
+          {patientDetail.isError && <p className="wide inline-alert" role="alert">No se ha podido cargar el paciente seleccionado. Cierra la cita e inténtalo de nuevo.</p>}
           {selectedPaciente && !showPatientPicker && <div className="appointment-known-context wide">
             <strong>{selectedPaciente.nombre} {selectedPaciente.apellidos}</strong>
             <span>Historia {selectedPaciente.num_historial} · {selectedPaciente.telefono || 'Sin teléfono'}</span>
@@ -234,6 +259,8 @@ export function CitaModal({
           </div>
           {query.trim() && patientResultsOpen && (
             <div className="patient-live-results wide">
+              {patientSearch.isFetching && <span role="status">Buscando pacientes…</span>}
+              {patientSearch.isError && <span role="alert">No se ha podido completar la búsqueda de pacientes. Revisa la conexión.</span>}
               {filteredPatients.slice(0, 6).map((paciente) => (
                 <button
                   type="button"
@@ -249,7 +276,7 @@ export function CitaModal({
                   <span>{paciente.telefono ?? 'sin telefono'} · H{paciente.num_historial}</span>
                 </button>
               ))}
-              {!filteredPatients.length && !selectedPaciente && (
+              {!filteredPatients.length && !selectedPaciente && !patientSearch.isFetching && !patientSearch.isError && query.trim() === searchQuery && (
                 <span>No hay coincidencias. Use el icono de nuevo paciente para apuntarlo temporalmente.</span>
               )}
             </div>

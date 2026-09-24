@@ -200,6 +200,7 @@ test('Agenda crea desde un hueco sin volver a pedir profesional ni hora', async 
   if (await modal.getByRole('button', { name: 'Cambiar paciente' }).isVisible()) {
     await modal.getByRole('button', { name: 'Cambiar paciente' }).click();
   }
+  await modal.getByLabel('Buscar paciente', { exact: true }).fill(data.name);
   await modal.getByRole('combobox', { name: 'Paciente', exact: true }).selectOption(data.patient.id);
   await modal.getByRole('spinbutton', { name: /^Duración/ }).fill('5');
   await modal.getByLabel('Tratamiento previsto').fill('Control breve de prueba');
