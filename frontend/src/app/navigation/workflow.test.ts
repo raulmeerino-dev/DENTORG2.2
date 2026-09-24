@@ -10,7 +10,7 @@ describe('workflow permissions', () => {
     expect(listados).toBeDefined();
     expect(admin).toBeDefined();
     expect(portal).toBeDefined();
-    expect(canAccess('doctor', listados!)).toBe(false);
+    expect(canAccess('doctor', listados!)).toBe(true);
     expect(canAccess('recepcion', listados!)).toBe(true);
     expect(canAccess('recepcion', admin!)).toBe(false);
     expect(canAccess('admin', admin!)).toBe(true);
@@ -32,10 +32,10 @@ describe('workflow permissions', () => {
       .filter((item) => canAccess(role, item))
       .map((item) => item.label);
 
-    expect(labelsFor('recepcion')).toEqual(['Jornada', 'Pacientes', 'Caja', 'Listados']);
-    expect(labelsFor('doctor')).toEqual(['Jornada', 'Pacientes']);
-    expect(labelsFor('auxiliar')).toEqual(['Jornada', 'Pacientes']);
-    expect(labelsFor('admin')).toEqual(['Jornada', 'Pacientes', 'Caja', 'Listados', 'Ajustes']);
+    expect(labelsFor('recepcion')).toEqual(['Jornada', 'Pacientes', 'Caja', 'Registros', 'Archivos']);
+    expect(labelsFor('doctor')).toEqual(['Jornada', 'Pacientes', 'Registros', 'Archivos']);
+    expect(labelsFor('auxiliar')).toEqual(['Jornada', 'Pacientes', 'Registros', 'Archivos']);
+    expect(labelsFor('admin')).toEqual(['Jornada', 'Pacientes', 'Caja', 'Registros', 'Archivos', 'Administración', 'Ajustes']);
     expect(labelsFor('paciente')).toEqual(['Portal paciente']);
 
     const whatsapp = WORKFLOW_ITEMS.find((item) => item.id === 'whatsapp');

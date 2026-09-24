@@ -7,6 +7,8 @@ export type AppSection =
   | 'agenda'
   | 'whatsapp'
   | 'listados'
+  | 'archivos'
+  | 'administracion'
   | 'clinica'
   | 'caja'
   | 'documentos'
@@ -22,6 +24,7 @@ export interface WorkflowItem {
   roles: UserRole[];
   route?: string;
   shortcut?: string;
+  group?: 'daily' | 'secondary';
 }
 
 export const GLOBAL_LAUNCHER_IDS: AppSection[] = [
@@ -29,6 +32,8 @@ export const GLOBAL_LAUNCHER_IDS: AppSection[] = [
   'pacientes',
   'caja',
   'listados',
+  'archivos',
+  'administracion',
   'adminExtras',
   'portalPaciente',
 ];
@@ -84,18 +89,36 @@ export const WORKFLOW_ITEMS: WorkflowItem[] = [
   },
   {
     id: 'listados',
-    label: 'Listados',
-    description: 'Reportes, listados operativos y control económico de la clínica.',
-    roles: ['admin', 'recepcion'],
-    route: '/listados',
+    label: 'Registros',
+    description: 'Buscar, filtrar y consultar la actividad autorizada de la clínica.',
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
+    route: '/registros',
+    group: 'secondary',
     shortcut: 'RE',
+  },
+  {
+    id: 'archivos',
+    label: 'Archivos',
+    description: 'Consulta transversal de documentos y archivos de pacientes.',
+    roles: ['admin', 'doctor', 'recepcion', 'auxiliar'],
+    route: '/archivos',
+    group: 'secondary',
+  },
+  {
+    id: 'administracion',
+    label: 'Administración',
+    description: 'Gestión de clínicas, inventario, importaciones e indicadores.',
+    roles: ['admin'],
+    route: '/administracion',
+    group: 'secondary',
   },
   {
     id: 'adminExtras',
     label: 'Ajustes',
-    description: 'Clínicas, usuarios, inventario, catálogos, auditoría, seguridad y backups.',
+    description: 'Usuarios, catálogos, horarios, documentos, seguridad y backups.',
     roles: ['admin'],
-    route: '/admin-extras',
+    route: '/ajustes',
+    group: 'secondary',
     shortcut: 'AD',
   },
   {

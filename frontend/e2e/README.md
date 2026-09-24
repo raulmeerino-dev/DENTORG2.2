@@ -61,11 +61,34 @@ Credenciales sintéticas: `recepcion / recep123`, `doctor / doctor123`, `admin /
 
 Los datos y trazas de cada ejecución quedan en la base aislada y `frontend/test-results/` (ignorado por Git). El circuito económico genera documentos fiscales sintéticos únicamente en este runtime de pruebas.
 
-El job `jornada-e2e` de CI levanta su propio PostgreSQL 16, aplica todas las migraciones, siembra datos sintéticos y arranca FastAPI. Ejecuta ambos circuitos reales, Jornada y clínica/facturación, y conserva trazas y log de API si falla; no usa secretos ni servicios de producción.
+El job `jornada-e2e` de CI levanta su propio PostgreSQL 16, aplica todas las migraciones, siembra datos sintéticos y arranca FastAPI. Ejecuta los circuitos reales de Jornada, clínica/facturación y Registros/Archivos, y conserva trazas y log de API si falla; no usa secretos ni servicios de producción.
 
 ## Revisión visual
 
 Abrir `/jornada` con los datos densos y revisar Operativa, Agenda y En sala en escritorio y móvil. Comprobar que los nombres largos, las acciones, la cola de salida y el formulario de cita quedan accesibles; la parrilla puede desplazarse dentro de su panel sin desbordar el documento.
+
+## Registros y Archivos con volumen real
+
+Con el mismo runtime aislado, las migraciones y `seed_demo` ya aplicados, ejecutar desde `backend`:
+
+```powershell
+./.venv/Scripts/python.exe ../frontend/e2e/fixtures/seed_records.py
+```
+
+El script usa el `DATABASE_URL` de esa consola y rechaza hosts remotos, bases cuyo nombre no termine en `_test` y entornos distintos de desarrollo/test. Añade datos identificados por `REGQA` sin borrar los existentes. Es idempotente y crea en una transacción dos clínicas, 1.040 pacientes, 3.120 citas, 1.040 realizados, 1.040 planes, 520 facturas, 347 cobros, 208 PDFs, 104 encargos de laboratorio y 104 productos. Las fechas abarcan enero–agosto de 2026; incluye nombres largos, estados diferentes y saldos parciales. Los registros económicos de la serie `TSTQA` son fixtures sintéticos sin validez fiscal, no una prueba de emisión de facturas. El circuito de emisión real se comprueba en `clinical-billing-real.spec.ts`.
+
+Credenciales sintéticas: `records_admin`, `records_recepcion` y `records_doctor`, todas con contraseña `records1234`. Recepción y doctor pertenecen a `REGQA Clinica Norte`; `REGQA Clinica Sur` permite comprobar aislamiento. El manifiesto de IDs se guarda en `tmp/runtime/records-fixtures.json`.
+
+Desde `frontend`:
+
+```powershell
+$env:DENTCORE_RECORDS_E2E='1'
+node node_modules/@playwright/test/cli.js test records-real --workers=1
+```
+
+La suite usa navegador y API reales, sin interceptores. Combina texto, fechas, estado, profesional y clínica; ordena, pagina, abre la cita exacta, cierra la acción y vuelve conservando consulta. Compara todas las filas de CSV y XLSX con la misma consulta paginada en la API, no solo la página visible. Comprueba también la factura seleccionada en el historial y el presupuesto original dentro de la ficha. En Archivos cubre búsqueda remota de pacientes, cambios consecutivos de filtros, categoría, PDF real en pantalla documental dedicada y regreso. Verifica ausencia de resultados, permisos clínicos/económicos, descarga documental y clínica ajena. Guarda capturas a 1280×720, 1920×1080 y 390×844, y mide una consulta de 3.120 citas devolviendo solo 100 filas.
+
+El lector de CSV/XLSX usa únicamente la biblioteca estándar de Python. Busca el Python del entorno `backend/.venv`; `DENTCORE_E2E_PYTHON` permite indicar otro ejecutable. Las descargas, capturas, tiempos y trazas quedan en `frontend/test-results/`. Esta suite requiere su propia variable de activación para no modificar los runtimes de otras pruebas.
 
 ## Ensayo de restauración
 

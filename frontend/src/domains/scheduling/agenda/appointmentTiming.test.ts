@@ -1,11 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { configureClinicTimeZone } from '../../../shared/time/clinicTime';
 import type { Cita } from '../../../api/types';
 import { appointmentConflicts, appointmentTiming } from './appointmentTiming';
-import { buildAgendaSlots, localAppointmentDate, localAppointmentTime, localDayRange, slotIso } from './agendaTime';
+import { buildAgendaSlots, localAppointmentDate, localAppointmentTime, localDayRange, slotIso, todayIso } from './agendaTime';
 
 const cita: Cita = { id: 'one', paciente_id: 'patient', doctor_id: 'doctor', gabinete_id: 'room', fecha_hora: '2026-09-21T09:00:00Z', duracion_min: 30, estado: 'en_atencion', estado_operativo: 'en_atencion', motivo: null, llegada_at: '2026-09-21T09:12:00Z', atencion_iniciada_at: '2026-09-21T09:20:00Z' };
 
 describe('Tiempo y ocupación de Jornada', () => {
+  afterEach(() => { vi.useRealTimers(); configureClinicTimeZone('Europe/Madrid'); });
+  it('comparte día y rango de consulta con la zona de la clínica, incluyendo cambios de hora', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-24T22:15:00Z'));
+    expect(todayIso()).toBe('2026-09-25');
+    expect(localDayRange('2026-03-29')).toEqual({ fecha_desde: '2026-03-28T23:00:00.000Z', fecha_hasta: '2026-03-29T21:59:59.999Z' });
+    configureClinicTimeZone('Atlantic/Canary');
+    expect(todayIso()).toBe('2026-09-24');
+    expect(slotIso('2026-09-25', '09:00')).toBe('2026-09-25T08:00:00.000Z');
+  });
   it('muestra llegada tardía y sobretiempo desde inicio real, sin modificar citas', () => {
     expect(appointmentTiming(cita, new Date('2026-09-21T10:05:00Z'))).toEqual({ arrivalDelay: 12, overtime: 15, estimatedDelay: 0 });
     expect(cita.fecha_hora).toBe('2026-09-21T09:00:00Z');

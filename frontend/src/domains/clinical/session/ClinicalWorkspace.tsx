@@ -78,6 +78,7 @@ export function ClinicalWorkspace({
   onUpdateSesionItem,
   onDeleteSesionItem,
   userRole,
+  focusedPendingId,
 }: {
   activeTab: ClinicalTab;
   onTabChange: (tab: ClinicalTab) => void;
@@ -120,6 +121,7 @@ export function ClinicalWorkspace({
   onUpdateSesionItem: (itemId: string, cambios: SesionClinicaItemUpdateInput) => Promise<SesionClinicaItem>;
   onDeleteSesionItem: (itemId: string) => Promise<unknown>;
   userRole?: UserRole | null;
+  focusedPendingId?: string | null;
 }) {
   return (
     <section className="dc-clinical-workspace">
@@ -151,6 +153,7 @@ export function ClinicalWorkspace({
       )}
       {activeTab === 'pendiente' && (
         <TrabajoPendientePanel
+          focusedId={focusedPendingId}
           trabajosPendientes={trabajosPendientes}
           presupuestos={presupuestos}
           citas={citas}

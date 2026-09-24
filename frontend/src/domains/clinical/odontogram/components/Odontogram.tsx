@@ -1,3 +1,4 @@
+import { clinicDate } from '../../../../shared/time/clinicTime';
 import { useMemo, useState } from 'react';
 import type {
   OdontogramContextAction,
@@ -247,7 +248,7 @@ export function Odontogram({
       price: treatment.price,
       surface: targetSurface,
       toothNumbers: [targetTooth.number],
-      createdAt: new Date().toISOString().slice(0, 10),
+      createdAt: clinicDate(new Date()),
     };
 
     const nextTreatmentSelection = { toothNumber: targetTooth.number, surface: targetSurface };

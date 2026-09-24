@@ -73,11 +73,13 @@ export function PatientActionsMenu({
   paciente,
   busy,
   canManageBilling = true,
+  canViewClinicalDocuments = true,
   handlers,
 }: {
   paciente: ApiPaciente | null;
   busy?: boolean;
   canManageBilling?: boolean;
+  canViewClinicalDocuments?: boolean;
   handlers: PatientActionsHandlers;
 }) {
   const [open, setOpen] = useState(false);
@@ -154,7 +156,7 @@ export function PatientActionsMenu({
           <Receipt size={14} strokeWidth={1.8} aria-hidden="true" />
           <span>Nuevo presupuesto</span>
         </button>
-        <button
+        {canViewClinicalDocuments && <><button
           type="button"
           role="menuitem"
           onClick={recetaEnabled ? fire(handlers.onCrearReceta!) : undefined}
@@ -171,7 +173,7 @@ export function PatientActionsMenu({
         <button type="button" role="menuitem" onClick={fire(handlers.onRevocarConsentimiento)}>
           <XCircle size={14} strokeWidth={1.8} aria-hidden="true" />
           <span>Revocar consentimiento</span>
-        </button>
+        </button></>}
         <button
           type="button"
           role="menuitem"
@@ -193,10 +195,10 @@ export function PatientActionsMenu({
           <FileText size={14} strokeWidth={1.8} aria-hidden="true" />
           <span>Circular / justificante</span>
         </button>
-        <button type="button" role="menuitem" onClick={fire(handlers.onCuestionarioMedico)}>
+        {canViewClinicalDocuments && <button type="button" role="menuitem" onClick={fire(handlers.onCuestionarioMedico)}>
           <ClipboardList size={14} strokeWidth={1.8} aria-hidden="true" />
           <span>Documento cuestionario medico</span>
-        </button>
+        </button>}
         <button type="button" role="menuitem" onClick={fire(handlers.onDocumentoLOPD)}>
           <ShieldCheck size={14} strokeWidth={1.8} aria-hidden="true" />
           <span>Documento LOPD</span>

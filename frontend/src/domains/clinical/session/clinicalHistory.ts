@@ -2,11 +2,12 @@ import type {
 HistorialClinico,
 NotaDental
 } from '../../../api/types';
+import { clinicDate, clinicDateKey, clinicTime } from '../../../shared/time/clinicTime';
 
 
 export function isToday(value?: string | null) {
   if (!value) return false;
-  return value.slice(0, 10) === new Date().toISOString().slice(0, 10);
+  return clinicDateKey(value) === clinicDate(new Date());
 }
 
 export function hasFinishedState(value?: string | null) {
@@ -22,11 +23,12 @@ export function recentClinicalHistory(historial: HistorialClinico[]) {
 }
 
 export function getDateKey(value?: string | null) {
-  return value?.slice(0, 10) || 'sin-fecha';
+  return clinicDateKey(value) || 'sin-fecha';
 }
 
 export function getTime(value?: string | null) {
-  return value && value.length >= 16 ? value.slice(11, 16) : null;
+  if (!value || value.length < 16) return null;
+  return /(?:z|[+-]\d{2}:?\d{2})$/i.test(value) ? clinicTime(value) : value.slice(11, 16);
 }
 
 export function clinicalNoteLabel(nota: NotaDental) {

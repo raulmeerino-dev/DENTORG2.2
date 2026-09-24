@@ -9,6 +9,7 @@ export interface UsuarioMe {
   paciente_id?: string | null;
   clinica_id?: string | null;
   two_factor_enabled?: boolean;
+  clinic_timezone?: string;
 }
 
 export type TipoFichaje = 'entrada' | 'salida';

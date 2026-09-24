@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getClinicas } from '../../api/identity';
-import { Building2, Banknote, CalendarDays, ClipboardList, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
+import { Building2, Banknote, CalendarDays, ClipboardList, FolderOpen, BriefcaseBusiness, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
 import { useAuth } from '../../domains/identity/session/AuthContext';
 import { GLOBAL_LAUNCHER_IDS, ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../navigation/workflow';
 import type { AppSection } from '../navigation/workflow';
@@ -10,9 +10,10 @@ import dentcoreLogo from '../../assets/branding/dentcore-clinic-logo-64.png';
 import DoctorNotificationsBell from '../../domains/scheduling/components/DoctorNotificationsBell';
 import StaffClockPopover from '../../domains/identity/components/StaffClockPopover';
 import EnSala from '../../domains/scheduling/workspace/EnSala';
+import { getClinicTimeZone } from '../../shared/time/clinicTime';
 import './shell.css';
 
-const icons: Partial<Record<AppSection, typeof CalendarDays>> = { hoy: CalendarDays, pacientes: UsersRound, caja: Banknote, listados: ClipboardList, adminExtras: Settings2, portalPaciente: CalendarDays };
+const icons: Partial<Record<AppSection, typeof CalendarDays>> = { hoy: CalendarDays, pacientes: UsersRound, caja: Banknote, listados: ClipboardList, archivos: FolderOpen, administracion: BriefcaseBusiness, adminExtras: Settings2, portalPaciente: CalendarDays };
 
 export default function MainNav() {
   const { user, logout } = useAuth();
@@ -28,17 +29,19 @@ export default function MainNav() {
     localStorage.setItem('dentcore-theme', theme);
   }, [theme]);
   useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 30_000); return () => window.clearInterval(timer); }, []);
-  const clock = now.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) + ' · ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  const clock = now.toLocaleDateString('es-ES', { timeZone: getClinicTimeZone(), day: '2-digit', month: 'short' }) + ' · ' + now.toLocaleTimeString('es-ES', { timeZone: getClinicTimeZone(), hour: '2-digit', minute: '2-digit' });
   return <>
     <a className="dc-skip-link" href="#main-workspace">Ir al área de trabajo</a>
     <aside className="dc-sidebar">
       <NavLink to={user?.rol === 'paciente' ? '/mis-citas' : '/jornada'} className="dc-brand" aria-label="DentCore"><img src={dentcoreLogo} alt="" /><strong>DentCore</strong></NavLink>
       <nav className="dc-navigation" aria-label="Navegación principal">
-        {navItems.map(item => {
+        {(['daily', 'secondary'] as const).map(group => <div className={`dc-nav-group dc-nav-group-${group}`} key={group} role="group" aria-label={group === 'daily' ? 'Trabajo diario' : 'Consulta y administración'}>
+        {navItems.filter(item => (item.group ?? 'daily') === group).map(item => {
           const Icon = icons[item.id] ?? CalendarDays;
           const active = item.id === 'hoy' ? ['/jornada', '/hoy', '/agenda', '/whatsapp'].some(path => location.pathname.startsWith(path)) : location.pathname.startsWith(item.route!);
-          return <NavLink key={item.id} to={item.route!} className={`dc-nav-link${active ? ' is-active' : ''}${item.id === 'adminExtras' ? ' dc-nav-settings' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}><Icon size={18} aria-hidden="true" /><span>{item.label}</span></NavLink>;
+          return <NavLink key={item.id} to={item.route!} className={`dc-nav-link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}><Icon size={18} aria-hidden="true" /><span>{item.label}</span></NavLink>;
         })}
+        </div>)}
       </nav>
       <div className="dc-sidebar-footer"><span>Gestión clínica</span><small>DentCore Clinic</small></div>
     </aside>

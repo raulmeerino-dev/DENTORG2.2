@@ -1,4 +1,5 @@
 import type { CSSProperties, MouseEvent } from 'react';
+import { useState } from 'react';
 import { ArrowRight, ClipboardCheck } from 'lucide-react';
 import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, TrabajoPendiente, UserRole } from '../../api/types';
 import { colorForTreatment } from '../clinical/components/treatmentVisual';
@@ -33,6 +34,7 @@ export function TrabajoPendientePanel({
   onCrearPedidoLab,
   onOpenPresupuestos,
   userRole,
+  focusedId,
 }: {
   trabajosPendientes: TrabajoPendiente[];
   presupuestos: Presupuesto[];
@@ -45,7 +47,9 @@ export function TrabajoPendientePanel({
   onCrearPedidoLab?: (linea: PresupuestoLinea) => void;
   onOpenPresupuestos?: () => void;
   userRole?: UserRole | null;
+  focusedId?: string | null;
 }) {
+  const [focusDismissed, setFocusDismissed] = useState(false);
   const rows = trabajosPendientes.map((trabajo) => {
     const linea = trabajo.presupuesto_linea;
     return {
@@ -60,6 +64,8 @@ export function TrabajoPendientePanel({
   ));
   const statusClass = (value: string) => normalizeText(value).replace(/\s+/g, '-');
   const pendingCountLabel = `${rows.length} ${rows.length === 1 ? 'tratamiento' : 'tratamientos'}`;
+  const focused = !focusDismissed && focusedId ? rows.find(row => row.trabajo.id === focusedId) : undefined;
+  const visibleRows = focused ? [focused] : rows;
 
   return (
     <section className="dc-pending-workspace">
@@ -69,6 +75,7 @@ export function TrabajoPendientePanel({
       </div>
       {loading && !rows.length && <p className="pending-work-status">Cargando tratamientos pendientes...</p>}
       {error && <p className="pending-work-status is-error" role="alert">{error}</p>}
+      {focused && <div className="history-record-focus"><strong>Tratamiento seleccionado · {focused.linea.tratamiento?.nombre}</strong><button type="button" onClick={() => setFocusDismissed(true)}>Ver todos los pendientes</button></div>}
       {!loading && !error && !rows.length && (
         <div className={`pending-work-empty ${acceptedUnpreparedLines.length ? 'is-actionable' : ''}`}>
           <span className="pending-work-empty-icon" aria-hidden="true"><ClipboardCheck size={20} /></span>
@@ -98,7 +105,7 @@ export function TrabajoPendientePanel({
             <table className="dentcore-table">
               <thead><tr><th>Presupuesto</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Importe</th><th>Cita</th><th>Estado</th><th>Acción</th></tr></thead>
               <tbody>
-                {rows.map(({ trabajo, presupuesto, linea, cita }) => {
+                {visibleRows.map(({ trabajo, presupuesto, linea, cita }) => {
                   const estado = cita ? cita.estado : 'Pendiente';
                   return (
                     <tr

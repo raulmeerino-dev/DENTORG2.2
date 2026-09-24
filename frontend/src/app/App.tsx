@@ -10,10 +10,12 @@ import Layout from './shell/Layout';
 import JornadaWorkspace from '../domains/scheduling/workspace/JornadaWorkspace';
 import LoginPage from '../domains/identity/LoginPage';
 import PortalInvitePage from '../domains/patient-portal/invitation';
+import { administrationHref } from '../domains/administration/tabs';
 
 const PacientesPage = lazy(() => import('../domains/patients'));
+const PatientFileView = lazy(() => import('../domains/documents/PatientFileView'));
 const CajaPage = lazy(() => import('../domains/billing/cash-register'));
-const ListadosPage = lazy(() => import('../domains/reporting'));
+const RecordsWorkspace = lazy(() => import('../domains/reporting'));
 const AdminExtrasPage = lazy(() => import('../domains/administration'));
 const MisCitasPage = lazy(() => import('../domains/patient-portal/appointments'));
 const WhatsAppPage = lazy(() => import('../domains/communications/whatsapp'));
@@ -29,7 +31,6 @@ const queryClient = new QueryClient({
 
 const STAFF_ROLES: UserRole[] = ['admin', 'doctor', 'recepcion', 'auxiliar'];
 const BILLING_ROLES: UserRole[] = ['admin', 'recepcion'];
-const REPORT_ROLES: UserRole[] = ['admin', 'recepcion'];
 const ADMIN_ROLES: UserRole[] = ['admin'];
 const PATIENT_ROLES: UserRole[] = ['paciente'];
 
@@ -75,7 +76,15 @@ function JornadaRedirect({ perspective }: { perspective: 'agenda' | 'operativa' 
 
 function ConfiguracionRedirect() {
   const location = useLocation();
-  return <Navigate to={`/admin-extras${location.search}`} replace />;
+  const params = new URLSearchParams(location.search);
+  const destination = new URL(administrationHref(params.get('tab') ?? 'general'), window.location.origin);
+  params.forEach((value, key) => { if (key !== 'tab') destination.searchParams.set(key, value); });
+  return <Navigate to={`${destination.pathname}${destination.search}`} replace />;
+}
+
+function RecordsRedirect() {
+  const location = useLocation();
+  return <Navigate to={`/registros${location.search}`} replace />;
 }
 
 export default function App() {
@@ -90,14 +99,19 @@ export default function App() {
               <Route index element={<HomeRedirect />} />
               <Route path="jornada" element={<RoleProtected roles={STAFF_ROLES}><JornadaWorkspace /></RoleProtected>} />
               <Route path="hoy" element={<RoleProtected roles={STAFF_ROLES}><JornadaRedirect perspective="operativa" /></RoleProtected>} />
-              <Route path="dashboard" element={<RoleProtected roles={ADMIN_ROLES}><Navigate to="/admin-extras?tab=reportes" replace /></RoleProtected>} />
+              <Route path="dashboard" element={<RoleProtected roles={ADMIN_ROLES}><Navigate to="/administracion?tab=reportes" replace /></RoleProtected>} />
               <Route path="pacientes" element={<RoleProtected roles={STAFF_ROLES}><LazyRoute><PacientesPage /></LazyRoute></RoleProtected>} />
+              <Route path="pacientes/:patientId/archivo/:kind/:fileId" element={<RoleProtected roles={STAFF_ROLES}><LazyRoute><PatientFileView /></LazyRoute></RoleProtected>} />
               <Route path="agenda" element={<RoleProtected roles={STAFF_ROLES}><JornadaRedirect perspective="agenda" /></RoleProtected>} />
               <Route path="whatsapp" element={<RoleProtected roles={STAFF_ROLES}><LazyRoute><WhatsAppPage /></LazyRoute></RoleProtected>} />
               <Route path="caja" element={<RoleProtected roles={BILLING_ROLES}><LazyRoute><CajaPage /></LazyRoute></RoleProtected>} />
-              <Route path="listados" element={<RoleProtected roles={REPORT_ROLES}><LazyRoute><ListadosPage /></LazyRoute></RoleProtected>} />
+              <Route path="registros" element={<RoleProtected roles={STAFF_ROLES}><LazyRoute><RecordsWorkspace /></LazyRoute></RoleProtected>} />
+              <Route path="archivos" element={<RoleProtected roles={STAFF_ROLES}><LazyRoute><RecordsWorkspace mode="files" /></LazyRoute></RoleProtected>} />
+              <Route path="listados" element={<RoleProtected roles={STAFF_ROLES}><RecordsRedirect /></RoleProtected>} />
               <Route path="configuracion" element={<RoleProtected roles={ADMIN_ROLES}><ConfiguracionRedirect /></RoleProtected>} />
-              <Route path="admin-extras" element={<RoleProtected roles={ADMIN_ROLES}><LazyRoute><AdminExtrasPage /></LazyRoute></RoleProtected>} />
+              <Route path="admin-extras" element={<RoleProtected roles={ADMIN_ROLES}><ConfiguracionRedirect /></RoleProtected>} />
+              <Route path="administracion" element={<RoleProtected roles={ADMIN_ROLES}><LazyRoute><AdminExtrasPage key="administration" mode="administration" /></LazyRoute></RoleProtected>} />
+              <Route path="ajustes" element={<RoleProtected roles={ADMIN_ROLES}><LazyRoute><AdminExtrasPage key="settings" /></LazyRoute></RoleProtected>} />
               <Route path="mis-citas" element={<RoleProtected roles={PATIENT_ROLES}><LazyRoute><MisCitasPage /></LazyRoute></RoleProtected>} />
               <Route path="portal" element={<RoleProtected roles={PATIENT_ROLES}><LazyRoute><MisCitasPage /></LazyRoute></RoleProtected>} />
             </Route>

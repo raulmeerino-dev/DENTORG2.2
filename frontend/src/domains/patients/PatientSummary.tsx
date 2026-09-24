@@ -1,3 +1,4 @@
+import { clinicDate } from '../../shared/time/clinicTime';
 import {
 AlertTriangle,
 ArrowRight,
@@ -148,7 +149,7 @@ export function PatientForm({
     .sort((a, b) => (b.fecha_firma || b.created_at || '').localeCompare(a.fecha_firma || a.created_at || ''))
     .slice(0, 3);
   const consentimientosPendientes = consentimientos.filter((item) => item.estado !== 'firmado' && item.estado !== 'revocado').length;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = clinicDate(new Date());
   const laboratorioVencidos = laboratorio.filter((trabajo) => (
     !!trabajo.fecha_entrega_prevista
     && !trabajo.fecha_recepcion

@@ -1,0 +1,12 @@
+.patient-file-task .dc-task-body { display: flex; flex-direction: column; }
+.patient-file-task .dc-task-heading h1 { overflow-wrap: anywhere; }
+.patient-file-task a { color: var(--dc-primary); font-size: 12px; }
+.patient-file-metadata { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 16px; border-bottom: 1px solid var(--dc-border); font-size: 12px; }
+.patient-file-metadata span { font-weight: 600; text-transform: capitalize; }
+.patient-file-metadata p { width: 100%; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.patient-file-preview { display: flex; flex-direction: column; flex: 1; min-height: 300px; }
+.patient-file-actions { display: flex; flex-wrap: wrap; gap: 16px; padding: 8px 16px; border-bottom: 1px solid var(--dc-border); }
+.patient-file-preview iframe { border: 0; width: 100%; flex: 1; min-height: 400px; background: var(--dc-surface-soft); }
+.patient-file-image { overflow: auto; background: var(--dc-surface-soft); padding: 12px; }
+.patient-file-image img { display: block; max-width: 100%; height: auto; margin: auto; }
+.patient-file-empty, .patient-file-preview > p { padding: 16px; color: var(--dc-muted); }

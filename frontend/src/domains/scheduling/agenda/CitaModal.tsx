@@ -83,9 +83,10 @@ export function CitaModal({
   const [temporaryPaciente, setTemporaryPaciente] = useState<ApiPaciente | null>(null);
   const dialog = useAgendaDialog<HTMLFormElement>(onClose, busy);
   const [doctorId, setDoctorId] = useState(cita?.doctor_id ?? draft?.doctorId ?? doctores[0]?.id ?? '');
-  const initialDateTime = cita?.fecha_hora ?? (draft ? slotIso(draft.day, draft.slot) : slotIso(todayIso(), '09:00'));
-  const [fecha, setFecha] = useState(localAppointmentDate(initialDateTime));
-  const [hora, setHora] = useState(localAppointmentTime(initialDateTime));
+  const initialDate = cita ? localAppointmentDate(cita.fecha_hora) : draft?.day ?? todayIso();
+  const initialTime = cita ? localAppointmentTime(cita.fecha_hora) : draft?.slot ?? '09:00';
+  const [fecha, setFecha] = useState(initialDate);
+  const [hora, setHora] = useState(initialTime);
   const [durationOverride, setDurationOverride] = useState<number | null>(cita?.duracion_min ?? draft?.duration ?? null);
   const [estado, setEstado] = useState(cita?.estado ?? 'programada');
   const storedTreatment = !cita ? sessionStorage.getItem('dentcore_selected_treatment') : null;
@@ -153,12 +154,19 @@ export function CitaModal({
 
   const conflictRange = localDayRange(fecha || todayIso());
   const conflictsQuery = useQuery({ queryKey: ['citas', conflictRange], queryFn: () => getCitas(conflictRange), enabled: canEditSchedule && Boolean(fecha) });
-  const dateChanged = fecha !== localAppointmentDate(initialDateTime);
+  const dateChanged = fecha !== initialDate;
   const conflictAppointments = conflictsQuery.data ?? (dateChanged ? [] : citas);
+  let selectedInstant: string | null = null;
+  try {
+    if (fecha && hora) {
+      // Preserve the original instant when an autumn clock change repeats this time.
+      selectedInstant = cita && fecha === initialDate && hora === initialTime ? cita.fecha_hora : slotIso(fecha, hora);
+    }
+  } catch { /* Nonexistent clinic times during daylight-saving changes are rejected on submit. */ }
   const conflicts = conflictAppointments.filter(other => other.id !== cita?.id
     && !['cancelada', 'no_presentado'].includes(getVisualStatus(other))
     && (other.doctor_id === doctorId || Boolean(gabinete && other.gabinete_id === gabinete))
-    && overlaps(`${fecha}T${hora}:00`, duracion, other));
+    && selectedInstant !== null && overlaps(selectedInstant, duracion, other));
   const scheduleChanged = !cita || doctorId !== cita.doctor_id || gabinete !== (cita.gabinete_id ?? '')
     || fecha !== localAppointmentDate(cita.fecha_hora) || hora !== localAppointmentTime(cita.fecha_hora)
     || duracion !== cita.duracion_min || esUrgencia !== Boolean(cita.es_urgencia);
@@ -168,6 +176,7 @@ export function CitaModal({
     if (busy) return;
     if (!pacienteId || !doctorId) { setValidationError('Selecciona un paciente y un profesional.'); return; }
     if (!fecha || !hora || !Number.isInteger(duracion) || duracion < 5 || duracion > 480 || duracion % 5) { setValidationError('Indica fecha, hora y duración válida en intervalos de 5 minutos.'); return; }
+    if (!selectedInstant) { setValidationError('La hora seleccionada no existe en la zona horaria de la clínica. Elige otra hora.'); return; }
     if (scheduleChanged && (conflictsQuery.isError || (dateChanged && conflictsQuery.isPending))) { setValidationError('No se ha podido comprobar la disponibilidad del día seleccionado. Vuelve a intentarlo.'); return; }
     if (scheduleChanged && conflicts.length && (!esUrgencia || !autorizaSolape || !motivoSolape.trim())) {
       setValidationError('El horario tiene solapes. Elige otro hueco o autoriza la urgencia indicando el motivo.');
@@ -179,7 +188,7 @@ export function CitaModal({
       paciente_id: pacienteId,
       doctor_id: doctorId,
       presupuesto_linea_id: presupuestoLineaId,
-      fecha_hora: slotIso(fecha, hora),
+      fecha_hora: selectedInstant,
       duracion_min: duracion,
       estado,
       motivo,

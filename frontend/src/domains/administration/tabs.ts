@@ -31,3 +31,11 @@ export const ADMIN_TABS: Array<{ id: AdminTab; label: string }> = [
 ];
 
 export type AdminTabId = AdminTab;
+
+export const ADMINISTRATION_TAB_IDS: AdminTab[] = ['reportes', 'clinicas', 'inventario', 'importacion'];
+
+export function administrationHref(tab: string) {
+  if (tab === 'auditoria') return '/registros?vista=auditoria';
+  const section = ADMINISTRATION_TAB_IDS.includes(tab as AdminTab) ? '/administracion' : '/ajustes';
+  return `${section}?tab=${encodeURIComponent(tab)}`;
+}

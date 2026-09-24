@@ -24,7 +24,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
     if (!allDoctors.some(doctor => doctor.id === cita.doctor_id)) allDoctors.push({ id: cita.doctor_id, nombre: cita.doctor?.nombre ?? 'Profesional', especialidad: null, color_agenda: cita.doctor?.color_agenda ?? null, activo: false });
   }
   const visibleDoctors = doctorId ? allDoctors.filter(doctor => doctor.id === doctorId) : allDoctors;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowMinutes = minutesFromTime(localAppointmentTime(now.toISOString()));
   const columns = `52px repeat(${Math.max(1, visibleDoctors.length)}, minmax(220px, 1fr))`;
   const configuredEnds = visibleDoctors.flatMap(doctor => horarios[doctor.id]?.find(horario => horario.dia_semana === weekdayIndex(day))?.bloques.map(block => minutesFromTime(block.fin)) ?? []);
   const startMinute = slots.length ? minutesFromTime(slots[0]) : 9 * 60;

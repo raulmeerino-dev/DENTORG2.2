@@ -87,6 +87,7 @@ jobs:
       VITE_API_BASE_URL: http://127.0.0.1:8011/api
       DENTCORE_E2E_API_URL: http://127.0.0.1:8011/api
       DENTCORE_REAL_E2E: '1'
+      DENTCORE_RECORDS_E2E: '1'
       CLINIC_TIMEZONE: Europe/Madrid
       TZ: Europe/Madrid
     steps:
@@ -106,6 +107,7 @@ jobs:
           python -m alembic upgrade head
           python -m scripts.seed_demo
           python -m scripts.seed_jornada
+          python ../frontend/e2e/fixtures/seed_records.py
       - name: Start real API
         working-directory: backend
         run: |
@@ -116,9 +118,9 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-      - name: Run real clinical and Jornada circuits
+      - name: Run real clinical, Jornada and records circuits
         working-directory: frontend
-        run: node node_modules/@playwright/test/cli.js test jornada-real clinical-billing-real --workers=1 --forbid-only
+        run: node node_modules/@playwright/test/cli.js test jornada-real clinical-billing-real records-real --workers=1 --forbid-only
       - name: Preserve failure traces
         if: failure()
         uses: actions/upload-artifact@v4

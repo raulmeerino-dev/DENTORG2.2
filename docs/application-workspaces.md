@@ -6,7 +6,7 @@ La composición de la aplicación vive en `frontend/src/app/shell`. La navegaci�
 
 | Duración y contexto | Superficie | Implementación |
 | --- | --- | --- |
-| Horas de trabajo | Workspace | Jornada, Pacientes, Caja, Listados y Ajustes |
+| Horas de trabajo | Workspace | Jornada, Pacientes, Caja, Registros, Archivos, Administración y Ajustes |
 | Minutos con paciente activo | Tarea dentro del shell | `TaskSurface`: consentimiento, receta y presupuesto; primera visita y odontograma en el área clínica |
 | Segundos, una acción concreta | Overlay | `Dialog`, popover o drawer: cobro, dato del paciente, cita sencilla, documento adjunto |
 
@@ -27,7 +27,7 @@ Las superficies migradas usan paneles continuos, divisores, tabs, toolbars y tab
 - Jornada comparte fecha, profesional, gabinete, estado, búsqueda y cita seleccionada entre Operativa y Agenda. Los cambios rápidos se componen antes de actualizar la URL.
 - La agenda representa tiempo y profesionales en una única parrilla, con duración proporcional, solapes en carriles y desplazamiento local. En móvil los filtros son desplegables y las columnas mantienen anchura legible.
 - Pacientes mantiene Ficha, Tratamientos e Historial; los documentos, consentimientos y recetas permanecen contextualizados, sin nuevas pestañas principales.
-- Caja conserva la emisión/cobro y muestra el paciente real; los saldos e informes se invalidan al cobrar. Listados conserva filtros de periodo, tablas y exportaciones. Los errores de red permanecen visibles.
+- Caja conserva la emisión/cobro y muestra el paciente real; los saldos e informes se invalidan al cobrar. [Registros y Archivos](records-workspace.md) comparten consulta paginada, filtros, orden, detalle original y exportaciones completas. Los errores de red permanecen visibles.
 
 ## Verificación
 

@@ -3,16 +3,16 @@
 import { createContext, useContext, useLayoutEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { getCitas } from '../../../api/scheduling';
 import { getDoctores } from '../../../api/identity';
 import { getVisualStatus } from '../agenda/appointmentStatus';
-import { todayIso, localAppointmentDate } from '../agenda/agendaTime';
+import { todayIso, localAppointmentDate, localDayRange, isoDate } from '../agenda/agendaTime';
 import { citaMatchesQuery } from '../agenda/agendaSearch';
 import type { Cita, Doctor } from '../../../api/types';
 
 export function dayAppointmentsQuery(day: string) {
-  const range = { fecha_desde: new Date(`${day}T00:00:00`).toISOString(), fecha_hasta: new Date(`${day}T23:59:59.999`).toISOString() };
+  const range = localDayRange(day);
   return { queryKey: ['citas', range], queryFn: () => getCitas(range), refetchInterval: 15_000 };
 }
 
@@ -35,6 +35,7 @@ const JornadaContext = createContext<JornadaState | null>(null);
 
 export function JornadaProvider({ children }: { children: ReactNode }) {
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const pendingParams = useRef(params);
   useLayoutEffect(() => { pendingParams.current = params; }, [params]);
   function updateParams(update: (next: URLSearchParams) => void, replace = true) {
@@ -43,11 +44,11 @@ export function JornadaProvider({ children }: { children: ReactNode }) {
     const next = new URLSearchParams(pendingParams.current);
     update(next);
     pendingParams.current = next;
-    setParams(next, { replace });
+    setParams(next, { replace, state: location.state });
   }
   const requestedDay = params.get('fecha') ?? '';
   const parsedDay = new Date(`${requestedDay}T12:00:00`);
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) && !Number.isNaN(parsedDay.getTime()) && localAppointmentDate(parsedDay.toISOString()) === requestedDay ? requestedDay : todayIso();
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) && !Number.isNaN(parsedDay.getTime()) && isoDate(parsedDay) === requestedDay ? requestedDay : todayIso();
   const doctorId = params.get('doctor_id') ?? '';
   const gabineteId = params.get('gabinete_id') ?? '';
   const searchQuery = params.get('q') ?? '';

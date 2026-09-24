@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +22,7 @@ describe('Explicit visit completion', () => {
     expect(finish).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Confirmar finalización de visita' }));
     expect(finish).toHaveBeenCalledExactlyOnceWith('c1');
-    expect(screen.getByLabelText('Ruta')).toHaveTextContent('/jornada?fecha=2026-09-21&vista=operativa');
+    await waitFor(() => expect(screen.getByLabelText('Ruta')).toHaveTextContent('/jornada?fecha=2026-09-21&vista=operativa'));
   });
   it('keeps unsaved clinical work in the session', () => {
     setup({ unsaved: true });

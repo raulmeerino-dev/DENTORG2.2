@@ -1,12 +1,9 @@
 import type { Cita,Doctor,HorarioDoctor } from '../../../api/types';
 import type { HorariosPorDoctor } from './agendaTypes';
+import { clinicDate, clinicDateTimeToIso, clinicTime, getClinicTimeZone } from '../../../shared/time/clinicTime';
 
 export function todayIso() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const date = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${date}`;
+  return clinicDate(new Date());
 }
 
 export function monthGrid(day: string) {
@@ -36,29 +33,23 @@ export function addDaysIso(day: string, days: number) {
 }
 
 export function slotIso(day: string, slot: string) {
-  return new Date(`${day}T${slot}:00`).toISOString();
+  return clinicDateTimeToIso(day, slot);
 }
 
-export function localAppointmentDate(value: string) { return isoDate(new Date(value)); }
+export function localAppointmentDate(value: string) { return clinicDate(value); }
 export function localAppointmentTime(value: string) {
-  const date = new Date(value);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return clinicTime(value);
 }
 
 export function localDayRange(day: string) {
-  const start = new Date(`${day}T00:00:00`);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  end.setMilliseconds(-1);
-  return { fecha_desde: start.toISOString(), fecha_hasta: end.toISOString() };
+  const nextDay = addDaysIso(day, 1);
+  const end = new Date(Date.parse(clinicDateTimeToIso(nextDay)) - 1);
+  return { fecha_desde: clinicDateTimeToIso(day), fecha_hasta: end.toISOString() };
 }
 
 export function nowLocalDateTimeIso() {
   const now = new Date();
-  const date = isoDate(now);
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  return `${date}T${hours}:${minutes}:00`;
+  return `${clinicDate(now)}T${clinicTime(now)}:00`;
 }
 
 export function minutesFromTime(time: string) {
@@ -74,6 +65,7 @@ export function addMinutes(time: string, minutes: number) {
 
 export function dateTimeLabel(value: string) {
   return new Date(value).toLocaleString('es-ES', {
+    timeZone: getClinicTimeZone(),
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',

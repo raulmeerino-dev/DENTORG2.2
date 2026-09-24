@@ -1,3 +1,4 @@
+import { clinicDate, clinicDateKey } from '../../shared/time/clinicTime';
 import type {
 ApiPaciente,
 Cita,
@@ -58,7 +59,7 @@ const RECEIVED_LAB_STATES = new Set([
 const REVISION_THRESHOLD_MONTHS = 12;
 
 function dateKey(value?: string | null): string {
-  return value?.slice(0, 10) ?? '';
+  return clinicDateKey(value);
 }
 
 function isActiveAppointment(cita: Cita): boolean {
@@ -103,7 +104,7 @@ export function buildPatientStatus({
   historial = [],
   saldoPendiente = 0,
   laboratorio = [],
-  today = new Date().toISOString().slice(0, 10),
+  today = clinicDate(new Date()),
 }: PatientStatusInput): PatientStatus {
   if (!paciente) {
     return {

@@ -1,3 +1,4 @@
+import { clinicDate } from '../../../shared/time/clinicTime';
 import { PatientTaskContext } from '../../patients/PatientTaskContext';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -54,7 +55,7 @@ export interface RecetaSubmitPayload {
 }
 
 function emptyForm(defaultDoctorId: string, defaultPlantillaId: string, defaultEspecialidad: string): RecetaFormState {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = clinicDate(new Date());
   return {
     doctor_id: defaultDoctorId,
     plantilla_id: defaultPlantillaId,

@@ -130,4 +130,33 @@ describe('Cita: contexto y disponibilidad', () => {
     await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('rechaza una hora inexistente por cambio de horario sin cerrar el formulario', async () => {
+    const { user, onSubmit } = setup({ draft: { day: '2026-03-29', slot: '01:30', doctorId: doctor.id, pacienteId: paciente.id } });
+    await user.click(screen.getByRole('button', { name: 'Cambiar horario' }));
+    fireEvent.change(screen.getByLabelText('Hora inicio'), { target: { value: '02:30' } });
+    await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('no existe en la zona horaria');
+    expect(screen.getByRole('button', { name: 'Guardar cita' })).toBeVisible();
+  });
+
+  it('permite corregir un hueco inicial que no existe por cambio de horario', async () => {
+    const { user, onSubmit } = setup({ draft: { day: '2026-03-29', slot: '02:30', doctorId: doctor.id, pacienteId: paciente.id } });
+    await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('no existe en la zona horaria');
+    await user.click(screen.getByRole('button', { name: 'Cambiar horario' }));
+    fireEvent.change(screen.getByLabelText('Hora inicio'), { target: { value: '03:30' } });
+    await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ fecha_hora: '2026-03-29T01:30:00.000Z' }));
+  });
+
+  it.each(['2026-10-25T00:30:00Z', '2026-10-25T01:30:00Z'])('conserva el instante %s al editar una observación durante la hora repetida', async fechaHora => {
+    const { user, onSubmit } = setup({ cita: { ...cita, fecha_hora: fechaHora }, draft: null });
+    expect(screen.getByLabelText('Hora inicio')).toHaveValue('02:30');
+    await user.type(screen.getByLabelText('Observaciones de la cita/tratamiento'), 'Confirmado');
+    await user.click(screen.getByRole('button', { name: 'Guardar cita' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ fecha_hora: fechaHora, observaciones: 'Confirmado' }));
+  });
 });

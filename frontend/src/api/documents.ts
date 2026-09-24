@@ -14,10 +14,15 @@ export function documentoDownloadUrl(pacienteId: string, documentoId: string) {
 }
 
 export async function openDocumentoPaciente(pacienteId: string, documentoId: string, filename = 'documento.pdf') {
-  const { data } = await api.get<Blob>(`/pacientes/${pacienteId}/documentos/${documentoId}/descargar`, { responseType: 'blob' });
+  const data = await getDocumentoBlob(pacienteId, documentoId);
   return openOrDownloadBlob(data, filename, {
     requirePdf: filename.toLowerCase().endsWith('.pdf') || data.type.toLowerCase().includes('pdf'),
   });
+}
+
+export async function getDocumentoBlob(pacienteId: string, documentoId: string) {
+  const { data } = await api.get<Blob>(`/pacientes/${pacienteId}/documentos/${documentoId}/descargar`, { responseType: 'blob' });
+  return data;
 }
 
 export async function uploadDocumentoPaciente(pacienteId: string, data: {

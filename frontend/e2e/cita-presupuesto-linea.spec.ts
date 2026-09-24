@@ -204,11 +204,12 @@ test('guardar, refrescar y conservar cita vinculada a linea de presupuesto', asy
 
   await page.getByRole('button', { name: /Guardar cita/i }).click();
   await expect.poll(() => apiState.getCreatedPayload()?.presupuesto_linea_id).toBe(presupuestoLineaId);
-  await expect(page.getByText('Cesar Gutierrez Velez').first()).toBeVisible();
-  await expect(page.getByText('Endodoncia 36').first()).toBeVisible();
+  const appointment = page.getByRole('article', { name: /Cita de Cesar Gutierrez Velez/ });
+  await expect(appointment).toBeVisible();
+  await expect(appointment.getByText('Endodoncia 36', { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText('Cesar Gutierrez Velez').first()).toBeVisible();
-  await expect(page.getByText('Endodoncia 36').first()).toBeVisible();
+  await expect(appointment).toBeVisible();
+  await expect(appointment.getByText('Endodoncia 36', { exact: true })).toBeVisible();
   expect(apiState.getCitas()[0]?.presupuesto_linea_id).toBe(presupuestoLineaId);
 });

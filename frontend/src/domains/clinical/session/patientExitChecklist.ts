@@ -1,3 +1,4 @@
+import { clinicDate, clinicDateKey } from '../../../shared/time/clinicTime';
 import type {
 ApiPaciente,
 Cita,
@@ -57,7 +58,7 @@ const RECEIVED_LAB_STATES = new Set([
 ]);
 
 function dateKey(value?: string | null) {
-  return value?.slice(0, 10) ?? '';
+  return clinicDateKey(value);
 }
 
 function isToday(value: string | null | undefined, today: string) {
@@ -100,7 +101,7 @@ export function buildPatientExitChecklist({
   laboratorio = [],
   documentos = [],
   saldoPendiente = 0,
-  today = new Date().toISOString().slice(0, 10),
+  today = clinicDate(new Date()),
 }: PatientExitChecklistInput): PatientExitChecklist {
   const safeCitas = citas ?? [];
   const safeHistorial = historial ?? [];

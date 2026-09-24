@@ -72,8 +72,13 @@ export async function anularRecetaClinica(recetaId: string, motivo: string) {
 }
 
 export async function openRecetaClinicaPdf(recetaId: string) {
-  const { data } = await api.get<Blob>(`/recetas/${recetaId}/pdf`, { responseType: 'blob' });
+  const data = await getRecetaPdfBlob(recetaId);
   return openOrDownloadBlob(data, `receta_${recetaId}.pdf`, { requirePdf: true });
+}
+
+export async function getRecetaPdfBlob(recetaId: string) {
+  const { data } = await api.get<Blob>(`/recetas/${recetaId}/pdf`, { responseType: 'blob' });
+  return data;
 }
 
 export function recetaPdfUrl(facturaId: string) {

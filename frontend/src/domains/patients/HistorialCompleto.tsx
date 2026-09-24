@@ -167,6 +167,8 @@ export function HistorialCompletoPanel({
   onOpenTreatmentHistory,
   userRole,
   canManageBilling = true,
+  initialFilter = 'todo',
+  focusedRecordId,
 }: {
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
@@ -187,8 +189,11 @@ export function HistorialCompletoPanel({
   onOpenTreatmentHistory?: () => void;
   userRole?: UserRole | null;
   canManageBilling?: boolean;
+  initialFilter?: HistoryFilter;
+  focusedRecordId?: string | null;
 }) {
-  const [filter, setFilter] = useState<HistoryFilter>('todo');
+  const [filter, setFilter] = useState<HistoryFilter>(initialFilter);
+  const [focusDismissed, setFocusDismissed] = useState(false);
   const availableFilters = canManageBilling
     ? FILTERS
     : FILTERS.filter((item) => item.id !== 'facturacion' && item.id !== 'cobros');
@@ -414,7 +419,9 @@ export function HistorialCompletoPanel({
   }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, notasDentales, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
 
   const visibleEvents = activeFilter === 'todo' ? events : events.filter((event) => event.filter === activeFilter);
-  const ledgerGroups = buildLedgerGroups(visibleEvents);
+  const focusedEvent = !focusDismissed && focusedRecordId ? events.find(event => event.id.endsWith(`-${focusedRecordId}`)) : undefined;
+  const focusedGroup = focusedEvent ? getLedgerIdentity(focusedEvent).id : null;
+  const ledgerGroups = buildLedgerGroups(focusedGroup ? events.filter(event => getLedgerIdentity(event).id === focusedGroup) : visibleEvents);
 
   return (
     <section className="complete-history-panel">
@@ -435,11 +442,12 @@ export function HistorialCompletoPanel({
 
       <nav className="history-filter-tabs" aria-label="Filtros del historial completo">
         {availableFilters.map((item) => (
-          <button key={item.id} type="button" className={activeFilter === item.id ? 'active' : ''} onClick={() => setFilter(item.id)}>
+          <button key={item.id} type="button" className={activeFilter === item.id ? 'active' : ''} onClick={() => { setFilter(item.id); setFocusDismissed(true); }}>
             {item.label}
           </button>
         ))}
       </nav>
+      {focusedEvent && <div className="history-record-focus"><strong>{focusedEvent.label} seleccionado · {focusedEvent.title}</strong><button type="button" onClick={() => { setFocusDismissed(true); setFilter('todo'); }}>Ver historial completo</button></div>}
 
       <div className="complete-history-layout">
         <div className="complete-history-timeline complete-history-ledger" role="list">

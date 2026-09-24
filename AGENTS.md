@@ -30,8 +30,10 @@ Estructura principal:
 - Jornada (Operativa y Agenda comparten contexto)
 - Pacientes
 - Caja
-- Listados
-- Ajustes (administración por permisos)
+- Consulta secundaria: Registros y Archivos (vistas y columnas autorizadas por backend)
+- Administración y Ajustes (solo administración)
+
+Registros y Archivos comparten el modelo de lectura semántico de `reporting`; no duplican entidades ni edición clínica. Paginación, búsqueda, orden, permisos y exportación se resuelven en servidor. Los enlaces abren el contexto original y conservan la consulta. Ver `docs/records-workspace.md`.
 
 Dentro de Pacientes:
 - Ficha

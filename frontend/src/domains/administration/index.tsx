@@ -1,14 +1,13 @@
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createClinica, getClinicas } from '../../api/identity';
 import { createPedidoInventario, createProductoInventario, createProveedorInventario, getInventario, getMovimientosInventario, getPedidosInventario, getProveedoresInventario, recibirPedidoInventario, registrarMovimientoInventario, updatePedidoInventario, updateProductoInventario } from '../../api/inventory';
 import { enableTwoFactor } from '../../api/auth';
-import { getAuditLog } from '../../api/administration';
 import { importPacientes, syncOffline } from '../../api/patients';
 import { addOfflinePending, clearOfflinePending, getOfflinePending } from '../../shared/offline/offline';
-import { ADMIN_TABS } from './tabs';
+import { ADMIN_TABS, ADMINISTRATION_TAB_IDS } from './tabs';
 import type { AdminTabId } from './tabs';
 import { AdminReportes } from './AdminReportes';
 import { ConfiguracionWorkspace } from './ConfiguracionWorkspace';
@@ -43,12 +42,16 @@ const CONFIG_TAB_BY_ADMIN: Partial<Record<Tab, FicheroTab>> = {
   seguridad: 'seguridad',
 };
 
-export default function AdminExtrasPage() {
+export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'settings' | 'administration' }) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = searchParams.get('tab') ?? 'general';
+  const location = useLocation();
+  const availableTabs = ADMIN_TABS.filter(item => mode === 'administration' ? ADMINISTRATION_TAB_IDS.includes(item.id) : !ADMINISTRATION_TAB_IDS.includes(item.id) && item.id !== 'auditoria');
+  const defaultTab = mode === 'administration' ? 'reportes' : 'general';
+  const sectionLabel = mode === 'administration' ? 'Administración' : 'Ajustes';
+  const requestedTab = searchParams.get('tab') ?? defaultTab;
   const normalizedTab = (ADMIN_TAB_ALIASES[requestedTab] ?? requestedTab) as Tab;
-  const tab = ADMIN_TABS.some((item) => item.id === normalizedTab) ? normalizedTab : 'general';
+  const tab = availableTabs.some((item) => item.id === normalizedTab) ? normalizedTab : defaultTab;
   const [clinicaForm, setClinicaForm] = useState({ nombre: '', direccion: '' });
   const [productoForm, setProductoForm] = useState({
     nombre: '',
@@ -60,7 +63,7 @@ export default function AdminExtrasPage() {
     coste_unitario: '0',
     proveedor_id: '',
   });
-  const [productoActivoId, setProductoActivoId] = useState('');
+  const [productoActivoId, setProductoActivoId] = useState(() => searchParams.get('producto_id') ?? '');
   const [movimientoForm, setMovimientoForm] = useState<{ tipo: MovimientoTipo; cantidad: string; motivo: string }>({
     tipo: 'entrada',
     cantidad: '1',
@@ -74,7 +77,7 @@ export default function AdminExtrasPage() {
   const online = typeof navigator === 'undefined' ? true : navigator.onLine;
 
   const clinicasQuery = useQuery({ queryKey: ['clinicas'], queryFn: getClinicas });
-  const inventarioQuery = useQuery({ queryKey: ['inventario'], queryFn: getInventario });
+  const inventarioQuery = useQuery({ queryKey: ['inventario'], queryFn: getInventario, enabled: tab === 'inventario' });
   const proveedoresQuery = useQuery({ queryKey: ['inventario-proveedores'], queryFn: getProveedoresInventario, enabled: tab === 'inventario' });
   const pedidosQuery = useQuery({ queryKey: ['inventario-pedidos'], queryFn: getPedidosInventario, enabled: tab === 'inventario' });
   const movimientosQuery = useQuery({
@@ -82,7 +85,6 @@ export default function AdminExtrasPage() {
     queryFn: () => getMovimientosInventario(productoActivoId),
     enabled: Boolean(productoActivoId),
   });
-  const auditoriaQuery = useQuery({ queryKey: ['auditoria'], queryFn: () => getAuditLog(), enabled: tab === 'auditoria' });
 
   const crearClinica = useMutation({
     mutationFn: () => createClinica(clinicaForm),
@@ -199,7 +201,7 @@ export default function AdminExtrasPage() {
   }, []);
 
   function selectTab(nextTab: Tab) {
-    setSearchParams(nextTab === 'general' ? {} : { tab: nextTab }, { replace: true });
+    setSearchParams(nextTab === 'general' ? {} : { tab: nextTab }, { replace: true, state: location.state });
   }
 
   function renderConfigTab(nextTab: Tab) {
@@ -238,16 +240,16 @@ export default function AdminExtrasPage() {
   }
 
   return (
-    <section className="settings-workspace" aria-label="Ajustes">
+    <section className="settings-workspace" aria-label={sectionLabel}>
       <header className="settings-toolbar">
-        <h1>Ajustes</h1>
-        <span>{ADMIN_TABS.find(item => item.id === tab)?.label}</span>
+        <h1>{sectionLabel}</h1>
+        <span>{availableTabs.find(item => item.id === tab)?.label}</span>
         <span className={online ? 'online-pill' : 'offline-pill'}>{online ? 'Con conexión' : 'Sin conexión'}</span>
       </header>
 
       <div className="settings-body">
-      <nav className="settings-navigation" aria-label="Configuración de la clínica">
-        {ADMIN_TABS.map((item) => (
+      <nav className="settings-navigation" aria-label={sectionLabel}>
+        {availableTabs.map((item) => (
           <button type="button" aria-current={tab === item.id ? "page" : undefined} key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => selectTab(item.id)}>
             {item.label}
           </button>
@@ -255,7 +257,7 @@ export default function AdminExtrasPage() {
       </nav>
       <div className="settings-content">
       {[crearClinica.error, crearProducto.error, actualizarProducto.error, registrarMovimiento.error, crearProveedor.error, crearPedido.error, marcarPedidoEnviado.error, recibirPedido.error, importar.error].filter(Boolean).map((error, index) => <p key={index} className="inline-alert" role="alert">{error instanceof Error ? error.message : 'No se pudo completar la operación.'}</p>)}
-      {((tab === 'clinicas' && clinicasQuery.isError) || (tab === 'inventario' && (inventarioQuery.isError || proveedoresQuery.isError || pedidosQuery.isError)) || (tab === 'auditoria' && auditoriaQuery.isError)) && <p className="inline-alert" role="alert">No se pudieron cargar los datos. Revisa la conexión.</p>}
+      {((tab === 'clinicas' && clinicasQuery.isError) || (tab === 'inventario' && (inventarioQuery.isError || proveedoresQuery.isError || pedidosQuery.isError))) && <p className="inline-alert" role="alert">No se pudieron cargar los datos. Revisa la conexión.</p>}
 
       {tab === 'clinicas' && (
         <div className="settings-split">
@@ -289,7 +291,7 @@ export default function AdminExtrasPage() {
                 {(inventarioQuery.data ?? []).map((producto) => {
                   const proveedor = (proveedoresQuery.data ?? []).find((item) => item.id === producto.proveedor_id);
                   return (
-                    <tr key={producto.id} className={producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
+                    <tr key={producto.id} aria-selected={productoActivoId === producto.id} className={productoActivoId === producto.id ? 'inventory-selected-row' : producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
                       <td><strong>{producto.nombre}</strong><span className="muted-cell">{producto.sku || producto.unidad}</span></td>
                       <td>{producto.categoria || '-'}</td>
                       <td>{proveedor?.nombre || '-'}</td>
@@ -328,7 +330,7 @@ export default function AdminExtrasPage() {
             </details>
             {productoActivoId && (
               <details className="admin-create-panel movement-form" open>
-                <summary>Movimiento</summary>
+                <summary>Movimiento · {inventarioQuery.data?.find(producto => producto.id === productoActivoId)?.nombre ?? 'Producto seleccionado'}</summary>
                 <form onSubmit={(event) => { event.preventDefault(); registrarMovimiento.mutate(); }}>
                   <label>Tipo<select value={movimientoForm.tipo} onChange={(e) => setMovimientoForm((p) => ({ ...p, tipo: e.target.value as MovimientoTipo }))}>
                     <option value="entrada">Entrada</option>
@@ -415,48 +417,6 @@ export default function AdminExtrasPage() {
       )}
 
       {tab === 'reportes' && <AdminReportes />}
-
-      {tab === 'auditoria' && (
-        <section className="settings-section">
-          <div className="settings-caption"><strong>Auditoría clínica y administrativa</strong></div>
-          <table className="dentcore-table">
-            <thead><tr><th>Fecha</th><th>Acción</th><th>Entidad</th><th>Usuario</th><th>IP</th></tr></thead>
-            <tbody>
-              {(auditoriaQuery.data ?? []).map((entry) => (
-                <tr key={entry.id}>
-                  <td>{new Date(entry.timestamp).toLocaleString('es-ES')}</td>
-                  <td>{entry.action}</td>
-                  <td>{entry.entity_type}{entry.entity_id ? ` · ${entry.entity_id.slice(0, 8)}` : ''}</td>
-                  <td>{entry.user_id?.slice(0, 8) ?? '-'}</td>
-                  <td>{entry.ip_address ?? '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {tab === 'backups' && (
-        <section className="settings-section">
-          <div className="settings-caption"><strong>Backups y modo offline</strong></div>
-          <p>La app marca "Sin conexión" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
-          <div className="editor-actions">
-            <button onClick={async () => {
-              await addOfflinePending({ type: 'paciente', payload: { idTemp: `tmp-${Date.now()}`, nombre: 'Paciente offline' } });
-              setPendingCount((await getOfflinePending()).length);
-            }}>Crear pendiente demo</button>
-            <button onClick={async () => {
-              const pending = await getOfflinePending();
-              const pacientes = pending.filter((item) => item.type === 'paciente').map((item) => item.payload);
-              const citas = pending.filter((item) => item.type === 'cita').map((item) => item.payload);
-              await syncOffline({ pacientes, citas });
-              await clearOfflinePending();
-              setPendingCount(0);
-            }}>Sincronizar ahora</button>
-          </div>
-          <p>Pendientes locales: {pendingCount}</p>
-        </section>
-      )}
 
       {tab === 'importacion' && (
         <section className="settings-section settings-form-body">

@@ -20,7 +20,9 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Pacientes' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Caja' })).toBeVisible();
-    expect(screen.getByRole('link', { name: 'Listados' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Registros' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Archivos' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Administración' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Ajustes' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Agenda' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
@@ -32,7 +34,9 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Pacientes' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Caja' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Listados' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Registros' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Archivos' })).toBeVisible();
+    expect(screen.queryByRole('link', { name: 'Administración' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Ajustes' })).not.toBeInTheDocument();
   });
   it('keeps patient portal separate from staff tools', () => {

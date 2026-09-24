@@ -46,3 +46,4 @@
 .settings-content .inventory-side { position: static; }
 @media (max-width: 1100px) { .settings-reference-list { grid-template-columns: 1fr; } .settings-reference-list > div:nth-child(odd) { border-right: 0; } .settings-split, .settings-content .inventory-layout { grid-template-columns: minmax(0, 1fr); } .settings-split > :nth-child(even) { border-left: 0; } }
 @media (max-width: 650px) { .settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); } .settings-navigation { flex-direction: row; max-height: 48px; border-right: 0; border-bottom: 1px solid var(--dc-border); } .settings-navigation button { white-space: nowrap; } .settings-reference-list > div { grid-template-columns: 1fr; } }
+.inventory-selected-row td { background: var(--dc-primary-soft); }

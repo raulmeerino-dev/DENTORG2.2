@@ -4,6 +4,7 @@ import type {
 } from './types';
 import { CanceledError } from 'axios';
 import { clearStoredAuthToken, getSessionGeneration, setStoredAuthToken, refreshSessionToken } from './session';
+import { configureClinicTimeZone } from '../shared/time/clinicTime';
 
 export async function login(username: string, password: string, otp?: string) {
   clearStoredAuthToken();
@@ -24,7 +25,10 @@ export async function logout() {
 }
 
 export async function getMe() {
+  const generation = getSessionGeneration();
   const { data } = await api.get<UsuarioMe>('/auth/me');
+  if (generation !== getSessionGeneration()) throw new CanceledError('La sesión ha cambiado.');
+  configureClinicTimeZone(data.clinic_timezone ?? 'Europe/Madrid');
   return data;
 }
 

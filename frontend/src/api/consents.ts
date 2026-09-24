@@ -50,6 +50,11 @@ export async function revocarConsentimiento(consentimientoId: string, motivo: st
 }
 
 export async function openConsentimientoPdf(consentimientoId: string) {
-  const { data } = await api.get<Blob>(`/consentimientos/${consentimientoId}/pdf`, { responseType: 'blob' });
+  const data = await getConsentimientoPdfBlob(consentimientoId);
   return openOrDownloadBlob(data, `consentimiento_${consentimientoId}.pdf`, { requirePdf: true });
+}
+
+export async function getConsentimientoPdfBlob(consentimientoId: string) {
+  const { data } = await api.get<Blob>(`/consentimientos/${consentimientoId}/pdf`, { responseType: 'blob' });
+  return data;
 }

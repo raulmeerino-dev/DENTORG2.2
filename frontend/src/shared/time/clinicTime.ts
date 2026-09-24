@@ -15,6 +15,12 @@ function parts(value: string | Date, timeZone = clinicTimeZone) {
 export function clinicDate(value: string | Date) {
   const p = parts(value); return `${p.year}-${p.month}-${p.day}`;
 }
+/** Calendar-only clinical dates stay unchanged; timestamp instants use the clinic zone. */
+export function clinicDateKey(value?: string | null) {
+  if (!value || !/^\d{4}-\d{2}-\d{2}/.test(value)) return '';
+  if (!/(?:z|[+-]\d{2}:?\d{2})$/i.test(value)) return value.slice(0, 10);
+  return Number.isNaN(Date.parse(value)) ? '' : clinicDate(value);
+}
 export function clinicTime(value: string | Date) {
   const p = parts(value); return `${p.hour}:${p.minute}`;
 }

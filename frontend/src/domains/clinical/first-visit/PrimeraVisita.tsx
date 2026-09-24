@@ -1,3 +1,4 @@
+import { clinicDate } from '../../../shared/time/clinicTime';
 import { useEffect, useState } from 'react';
 import { ChevronDown, ChevronUp, ClipboardList, Save } from 'lucide-react';
 import type { ApiPaciente, UserRole } from '../../../api/types';
@@ -28,7 +29,7 @@ function getPrimeraVisita(paciente?: ApiPaciente | null): PrimeraVisitaData {
   const saved = getSavedPrimeraVisita(paciente);
   if (saved) return saved;
   return {
-    fecha: new Date().toISOString().slice(0, 10),
+    fecha: clinicDate(new Date()),
     motivo: '',
     dientes_ausentes: '',
     implantes_previos: '',

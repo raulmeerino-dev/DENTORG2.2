@@ -2,6 +2,22 @@
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.
 
+## 2026-09-25 — Registros, Archivos y consulta transversal
+
+La navegación distingue Jornada, Pacientes y Caja del grupo secundario Registros, Archivos, Administración y Ajustes. Registros sustituye Listados con trece vistas SQL autorizadas, búsqueda tolerante, filtros por contexto, orden y paginación en servidor. Archivos reutiliza esa consulta para localizar documentación sin duplicar los originales del paciente. Las rutas antiguas mantienen redirecciones compatibles.
+
+Cada resultado abre su registro original: cita con horario/profesional, presupuesto concreto, movimiento del historial, pendiente o producto. Los documentos se leen en una pantalla dedicada dentro del shell. Al regresar se conservan búsqueda, filtros, orden y página. Administración y Ajustes separan gestión del negocio y configuración; auditoría dispone de detalle individual restringido.
+
+Excel, CSV, PDF e impresión comparten la consulta autorizada y exportan todas sus filas, sin limitarse a la página visible. Se comprueban tipos numéricos, texto que podría interpretarse como fórmula y documentos extensos. Los límites propios de Excel/PDF se comunican explícitamente sin truncar información. La auditoría registra la exportación sin almacenar búsquedas ni identificadores personales en su URL.
+
+Se han alineado los permisos de consulta, descarga y previsualización del portal; la firma del propio paciente continúa disponible. No se crean tablas ni migraciones. La zona de la clínica llega desde autenticación y se comparte entre agenda, historial y reportes, incluyendo medianoche, días de 23/25 horas y la hora repetida del cambio de invierno. Los formularios rechazan una hora inexistente con un error visible.
+
+La validación usa PostgreSQL aislado y datos sintéticos: 1.040 pacientes, 3.120 citas, planes, realizados, facturas, cobros, laboratorio, inventario y 208 PDFs en dos clínicas. Los recorridos reales comparan las 695 filas de una exportación filtrada contra la consulta y prueban permisos, navegación de regreso y detalle documental. Revisión visual en claro/oscuro y anchos de 390 a 1920 px. Los E2E se incorporan a CI; evidencias locales en `output/qa/records-final`, `output/playwright` y `frontend/output/playwright`.
+
+Validación final: 342 pruebas frontend, 208 pruebas backend y 11 E2E de navegador correctos; TypeScript/Vite, ESLint, Ruff y `git diff --check` sin errores. Los E2E incluyen el circuito completo presupuesto → cita → acto clínico → factura → cobro. La API local queda ejecutándose con el código final y la base de pruebas aislada.
+
+Arquitectura, reglas, límites y reproducción: [Registros y Archivos](records-workspace.md).
+
 ## 2026-09-24 — Workspaces y cierre de la transformación visual
 
 El checkpoint `486f588` conserva el estado de la reorganización arquitectónica al retomar el trabajo. La entrega visual posterior establece un shell permanente, contexto compartido de Jornada, calendario proporcional por profesionales, ficha continua de paciente y superficies de tarea dentro del shell para consentimiento, receta, presupuesto y primera visita/odontograma. Caja, Listados, Ajustes, Reportes y WhatsApp usan toolbars, paneles y tablas con desplazamiento propio.

@@ -1,7 +1,7 @@
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import type { MouseEvent,ReactNode } from 'react';
 import { useDeferredValue,useEffect,useState } from 'react';
-import { useNavigate,useSearchParams } from 'react-router-dom';
+import { useLocation,useNavigate,useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { createConsentimientoPaciente, firmarConsentimiento, getConsentimientosPaciente, getPlantillasConsentimiento, openConsentimientoPdf, revocarConsentimiento } from '../../api/consents';
 import { createFacturaDesdeHistorial, createFacturaManual, createPagoAnticipadoPaciente, getFacturas, getFormasPago, getHistorialSinFacturar, getPagosAnticipadosPaciente, getSaldoPaciente, openFacturaPdf, registrarCobro, updatePagoAnticipadoPaciente } from '../../api/billing';
@@ -165,10 +165,14 @@ function PatientWorkspace() {
   const workspaceTime = useMinuteClock();
   const { user } = useAuth();
   const canManageBilling = user?.rol === 'admin' || user?.rol === 'recepcion';
+  const canViewClinicalDocuments = user?.rol === 'admin' || user?.rol === 'doctor' || user?.rol === 'auxiliar';
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<WorkTab>('pacientes');
-  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>('primera');
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialArea = searchParams.get('tab');
+  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
+  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>(() => initialArea === 'sesion' || initialArea === 'pendiente' ? initialArea : 'primera');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
   const [treatmentHistoryOpen, setTreatmentHistoryOpen] = useState(false);
@@ -182,8 +186,8 @@ function PatientWorkspace() {
   const [anticipoModal, setAnticipoModal] = useState<AnticipoModalMode | null>(null);
   const [facturaManualOpen, setFacturaManualOpen] = useState(false);
   const [revocarConsentimientoTarget, setRevocarConsentimientoTarget] = useState<Consentimiento | null>(null);
-  const [selectedPresupuestoId, setSelectedPresupuestoId] = useState<string | null>(null);
-  const [presupuestoPanelOpen, setPresupuestoPanelOpen] = useState(false);
+  const [selectedPresupuestoId, setSelectedPresupuestoId] = useState<string | null>(() => searchParams.get('presupuesto_id'));
+  const [presupuestoPanelOpen, setPresupuestoPanelOpen] = useState(initialArea === 'presupuestos');
   const [nuevoPacienteOpen, setNuevoPacienteOpen] = useState(false);
   const [comentarioOpen, setComentarioOpen] = useState(false);
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
@@ -196,7 +200,6 @@ function PatientWorkspace() {
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOffset, setPatientOffset] = useState(0);
   const deferredPatientSearch = useDeferredValue(patientSearch);
-  const [searchParams, setSearchParams] = useSearchParams();
   const requestedSessionPatient = searchParams.get('tab') === 'sesion' ? searchParams.get('paciente_id') : null;
   useEffect(() => {
     if (!requestedSessionPatient) return;
@@ -293,12 +296,12 @@ function PatientWorkspace() {
     enabled: Boolean(active),
   });
   const plantillasQuery = useQuery({ queryKey: ['plantillas-consentimiento'], queryFn: getPlantillasConsentimiento });
-  const recetaPlantillasQuery = useQuery({ queryKey: ['receta-plantillas'], queryFn: getRecetaPlantillas });
-  const recetaProviderStatusQuery = useQuery({ queryKey: ['receta-provider-status'], queryFn: getRecetaProviderStatus });
+  const recetaPlantillasQuery = useQuery({ queryKey: ['receta-plantillas'], queryFn: getRecetaPlantillas, enabled: canViewClinicalDocuments });
+  const recetaProviderStatusQuery = useQuery({ queryKey: ['receta-provider-status'], queryFn: getRecetaProviderStatus, enabled: canViewClinicalDocuments });
   const consentimientosQuery = useQuery({
     queryKey: ['consentimientos-paciente', active?.id],
     queryFn: () => getConsentimientosPaciente(active!.id),
-    enabled: Boolean(active),
+    enabled: Boolean(active) && canViewClinicalDocuments,
   });
   const laboratorioPacienteQuery = useQuery({
     queryKey: ['laboratorio-paciente', active?.id],
@@ -308,7 +311,7 @@ function PatientWorkspace() {
   const recetasPacienteQuery = useQuery({
     queryKey: ['recetas-paciente', active?.id],
     queryFn: () => getRecetasPaciente(active!.id),
-    enabled: Boolean(active),
+    enabled: Boolean(active) && canViewClinicalDocuments,
   });
   const notasDentalesQuery = useQuery({
     queryKey: ['notas-dentales', active?.id],
@@ -400,16 +403,16 @@ function PatientWorkspace() {
     if (urlPatientId === active.id) return;
     const next = new URLSearchParams(searchParams);
     next.set('paciente_id', active.id);
-    setSearchParams(next, { replace: true });
-  }, [active, searchParams, setSearchParams, urlPatientId]);
+    setSearchParams(next, { replace: true, state: location.state });
+  }, [active, searchParams, setSearchParams, urlPatientId, location.state]);
 
   function setActivePatient(paciente: ApiPaciente, options: { replace?: boolean } = {}) {
     queryClient.setQueryData(['paciente-detalle', paciente.id], paciente);
     sessionStorage.setItem('dentcore_selected_patient_id', paciente.id);
     sessionStorage.setItem('dentcore_selected_patient_name', fullName(paciente));
-    const next = new URLSearchParams(searchParams);
+    const next = new URLSearchParams();
     next.set('paciente_id', paciente.id);
-    setSearchParams(next, { replace: options.replace ?? true });
+    setSearchParams(next, { replace: options.replace ?? true, state: location.state });
   }
 
   function openPatientArea(targetTab: WorkTab) {
@@ -1088,6 +1091,7 @@ function PatientWorkspace() {
             paciente={active}
             busy={nuevoPresupuesto.isPending}
             canManageBilling={canManageBilling}
+            canViewClinicalDocuments={canViewClinicalDocuments}
             handlers={{
               onNuevaCita: abrirAgendaPaciente,
               onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
@@ -1182,6 +1186,7 @@ function PatientWorkspace() {
         )}
         {activeMainTab === 'clinica' && (
           <ClinicalWorkspace
+            focusedPendingId={searchParams.get('tratamiento_id')}
             activeTab={activeTreatmentTab}
             onTabChange={(nextTab) => openPatientArea(nextTab)}
             paciente={active}
@@ -1237,6 +1242,8 @@ function PatientWorkspace() {
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
             <HistorialCompletoPanel
+              initialFilter={initialArea === 'facturacion' ? 'facturacion' : undefined}
+              focusedRecordId={searchParams.get('factura_id') || searchParams.get('cobro_id') || searchParams.get('anticipo_id') || searchParams.get('registro_id') || searchParams.get('laboratorio_id')}
               paciente={active}
               historial={historialQuery.data ?? []}
               citas={citasPacienteQuery.data ?? []}
@@ -1271,7 +1278,7 @@ function PatientWorkspace() {
               <button onClick={() => { nuevoPresupuesto.mutate(); setContextMenu(null); }} disabled={!active || nuevoPresupuesto.isPending}>Nuevo presupuesto</button>
               <span />
               <button onClick={() => { openPatientArea('primera'); setContextMenu(null); }}>Primera visita</button>
-              <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Consentimiento informado</button>
+              {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Consentimiento informado</button>}
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Circular / justificante</button>
               <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
               {canManageBilling && (
@@ -1292,7 +1299,7 @@ function PatientWorkspace() {
               {canManageBilling && (
                 <button onClick={() => facturarLinea.mutate(contextMenu.linea)} disabled={facturarLinea.isPending}>Facturar tratamiento</button>
               )}
-              <button onClick={() => { setDesigner(active ? { mode: 'consentimiento', tipo: contextMenu.linea.tratamiento?.nombre } : null); setContextMenu(null); }}>Consentimiento de tratamiento</button>
+              {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento', tipo: contextMenu.linea.tratamiento?.nombre } : null); setContextMenu(null); }}>Consentimiento de tratamiento</button>}
               <button onClick={() => { openPatientArea('presupuestos'); setContextMenu(null); }}>Abrir presupuesto</button>
             </>
           )}
@@ -1310,7 +1317,7 @@ function PatientWorkspace() {
               <strong>Documento</strong>
               <button onClick={() => abrirDocumento(contextMenu.documento)}>Abrir documento</button>
               <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar otro archivo</button>
-              <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Crear consentimiento</button>
+              {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Crear consentimiento</button>}
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Crear circular</button>
             </>
           )}
@@ -1496,7 +1503,7 @@ function PatientWorkspace() {
               onAbrirDocumento={abrirDocumento}
               onContextDocumento={(event, documento) => openContext(event, { kind: 'documento', documento })}
             />
-            <ConsentimientosPanel
+            {canViewClinicalDocuments && <ConsentimientosPanel
               consentimientos={consentimientosQuery.data ?? []}
               plantillas={plantillasQuery.data ?? []}
               onDisenar={(tipo) => {
@@ -1505,7 +1512,7 @@ function PatientWorkspace() {
               }}
               onAbrirPdf={abrirConsentimiento}
               onRevocar={revocarConsentimientoPaciente}
-            />
+            />}
           </section>
         </div>
       )}

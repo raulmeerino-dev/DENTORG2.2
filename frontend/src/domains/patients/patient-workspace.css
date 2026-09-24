@@ -148,3 +148,5 @@
   .dc-summary-billing-list > button { grid-template-columns: 1fr auto; }
   .dc-summary-billing-list em { grid-column: 1 / -1; }
 }
+.history-record-focus { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-primary-soft); font-size: 12px; }
+.history-record-focus button { margin-left: auto; }
