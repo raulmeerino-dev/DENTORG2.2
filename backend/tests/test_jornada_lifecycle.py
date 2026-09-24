@@ -5,6 +5,7 @@ import importlib.util
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
@@ -23,6 +24,10 @@ from app.domains.identity.persistence.clinica import Clinica
 from app.domains.identity.persistence.doctor import Doctor
 from app.domains.identity.persistence.usuario import Usuario
 from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.application.agenda_service import (
+    buscar_huecos_libres,
+    esta_dentro_disponibilidad,
+)
 from app.domains.scheduling.application.citas import crear_cita
 from app.domains.scheduling.application.jornada import transition_visit
 from app.domains.scheduling.domain.visit_states import operational_state
@@ -101,6 +106,9 @@ async def test_full_daily_handoff_is_audited_and_retry_safe(client, db_session, 
     assert arrival.json()["estado_operativo"] == "en_sala"
     assert arrival.json()["gabinete_nombre"] == "Gabinete jornada"
     assert arrival.json()["llegada_at"]
+    future_visits = await client.get(f"/api/pacientes/{appointment.paciente_id}/citas", headers=reception)
+    assert future_visits.status_code == 200, future_visits.text
+    assert next(row for row in future_visits.json() if row["id"] == str(appointment.id))["gabinete_nombre"] == "Gabinete jornada"
     repeated = await client.post(base + "/llegada", headers=reception)
     assert repeated.json()["llegada_at"] == arrival.json()["llegada_at"]
     # Opening the patient/appointment never starts clinical attention.
@@ -431,3 +439,20 @@ async def test_lifecycle_migration_rollback_preserves_visit_data(db_session, jor
         assert event.datos["antes"]["estado"] == "en_atencion"
         assert event.datos["antes"]["atencion_iniciada_at"]
         await checkpoint.rollback()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("date,utc_hour", [("2030-01-07", 8), ("2030-07-01", 7)])
+async def test_clinic_hours_use_local_time_in_winter_and_summer(db_session, jornada_data, date, utc_hour):
+    appointment, _, _, _ = jornada_data
+    day = datetime.fromisoformat(date).replace(tzinfo=ZoneInfo("Europe/Madrid"))
+    db_session.add(HorarioDoctor(doctor_id=appointment.doctor_id, dia_semana=day.weekday(), tipo_dia="laborable", bloques=[{"inicio": "09:00", "fin": "10:00"}], intervalo_min=15))
+    await db_session.commit()
+    start = day.replace(hour=9).astimezone(timezone.utc)
+    assert start.hour == utc_hour
+    assert await esta_dentro_disponibilidad(db_session, appointment.doctor_id, start, 15)
+    assert not await esta_dentro_disponibilidad(db_session, appointment.doctor_id, start - timedelta(minutes=15), 15)
+    slots = await buscar_huecos_libres(db_session, appointment.doctor_id, 15, day.astimezone(timezone.utc), day.replace(hour=23).astimezone(timezone.utc))
+    assert len(slots) == 4
+    assert slots[0].fecha_hora_inicio == start
+    assert slots[0].fecha_hora_inicio.astimezone(ZoneInfo("Europe/Madrid")).hour == 9

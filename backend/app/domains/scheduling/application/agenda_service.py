@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import TokenData
 from app.domains.identity.persistence.doctor import Doctor
+from app.domains.scheduling.application.clinic_time import clinic_datetime
 from app.domains.scheduling.domain.visit_states import BLOCKING_STATES
 from app.domains.scheduling.persistence.cita import Cita
 from app.domains.scheduling.persistence.gabinete import Gabinete
@@ -87,7 +88,7 @@ async def get_horario_dia(
     Primero busca excepción para esa fecha; si no existe, usa el horario semanal.
     Devuelve ([], 10) si el doctor no trabaja ese día.
     """
-    fecha_date = fecha.date()
+    fecha_date = clinic_datetime(fecha).date()
     dia_semana = fecha_date.weekday()  # 0=Lunes
 
     # 1. Buscar excepción para esa fecha exacta
@@ -123,7 +124,8 @@ async def get_horario_dia(
 
 
 def _parse_hora(hora_str: str, fecha: datetime) -> datetime:
-    """Convierte "HH:MM" en datetime con la fecha dada (UTC-aware si fecha lo es)."""
+    """Resolve a schedule wall time on the clinic's local calendar day."""
+    fecha = clinic_datetime(fecha)
     h, m = map(int, hora_str.split(":"))
     dt = fecha.replace(hour=h, minute=m, second=0, microsecond=0)
     return dt
@@ -135,6 +137,7 @@ async def esta_dentro_disponibilidad(
     fecha_hora: datetime,
     duracion_min: int,
 ) -> bool:
+    fecha_hora = clinic_datetime(fecha_hora)
     bloques, _ = await get_horario_dia(db, doctor_id, fecha_hora)
     if not bloques:
         return False
@@ -167,6 +170,7 @@ async def buscar_huecos_libres(
     solo_tarde: solo huecos en bloques que empiezan desde las 14h.
     """
     huecos: list[HuecoLibre] = []
+    desde, hasta = clinic_datetime(desde), clinic_datetime(hasta)
     # Normalizar: empezar desde el inicio del día `desde`
     fecha_actual = desde.replace(hour=0, minute=0, second=0, microsecond=0)
     hasta_normalizado = hasta.replace(hour=23, minute=59, second=59, microsecond=0)

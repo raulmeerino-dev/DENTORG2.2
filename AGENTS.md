@@ -1,5 +1,15 @@
 # AGENTS.md — DentCore
 
+## Autoridad y organización
+
+Leer primero `DENTCORE_CODEX_ASTRA_OPERATING_GUIDE_V2.md`. Sus decisiones de producto prevalecen sobre instrucciones históricas de este archivo; la integridad clínica, económica, de seguridad y trazabilidad prevalece siempre. `DENTCORE_ASTRA_EXECUTION_PROMPTS.md` describe el alcance de la modernización.
+
+Backend: monolito modular en `app/domains/{identity,patients,scheduling,clinical,treatment_plans,billing,communications,laboratory,inventory,reporting,ai}`. Los adaptadores HTTP viven en `api`, los casos de uso en `application`, las reglas en `domain`, los modelos en `persistence` y los contratos en `schemas`. `core` contiene infraestructura transversal, nunca reglas clínicas. No recrear los antiguos directorios globales `app/api`, `models`, `schemas` o `services`. Registrar modelos de Alembic en `core/model_registry.py`; mover Python no implica migrar tablas.
+
+Frontend: `app` contiene composición, rutas y shell; `api` contratos de transporte por dominio; `domains` flujos de producto; `design-system` primitivas y tokens; `shared` utilidades transversales justificadas. Consumir clientes API de dominio directamente. Demo solo mediante adaptador explícito, nunca como rescate de un fallo de producción. Colocar tests unitarios junto a la responsabilidad que validan; los recorridos de navegador van en `frontend/e2e`.
+
+Trabajar incrementalmente: migrar consumidores, validar y retirar legacy sin consumidores. Mantener checkpoints separados por responsabilidad. No pedir aprobación para refactors o mejoras visuales autorizadas. Parar solo ante los riesgos humanos descritos en la guía.
+
 ## Rol del asistente
 
 Actúa como un senior full-stack engineer, product designer y consultor experto en software de gestión dental.
@@ -17,11 +27,11 @@ No copies interfaces antiguas. Copia la funcionalidad, el flujo y la eficiencia,
 DentCore ya está bastante avanzado.
 
 Estructura principal:
-- Hoy
+- Jornada (Operativa y Agenda comparten contexto)
 - Pacientes
-- Agenda
 - Caja
-- Admin
+- Listados
+- Ajustes (administración por permisos)
 
 Dentro de Pacientes:
 - Ficha
@@ -64,7 +74,7 @@ El proyecto ya no está en fase de prototipo. Está en fase de producto avanzado
 7. Priorizar flujo real de clínica sobre estética superficial.
 8. Todo cambio clínico o económico debe mantener trazabilidad.
 9. Todo endpoint sensible debe respetar permisos y `clinica_id`.
-10. Si hay duda, primero auditar y proponer; después implementar.
+10. Inspeccionar internamente y ejecutar lo autorizado; consultar solo decisiones clínicas, legales o riesgos graves que requieran intervención humana.
 
 ---
 
@@ -74,10 +84,10 @@ DentCore debe sentirse como un software dental moderno, no como una tabla admini
 
 Objetivo visual:
 - Jerarquía clara.
-- Tarjetas limpias.
+- Paneles continuos, toolbars y tabs compactas; tarjetas solo para unidades independientes.
 - Acciones principales visibles.
 - Acciones secundarias en menús o drawers.
-- Formularios largos en modales/drawers.
+- Acciones de segundos en overlays; tareas de minutos en pantallas dedicadas dentro del shell; trabajo de horas en workspaces.
 - Estados visuales claros.
 - Menos bordes y ruido.
 - Más espacio útil.
@@ -271,7 +281,7 @@ Para cada tarea:
 1. Revisar el estado actual del repo.
 2. Identificar archivos afectados.
 3. Evitar duplicar funcionalidad.
-4. Proponer el plan brevemente si la tarea es grande.
+4. Dividir internamente las tareas grandes en fases completas y verificables.
 5. Implementar de forma incremental.
 6. Ejecutar comprobaciones.
 7. Resumir:

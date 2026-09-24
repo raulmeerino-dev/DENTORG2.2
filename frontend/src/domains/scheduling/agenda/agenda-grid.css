@@ -1,0 +1,42 @@
+.agenda-resource-workspace.agenda-slots { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden !important; }
+.agenda-resource-workspace > .agenda-status-legend { flex: 0 0 auto; position: static; flex-wrap: wrap; }
+.agenda-resource-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
+.agenda-resource-grid { width: 100%; }
+.agenda-resource-heading, .agenda-resource-row { display: grid; grid-template-columns: var(--agenda-columns); }
+.agenda-resource-heading { position: sticky; top: 0; z-index: 8; background: var(--dc-surface); border-bottom: 1px solid var(--dc-border); }
+.agenda-resource-heading > * { min-width: 0; padding: 9px 8px; font-size: .76rem; border-right: 1px solid var(--dc-border); overflow-wrap: anywhere; }
+.agenda-resource-heading > strong { border-top: 3px solid var(--doctor-color); }
+.agenda-resource-heading > span, .agenda-resource-time { position: sticky; left: 0; z-index: 6; background: var(--dc-surface); }
+.agenda-resource-heading > span { z-index: 9; }
+.agenda-resource-row { border-bottom: 1px solid var(--dc-border); }
+.agenda-resource-time { min-height: 30px; padding: 7px 4px; font-size: .71rem; font-variant-numeric: tabular-nums; text-align: center; border-right: 1px solid var(--dc-border); color: var(--dc-muted); }
+.agenda-resource-time small { display: block; color: var(--dc-primary); font-size: .6rem; }
+.is-current-time { border-top: 2px solid var(--dc-primary); }
+.agenda-resource-cell { min-width: 0; min-height: 30px; display: flex; flex-direction: column; gap: 3px; border-right: 1px solid var(--dc-border); padding: 3px; background: var(--dc-surface); }
+.agenda-resource-cell.outside-hours { background: repeating-linear-gradient(-45deg, var(--dc-surface), var(--dc-surface) 5px, var(--dc-surface-soft) 5px, var(--dc-surface-soft) 6px); }
+.agenda-create-slot { min-height: 24px; flex: 1; border: 0; background: transparent; color: var(--dc-muted); text-align: center; font-size: .7rem; cursor: pointer; }
+.agenda-create-slot:hover:not(:disabled), .agenda-create-slot:focus-visible { background: var(--dc-primary-soft); color: var(--dc-primary); }
+.agenda-resource-appointment { min-width: 0; padding: 7px; border: 1px solid var(--dc-border); border-left: 3px solid var(--doctor-color); border-radius: 3px; background: var(--dc-surface); cursor: pointer; box-shadow: none; }
+.agenda-resource-appointment:hover { border-color: var(--dc-primary); }
+.agenda-resource-appointment:focus-visible { outline: 2px solid var(--dc-primary); outline-offset: 1px; }
+.agenda-resource-appointment.has-overlap { border-color: var(--dc-danger, #b42318); border-left-width: 4px; }
+.agenda-resource-appointment-title { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 6px; }
+.agenda-resource-appointment-title b { font-size: .61rem; line-height: 1.25; padding: 2px 3px; border-radius: 3px; background: var(--dc-surface-soft); }
+.agenda-resource-appointment-title strong { font-size: .78rem; overflow-wrap: anywhere; }
+.agenda-resource-appointment-title em { font-size: .65rem; color: var(--dc-muted); font-style: normal; white-space: nowrap; }
+.agenda-resource-appointment > p { margin: 4px 0; font-size: .73rem; overflow-wrap: anywhere; }
+.agenda-resource-appointment-state { display: flex; flex-wrap: wrap; gap: 3px 8px; font-size: .65rem; color: var(--dc-muted); }
+.agenda-resource-appointment.state-clinic { background: var(--dc-warning-soft, #fffaeb); }
+.agenda-resource-appointment.state-treatment { background: var(--dc-primary-soft, #eef7fa); }
+.agenda-resource-appointment.state-done { background: var(--dc-success-soft, #eefaf3); }
+.agenda-resource-appointment:is(.state-cancelled, .state-missed) { opacity: .75; border-left-color: var(--dc-muted); }
+.agenda-resource-appointment .agenda-appointment-flags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 5px; }
+.agenda-resource-appointment .agenda-appointment-flags > * { font-size: .64rem; padding: 2px 4px; border-radius: 3px; background: var(--dc-warning-soft, #fffaeb); color: var(--dc-warning, #955511); overflow-wrap: anywhere; }
+.agenda-resource-appointment .agenda-appointment-flags > :is(.agenda-overlap-flag, .agenda-urgency-flag) { color: var(--dc-danger, #b42318); background: var(--dc-danger-soft, #fff0ee); }
+.agenda-resource-lab { display: grid; gap: 2px; margin-top: 5px; font-size: .64rem; color: var(--dc-warning, #955511); overflow-wrap: anywhere; }
+.agenda-resource-actions { display: flex; flex-wrap: wrap; gap: 4px; padding-top: 6px; margin-top: 5px; border-top: 1px solid var(--dc-border); }
+.agenda-resource-actions button { min-height: 26px; padding: 3px 7px; border: 1px solid var(--dc-border); border-radius: 3px; background: var(--dc-surface); font-size: .66rem; font-weight: 650; }
+.agenda-resource-actions button:hover:not(:disabled) { border-color: var(--dc-primary); color: var(--dc-primary); }
+.agenda-resource-continuation { display: flex; flex-wrap: wrap; gap: 3px; padding-left: 5px; border-left: 3px solid var(--dc-border); background: var(--dc-surface-soft); }
+.agenda-resource-continuation button { border: 0; background: transparent; padding: 3px; color: var(--dc-muted); font-size: .63rem; }
+@media (max-width: 700px) { .agenda-resource-heading > * { padding: 6px; } .agenda-resource-actions button { min-height: 30px; } }

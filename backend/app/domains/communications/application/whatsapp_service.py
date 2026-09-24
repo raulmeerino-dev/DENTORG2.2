@@ -25,6 +25,7 @@ from app.domains.patients.persistence.paciente import Paciente
 from app.domains.scheduling.application.agenda_service import (
     validar_reserva,
 )
+from app.domains.scheduling.application.clinic_time import clinic_datetime
 from app.domains.scheduling.persistence.cita import (
     Cita,
     CitaCambio,
@@ -507,6 +508,7 @@ async def reschedule_whatsapp_appointment(
     user: TokenData,
     request: Request | None = None,
 ) -> str:
+    data = data.model_copy(update={"fecha_hora": clinic_datetime(data.fecha_hora)})
     if not communication.appointment_id:
         raise ValueError("La comunicacion no tiene cita asociada.")
     cita = await db.scalar(select(Cita).where(Cita.id == communication.appointment_id).with_for_update().execution_options(populate_existing=True))

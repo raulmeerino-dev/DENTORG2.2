@@ -27,6 +27,7 @@ from app.domains.scheduling.application.agenda_service import (
     get_horario_dia,
     validar_reserva,
 )
+from app.domains.scheduling.application.clinic_time import clinic_datetime
 from app.domains.scheduling.application.visit_lifecycle import (
     VISIT_STATES,
     apply_visit_state,
@@ -354,6 +355,7 @@ async def listar_citas(db: AsyncSession, current_user: TokenData, doctor_id: UUI
 
 
 async def crear_cita(data: CitaCreate, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
+    data = data.model_copy(update={"fecha_hora": clinic_datetime(data.fecha_hora)})
     pac = await db.get(Paciente, data.paciente_id)
     if not pac:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -446,7 +448,7 @@ async def disponibilidad_doctor(db: AsyncSession, current_user: TokenData, docto
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
     ensure_clinic_access(current_user, doctor.clinica_id)
     disponibilidad = []
-    fecha_base = desde.replace(hour=0, minute=0, second=0, microsecond=0)
+    fecha_base = clinic_datetime(desde).replace(hour=0, minute=0, second=0, microsecond=0)
     for index in range(dias):
         fecha = fecha_base + timedelta(days=index)
         bloques, intervalo = await get_horario_dia(db, doctor_id, fecha)
@@ -461,6 +463,7 @@ async def disponibilidad_doctor(db: AsyncSession, current_user: TokenData, docto
 
 
 async def reprogramar_cita(cita_id: UUID, data: CitaReprogramar, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
+    data = data.model_copy(update={"fecha_hora": clinic_datetime(data.fecha_hora)})
     cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
     ensure_visit_not_started(cita)
@@ -704,6 +707,8 @@ async def enviar_recordatorio(cita_id: UUID, data: RecordatorioCreate, request: 
 
 
 async def actualizar_cita(cita_id: UUID, data: CitaUpdate, request: Request, db: AsyncSession, current_user: TokenData) -> CitaResponse:
+    if data.fecha_hora is not None:
+        data = data.model_copy(update={"fecha_hora": clinic_datetime(data.fecha_hora)})
     cita = await _get_cita_or_404(db, cita_id, lock=True)
     ensure_clinic_access(current_user, cita.clinica_id)
     old = _snapshot_cita(cita)

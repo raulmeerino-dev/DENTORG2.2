@@ -255,6 +255,7 @@ class JornadaConfigResponse(BaseModel):
     espera_aviso_min: int
     espera_critica_min: int
     duracion_habitual_min: int = 30
+    zona_horaria: str = "Europe/Madrid"
 
 
 class PacienteProvisionalCreate(PacienteBase):

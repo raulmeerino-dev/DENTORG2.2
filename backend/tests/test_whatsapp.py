@@ -11,6 +11,7 @@ from app.domains.communications.persistence.whatsapp import WhatsAppComunicacion
 from app.domains.identity.persistence.doctor import Doctor
 from app.domains.identity.persistence.usuario import Usuario
 from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.application.clinic_time import clinic_datetime
 from app.domains.scheduling.persistence.cita import Cita, CitaCambio, CitaTelefonear
 from app.domains.scheduling.persistence.horario import HorarioDoctor
 
@@ -258,7 +259,7 @@ async def test_whatsapp_webhook_duplicado_no_duplica_comunicacion(client: AsyncC
 @pytest.mark.asyncio
 async def test_whatsapp_reprograma_manual_y_evita_solape(client: AsyncClient, db_session: AsyncSession):
     headers = await auth_headers(client, db_session)
-    fecha = next_weekday(9)
+    fecha = clinic_datetime(next_weekday(9)).replace(hour=9)
     cita = await create_patient_cita(client, db_session, phone="600777777", fecha_hora=fecha)
     db_session.add(HorarioDoctor(
         doctor_id=cita.doctor_id,
@@ -304,7 +305,7 @@ async def test_whatsapp_reprograma_manual_y_evita_solape(client: AsyncClient, db
     assert moved.json()["appointment"]["estado"] == "rescheduled"
     await db_session.refresh(cita)
     assert cita.estado == "rescheduled"
-    assert cita.fecha_hora.hour == 11
+    assert clinic_datetime(cita.fecha_hora).hour == 11
     telefonear = await db_session.scalar(select(CitaTelefonear).where(CitaTelefonear.cita_original_id == cita.id))
     assert telefonear is not None
     assert telefonear.reubicada is True

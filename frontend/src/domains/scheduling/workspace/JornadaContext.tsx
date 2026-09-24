@@ -1,0 +1,83 @@
+/* Context and its provider intentionally share one typed boundary. */
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useMemo } from 'react';
+import type { ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { getCitas } from '../../../api/scheduling';
+import { getDoctores } from '../../../api/identity';
+import { getVisualStatus } from '../agenda/appointmentStatus';
+import { todayIso, localAppointmentDate } from '../agenda/agendaTime';
+import { citaMatchesQuery } from '../agenda/agendaSearch';
+import type { Cita, Doctor } from '../../../api/types';
+
+export function dayAppointmentsQuery(day: string) {
+  const range = { fecha_desde: new Date(`${day}T00:00:00`).toISOString(), fecha_hasta: new Date(`${day}T23:59:59.999`).toISOString() };
+  return { queryKey: ['citas', range], queryFn: () => getCitas(range), refetchInterval: 15_000 };
+}
+
+interface JornadaState {
+  day: string; setDay: (value: string) => void;
+  doctorId: string; setDoctorId: (value: string) => void;
+  gabineteId: string; setGabineteId: (value: string) => void;
+  searchQuery: string; setSearchQuery: (value: string) => void;
+  status: string; setStatus: (value: string) => void;
+  selectedCitaId: string | null; selectCita: (value: string | null) => void;
+  focusCita: (cita: Cita) => void;
+  focusSlot: (slot: { day: string; doctorId: string }) => void;
+  citasQuery: ReturnType<typeof useQuery<Cita[], Error>>;
+  citas: Cita[];
+  doctores: Doctor[];
+}
+
+const JornadaContext = createContext<JornadaState | null>(null);
+
+export function JornadaProvider({ children }: { children: ReactNode }) {
+  const [params, setParams] = useSearchParams();
+  const requestedDay = params.get('fecha') ?? '';
+  const parsedDay = new Date(`${requestedDay}T12:00:00`);
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(requestedDay) && !Number.isNaN(parsedDay.getTime()) && localAppointmentDate(parsedDay.toISOString()) === requestedDay ? requestedDay : todayIso();
+  const doctorId = params.get('doctor_id') ?? '';
+  const gabineteId = params.get('gabinete_id') ?? '';
+  const searchQuery = params.get('q') ?? '';
+  const status = params.get('estado') ?? '';
+  const citasQuery = useQuery(dayAppointmentsQuery(day));
+  const doctorsQuery = useQuery({ queryKey: ['doctores'], queryFn: getDoctores });
+  const citas = useMemo(() => (citasQuery.data ?? []).filter(cita =>
+    (!doctorId || cita.doctor_id === doctorId)
+    && (!gabineteId || cita.gabinete_id === gabineteId)
+    && (!status || getVisualStatus(cita) === status)
+    && (!searchQuery || citaMatchesQuery(cita, [], searchQuery)),
+  ), [citasQuery.data, doctorId, gabineteId, searchQuery, status]);
+
+  function change(key: string, value: string | null) {
+    setParams(previous => {
+      const next = new URLSearchParams(previous);
+      if (value) next.set(key, value); else next.delete(key);
+      if (key === 'fecha') next.delete('cita_id');
+      return next;
+    }, { replace: true });
+  }
+
+  return <JornadaContext.Provider value={{
+    day, setDay: value => change('fecha', value),
+    doctorId, setDoctorId: value => change('doctor_id', value),
+    gabineteId, setGabineteId: value => change('gabinete_id', value),
+    searchQuery, setSearchQuery: value => change('q', value),
+    status, setStatus: value => change('estado', value),
+    selectedCitaId: params.get('cita_id'), selectCita: value => change('cita_id', value),
+    focusCita: cita => setParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('fecha', localAppointmentDate(cita.fecha_hora)); next.set('doctor_id', cita.doctor_id); next.set('cita_id', cita.id);
+      return next;
+    }),
+    focusSlot: slot => setParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('fecha', slot.day); next.set('doctor_id', slot.doctorId); next.delete('cita_id');
+      return next;
+    }),
+    citasQuery, citas, doctores: doctorsQuery.data ?? [],
+  }}>{children}</JornadaContext.Provider>;
+}
+
+export function useJornada() { return useContext(JornadaContext); }

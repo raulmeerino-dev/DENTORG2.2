@@ -24,30 +24,10 @@
 /* 1. Shell global — anclar la altura y prohibir el scroll de página  */
 /* ------------------------------------------------------------------ */
 
-html,
-body,
-#root {
+html, body, #root {
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
-}
-
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.main-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 8px;
 }
 
 /* Una página ocupa todo el alto de main-content. Por defecto deja que su
@@ -55,9 +35,7 @@ body,
  * Login, MisCitas...). Las pantallas principales (pacientes, hoy, agenda,
  * caja) sobreescriben este `overflow` más abajo a `hidden` porque tienen
  * arquitectura de scroll interna explícita. */
-.main-content > .page,
-.main-content > section.page,
-.main-content > .page-shell {
+.main-content > .page, .main-content > section.page, .main-content > .page-shell {
   flex: 1 1 auto;
   min-height: 0;
   min-width: 0;
@@ -67,10 +45,7 @@ body,
 }
 
 /* Bloqueo del scroll global para las pantallas con scroll interno modular. */
-.main-content > .patient-screen,
-.main-content > .caja-screen,
-.main-content > .agenda-dentcore,
-.main-content > .hoy-page {
+.main-content > .patient-screen, .main-content > .caja-screen {
   overflow: hidden;
 }
 
@@ -124,12 +99,7 @@ body,
   overflow: hidden;
 }
 
-.patient-screen > .patient-titlebar,
-.patient-screen > .patient-module-tabs,
-.patient-screen > .patient-command-row,
-.patient-screen > .patient-summary-strip,
-.patient-screen > .inline-alert,
-.patient-screen > .patient-loading-strip {
+.patient-screen > .patient-titlebar, .patient-screen > .patient-module-tabs, .patient-screen > .patient-command-row, .patient-screen > .patient-summary-strip, .patient-screen > .inline-alert, .patient-screen > .patient-loading-strip {
   flex: 0 0 auto;
 }
 
@@ -191,8 +161,7 @@ body,
   overflow: hidden;
 }
 
-.complete-history-panel > .complete-history-head,
-.complete-history-panel > .history-filter-tabs {
+.complete-history-panel > .complete-history-head, .complete-history-panel > .history-filter-tabs {
   flex: 0 0 auto;
 }
 
@@ -218,9 +187,7 @@ body,
   overflow: hidden;
 }
 
-.budget-main-workspace > .inline-alert,
-.budget-main-workspace > .presupuesto-selector,
-.budget-main-workspace > .budget-closed-notice {
+.budget-main-workspace > .inline-alert, .budget-main-workspace > .presupuesto-selector, .budget-main-workspace > .budget-closed-notice {
   flex: 0 0 auto;
 }
 
@@ -238,72 +205,17 @@ body,
 /* 7. Agenda — toolbar fijo, layout interno con scroll por columna    */
 /* ------------------------------------------------------------------ */
 
-.agenda-dentcore {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.agenda-dentcore > .agenda-toolbar,
-.agenda-dentcore > .inline-alert,
-.agenda-dentcore > .patient-loading-strip {
+.agenda-dentcore > .agenda-toolbar, .agenda-dentcore > .inline-alert, .agenda-dentcore > .patient-loading-strip {
   flex: 0 0 auto;
 }
 
-.agenda-dentcore > .agenda-layout {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(248px, 290px) minmax(0, 1fr);
-  gap: 8px;
-  overflow: hidden;
-}
-
 @media (max-width: 1100px) {
-  .agenda-dentcore > .agenda-layout {
-    grid-template-columns: 1fr;
-  }
 }
 
 
 /* ------------------------------------------------------------------ */
 /* 8. Hoy — KPIs y alertas fijos, agenda + side scrollean             */
 /* ------------------------------------------------------------------ */
-
-.hoy-page {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow: hidden;
-}
-
-.hoy-page > .dashboard-metrics,
-.hoy-page > .inline-alert,
-.hoy-page > .patient-loading-strip {
-  flex: 0 0 auto;
-}
-
-.hoy-page > .hoy-layout {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.hoy-page .hoy-agenda,
-.hoy-page .hoy-side > section,
-.hoy-page .hoy-citas-table-wrap {
-  min-height: 0;
-  min-width: 0;
-  overflow: auto;
-}
 
 
 /* ------------------------------------------------------------------ */
@@ -320,10 +232,7 @@ body,
   overflow: hidden;
 }
 
-.caja-screen > .panel-caption,
-.caja-screen > .dashboard-metrics,
-.caja-screen > .caja-tabs,
-.caja-screen > .inline-alert {
+.caja-screen > .panel-caption, .caja-screen > .dashboard-metrics, .caja-screen > .caja-tabs, .caja-screen > .inline-alert {
   flex: 0 0 auto;
 }
 
@@ -348,15 +257,7 @@ body,
 /* 11. Seguridad: nunca permitir scroll horizontal                    */
 /* ------------------------------------------------------------------ */
 
-.main-content,
-.patient-desk,
-.clinical-workspace,
-.agenda-dentcore,
-.agenda-layout,
-.caja-screen,
-.hoy-page,
-.complete-history-panel,
-.budget-main-workspace {
+.patient-desk, .clinical-workspace, .caja-screen, .complete-history-panel, .budget-main-workspace {
   overflow-x: hidden;
 }
 
@@ -366,41 +267,22 @@ body,
 /* ------------------------------------------------------------------ */
 
 /* Scrollbars discretas en regiones con scroll interno (WebKit/Chromium). */
-.scroll-region::-webkit-scrollbar,
-.module-body::-webkit-scrollbar,
-.patient-desk *::-webkit-scrollbar,
-.complete-history-panel > .complete-history-layout::-webkit-scrollbar,
-.caja-screen > .caja-table-wrap::-webkit-scrollbar,
-.hoy-page .hoy-agenda::-webkit-scrollbar,
-.budget-main-workspace > *::-webkit-scrollbar,
-.clinical-workspace > *::-webkit-scrollbar {
+.scroll-region::-webkit-scrollbar, .module-body::-webkit-scrollbar, .patient-desk *::-webkit-scrollbar, .complete-history-panel > .complete-history-layout::-webkit-scrollbar, .caja-screen > .caja-table-wrap::-webkit-scrollbar, .budget-main-workspace > *::-webkit-scrollbar, .clinical-workspace > *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-.scroll-region::-webkit-scrollbar-thumb,
-.module-body::-webkit-scrollbar-thumb,
-.patient-desk *::-webkit-scrollbar-thumb,
-.complete-history-panel > .complete-history-layout::-webkit-scrollbar-thumb,
-.caja-screen > .caja-table-wrap::-webkit-scrollbar-thumb,
-.hoy-page .hoy-agenda::-webkit-scrollbar-thumb,
-.budget-main-workspace > *::-webkit-scrollbar-thumb,
-.clinical-workspace > *::-webkit-scrollbar-thumb {
+.scroll-region::-webkit-scrollbar-thumb, .module-body::-webkit-scrollbar-thumb, .patient-desk *::-webkit-scrollbar-thumb, .complete-history-panel > .complete-history-layout::-webkit-scrollbar-thumb, .caja-screen > .caja-table-wrap::-webkit-scrollbar-thumb, .budget-main-workspace > *::-webkit-scrollbar-thumb, .clinical-workspace > *::-webkit-scrollbar-thumb {
   background: rgba(96, 113, 127, 0.28);
   border-radius: 999px;
 }
 
-.scroll-region:hover::-webkit-scrollbar-thumb,
-.module-body:hover::-webkit-scrollbar-thumb,
-.complete-history-panel > .complete-history-layout:hover::-webkit-scrollbar-thumb,
-.caja-screen > .caja-table-wrap:hover::-webkit-scrollbar-thumb {
+.scroll-region:hover::-webkit-scrollbar-thumb, .module-body:hover::-webkit-scrollbar-thumb, .complete-history-panel > .complete-history-layout:hover::-webkit-scrollbar-thumb, .caja-screen > .caja-table-wrap:hover::-webkit-scrollbar-thumb {
   background: rgba(96, 113, 127, 0.45);
 }
 
 /* Sticky thead para tablas dentro de .scroll-region / .caja-table-wrap. */
-.caja-table-wrap .dentcore-table thead th,
-.scroll-region table.dentcore-table thead th,
-.module-body table.dentcore-table thead th {
+.caja-table-wrap .dentcore-table thead th, .scroll-region table.dentcore-table thead th, .module-body table.dentcore-table thead th {
   position: sticky;
   top: 0;
   z-index: 2;
@@ -412,14 +294,11 @@ body,
 /* 13. Modo oscuro: respetar superficies ya definidas                 */
 /* ------------------------------------------------------------------ */
 
-html[data-theme="dark"] .scroll-region::-webkit-scrollbar-thumb,
-html[data-theme="dark"] .module-body::-webkit-scrollbar-thumb {
+html[data-theme="dark"] .scroll-region::-webkit-scrollbar-thumb, html[data-theme="dark"] .module-body::-webkit-scrollbar-thumb {
   background: rgba(138, 163, 177, 0.32);
 }
 
-html[data-theme="dark"] .caja-table-wrap .dentcore-table thead th,
-html[data-theme="dark"] .scroll-region table.dentcore-table thead th,
-html[data-theme="dark"] .module-body table.dentcore-table thead th {
+html[data-theme="dark"] .caja-table-wrap .dentcore-table thead th, html[data-theme="dark"] .scroll-region table.dentcore-table thead th, html[data-theme="dark"] .module-body table.dentcore-table thead th {
   background: #132b3a;
 }
 
@@ -441,9 +320,7 @@ html[data-theme="dark"] .module-body table.dentcore-table thead th {
   }
 }
 
-html,
-body,
-#root {
+html, body, #root {
   width: 100%;
   height: var(--app-window-height);
   max-height: var(--app-window-height);
@@ -456,40 +333,8 @@ body {
   margin: 0;
 }
 
-.app-shell {
-  height: var(--app-window-height);
-  max-height: var(--app-window-height);
-  min-height: 0;
-  overflow: hidden !important;
-}
-
-.dentcore-shell-header {
-  flex: 0 0 auto;
-  min-height: 0;
-  overflow: visible;
-}
-
-.app-launcher-shell {
-  flex: 0 0 auto;
-  overflow: visible !important;
-}
-
-.app-launcher-bar {
-  height: var(--app-topbar-height) !important;
-  min-height: var(--app-topbar-height) !important;
-  padding: 0 10px !important;
-}
-
-.app-brand,
-.app-context-pill,
-.app-role-pill,
-.app-exit-button {
+.app-context-pill, .app-role-pill, .app-exit-button {
   min-height: 26px;
-}
-
-.app-brand-logo {
-  width: 26px !important;
-  height: 26px !important;
 }
 
 .dentcore-main-nav {
@@ -513,14 +358,6 @@ body {
   height: 2px !important;
 }
 
-.main-content {
-  flex: 1 1 auto;
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden !important;
-  padding: var(--app-workspace-gap) !important;
-}
-
 .main-content > .page {
   min-height: 0;
 }
@@ -538,15 +375,11 @@ body {
   gap: 6px !important;
 }
 
-.patient-selector-bar .patient-finder input,
-.patient-selector-bar .patient-actions-primary button,
-.patient-selector-current,
-.patient-action-menu-trigger {
+.patient-selector-bar .patient-finder input, .patient-selector-bar .patient-actions-primary button, .patient-selector-current, .patient-action-menu-trigger {
   min-height: 28px !important;
 }
 
-.patient-selector-bar .patient-actions-primary button,
-.patient-action-menu-trigger {
+.patient-selector-bar .patient-actions-primary button, .patient-action-menu-trigger {
   padding: 0 8px !important;
 }
 
@@ -636,8 +469,7 @@ body {
   min-height: 0;
 }
 
-.patient-dashboard-mode .patient-desk > div,
-.patient-screen.no-bottom-bar .patient-desk > div {
+.patient-dashboard-mode .patient-desk > div, .patient-screen.no-bottom-bar .patient-desk > div {
   min-height: 0;
   overflow: hidden;
 }
@@ -673,8 +505,7 @@ body {
   overflow: hidden !important;
 }
 
-.clinical-subtabs,
-.treatment-subtabs {
+.clinical-subtabs, .treatment-subtabs {
   flex: 0 0 auto;
   min-height: 30px !important;
   margin: 0 0 4px !important;
@@ -685,8 +516,7 @@ body {
   scrollbar-width: thin;
 }
 
-.clinical-subtabs button,
-.treatment-subtabs button {
+.clinical-subtabs button, .treatment-subtabs button {
   min-height: 26px !important;
   padding: 0 8px !important;
   white-space: nowrap;
@@ -698,14 +528,7 @@ body {
   scrollbar-width: thin;
 }
 
-.history-complete-workspace,
-.history-billing-dentcore,
-.complete-history-panel,
-.complete-history-layout,
-.history-ledger-scroll,
-.patient-documents-drawer,
-.patient-consent-drawer,
-.patient-recipes-drawer {
+.history-complete-workspace, .history-billing-dentcore, .complete-history-panel, .complete-history-layout, .history-ledger-scroll, .patient-documents-drawer, .patient-consent-drawer, .patient-recipes-drawer {
   min-height: 0 !important;
   scrollbar-width: thin;
 }
@@ -716,15 +539,11 @@ body {
   padding-bottom: 8px;
 }
 
-.budget-context-workspace,
-.budget-main-workspace,
-.patient-context-panel,
-.patient-budget-panel {
+.budget-context-workspace, .budget-main-workspace, .patient-context-panel, .patient-budget-panel {
   min-height: 0 !important;
 }
 
-.budget-context-workspace,
-.budget-main-workspace {
+.budget-context-workspace, .budget-main-workspace {
   overflow: hidden !important;
 }
 
@@ -739,10 +558,6 @@ body {
 }
 
 @media (max-width: 900px) {
-  .app-launcher-bar {
-    height: 44px !important;
-    min-height: 44px !important;
-  }
 
   .main-content > .patient-selector-bar {
     min-height: 38px;
@@ -809,17 +624,11 @@ body {
   background: var(--dc-bg);
 }
 
-button,
-a,
-input,
-select,
-textarea {
+button, a, input, select, textarea {
   min-width: 0;
 }
 
-button,
-select,
-input {
+button, select, input {
   min-height: 36px;
 }
 
@@ -828,38 +637,22 @@ button {
   text-wrap: balance;
 }
 
-main,
-section,
-article,
-aside,
-header,
-footer,
-nav,
-div {
+main, section, article, aside, header, footer, nav, div {
   min-width: 0;
 }
 
-.app-shell,
-.main-content,
-:is(.patient-screen, .agenda-dentcore, .hoy-page, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
+:is(.patient-screen, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
   background: var(--dc-bg) !important;
 }
 
-.main-content {
-  padding: var(--app-workspace-gap) !important;
-}
-
-:is(.desk-panel, .workspace-section, .billing-panel, .agenda-left-panel, .agenda-slots, .pending-call-panel, .caja-table-wrap, .admin-config-embedded, .settings-form) {
+:is(.desk-panel, .workspace-section, .billing-panel, .agenda-slots, .pending-call-panel, .caja-table-wrap, .admin-config-embedded, .settings-form) {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius-lg) !important;
   background: var(--dc-surface) !important;
   box-shadow: var(--dc-shadow-soft) !important;
 }
 
-.panel-caption,
-.toolbar,
-.modal-titlebar,
-.history-ledger-toolbar {
+.panel-caption, .toolbar, .modal-titlebar, .history-ledger-toolbar {
   min-height: 42px;
   align-items: center;
   gap: 10px;
@@ -874,19 +667,14 @@ div {
   flex-wrap: wrap;
 }
 
-.panel-caption strong,
-.toolbar h1,
-.modal-titlebar strong {
+.panel-caption strong, .toolbar h1, .modal-titlebar strong {
   overflow: visible;
   line-height: 1.25;
   text-overflow: clip;
   white-space: normal;
 }
 
-.panel-caption span,
-.toolbar p,
-.eyebrow,
-.modal-titlebar span {
+.panel-caption span, .toolbar p, .eyebrow, .modal-titlebar span {
   color: var(--dc-muted) !important;
   line-height: 1.3;
 }
@@ -922,8 +710,7 @@ textarea {
   background: var(--dc-surface) !important;
 }
 
-:is(.dentcore-table, .data-table, .history-ledger-table) th,
-:is(.dentcore-table, .data-table, .history-ledger-table) td {
+:is(.dentcore-table, .data-table, .history-ledger-table) th, :is(.dentcore-table, .data-table, .history-ledger-table) td {
   height: auto !important;
   min-height: 34px;
   padding: 8px 10px !important;
@@ -947,8 +734,7 @@ textarea {
   color: var(--dc-text) !important;
 }
 
-:is(.dentcore-table, .data-table, .history-ledger-table) .num,
-:is(.dentcore-table, .data-table, .history-ledger-table) .hash-cell {
+:is(.dentcore-table, .data-table, .history-ledger-table) .num, :is(.dentcore-table, .data-table, .history-ledger-table) .hash-cell {
   white-space: nowrap;
 }
 
@@ -968,109 +754,7 @@ textarea {
 /* 18. Top launcher and module menu                                   */
 /* ------------------------------------------------------------------ */
 
-.dentcore-shell-header.app-launcher-shell {
-  border: 0 !important;
-  background: var(--dc-surface) !important;
-  box-shadow: 0 1px 0 var(--dc-border), 0 8px 22px rgba(16, 43, 59, 0.05);
-}
-
-.app-launcher-bar {
-  height: var(--app-topbar-height) !important;
-  min-height: var(--app-topbar-height) !important;
-  padding: 7px 14px !important;
-  gap: 12px !important;
-  background: var(--dc-surface) !important;
-}
-
-.app-launcher-anchor {
-  flex: 1 1 auto;
-  max-width: 460px;
-}
-
-.app-launcher-trigger {
-  width: 100%;
-  min-height: 42px !important;
-  gap: 11px !important;
-  padding: 5px 12px 5px 7px !important;
-  border: 1px solid transparent !important;
-  border-radius: var(--dc-radius-lg) !important;
-  background: transparent !important;
-  color: var(--dc-text) !important;
-}
-
-.app-launcher-trigger:hover,
-.app-launcher-trigger[aria-expanded="true"] {
-  border-color: color-mix(in srgb, var(--dc-primary) 26%, var(--dc-border)) !important;
-  background: var(--dc-primary-soft) !important;
-  box-shadow: none !important;
-}
-
-.app-launcher-trigger .app-brand-mark {
-  flex: 0 0 34px;
-  width: 34px !important;
-  height: 34px !important;
-  border: 1px solid color-mix(in srgb, var(--dc-primary) 16%, var(--dc-border));
-  border-radius: 10px;
-  background: linear-gradient(180deg, #ffffff, var(--dc-surface-soft));
-}
-
-.app-launcher-trigger .app-brand-mark img {
-  width: 27px !important;
-  height: 27px !important;
-}
-
-.app-brand-copy {
-  gap: 2px !important;
-}
-
-.app-launcher-trigger strong {
-  max-width: 100%;
-  color: var(--dc-text) !important;
-  font-size: 1rem !important;
-  font-weight: 800;
-  line-height: 1.15 !important;
-}
-
-.app-launcher-trigger .title-clock {
-  max-width: none !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.78rem !important;
-  font-weight: 750;
-  line-height: 1.2 !important;
-}
-
-.app-launcher-chevron {
-  color: var(--dc-muted);
-}
-
-.dentcore-titlebar-context {
-  flex: 0 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  overflow: hidden;
-}
-
-:is(.clinic-chip, .role-chip, .staff-clock-trigger) {
-  min-height: 34px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: 999px !important;
-  padding: 0 10px !important;
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-text) !important;
-  line-height: 1;
-}
-
-.role-chip {
-  max-width: min(260px, 22vw);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:is(.theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger) {
+:is(.theme-toggle, .doctor-notifications-trigger) {
   width: 36px !important;
   height: 36px !important;
   min-height: 36px !important;
@@ -1078,75 +762,6 @@ textarea {
   border-radius: 10px !important;
   background: var(--dc-surface-soft) !important;
   color: var(--dc-primary) !important;
-}
-
-.app-launcher-exit {
-  min-height: 36px !important;
-  border-color: var(--dc-border) !important;
-  border-radius: 10px !important;
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-text) !important;
-}
-
-.module-launcher-menu {
-  top: calc(100% + 10px) !important;
-  width: min(440px, calc(100vw - 24px)) !important;
-  max-height: min(620px, calc(var(--app-window-height) - 82px)) !important;
-  gap: 6px !important;
-  padding: 9px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius-lg) !important;
-  background: var(--dc-surface) !important;
-  box-shadow: var(--dc-shadow-menu) !important;
-}
-
-.module-launcher-item {
-  min-height: 62px !important;
-  grid-template-columns: 40px minmax(0, 1fr) !important;
-  gap: 11px !important;
-  padding: 10px !important;
-  border: 1px solid transparent !important;
-  border-radius: var(--dc-radius) !important;
-  color: var(--dc-text) !important;
-}
-
-.module-launcher-item:hover {
-  border-color: color-mix(in srgb, var(--dc-primary) 22%, var(--dc-border)) !important;
-  background: var(--dc-surface-hover) !important;
-}
-
-.module-launcher-item.active {
-  border-color: color-mix(in srgb, var(--dc-primary) 34%, var(--dc-border)) !important;
-  background: var(--dc-primary-soft) !important;
-  box-shadow: inset 3px 0 0 var(--dc-primary) !important;
-}
-
-.module-launcher-icon {
-  width: 40px !important;
-  height: 40px !important;
-  border: 1px solid color-mix(in srgb, var(--dc-primary) 16%, var(--dc-border));
-  border-radius: 10px !important;
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-primary) !important;
-}
-
-.module-launcher-copy strong {
-  color: var(--dc-text) !important;
-  font-size: 0.95rem !important;
-  line-height: 1.2;
-}
-
-.module-launcher-copy small {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--dc-muted) !important;
-  font-size: 0.78rem !important;
-  font-weight: 650;
-  line-height: 1.28;
-  text-overflow: clip !important;
-  white-space: normal !important;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 
@@ -1167,10 +782,7 @@ textarea {
   gap: 8px !important;
 }
 
-.patient-selector-bar .patient-finder input,
-.patient-selector-current,
-.patient-actions-primary button,
-.patient-action-menu-trigger {
+.patient-selector-bar .patient-finder input, .patient-selector-current, .patient-actions-primary button, .patient-action-menu-trigger {
   min-height: 38px !important;
 }
 
@@ -1179,8 +791,7 @@ textarea {
   border-radius: var(--dc-radius) !important;
 }
 
-.patient-selector-current strong,
-.patient-selector-current small {
+.patient-selector-current strong, .patient-selector-current small {
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1226,8 +837,7 @@ textarea {
   box-shadow: inset 0 -2px 0 var(--dc-primary) !important;
 }
 
-.patient-summary-strip,
-.patient-priority-strip {
+.patient-summary-strip, .patient-priority-strip {
   margin-bottom: 8px !important;
   padding: 6px 8px !important;
   border-radius: var(--dc-radius) !important;
@@ -1258,8 +868,7 @@ textarea {
   gap: 10px !important;
 }
 
-.clinical-subtabs,
-.treatment-subtabs {
+.clinical-subtabs, .treatment-subtabs {
   min-height: 44px !important;
   margin-bottom: 8px !important;
   padding: 5px !important;
@@ -1267,8 +876,7 @@ textarea {
   border-radius: var(--dc-radius-lg) !important;
 }
 
-.clinical-subtabs button,
-.treatment-subtabs button {
+.clinical-subtabs button, .treatment-subtabs button {
   min-height: 34px !important;
   padding: 0 13px !important;
   border-radius: 999px !important;
@@ -1280,156 +888,6 @@ textarea {
 /* 20. Agenda                                                          */
 /* ------------------------------------------------------------------ */
 
-.agenda-dentcore {
-  gap: 8px;
-  padding: 0 !important;
-}
-
-.agenda-dentcore > .agenda-layout {
-  grid-template-columns: minmax(280px, 330px) minmax(0, 1fr) !important;
-  gap: 10px !important;
-}
-
-.agenda-compact-toolbar {
-  min-height: 64px !important;
-  display: grid !important;
-  grid-template-columns: minmax(145px, 170px) minmax(190px, 250px) minmax(94px, 110px) minmax(210px, 1fr) auto !important;
-  align-items: end !important;
-  gap: 10px !important;
-  margin: 0 !important;
-  padding: 10px !important;
-  border-radius: var(--dc-radius-lg) !important;
-}
-
-.agenda-compact-toolbar label {
-  gap: 5px !important;
-  min-width: 0;
-}
-
-.agenda-compact-toolbar label span,
-.agenda-toolbar-status span {
-  overflow: hidden;
-  line-height: 1.25;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.agenda-toolbar-status {
-  min-height: 38px !important;
-  padding: 6px 10px !important;
-  border-color: var(--dc-border) !important;
-  border-radius: var(--dc-radius-sm) !important;
-  background: var(--dc-surface) !important;
-}
-
-.agenda-toolbar-actions {
-  display: flex !important;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 6px !important;
-}
-
-.agenda-toolbar-actions button {
-  min-height: 36px !important;
-  padding: 0 11px !important;
-  border-radius: var(--dc-radius-sm) !important;
-  white-space: nowrap;
-}
-
-.agenda-toolbar-actions button.active {
-  border-color: color-mix(in srgb, var(--dc-primary) 35%, var(--dc-border)) !important;
-  background: var(--dc-primary-soft) !important;
-  color: var(--dc-primary) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-primary) 15%, transparent) !important;
-}
-
-.agenda-day-brief {
-  grid-template-columns: minmax(280px, 1.4fr) repeat(4, minmax(128px, 0.7fr)) !important;
-  gap: 8px !important;
-  margin: 0 !important;
-}
-
-.agenda-day-brief button {
-  min-height: 68px !important;
-  padding: 10px 12px !important;
-  border-radius: var(--dc-radius-lg) !important;
-}
-
-.agenda-day-brief strong {
-  overflow: visible !important;
-  display: -webkit-box !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
-
-.agenda-lab-summary {
-  margin: 0 !important;
-  padding: 8px 10px !important;
-  border-color: var(--dc-border) !important;
-  border-radius: var(--dc-radius-lg) !important;
-  background: var(--dc-surface-soft) !important;
-}
-
-.agenda-left-panel {
-  grid-template-rows: auto auto minmax(230px, auto) minmax(0, 1fr) auto !important;
-  gap: 8px !important;
-  padding: 10px !important;
-  overflow: auto;
-}
-
-.doctor-legend {
-  gap: 6px !important;
-}
-
-.doctor-legend span {
-  min-height: 28px !important;
-  padding: 4px 8px !important;
-  border-radius: 999px !important;
-  white-space: nowrap;
-}
-
-.month-caption {
-  min-height: 34px;
-  color: var(--dc-text) !important;
-  font-size: 1rem !important;
-}
-
-.month-grid {
-  overflow: hidden;
-  border-color: var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  background: var(--dc-surface) !important;
-}
-
-.month-grid strong,
-.month-grid button {
-  min-height: 36px !important;
-  border-color: color-mix(in srgb, var(--dc-border) 78%, transparent) !important;
-  background: var(--dc-surface) !important;
-  color: var(--dc-text) !important;
-  text-align: center !important;
-}
-
-.month-grid strong {
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-}
-
-.month-grid button:hover {
-  background: var(--dc-surface-hover) !important;
-}
-
-.month-grid button.active {
-  border-color: color-mix(in srgb, var(--dc-primary) 45%, var(--dc-border)) !important;
-  background: var(--dc-primary-soft) !important;
-  color: var(--dc-primary) !important;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--dc-primary) 16%, transparent) !important;
-}
-
 .pending-call-panel {
   overflow: auto !important;
 }
@@ -1438,11 +896,6 @@ textarea {
   min-width: 560px;
 }
 
-.agenda-button-grid {
-  gap: 7px !important;
-}
-
-.agenda-button-grid button,
 .dentcore-action-button {
   min-height: 36px !important;
   border-radius: var(--dc-radius-sm) !important;
@@ -1479,8 +932,7 @@ textarea {
   margin: 3px 4px;
 }
 
-.agenda-dentcore .agenda-appointment strong,
-.agenda-dentcore .agenda-appointment span {
+.agenda-dentcore .agenda-appointment strong, .agenda-dentcore .agenda-appointment span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1512,9 +964,7 @@ textarea {
   gap: 10px !important;
 }
 
-.dashboard-metrics > div,
-.dashboard-metrics > .kpi-card,
-.metric-inline {
+.dashboard-metrics > div, .dashboard-metrics > .kpi-card, .metric-inline {
   min-height: 82px;
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius-lg) !important;
@@ -1523,9 +973,7 @@ textarea {
   box-shadow: var(--dc-shadow-soft) !important;
 }
 
-.dashboard-metrics span,
-.dashboard-metrics small,
-.metric-inline span {
+.dashboard-metrics span, .dashboard-metrics small, .metric-inline span {
   overflow: visible !important;
   color: var(--dc-muted) !important;
   line-height: 1.25;
@@ -1533,8 +981,7 @@ textarea {
   white-space: normal !important;
 }
 
-.dashboard-metrics strong,
-.metric-inline strong {
+.dashboard-metrics strong, .metric-inline strong {
   overflow: visible !important;
   color: var(--dc-text) !important;
   line-height: 1.05;
@@ -1555,8 +1002,7 @@ textarea {
   padding: 0 !important;
 }
 
-.caja-screen .caja-tabs,
-.file-tabs {
+.caja-screen .caja-tabs, .file-tabs {
   min-height: 48px !important;
   display: flex !important;
   align-items: center;
@@ -1571,8 +1017,7 @@ textarea {
   scrollbar-width: thin;
 }
 
-.caja-screen .caja-tabs button,
-.file-tabs button {
+.caja-screen .caja-tabs button, .file-tabs button {
   flex: 0 0 auto;
   min-height: 36px !important;
   border: 1px solid transparent !important;
@@ -1584,24 +1029,19 @@ textarea {
   white-space: nowrap;
 }
 
-.caja-screen .caja-tabs button.active,
-.file-tabs button.active {
+.caja-screen .caja-tabs button.active, .file-tabs button.active {
   border-color: color-mix(in srgb, var(--dc-primary) 34%, var(--dc-border)) !important;
   background: var(--dc-primary-soft) !important;
   color: var(--dc-primary) !important;
   box-shadow: none !important;
 }
 
-.caja-table-wrap,
-.listados-screen .desk-panel,
-.admin-extras .desk-panel {
+.caja-table-wrap, .listados-screen .desk-panel, .admin-extras .desk-panel {
   overflow: auto !important;
   scrollbar-gutter: stable;
 }
 
-.caja-table-wrap .dentcore-table,
-.listados-screen .dentcore-table,
-.admin-extras .dentcore-table {
+.caja-table-wrap .dentcore-table, .listados-screen .dentcore-table, .admin-extras .dentcore-table {
   min-width: 860px;
 }
 
@@ -1620,10 +1060,6 @@ textarea {
   min-height: 58px;
 }
 
-.hoy-page {
-  gap: 10px !important;
-}
-
 .clinic-flow-board {
   display: grid !important;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)) !important;
@@ -1635,19 +1071,6 @@ textarea {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius-lg) !important;
   background: var(--dc-surface) !important;
-}
-
-.hoy-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px) !important;
-  gap: 10px !important;
-}
-
-.hoy-agenda {
-  overflow: auto;
-}
-
-.hoy-agenda .dentcore-table {
-  min-width: 900px;
 }
 
 .file-card-grid {
@@ -1663,8 +1086,7 @@ textarea {
   background: var(--dc-surface) !important;
 }
 
-.fichero-grid,
-.inventory-layout {
+.fichero-grid, .inventory-layout {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 380px) !important;
   gap: 10px !important;
 }
@@ -1689,9 +1111,7 @@ textarea {
   width: min(820px, calc(100vw - 36px)) !important;
 }
 
-.appointment-modal header,
-.appointment-modal footer,
-.modal-actions {
+.appointment-modal header, .appointment-modal footer, .modal-actions {
   gap: 10px;
   padding: 12px 14px !important;
 }
@@ -1708,9 +1128,7 @@ textarea {
   white-space: normal !important;
 }
 
-.appointment-form-grid,
-.patient-edit-grid,
-.whatsapp-reminder-grid {
+.appointment-form-grid, .patient-edit-grid, .whatsapp-reminder-grid {
   gap: 12px !important;
 }
 
@@ -1730,53 +1148,20 @@ textarea {
     --app-workspace-gap: 8px;
   }
 
-  .agenda-compact-toolbar {
-    grid-template-columns: repeat(3, minmax(150px, 1fr)) !important;
-  }
-
-  .agenda-toolbar-status,
-  .agenda-toolbar-actions {
-    grid-column: 1 / -1;
-  }
-
-  .agenda-toolbar-actions {
-    justify-content: flex-start;
-  }
-
-  .agenda-day-brief {
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
-  }
-
   .agenda-dentcore .agenda-appointment {
     grid-template-columns: 28px minmax(150px, 1fr) minmax(120px, 0.8fr) 94px !important;
   }
 
-  .agenda-dentcore .agenda-appointment em,
-  .agenda-dentcore .agenda-appointment-actions {
+  .agenda-dentcore .agenda-appointment em, .agenda-dentcore .agenda-appointment-actions {
     grid-column: 2 / -1;
   }
 }
 
 @media (max-width: 1100px) {
-  .dentcore-titlebar-context {
-    flex: 0 0 auto;
-  }
 
-  .role-chip {
-    max-width: 180px;
-  }
-
-  .agenda-dentcore > .agenda-layout,
-  .hoy-layout,
-  .fichero-grid,
-  .inventory-layout {
+  .fichero-grid, .inventory-layout {
     grid-template-columns: 1fr !important;
     overflow: auto !important;
-  }
-
-  .agenda-left-panel {
-    max-height: none;
-    grid-template-rows: auto auto auto auto auto !important;
   }
 
   .pending-call-panel {
@@ -1791,54 +1176,11 @@ textarea {
     --app-workspace-gap: 7px;
   }
 
-  .app-launcher-bar {
-    min-height: var(--app-topbar-height) !important;
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    align-items: center !important;
-    padding: 8px !important;
-  }
-
-  .app-launcher-anchor {
-    flex: 1 1 0;
-    max-width: none;
-  }
-
-  .app-launcher-trigger {
-    width: auto !important;
-    max-width: 100%;
-    min-height: 44px !important;
-  }
-
-  .dentcore-titlebar-context {
-    flex: 0 0 auto;
-    overflow: visible;
-  }
-
   .app-status:not(.is-busy) {
     display: none !important;
   }
 
-  .clinic-chip,
-  .role-chip,
-  .app-launcher-clock {
-    display: none !important;
-  }
-
-  .app-launcher-exit {
-    width: 38px !important;
-    padding: 0 !important;
-    justify-content: center;
-  }
-
-  .app-launcher-exit span:not(.nav-icon) {
-    display: none !important;
-  }
-
-  .module-launcher-menu,
-  .staff-clock-popover,
-  .doctor-quick-schedule-popover,
-  .doctor-notifications-popover {
+  .staff-clock-popover, .doctor-notifications-popover {
     position: fixed !important;
     top: calc(var(--app-topbar-height) + 8px) !important;
     right: 8px !important;
@@ -1869,9 +1211,7 @@ textarea {
     overflow: auto !important;
   }
 
-  .patient-dashboard-mode .patient-form-grid.patient-bento > *,
-  .patient-bento-col,
-  .patient-bento-col > * {
+  .patient-dashboard-mode .patient-form-grid.patient-bento > *, .patient-bento-col, .patient-bento-col > * {
     width: 100%;
     min-width: 0;
   }
@@ -1936,14 +1276,12 @@ textarea {
     white-space: normal !important;
   }
 
-  .patient-card-head,
-  .patient-odontogram-summary-card .patient-card-head {
+  .patient-card-head, .patient-odontogram-summary-card .patient-card-head {
     flex-wrap: wrap !important;
     align-items: flex-start !important;
   }
 
-  .patient-card-head-right,
-  .patient-documents-summary-actions {
+  .patient-card-head-right, .patient-documents-summary-actions {
     position: static !important;
     width: 100%;
     display: flex !important;
@@ -1953,66 +1291,19 @@ textarea {
     overflow: visible !important;
   }
 
-  .patient-module-tabs,
-  .clinical-subtabs,
-  .treatment-subtabs,
-  .file-tabs,
-  .caja-screen .caja-tabs {
+  .patient-module-tabs, .clinical-subtabs, .treatment-subtabs, .file-tabs, .caja-screen .caja-tabs {
     scrollbar-gutter: stable;
   }
 
-  .agenda-compact-toolbar {
-    grid-template-columns: 1fr 1fr !important;
-  }
-
-  .main-content > .agenda-dentcore {
-    display: block !important;
-    overflow: auto !important;
-    scrollbar-gutter: stable;
-  }
-
-  .agenda-dentcore > .agenda-compact-toolbar,
-  .agenda-dentcore > .inline-alert,
-  .agenda-dentcore > .patient-loading-strip,
-  .agenda-dentcore > .agenda-day-brief,
-  .agenda-dentcore > .agenda-lab-summary {
+  .agenda-dentcore > .inline-alert, .agenda-dentcore > .patient-loading-strip {
     margin-bottom: 8px !important;
-  }
-
-  .agenda-dentcore > .agenda-layout {
-    display: block !important;
-    overflow: visible !important;
-  }
-
-  .agenda-left-panel {
-    display: block !important;
-    margin-bottom: 10px;
-    overflow: visible !important;
-  }
-
-  .agenda-left-panel > * + * {
-    margin-top: 8px;
-  }
-
-  .agenda-left-panel .month-grid {
-    display: grid !important;
-  }
-
-  .agenda-left-panel .pending-call-panel {
-    max-height: none;
   }
 
   .agenda-slots {
     overflow: visible !important;
   }
 
-  .agenda-toolbar-status,
-  .agenda-toolbar-actions {
-    grid-column: 1 / -1;
-  }
-
-  .dashboard-metrics,
-  .dashboard-metrics.caja-metrics {
+  .dashboard-metrics, .dashboard-metrics.caja-metrics {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
   }
 
@@ -2032,47 +1323,16 @@ textarea {
     font-size: 13.5px;
   }
 
-  .main-content {
-    padding: 6px !important;
-  }
-
-  .app-launcher-trigger .app-brand-mark {
-    flex-basis: 32px;
-    width: 32px !important;
-    height: 32px !important;
-  }
-
-  .app-launcher-trigger strong {
-    font-size: 0.92rem !important;
-  }
-
-  .app-launcher-trigger .title-clock {
-    font-size: 0.72rem !important;
-  }
-
-  .module-launcher-item {
-    min-height: 68px !important;
-  }
-
-  .agenda-compact-toolbar {
-    grid-template-columns: 1fr !important;
-  }
-
   .agenda-dentcore .agenda-appointment {
     grid-template-columns: 26px minmax(0, 1fr) !important;
     align-items: start;
   }
 
-  .agenda-dentcore .agenda-appointment span,
-  .agenda-dentcore .agenda-appointment small,
-  .agenda-dentcore .agenda-appointment em,
-  .agenda-appointment-lab,
-  .agenda-appointment-actions {
+  .agenda-dentcore .agenda-appointment span, .agenda-dentcore .agenda-appointment small, .agenda-dentcore .agenda-appointment em, .agenda-appointment-lab, .agenda-appointment-actions {
     grid-column: 2 / -1 !important;
   }
 
-  .agenda-dentcore .agenda-appointment strong,
-  .agenda-dentcore .agenda-appointment span {
+  .agenda-dentcore .agenda-appointment strong, .agenda-dentcore .agenda-appointment span {
     white-space: normal;
   }
 
@@ -2080,21 +1340,16 @@ textarea {
     justify-content: flex-start;
   }
 
-  .dashboard-metrics,
-  .dashboard-metrics.caja-metrics,
-  .clinic-flow-board,
-  .file-card-grid {
+  .dashboard-metrics, .dashboard-metrics.caja-metrics, .clinic-flow-board, .file-card-grid {
     grid-template-columns: 1fr !important;
   }
 
-  .file-tabs,
-  .caja-screen .caja-tabs {
+  .file-tabs, .caja-screen .caja-tabs {
     flex-wrap: wrap !important;
     overflow-x: visible !important;
   }
 
-  .file-tabs button,
-  .caja-screen .caja-tabs button {
+  .file-tabs button, .caja-screen .caja-tabs button {
     flex: 1 1 auto;
     min-width: min(100%, 150px);
     white-space: normal;
@@ -2110,8 +1365,7 @@ textarea {
 /* 24. Patient record compact correction                               */
 /* ------------------------------------------------------------------ */
 
-.main-content > .patient-selector-bar,
-.main-content > .patient-screen {
+.main-content > .patient-selector-bar, .main-content > .patient-screen {
   width: min(100%, 1360px) !important;
   margin-right: auto !important;
   margin-left: auto !important;
@@ -2136,9 +1390,7 @@ textarea {
   gap: 7px !important;
 }
 
-.patient-selector-bar .patient-finder .patient-new-shortcut,
-.patient-selector-bar .patient-finder input,
-.patient-actions-primary button {
+.patient-selector-bar .patient-finder .patient-new-shortcut, .patient-selector-bar .patient-finder input, .patient-actions-primary button {
   min-height: 32px !important;
   height: 32px !important;
 }
@@ -2382,8 +1634,7 @@ textarea {
   box-shadow: inset 3px 0 0 color-mix(in srgb, var(--dc-warning) 78%, var(--dc-border)) !important;
 }
 
-.patient-hub-alert span,
-.patient-hub-balance span {
+.patient-hub-alert span, .patient-hub-balance span {
   gap: 4px !important;
   margin-bottom: 2px !important;
   font-size: 0.68rem !important;
@@ -2445,8 +1696,7 @@ textarea {
   overflow: visible !important;
 }
 
-.patient-hub-head-actions button,
-.patient-more-actions summary {
+.patient-hub-head-actions button, .patient-more-actions summary {
   min-height: 32px !important;
   height: 32px !important;
   display: inline-flex !important;
@@ -2542,13 +1792,7 @@ textarea {
   opacity: 0.45;
 }
 
-.patient-odontogram-summary-card,
-.patient-clinical-notes-card,
-.patient-next-card,
-.patient-last-card,
-.patient-billing-card,
-.patient-admin-card,
-.patient-documents-summary-card {
+.patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card {
   border: 1px solid color-mix(in srgb, var(--dc-border) 70%, transparent) !important;
   border-radius: 10px !important;
   padding: 12px !important;
@@ -2575,10 +1819,7 @@ textarea {
   border-radius: 7px !important;
 }
 
-.patient-card-head button,
-.patient-card-head-right button,
-.patient-billing-actions button,
-.patient-documents-summary-actions button {
+.patient-card-head button, .patient-card-head-right button, .patient-billing-actions button, .patient-documents-summary-actions button {
   min-height: 30px !important;
   padding: 0 9px !important;
   border-radius: 7px !important;
@@ -2598,19 +1839,12 @@ textarea {
   gap: 6px !important;
 }
 
-.patient-next-card > strong,
-.patient-last-card > strong {
+.patient-next-card > strong, .patient-last-card > strong {
   font-size: 0.9rem !important;
   line-height: 1.22 !important;
 }
 
-.patient-next-card p,
-.patient-last-card p,
-.patient-next-card small,
-.patient-last-card small,
-.patient-clinical-notes-card p,
-.patient-admin-grid,
-.patient-documents-summary-card {
+.patient-next-card p, .patient-last-card p, .patient-next-card small, .patient-last-card small, .patient-clinical-notes-card p, .patient-admin-grid, .patient-documents-summary-card {
   font-size: 0.8rem !important;
   line-height: 1.32 !important;
 }
@@ -2619,9 +1853,7 @@ textarea {
   gap: 7px !important;
 }
 
-.patient-billing-totals span,
-.patient-billing-list button,
-.patient-documents-summary-grid button {
+.patient-billing-totals span, .patient-billing-list button, .patient-documents-summary-grid button {
   border-radius: 8px !important;
   padding: 8px !important;
   background: var(--dc-surface-soft) !important;
@@ -2640,74 +1872,8 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-.app-launcher-bar {
-  height: 48px !important;
-  min-height: 48px !important;
-  padding: 6px 12px !important;
-}
-
-.app-launcher-anchor {
-  max-width: 350px !important;
-}
-
-.app-launcher-trigger {
-  min-height: 36px !important;
-  padding: 4px 10px 4px 6px !important;
-  border-radius: 9px !important;
-}
-
-.app-launcher-trigger .app-brand-mark {
-  flex-basis: 30px !important;
-  width: 30px !important;
-  height: 30px !important;
-  border-radius: 8px !important;
-}
-
-.app-launcher-trigger .app-brand-mark img {
-  width: 24px !important;
-  height: 24px !important;
-}
-
-.app-launcher-trigger strong {
-  font-size: 0.94rem !important;
-}
-
-.app-launcher-trigger .title-clock {
-  font-size: 0.7rem !important;
-}
-
-.module-launcher-menu {
-  width: min(360px, calc(100vw - 20px)) !important;
-  padding: 7px !important;
-  border-radius: 10px !important;
-}
-
-.module-launcher-item {
-  min-height: 52px !important;
-  grid-template-columns: 34px minmax(0, 1fr) !important;
-  gap: 9px !important;
-  padding: 8px !important;
-  border-radius: 8px !important;
-}
-
-.module-launcher-icon {
-  width: 34px !important;
-  height: 34px !important;
-  border-radius: 8px !important;
-}
-
-.module-launcher-copy strong {
-  font-size: 0.88rem !important;
-}
-
-.module-launcher-copy small {
-  font-size: 0.72rem !important;
-  -webkit-line-clamp: 1;
-}
-
 @media (max-width: 1260px) {
-  .main-content > .patient-selector-bar,
-  .main-content > .patient-screen {
+  .main-content > .patient-selector-bar, .main-content > .patient-screen {
     width: 100% !important;
   }
 
@@ -2729,8 +1895,7 @@ textarea {
     grid-template-columns: minmax(0, 1fr) minmax(286px, 330px) !important;
   }
 
-  .patient-bento-col-clinica,
-  .patient-bento-col-operativa {
+  .patient-bento-col-clinica, .patient-bento-col-operativa {
     grid-column: 1;
   }
 
@@ -2757,10 +1922,7 @@ textarea {
     justify-content: center !important;
   }
 
-  .patient-hub-head-actions .patient-header-primary,
-  .patient-hub-head-actions .patient-header-secondary,
-  .patient-more-actions,
-  .patient-more-actions summary {
+  .patient-hub-head-actions .patient-header-primary, .patient-hub-head-actions .patient-header-secondary, .patient-more-actions, .patient-more-actions summary {
     width: 100% !important;
   }
 }
@@ -2768,10 +1930,6 @@ textarea {
 @media (max-width: 900px) {
   .main-content > .patient-selector-bar {
     grid-template-columns: minmax(0, 1fr) max-content !important;
-  }
-
-  .role-chip {
-    display: none !important;
   }
 
   .patient-selector-current {
@@ -2782,9 +1940,7 @@ textarea {
     grid-template-columns: 1fr !important;
   }
 
-  .patient-bento-col-clinica,
-  .patient-bento-col-operativa,
-  .patient-bento-col-admin {
+  .patient-bento-col-clinica, .patient-bento-col-operativa, .patient-bento-col-admin {
     grid-column: auto !important;
     grid-row: auto !important;
   }
@@ -2814,10 +1970,7 @@ textarea {
     justify-content: flex-end !important;
   }
 
-  .patient-hub-head-actions .patient-header-primary,
-  .patient-hub-head-actions .patient-header-secondary,
-  .patient-more-actions,
-  .patient-more-actions summary {
+  .patient-hub-head-actions .patient-header-primary, .patient-hub-head-actions .patient-header-secondary, .patient-more-actions, .patient-more-actions summary {
     width: auto !important;
   }
 }
@@ -2933,32 +2086,22 @@ textarea {
 /* 24. Mobile-first hardening                                          */
 /* ------------------------------------------------------------------ */
 
-html,
-body,
-#root,
-.app-shell,
-.main-content {
+html, body, #root {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   overflow-x: hidden !important;
 }
 
-*,
-*::before,
-*::after {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
-img,
-svg,
-canvas,
-video,
-iframe {
+img, svg, canvas, video, iframe {
   max-width: 100%;
 }
 
-.main-content > :is(.patient-selector-bar, .patient-screen, .agenda-dentcore, .hoy-page, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
+.main-content > :is(.patient-selector-bar, .patient-screen, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
   width: 100%;
   max-width: min(100%, 1600px);
   margin-inline: auto;
@@ -2982,65 +2125,14 @@ html[data-theme="dark"] {
   --dc-shadow-menu: 0 18px 44px rgba(0, 0, 0, 0.34);
 }
 
-html[data-theme="dark"] :is(
-  .dentcore-shell-header.app-launcher-shell,
-  .patient-selector-bar,
-  .patient-module-tabs,
-  .desk-panel,
-  .workspace-section,
-  .billing-panel,
-  .history-billing-dentcore,
-  .history-ledger-toolbar,
-  .complete-history-head,
-  .history-filter-tabs,
-  .history-ledger-group,
-  .agenda-left-panel,
-  .agenda-slots,
-  .caja-table-wrap,
-  .admin-config-embedded,
-  .settings-form,
-  .modal-titlebar
-) {
-  border-color: var(--dc-border) !important;
-  background: var(--dc-surface) !important;
-  box-shadow: none !important;
-}
-
 html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado, .access-pill, .patient-selector-chip) {
   border-color: color-mix(in srgb, currentColor 18%, var(--dc-border)) !important;
   background: color-mix(in srgb, currentColor 10%, var(--dc-surface)) !important;
 }
 
-.app-launcher-bar,
-.app-launcher-anchor,
-.app-launcher-trigger,
-.app-brand-copy,
-.dentcore-titlebar-context,
-.patient-selector-bar,
-.patient-selector-bar > *,
-.patient-finder,
-.patient-search-label,
-.patient-actions,
-.patient-actions-primary,
-.patient-screen,
-.patient-desk,
-.history-complete-workspace,
-.history-billing-dentcore,
-.history-ledger-toolbar,
-.history-ledger-title,
-.history-ledger-scroll,
-.complete-history-panel,
-.complete-history-layout {
+.patient-selector-bar, .patient-selector-bar > *, .patient-finder, .patient-search-label, .patient-actions, .patient-actions-primary, .patient-screen, .patient-desk, .history-complete-workspace, .history-billing-dentcore, .history-ledger-toolbar, .history-ledger-title, .history-ledger-scroll, .complete-history-panel, .complete-history-layout {
   min-width: 0 !important;
   max-width: 100%;
-}
-
-.app-brand-copy strong,
-.app-launcher-trigger .title-clock {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .patient-selector-bar {
@@ -3056,8 +2148,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
   max-width: calc(100vw - 20px);
 }
 
-.patient-selector-current strong,
-.patient-selector-current small {
+.patient-selector-current strong, .patient-selector-current small {
   max-width: 100% !important;
 }
 
@@ -3080,14 +2171,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
   min-width: 0 !important;
 }
 
-.history-ledger-scroll,
-.invoice-history-list,
-.caja-table-wrap,
-.hoy-agenda,
-.pending-call-panel,
-.whatsapp-inbox-table-wrap,
-.listados-screen .desk-panel,
-.admin-extras .desk-panel {
+.history-ledger-scroll, .invoice-history-list, .caja-table-wrap, .pending-call-panel, .whatsapp-inbox-table-wrap, .listados-screen .desk-panel, .admin-extras .desk-panel {
   max-width: 100%;
   overflow-x: auto !important;
   overscroll-behavior-x: contain;
@@ -3158,16 +2242,14 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
   overflow-wrap: anywhere;
 }
 
-.history-card-meta,
-.history-treatment-card footer {
+.history-card-meta, .history-treatment-card footer {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   min-width: 0;
 }
 
-.history-card-meta span,
-.history-treatment-card footer span {
+.history-card-meta span, .history-treatment-card footer span {
   min-width: 0;
   max-width: 100%;
   border: 1px solid color-mix(in srgb, var(--dc-border) 78%, transparent);
@@ -3198,8 +2280,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
   background: var(--dc-surface-soft);
 }
 
-.history-card-money dt,
-.history-card-money dd {
+.history-card-money dt, .history-card-money dd {
   margin: 0;
   min-width: 0;
 }
@@ -3260,11 +2341,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     min-width: 840px !important;
   }
 
-  .complete-history-layout,
-  .hoy-layout,
-  .admin-report-layout,
-  .fichero-grid,
-  .inventory-layout {
+  .complete-history-layout, .admin-report-layout, .fichero-grid, .inventory-layout {
     grid-template-columns: 1fr !important;
   }
 }
@@ -3288,68 +2365,8 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     margin: 0 !important;
   }
 
-  .main-content {
-    padding: 6px !important;
-  }
-
-  .app-launcher-bar {
-    height: var(--app-topbar-height) !important;
-    min-height: var(--app-topbar-height) !important;
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    gap: 6px !important;
-    padding: 5px 6px !important;
-  }
-
-  .app-launcher-trigger {
-    min-height: 38px !important;
-    gap: 7px !important;
-    padding: 4px 8px 4px 5px !important;
-    border-radius: 10px !important;
-  }
-
-  .app-launcher-trigger .app-brand-mark {
-    flex: 0 0 28px !important;
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 8px !important;
-  }
-
-  .app-launcher-trigger .app-brand-mark img {
-    width: 23px !important;
-    height: 23px !important;
-  }
-
-  .app-launcher-trigger strong {
-    font-size: 0.84rem !important;
-    line-height: 1.05 !important;
-  }
-
-  .app-launcher-trigger .title-clock {
-    max-width: 18ch !important;
-    font-size: 0.68rem !important;
-    line-height: 1.1 !important;
-  }
-
-  .dentcore-titlebar-context {
-    gap: 5px !important;
-  }
-
-  .staff-clock-trigger span,
-  .doctor-quick-schedule-trigger span,
-  .doctor-notifications-trigger span,
-  .app-launcher-exit span:not(.nav-icon) {
+  .staff-clock-trigger span, .doctor-notifications-trigger span {
     display: none !important;
-  }
-
-  :is(.staff-clock-trigger, .theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger, .app-launcher-exit) {
-    width: 34px !important;
-    min-width: 34px !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    padding: 0 !important;
-    border-radius: 9px !important;
-    justify-content: center !important;
   }
 
   .main-content > .patient-selector-bar {
@@ -3397,8 +2414,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     padding: 8px 10px !important;
   }
 
-  .patient-selector-current strong,
-  .patient-selector-current small {
+  .patient-selector-current strong, .patient-selector-current small {
     white-space: normal !important;
     overflow-wrap: anywhere;
   }
@@ -3456,8 +2472,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     white-space: normal !important;
   }
 
-  .patient-module-tabs button .tab-icon,
-  .patient-module-tabs button .tab-icon svg {
+  .patient-module-tabs button .tab-icon, .patient-module-tabs button .tab-icon svg {
     width: 15px !important;
     height: 15px !important;
     flex: 0 0 15px;
@@ -3467,22 +2482,13 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     overflow: hidden !important;
   }
 
-  .patient-desk,
-  .patient-dashboard-mode .patient-desk,
-  .patient-screen.no-bottom-bar .patient-desk {
+  .patient-desk, .patient-dashboard-mode .patient-desk, .patient-screen.no-bottom-bar .patient-desk {
     overflow-y: auto !important;
     overflow-x: hidden !important;
     padding: 6px !important;
   }
 
-  .patient-dashboard-mode .patient-hub-grid,
-  .patient-form-grid.patient-bento,
-  .clinic-flow-board,
-  .dashboard-metrics,
-  .dashboard-metrics.caja-metrics,
-  .file-card-grid,
-  .admin-report-kpis,
-  .admin-general-report-grid {
+  .patient-dashboard-mode .patient-hub-grid, .patient-form-grid.patient-bento, .clinic-flow-board, .dashboard-metrics, .dashboard-metrics.caja-metrics, .file-card-grid, .admin-report-kpis, .admin-general-report-grid {
     grid-template-columns: 1fr !important;
   }
 
@@ -3523,9 +2529,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     justify-content: stretch !important;
   }
 
-  .history-toolbar-actions > button,
-  .history-toolbar-actions > .invoice-split-button,
-  .history-toolbar-actions > .invoice-split-button > button {
+  .history-toolbar-actions > button, .history-toolbar-actions > .invoice-split-button, .history-toolbar-actions > .invoice-split-button > button {
     width: 100%;
     min-width: 0 !important;
   }
@@ -3584,11 +2588,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     overflow: hidden !important;
   }
 
-  .history-filter-tabs,
-  .treatment-subtabs,
-  .clinical-subtabs,
-  .file-tabs,
-  .caja-screen .caja-tabs {
+  .history-filter-tabs, .treatment-subtabs, .clinical-subtabs, .file-tabs, .caja-screen .caja-tabs {
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
@@ -3596,11 +2596,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     scrollbar-width: thin;
   }
 
-  .history-filter-tabs button,
-  .treatment-subtabs button,
-  .clinical-subtabs button,
-  .file-tabs button,
-  .caja-screen .caja-tabs button {
+  .history-filter-tabs button, .treatment-subtabs button, .clinical-subtabs button, .file-tabs button, .caja-screen .caja-tabs button {
     flex: 0 0 auto !important;
     min-width: 0 !important;
     min-height: 34px !important;
@@ -3619,15 +2615,12 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     gap: 8px !important;
   }
 
-  .history-ledger-group > header,
-  .history-ledger-item {
+  .history-ledger-group > header, .history-ledger-item {
     grid-template-columns: 1fr !important;
     gap: 6px !important;
   }
 
-  .history-ledger-group > header time,
-  .history-ledger-group > header > span,
-  .history-ledger-group > header > b {
+  .history-ledger-group > header time, .history-ledger-group > header > span, .history-ledger-group > header > b {
     justify-self: start !important;
   }
 
@@ -3635,16 +2628,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     margin-top: 8px;
   }
 
-  .desk-panel,
-  .billing-panel,
-  .workspace-section,
-  .invoice-history-list,
-  .caja-table-wrap,
-  .hoy-agenda,
-  .pending-call-panel,
-  .whatsapp-inbox-table-wrap,
-  .listados-screen .desk-panel,
-  .admin-extras .desk-panel {
+  .desk-panel, .billing-panel, .workspace-section, .invoice-history-list, .caja-table-wrap, .pending-call-panel, .whatsapp-inbox-table-wrap, .listados-screen .desk-panel, .admin-extras .desk-panel {
     max-width: 100%;
     overflow-x: auto !important;
   }
@@ -3689,9 +2673,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     justify-content: stretch !important;
   }
 
-  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-toolbar-actions > button,
-  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-toolbar-actions > .invoice-split-button,
-  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-toolbar-actions > .invoice-split-button > button {
+  :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-toolbar-actions > button, :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-toolbar-actions > .invoice-split-button, :is(.patient-dashboard-mode, .patient-screen.no-bottom-bar) .history-toolbar-actions > .invoice-split-button > button {
     width: 100% !important;
     min-width: 0 !important;
   }
@@ -3766,10 +2748,7 @@ html[data-theme="dark"] {
   --dc-shadow-menu: 0 18px 44px rgba(0, 0, 0, 0.36);
 }
 
-body,
-.app-shell,
-.main-content,
-:is(.patient-screen, .agenda-dentcore, .hoy-page, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
+body, :is(.patient-screen, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
   color: var(--dc-text) !important;
   background: var(--dc-bg) !important;
 }
@@ -3777,10 +2756,6 @@ body,
 body {
   font-size: 14px !important;
   line-height: 1.45 !important;
-}
-
-.main-content {
-  padding: 16px 24px 24px !important;
 }
 
 :is(button, input, select, textarea) {
@@ -3806,151 +2781,6 @@ html[data-theme="dark"] :is(input, select, textarea) {
 }
 
 /* App shell and launcher */
-.dentcore-shell-header.app-launcher-shell {
-  border: 0 !important;
-  border-bottom: 1px solid var(--dc-border) !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  box-shadow: none !important;
-}
-
-html[data-theme="dark"] .dentcore-shell-header.app-launcher-shell {
-  background: rgba(28, 36, 48, 0.96) !important;
-}
-
-.app-launcher-bar {
-  height: var(--app-topbar-height) !important;
-  min-height: var(--app-topbar-height) !important;
-  padding: 6px 24px !important;
-  gap: 14px !important;
-}
-
-.app-launcher-anchor {
-  max-width: 320px !important;
-}
-
-.app-launcher-trigger {
-  min-height: 40px !important;
-  padding: 4px 10px 4px 5px !important;
-  border: 1px solid transparent !important;
-  border-radius: 10px !important;
-  background: transparent !important;
-  color: var(--dc-text) !important;
-  box-shadow: none !important;
-}
-
-.app-launcher-trigger:hover,
-.app-launcher-trigger[aria-expanded="true"] {
-  border-color: var(--dc-border) !important;
-  background: var(--dc-surface-soft) !important;
-  box-shadow: none !important;
-}
-
-.app-launcher-trigger .app-brand-mark {
-  flex: 0 0 32px !important;
-  width: 32px !important;
-  height: 32px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: 9px !important;
-  background: #ffffff !important;
-  box-shadow: none !important;
-}
-
-html[data-theme="dark"] .app-launcher-trigger .app-brand-mark {
-  background: var(--dc-surface-soft) !important;
-}
-
-.app-launcher-trigger strong {
-  color: var(--dc-text) !important;
-  font-size: 0.98rem !important;
-  line-height: 1.1 !important;
-  letter-spacing: 0 !important;
-}
-
-.app-launcher-trigger .title-clock {
-  color: var(--dc-muted) !important;
-  font-size: 0.76rem !important;
-  font-weight: 650 !important;
-}
-
-:is(.clinic-chip, .role-chip, .staff-clock-trigger, .theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger, .app-launcher-exit) {
-  min-height: 34px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: 999px !important;
-  background: var(--dc-surface) !important;
-  color: var(--dc-text) !important;
-  box-shadow: none !important;
-}
-
-.clinic-chip {
-  color: #0f766e !important;
-  background: #f0fdfa !important;
-  border-color: #ccfbf1 !important;
-}
-
-.role-chip {
-  color: #166534 !important;
-  background: #f0fdf4 !important;
-  border-color: #dcfce7 !important;
-}
-
-html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
-  color: var(--dc-text) !important;
-  background: var(--dc-surface-soft) !important;
-  border-color: var(--dc-border) !important;
-}
-
-.module-launcher-menu {
-  width: min(360px, calc(100vw - 32px)) !important;
-  padding: 8px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: 12px !important;
-  background: var(--dc-surface) !important;
-  box-shadow: var(--dc-shadow-menu) !important;
-}
-
-.module-launcher-item {
-  min-height: 52px !important;
-  grid-template-columns: 34px minmax(0, 1fr) !important;
-  gap: 10px !important;
-  padding: 8px !important;
-  border: 1px solid transparent !important;
-  border-radius: 9px !important;
-  color: var(--dc-text) !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.module-launcher-item:hover {
-  border-color: var(--dc-border) !important;
-  background: var(--dc-surface-soft) !important;
-}
-
-.module-launcher-item.active {
-  border-color: #bfdbfe !important;
-  background: var(--dc-primary-soft) !important;
-  box-shadow: none !important;
-}
-
-.module-launcher-icon {
-  width: 34px !important;
-  height: 34px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: 9px !important;
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-primary) !important;
-}
-
-.module-launcher-copy strong {
-  font-size: 0.9rem !important;
-  color: var(--dc-text) !important;
-}
-
-.module-launcher-copy small {
-  color: var(--dc-muted) !important;
-  font-size: 0.74rem !important;
-  line-height: 1.25 !important;
-  -webkit-line-clamp: 1 !important;
-}
 
 /* Patient workspace shell */
 .main-content > :is(.patient-selector-bar, .patient-screen) {
@@ -4099,9 +2929,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   overflow: visible !important;
 }
 
-.patient-form-grid.patient-bento > .patient-hub-head,
-.patient-form-grid.patient-bento > .patient-banner,
-.patient-form-grid.patient-bento > .patient-flow-strip {
+.patient-form-grid.patient-bento > .patient-hub-head, .patient-form-grid.patient-bento > .patient-banner, .patient-form-grid.patient-bento > .patient-flow-strip {
   grid-column: 1 / -1 !important;
 }
 
@@ -4173,9 +3001,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   list-style: none !important;
 }
 
-.patient-identity-chips li,
-.patient-card-chip,
-:is(.status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado, .access-pill) {
+.patient-identity-chips li, .patient-card-chip, :is(.status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado, .access-pill) {
   min-height: 22px !important;
   border: 1px solid transparent !important;
   border-radius: 999px !important;
@@ -4188,8 +3014,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   line-height: 1.15 !important;
 }
 
-.patient-card-chip-success,
-.patient-card-chip-info {
+.patient-card-chip-success, .patient-card-chip-info {
   background: var(--dc-primary-soft) !important;
   color: var(--dc-primary) !important;
 }
@@ -4223,8 +3048,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   background: var(--dc-surface-soft) !important;
 }
 
-.patient-hub-alert span,
-.patient-hub-balance span {
+.patient-hub-alert span, .patient-hub-balance span {
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
@@ -4299,8 +3123,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   overflow: visible !important;
 }
 
-.patient-hub-head-actions button,
-.patient-more-actions summary {
+.patient-hub-head-actions button, .patient-more-actions summary {
   min-height: 38px !important;
   height: 38px !important;
   display: inline-flex !important;
@@ -4350,8 +3173,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   color: var(--dc-primary) !important;
 }
 
-.patient-header-actions-menu,
-.patient-actions-menu {
+.patient-header-actions-menu, .patient-actions-menu {
   width: 276px !important;
   padding: 8px !important;
   border: 1px solid var(--dc-border) !important;
@@ -4360,8 +3182,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   box-shadow: var(--dc-shadow-menu) !important;
 }
 
-.patient-header-actions-menu button,
-.patient-actions-menu button {
+.patient-header-actions-menu button, .patient-actions-menu button {
   min-height: 34px !important;
   justify-content: flex-start !important;
   padding: 7px 9px !important;
@@ -4373,48 +3194,20 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   font-weight: 700 !important;
 }
 
-.patient-header-actions-menu button:hover:not(:disabled),
-.patient-actions-menu button:hover:not(:disabled) {
+.patient-header-actions-menu button:hover:not(:disabled), .patient-actions-menu button:hover:not(:disabled) {
   background: var(--dc-surface-hover) !important;
   color: var(--dc-primary) !important;
 }
 
 /* Cards and clinical content */
-:is(
-  .patient-odontogram-summary-card,
-  .patient-clinical-notes-card,
-  .patient-next-card,
-  .patient-last-card,
-  .patient-billing-card,
-  .patient-admin-card,
-  .patient-documents-summary-card,
-  .desk-panel,
-  .workspace-section,
-  .billing-panel,
-  .history-billing-dentcore,
-  .history-ledger-group,
-  .complete-history-head,
-  .agenda-left-panel,
-  .agenda-slots,
-  .caja-table-wrap,
-  .admin-config-embedded,
-  .settings-form
-) {
+:is(.patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card, .desk-panel, .workspace-section, .billing-panel, .history-billing-dentcore, .history-ledger-group, .complete-history-head, .agenda-slots, .caja-table-wrap, .admin-config-embedded, .settings-form) {
   border: 1px solid var(--dc-border) !important;
   border-radius: 14px !important;
   background: var(--dc-surface) !important;
   box-shadow: var(--dc-shadow-soft) !important;
 }
 
-:is(
-  .patient-odontogram-summary-card,
-  .patient-clinical-notes-card,
-  .patient-next-card,
-  .patient-last-card,
-  .patient-billing-card,
-  .patient-admin-card,
-  .patient-documents-summary-card
-) {
+:is(.patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card) {
   padding: 16px !important;
 }
 
@@ -4449,10 +3242,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   gap: 8px !important;
 }
 
-.patient-card-head button,
-.patient-card-head-right button,
-.patient-billing-actions button,
-.patient-documents-summary-actions button {
+.patient-card-head button, .patient-card-head-right button, .patient-billing-actions button, .patient-documents-summary-actions button {
   min-height: 34px !important;
   padding: 0 12px !important;
   border: 1px solid var(--dc-border) !important;
@@ -4464,33 +3254,20 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   font-weight: 750 !important;
 }
 
-.patient-next-card > strong,
-.patient-last-card > strong {
+.patient-next-card > strong, .patient-last-card > strong {
   color: var(--dc-text) !important;
   font-size: 1rem !important;
   font-weight: 800 !important;
   line-height: 1.28 !important;
 }
 
-.patient-next-card p,
-.patient-last-card p,
-.patient-next-card small,
-.patient-last-card small,
-.patient-clinical-notes-card p,
-.patient-health-list,
-.patient-admin-grid,
-.patient-documents-summary-card {
+.patient-next-card p, .patient-last-card p, .patient-next-card small, .patient-last-card small, .patient-clinical-notes-card p, .patient-health-list, .patient-admin-grid, .patient-documents-summary-card {
   color: var(--dc-text) !important;
   font-size: 0.9rem !important;
   line-height: 1.42 !important;
 }
 
-.patient-next-card small,
-.patient-last-card small,
-.patient-clinical-notes-card p,
-.patient-admin-grid dt,
-.patient-documents-summary-grid span,
-.patient-documents-summary-grid small {
+.patient-next-card small, .patient-last-card small, .patient-clinical-notes-card p, .patient-admin-grid dt, .patient-documents-summary-grid span, .patient-documents-summary-grid small {
   color: var(--dc-muted) !important;
 }
 
@@ -4564,8 +3341,7 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   background: var(--dc-surface-soft) !important;
 }
 
-.patient-billing-list button,
-.patient-documents-summary-grid button {
+.patient-billing-list button, .patient-documents-summary-grid button {
   border: 1px solid var(--dc-border) !important;
   border-radius: 10px !important;
   padding: 10px !important;
@@ -4619,16 +3395,12 @@ html[data-theme="dark"] :is(.clinic-chip, .role-chip) {
   border-color: var(--dc-border) !important;
 }
 
-button.active,
-[aria-selected="true"] {
+button.active, [aria-selected="true"] {
   box-shadow: none !important;
 }
 
 /* Responsive clinical layout */
 @media (max-width: 1320px) {
-  .main-content {
-    padding-inline: 18px !important;
-  }
 
   .patient-dashboard-mode .patient-form-grid.patient-bento {
     grid-template-columns: minmax(380px, 1.28fr) minmax(300px, 0.92fr) minmax(276px, 0.76fr) !important;
@@ -4654,8 +3426,7 @@ button.active,
     grid-template-columns: minmax(0, 1fr) minmax(290px, 340px) !important;
   }
 
-  .patient-bento-col-clinica,
-  .patient-bento-col-operativa {
+  .patient-bento-col-clinica, .patient-bento-col-operativa {
     grid-column: 1 !important;
   }
 
@@ -4673,21 +3444,13 @@ button.active,
     align-items: start !important;
   }
 
-  .patient-hub-alert,
-  .patient-hub-balance {
+  .patient-hub-alert, .patient-hub-balance {
     max-width: none !important;
     width: 100% !important;
   }
 }
 
 @media (max-width: 820px) {
-  .main-content {
-    padding: 12px !important;
-  }
-
-  .app-launcher-bar {
-    padding-inline: 12px !important;
-  }
 
   .main-content > .patient-selector-bar {
     grid-template-columns: 1fr !important;
@@ -4697,9 +3460,7 @@ button.active,
     grid-template-columns: 1fr !important;
   }
 
-  .patient-bento-col-clinica,
-  .patient-bento-col-operativa,
-  .patient-bento-col-admin {
+  .patient-bento-col-clinica, .patient-bento-col-operativa, .patient-bento-col-admin {
     grid-column: auto !important;
     grid-row: auto !important;
   }
@@ -4724,18 +3485,6 @@ button.active,
   :root {
     --app-topbar-height: 52px;
     --app-workspace-gap: 8px;
-  }
-
-  .main-content {
-    padding: 8px !important;
-  }
-
-  .app-launcher-bar {
-    padding: 6px 8px !important;
-  }
-
-  .app-launcher-trigger {
-    min-height: 40px !important;
   }
 
   .main-content > .patient-selector-bar {
@@ -4789,8 +3538,7 @@ button.active,
     width: 100% !important;
   }
 
-  .patient-hub-head-actions button,
-  .patient-more-actions summary {
+  .patient-hub-head-actions button, .patient-more-actions summary {
     width: 100% !important;
     min-width: 0 !important;
     padding: 0 8px !important;
@@ -4810,15 +3558,7 @@ button.active,
     max-height: min(72vh, 480px) !important;
   }
 
-  :is(
-    .patient-odontogram-summary-card,
-    .patient-clinical-notes-card,
-    .patient-next-card,
-    .patient-last-card,
-    .patient-billing-card,
-    .patient-admin-card,
-    .patient-documents-summary-card
-  ) {
+  :is(.patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card) {
     padding: 14px !important;
   }
 
@@ -4884,9 +3624,7 @@ button.active,
     grid-template-columns: 1fr !important;
   }
 
-  .patient-bento-col-clinica,
-  .patient-bento-col-operativa,
-  .patient-bento-col-admin {
+  .patient-bento-col-clinica, .patient-bento-col-operativa, .patient-bento-col-admin {
     grid-column: 1 !important;
     grid-row: auto !important;
     display: flex !important;
@@ -4920,10 +3658,7 @@ button.active,
   }
 }
 
-.patient-card-head h3,
-.patient-card-head h3 *,
-.patient-dashboard-mode .patient-module-tabs button,
-.module-launcher-copy strong {
+.patient-card-head h3, .patient-card-head h3 *, .patient-dashboard-mode .patient-module-tabs button {
   text-transform: none !important;
 }
 
@@ -4959,25 +3694,13 @@ html[data-theme="dark"] .patient-dashboard-mode .patient-module-tabs button.acti
   box-shadow: none !important;
 }
 
-html[data-theme="dark"] :is(.patient-card-head-icon, .module-launcher-icon) {
-  color: var(--dc-muted) !important;
-}
-
-html[data-theme="dark"] .patient-hub-head-actions .patient-header-primary,
-html[data-theme="dark"] .patient-selector-bar .patient-actions-primary button:first-child {
+html[data-theme="dark"] .patient-hub-head-actions .patient-header-primary, html[data-theme="dark"] .patient-selector-bar .patient-actions-primary button:first-child {
   border-color: #3b82f6 !important;
   background: #3b82f6 !important;
   color: #eff6ff !important;
 }
 
-@media (max-width: 1100px) {
-  .role-chip {
-    display: none !important;
-  }
-}
-
-.patient-dashboard-mode .patient-module-tabs button.active,
-.patient-module-tabs button.active {
+.patient-dashboard-mode .patient-module-tabs button.active, .patient-module-tabs button.active {
   border-color: color-mix(in srgb, var(--dc-primary) 24%, var(--dc-border)) !important;
   border-top-color: color-mix(in srgb, var(--dc-primary) 24%, var(--dc-border)) !important;
   border-bottom-color: color-mix(in srgb, var(--dc-primary) 24%, var(--dc-border)) !important;
@@ -4986,8 +3709,7 @@ html[data-theme="dark"] .patient-selector-bar .patient-actions-primary button:fi
   box-shadow: none !important;
 }
 
-html[data-theme="dark"] .patient-dashboard-mode .patient-module-tabs button.active,
-html[data-theme="dark"] .patient-module-tabs button.active {
+html[data-theme="dark"] .patient-dashboard-mode .patient-module-tabs button.active, html[data-theme="dark"] .patient-module-tabs button.active {
   border-color: color-mix(in srgb, var(--dc-primary) 24%, var(--dc-border)) !important;
   background: color-mix(in srgb, var(--dc-primary) 10%, var(--dc-surface)) !important;
   color: var(--dc-text) !important;
@@ -5028,32 +3750,13 @@ html[data-theme="dark"] {
   --dc-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.14);
 }
 
-html[data-theme="dark"] body,
-html[data-theme="dark"] .app-shell,
-html[data-theme="dark"] .main-content,
-html[data-theme="dark"] :is(.patient-screen, .agenda-dentcore, .hoy-page, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
+html[data-theme="dark"] body, html[data-theme="dark"] .app-shell, html[data-theme="dark"] .main-content, html[data-theme="dark"] :is(.patient-screen, .caja-screen, .admin-extras, .listados-screen, .whatsapp-inbox-page) {
   background: var(--dc-bg) !important;
   background-image: none !important;
   color: var(--dc-text) !important;
 }
 
-html[data-theme="dark"] .dentcore-shell-header.app-launcher-shell {
-  background: rgba(37, 49, 66, 0.96) !important;
-  border-bottom-color: var(--dc-border) !important;
-}
-
-html[data-theme="dark"] :is(
-  .patient-selector-bar,
-  .patient-dashboard-mode .patient-module-tabs,
-  .patient-dashboard-mode .patient-hub-head,
-  .patient-odontogram-summary-card,
-  .patient-clinical-notes-card,
-  .patient-next-card,
-  .patient-last-card,
-  .patient-billing-card,
-  .patient-admin-card,
-  .patient-documents-summary-card
-) {
+html[data-theme="dark"] :is(.patient-selector-bar, .patient-dashboard-mode .patient-module-tabs, .patient-dashboard-mode .patient-hub-head, .patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card) {
   background: var(--dc-surface) !important;
   border-color: var(--dc-border) !important;
   box-shadow: var(--dc-shadow-soft) !important;
@@ -5078,14 +3781,11 @@ html[data-theme="dark"] :is(
   min-height: 0 !important;
 }
 
-.patient-hub-identity > span:first-child,
-.patient-hub-identity > strong,
-.patient-hub-identity > em {
+.patient-hub-identity > span:first-child, .patient-hub-identity > strong, .patient-hub-identity > em {
   flex: 0 0 100% !important;
 }
 
-.patient-hub-identity > .patient-card-chip,
-.patient-hub-identity > .patient-identity-chips {
+.patient-hub-identity > .patient-card-chip, .patient-hub-identity > .patient-identity-chips {
   flex: 0 0 auto !important;
 }
 
@@ -5093,11 +3793,7 @@ html[data-theme="dark"] :is(
   margin: 0 !important;
 }
 
-.patient-hub-identity > span:first-child,
-.patient-hub-alert span,
-.patient-hub-balance span,
-.patient-billing-totals b,
-.patient-admin-grid dt {
+.patient-hub-identity > span:first-child, .patient-hub-alert span, .patient-hub-balance span, .patient-billing-totals b, .patient-admin-grid dt {
   font-weight: 700 !important;
   letter-spacing: 0 !important;
 }
@@ -5112,15 +3808,12 @@ html[data-theme="dark"] :is(
   font-weight: 760 !important;
 }
 
-.patient-card-chip,
-.patient-identity-chips li,
-:is(.status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado, .access-pill) {
+.patient-card-chip, .patient-identity-chips li, :is(.status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado, .access-pill) {
   font-weight: 700 !important;
   letter-spacing: 0 !important;
 }
 
-.patient-hub-alert,
-.patient-hub-balance {
+.patient-hub-alert, .patient-hub-balance {
   min-height: 54px !important;
   border-width: 1px !important;
 }
@@ -5129,18 +3822,11 @@ html[data-theme="dark"] :is(
   font-weight: 780 !important;
 }
 
-.patient-hub-head-actions button,
-.patient-more-actions summary,
-.patient-card-head button,
-.patient-card-head-right button,
-.patient-billing-actions button,
-.patient-documents-summary-actions button {
+.patient-hub-head-actions button, .patient-more-actions summary, .patient-card-head button, .patient-card-head-right button, .patient-billing-actions button, .patient-documents-summary-actions button {
   font-weight: 700 !important;
 }
 
-html:not([data-theme="dark"]) .patient-screen.patient-dashboard-mode .patient-module-tabs button.active,
-html:not([data-theme="dark"]) .patient-screen.patient-dashboard-mode .patient-module-tabs button[aria-selected="true"],
-html:not([data-theme="dark"]) .main-content .patient-screen.patient-dashboard-mode .patient-module-tabs button.active {
+html:not([data-theme="dark"]) .patient-screen.patient-dashboard-mode .patient-module-tabs button.active, html:not([data-theme="dark"]) .patient-screen.patient-dashboard-mode .patient-module-tabs button[aria-selected="true"], html:not([data-theme="dark"]) .main-content .patient-screen.patient-dashboard-mode .patient-module-tabs button.active {
   border-color: color-mix(in srgb, var(--dc-primary) 18%, var(--dc-border)) !important;
   border-top-color: color-mix(in srgb, var(--dc-primary) 18%, var(--dc-border)) !important;
   background: var(--dc-primary-soft) !important;
@@ -5149,8 +3835,7 @@ html:not([data-theme="dark"]) .main-content .patient-screen.patient-dashboard-mo
   box-shadow: none !important;
 }
 
-html[data-theme="dark"] .patient-screen.patient-dashboard-mode .patient-module-tabs button.active,
-html[data-theme="dark"] .main-content .patient-screen.patient-dashboard-mode .patient-module-tabs button.active {
+html[data-theme="dark"] .patient-screen.patient-dashboard-mode .patient-module-tabs button.active, html[data-theme="dark"] .main-content .patient-screen.patient-dashboard-mode .patient-module-tabs button.active {
   border-color: color-mix(in srgb, var(--dc-primary) 20%, var(--dc-border)) !important;
   background: color-mix(in srgb, var(--dc-primary) 11%, var(--dc-surface)) !important;
   background-image: none !important;
@@ -5163,22 +3848,13 @@ html[data-theme="dark"] .main-content .patient-screen.patient-dashboard-mode .pa
   box-shadow: none !important;
 }
 
-.patient-screen.patient-dashboard-mode :is(
-  .patient-next-card,
-  .patient-last-card,
-  .patient-billing-card,
-  .patient-documents-summary-card,
-  .patient-clinical-notes-card,
-  .patient-admin-card,
-  .patient-odontogram-summary-card
-):hover {
+.patient-screen.patient-dashboard-mode :is(.patient-next-card, .patient-last-card, .patient-billing-card, .patient-documents-summary-card, .patient-clinical-notes-card, .patient-admin-card, .patient-odontogram-summary-card):hover {
   border-color: var(--dc-border) !important;
   box-shadow: var(--dc-shadow-soft) !important;
   transform: none !important;
 }
 
-html[data-theme="dark"] .patient-hub-head-actions .patient-header-primary,
-html[data-theme="dark"] .patient-selector-bar .patient-actions-primary button:first-child {
+html[data-theme="dark"] .patient-hub-head-actions .patient-header-primary, html[data-theme="dark"] .patient-selector-bar .patient-actions-primary button:first-child {
   border-color: #5fa8ff !important;
   background: #5fa8ff !important;
   color: #0f172a !important;
@@ -5229,8 +3905,7 @@ html[data-theme="dark"] :is(.patient-header-secondary, .patient-more-actions sum
     flex-wrap: wrap !important;
   }
 
-  .patient-hub-alert,
-  .patient-hub-balance {
+  .patient-hub-alert, .patient-hub-balance {
     max-width: none !important;
     width: 100% !important;
   }
@@ -5280,204 +3955,9 @@ html[data-theme="dark"] :is(.patient-header-secondary, .patient-more-actions sum
   --app-topbar-height: 44px;
 }
 
-.dentcore-shell-header.app-launcher-shell {
-  width: 100% !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  margin: 0 !important;
-  border-bottom: 1px solid var(--dc-border) !important;
-  border-radius: 0 !important;
-  background: rgba(255, 255, 255, 0.96) !important;
-  background-image: none !important;
-  box-shadow: none !important;
-  box-sizing: border-box !important;
-}
-
-.dentcore-titlebar.app-launcher-bar {
-  height: 44px !important;
-  min-height: 44px !important;
-  padding: 4px 16px !important;
-  gap: 10px !important;
-}
-
-.app-launcher-anchor {
-  flex: 0 1 auto !important;
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: 220px !important;
-}
-
-.app-launcher-trigger.app-brand {
-  width: auto !important;
-  max-width: 220px !important;
-  height: 36px !important;
-  min-height: 36px !important;
-  max-height: 44px !important;
-  padding: 3px 8px 3px 4px !important;
-  gap: 7px !important;
-  border: 1px solid transparent !important;
-  border-radius: 9px !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.app-launcher-trigger.app-brand:hover,
-.app-launcher-trigger.app-brand[aria-expanded="true"] {
-  border-color: var(--dc-border) !important;
-  background: var(--dc-surface-soft) !important;
-  box-shadow: none !important;
-}
-
-.app-launcher-trigger.app-brand .app-brand-mark {
-  flex: 0 0 28px !important;
-  width: 28px !important;
-  height: 28px !important;
-  border: 0 !important;
-  border-radius: 8px !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.app-launcher-trigger.app-brand .app-brand-mark img {
-  width: 24px !important;
-  height: 24px !important;
-}
-
-.app-brand-copy {
-  min-width: 0 !important;
-  max-width: 142px !important;
-  gap: 0 !important;
-}
-
-.app-launcher-trigger.app-brand strong {
-  max-width: 142px !important;
-  font-size: 0.88rem !important;
-  font-weight: 760 !important;
-  line-height: 1.05 !important;
-  letter-spacing: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-}
-
-.app-launcher-trigger.app-brand .title-clock {
-  max-width: 142px !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.66rem !important;
-  font-weight: 650 !important;
-  line-height: 1.05 !important;
-  letter-spacing: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
-}
-
-.app-launcher-trigger.app-brand .app-launcher-chevron {
-  flex: 0 0 14px !important;
-  width: 14px !important;
-  height: 14px !important;
-  color: var(--dc-muted) !important;
-}
-
-.dentcore-titlebar-context {
-  gap: 8px !important;
-}
-
-:is(.clinic-chip, .role-chip, .staff-clock-trigger, .theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger, .app-launcher-exit) {
-  min-height: 32px !important;
-  height: 32px !important;
-}
-
-html[data-theme="dark"] .dentcore-shell-header.app-launcher-shell {
-  background: rgba(37, 49, 66, 0.96) !important;
-}
-
-html[data-theme="dark"] .app-launcher-trigger.app-brand:hover,
-html[data-theme="dark"] .app-launcher-trigger.app-brand[aria-expanded="true"] {
-  background: var(--dc-surface-soft) !important;
-  border-color: var(--dc-border) !important;
-}
-
 @media (max-width: 820px) {
   :root {
     --app-topbar-height: 40px;
-  }
-
-  .dentcore-shell-header.app-launcher-shell {
-    height: 40px !important;
-    min-height: 40px !important;
-  }
-
-  .dentcore-titlebar.app-launcher-bar {
-    height: 40px !important;
-    min-height: 40px !important;
-    padding: 3px 8px !important;
-    gap: 6px !important;
-  }
-
-  .app-launcher-anchor {
-    max-width: 180px !important;
-  }
-
-  .app-launcher-trigger.app-brand {
-    max-width: 180px !important;
-    height: 34px !important;
-    min-height: 34px !important;
-    max-height: 40px !important;
-    padding: 3px 7px 3px 3px !important;
-    gap: 6px !important;
-    border-radius: 8px !important;
-  }
-
-  .app-launcher-trigger.app-brand .app-brand-mark {
-    flex-basis: 24px !important;
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  .app-launcher-trigger.app-brand .app-brand-mark img {
-    width: 20px !important;
-    height: 20px !important;
-  }
-
-  .app-brand-copy,
-  .app-launcher-trigger.app-brand strong,
-  .app-launcher-trigger.app-brand .title-clock {
-    max-width: 112px !important;
-  }
-
-  .app-launcher-trigger.app-brand strong {
-    font-size: 0.8rem !important;
-  }
-
-  .app-launcher-trigger.app-brand .title-clock {
-    font-size: 0.61rem !important;
-  }
-
-  .app-launcher-trigger.app-brand .app-launcher-chevron {
-    flex-basis: 13px !important;
-    width: 13px !important;
-    height: 13px !important;
-  }
-
-  :is(.theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger, .app-launcher-exit) {
-    width: 32px !important;
-    min-width: 32px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-  }
-}
-
-@media (max-width: 420px) {
-  .app-launcher-anchor,
-  .app-launcher-trigger.app-brand {
-    max-width: 164px !important;
-  }
-
-  .app-brand-copy,
-  .app-launcher-trigger.app-brand strong,
-  .app-launcher-trigger.app-brand .title-clock {
-    max-width: 96px !important;
   }
 }
 
@@ -5547,32 +4027,13 @@ body {
   line-height: 1.42 !important;
 }
 
-.main-content {
-  padding: 14px 18px 18px !important;
-  background: var(--dc-bg) !important;
-  scrollbar-gutter: stable;
-}
-
-.main-content > :is(
-  .agenda-dentcore,
-  .hoy-page,
-  .caja-screen,
-  .listados-screen,
-  .admin-extras,
-  .whatsapp-inbox-page,
-  .patient-selector-bar,
-  .patient-screen
-) {
+.main-content > :is(.caja-screen, .listados-screen, .admin-extras, .whatsapp-inbox-page, .patient-selector-bar, .patient-screen) {
   width: min(100%, 1480px) !important;
   max-width: 1480px !important;
   margin-inline: auto !important;
 }
 
-.loading-page,
-.empty-state,
-.inline-alert,
-.form-error,
-.form-success {
+.loading-page, .empty-state, .inline-alert, .form-error, .form-success {
   border-radius: var(--dc-radius) !important;
 }
 
@@ -5678,109 +4139,20 @@ label {
   color: var(--dc-danger) !important;
 }
 
-:is(.dentcore-shell-header.app-launcher-shell, .app-launcher-shell) {
-  height: var(--app-topbar-height) !important;
-  min-height: var(--app-topbar-height) !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--dc-border) !important;
-  background: color-mix(in srgb, var(--dc-surface) 96%, transparent) !important;
-  box-shadow: none !important;
-  backdrop-filter: blur(10px);
-}
-
-.dentcore-titlebar.app-launcher-bar {
-  height: var(--app-topbar-height) !important;
-  min-height: var(--app-topbar-height) !important;
-  display: flex !important;
-  align-items: center !important;
-  gap: 10px !important;
-  padding: 4px 16px !important;
-}
-
-.app-launcher-trigger.app-brand {
-  height: 34px !important;
-  min-height: 34px !important;
-  max-width: 224px !important;
-  border-radius: var(--dc-radius) !important;
-}
-
-.app-launcher-trigger.app-brand strong {
-  font-size: 0.86rem !important;
-  font-weight: 760 !important;
-}
-
-.app-launcher-trigger.app-brand .title-clock {
-  font-size: 0.65rem !important;
-  font-weight: 650 !important;
-}
-
-.dentcore-titlebar-context {
-  min-width: 0 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 7px !important;
-  margin-left: auto !important;
-}
-
-:is(.clinic-chip, .role-chip, .staff-clock-trigger, .theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger, .app-launcher-exit) {
-  height: 30px !important;
-  min-height: 30px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: 999px !important;
-  padding: 0 9px !important;
-  background: var(--dc-surface) !important;
-  color: var(--dc-muted) !important;
-  box-shadow: none !important;
-  font-size: 0.78rem !important;
-  font-weight: 700 !important;
-}
-
-.theme-toggle,
-.doctor-quick-schedule-trigger,
-.doctor-notifications-trigger {
+.theme-toggle, .doctor-notifications-trigger {
   width: 30px !important;
   min-width: 30px !important;
   padding: 0 !important;
 }
 
-.app-launcher-exit {
-  color: var(--dc-danger) !important;
-}
-
-.module-launcher-menu,
-.patient-header-actions-menu,
-.patient-actions-menu,
-.context-menu,
-.staff-clock-popover,
-.doctor-quick-schedule-popover,
-.doctor-notifications-popover {
+.patient-header-actions-menu, .patient-actions-menu, .context-menu, .staff-clock-popover, .doctor-notifications-popover {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
   background: var(--dc-surface) !important;
   box-shadow: var(--dc-shadow-menu) !important;
 }
 
-.module-launcher-item {
-  border-radius: var(--dc-radius-sm) !important;
-}
-
-:is(.module-launcher-item.active, .module-launcher-item[aria-current="page"]) {
-  border-color: color-mix(in srgb, var(--dc-primary) 28%, var(--dc-border)) !important;
-  background: var(--dc-primary-soft) !important;
-}
-
-.module-launcher-icon {
-  border-radius: var(--dc-radius-sm) !important;
-  color: var(--dc-primary) !important;
-}
-
-.toolbar,
-.panel-caption,
-.modal-titlebar,
-.history-ledger-toolbar,
-.whatsapp-page-head,
-.patient-card-head {
+.toolbar, .panel-caption, .modal-titlebar, .history-ledger-toolbar, .whatsapp-page-head, .patient-card-head {
   min-height: 38px !important;
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
@@ -5795,8 +4167,7 @@ label {
   margin-bottom: 10px !important;
 }
 
-.toolbar h1,
-.detail-header h1 {
+.toolbar h1, .detail-header h1 {
   color: var(--dc-text) !important;
   font-size: clamp(1.08rem, 1.3vw, 1.22rem) !important;
   font-weight: 780 !important;
@@ -5804,13 +4175,7 @@ label {
   letter-spacing: 0 !important;
 }
 
-.toolbar p,
-.eyebrow,
-.panel-caption span,
-.modal-titlebar span,
-.muted,
-.muted-note,
-.muted-cell {
+.toolbar p, .eyebrow, .panel-caption span, .modal-titlebar span, .muted, .muted-note, .muted-cell {
   color: var(--dc-muted) !important;
   font-size: 0.78rem !important;
   letter-spacing: 0 !important;
@@ -5821,16 +4186,14 @@ label {
   gap: 8px !important;
 }
 
-.panel-caption strong,
-.modal-titlebar strong,
-.patient-card-head h3 {
+.panel-caption strong, .modal-titlebar strong, .patient-card-head h3 {
   color: var(--dc-text) !important;
   font-size: 0.9rem !important;
   font-weight: 760 !important;
   letter-spacing: 0 !important;
 }
 
-:is(.desk-panel, .workspace-section, .side-panel, .billing-panel, .history-billing-dentcore, .agenda-left-panel, .agenda-slots, .pending-call-panel, .caja-table-wrap, .settings-form, .admin-config-embedded, .clinical-today-panel, .secondary-clinic-panel, .clinic-flow-board section, .patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card) {
+:is(.desk-panel, .workspace-section, .side-panel, .billing-panel, .history-billing-dentcore, .agenda-slots, .pending-call-panel, .caja-table-wrap, .settings-form, .admin-config-embedded, .clinical-today-panel, .secondary-clinic-panel, .clinic-flow-board section, .patient-odontogram-summary-card, .patient-clinical-notes-card, .patient-next-card, .patient-last-card, .patient-billing-card, .patient-admin-card, .patient-documents-summary-card) {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
   background: var(--dc-surface) !important;
@@ -5841,9 +4204,7 @@ label {
   padding: 10px !important;
 }
 
-.dentcore-table,
-.data-table,
-.history-ledger-table {
+.dentcore-table, .data-table, .history-ledger-table {
   width: 100% !important;
   border-collapse: separate !important;
   border-spacing: 0 !important;
@@ -5855,8 +4216,7 @@ label {
   font-size: 0.82rem !important;
 }
 
-:is(.dentcore-table, .data-table, .history-ledger-table) th,
-:is(.dentcore-table, .data-table, .history-ledger-table) td {
+:is(.dentcore-table, .data-table, .history-ledger-table) th, :is(.dentcore-table, .data-table, .history-ledger-table) td {
   height: 34px !important;
   border: 0 !important;
   border-bottom: 1px solid color-mix(in srgb, var(--dc-border) 78%, transparent) !important;
@@ -5888,20 +4248,17 @@ label {
   background: color-mix(in srgb, var(--dc-primary) 7%, var(--dc-surface)) !important;
 }
 
-:is(.dentcore-table, .data-table, .history-ledger-table) .selected-row td,
-:is(.dentcore-table, .data-table, .history-ledger-table) tr.selected-row td {
+:is(.dentcore-table, .data-table, .history-ledger-table) .selected-row td, :is(.dentcore-table, .data-table, .history-ledger-table) tr.selected-row td {
   background: color-mix(in srgb, var(--dc-primary) 12%, var(--dc-surface)) !important;
   color: var(--dc-text) !important;
 }
 
-.dentcore-table td :is(button, a),
-.data-table td :is(button, a) {
+.dentcore-table td :is(button, a), .data-table td :is(button, a) {
   min-height: 28px !important;
   border-radius: var(--dc-radius-sm) !important;
 }
 
-.dentcore-table td a,
-.dashboard-patient-link {
+.dentcore-table td a, .dashboard-patient-link {
   color: var(--dc-primary) !important;
   font-weight: 720 !important;
 }
@@ -5910,8 +4267,7 @@ label {
   background: color-mix(in srgb, var(--dc-warning) 8%, var(--dc-surface)) !important;
 }
 
-.num,
-.hash-cell {
+.num, .hash-cell {
   font-variant-numeric: tabular-nums !important;
 }
 
@@ -5938,49 +4294,22 @@ label {
   white-space: nowrap !important;
 }
 
-.status-pill.ok,
-.status-pill.success,
-.access-pill.ok,
-.patient-card-chip-success,
-.status-confirmada,
-.status-confirmed,
-.status-atendida,
-.status-cobrada,
-.status-paid,
-.status-realizado {
+.status-pill.ok, .status-pill.success, .access-pill.ok, .patient-card-chip-success, .status-confirmada, .status-confirmed, .status-atendida, .status-cobrada, .status-paid, .status-realizado {
   color: var(--dc-success) !important;
   background: var(--dc-success-soft) !important;
 }
 
-.status-pill.warn,
-.status-programada,
-.status-pendiente,
-.status-pending,
-.status-pending_confirmation,
-.status-reminder_sent,
-.status-pending_manual_review,
-.patient-card-chip-warning {
+.status-pill.warn, .status-programada, .status-pendiente, .status-pending, .status-pending_confirmation, .status-reminder_sent, .status-pending_manual_review, .patient-card-chip-warning {
   color: var(--dc-warning) !important;
   background: var(--dc-warning-soft) !important;
 }
 
-.status-pill.fail,
-.access-pill.locked,
-.status-anulada,
-.status-cancelled_by_patient,
-.status-falta,
-.status-error,
-.status-cancelada,
-.patient-card-chip-danger {
+.status-pill.fail, .access-pill.locked, .status-anulada, .status-cancelled_by_patient, .status-falta, .status-error, .status-cancelada, .patient-card-chip-danger {
   color: var(--dc-danger) !important;
   background: var(--dc-danger-soft) !important;
 }
 
-.patient-card-chip-info,
-.status-reschedule_requested,
-.status-en-clinica,
-.status-en_clinica,
-.status-message {
+.patient-card-chip-info, .status-reschedule_requested, .status-en-clinica, .status-en_clinica, .status-message {
   color: var(--dc-primary) !important;
   background: var(--dc-primary-soft) !important;
 }
@@ -5991,9 +4320,7 @@ label {
   gap: 10px !important;
 }
 
-.dashboard-metrics > div,
-.dashboard-metrics > .kpi-card,
-.metric-inline {
+.dashboard-metrics > div, .dashboard-metrics > .kpi-card, .metric-inline {
   min-height: 74px !important;
   display: grid !important;
   align-content: center !important;
@@ -6005,16 +4332,13 @@ label {
   box-shadow: var(--dc-shadow-soft) !important;
 }
 
-.dashboard-metrics span,
-.dashboard-metrics small,
-.metric-inline span {
+.dashboard-metrics span, .dashboard-metrics small, .metric-inline span {
   color: var(--dc-muted) !important;
   font-size: 0.74rem !important;
   line-height: 1.18 !important;
 }
 
-.dashboard-metrics strong,
-.metric-inline strong {
+.dashboard-metrics strong, .metric-inline strong {
   color: var(--dc-text) !important;
   font-size: clamp(1.04rem, 1.4vw, 1.26rem) !important;
   font-weight: 780 !important;
@@ -6036,11 +4360,7 @@ label {
   background: var(--dc-primary-soft) !important;
 }
 
-.file-tabs,
-.caja-screen .caja-tabs,
-.patient-module-tabs,
-.clinical-subtabs,
-.treatment-subtabs {
+.file-tabs, .caja-screen .caja-tabs, .patient-module-tabs, .clinical-subtabs, .treatment-subtabs {
   min-height: 40px !important;
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
@@ -6061,226 +4381,17 @@ label {
   font-weight: 720 !important;
 }
 
-:is(.file-tabs, .caja-screen .caja-tabs, .patient-module-tabs, .clinical-subtabs, .treatment-subtabs) button.active,
-:is(.file-tabs, .caja-screen .caja-tabs, .patient-module-tabs, .clinical-subtabs, .treatment-subtabs) button[aria-selected="true"] {
+:is(.file-tabs, .caja-screen .caja-tabs, .patient-module-tabs, .clinical-subtabs, .treatment-subtabs) button.active, :is(.file-tabs, .caja-screen .caja-tabs, .patient-module-tabs, .clinical-subtabs, .treatment-subtabs) button[aria-selected="true"] {
   border-color: color-mix(in srgb, var(--dc-primary) 26%, var(--dc-border)) !important;
   background: var(--dc-primary-soft) !important;
   color: var(--dc-primary) !important;
   box-shadow: none !important;
 }
 
-.agenda-dentcore {
-  min-height: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 9px !important;
-  border: 0 !important;
-  background: transparent !important;
-}
-
-.agenda-compact-toolbar {
-  display: grid !important;
-  grid-template-columns: minmax(136px, 160px) minmax(180px, 220px) minmax(92px, 108px) minmax(210px, 1fr) auto !important;
-  align-items: end !important;
-  gap: 8px !important;
-  min-height: 58px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  padding: 9px !important;
-  background: var(--dc-surface) !important;
-}
-
-.agenda-toolbar-status {
-  min-height: 34px !important;
-  display: grid !important;
-  align-content: center !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius-sm) !important;
-  padding: 5px 9px !important;
-  background: var(--dc-surface-soft) !important;
-}
-
-.agenda-toolbar-status b {
-  color: var(--dc-text) !important;
-  font-size: 0.82rem !important;
-}
-
-.agenda-toolbar-status span {
-  color: var(--dc-muted) !important;
-  font-size: 0.72rem !important;
-}
-
-.agenda-toolbar-actions {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  justify-content: flex-end !important;
-  gap: 5px !important;
-}
-
-.agenda-toolbar-actions button,
-.agenda-button-grid button,
 .dentcore-action-button {
   min-height: 32px !important;
   padding: 0 9px !important;
   font-size: 0.78rem !important;
-}
-
-.agenda-toolbar-actions button.active {
-  border-color: color-mix(in srgb, var(--dc-primary) 30%, var(--dc-border)) !important;
-  background: var(--dc-primary-soft) !important;
-  color: var(--dc-primary) !important;
-}
-
-.agenda-day-brief {
-  display: grid !important;
-  grid-template-columns: minmax(260px, 1.35fr) repeat(4, minmax(112px, 0.65fr)) !important;
-  gap: 8px !important;
-}
-
-.agenda-day-brief button {
-  min-height: 58px !important;
-  display: grid !important;
-  align-content: center !important;
-  gap: 2px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  padding: 8px 10px !important;
-  background: var(--dc-surface) !important;
-  text-align: left !important;
-}
-
-.agenda-day-brief button:hover:not(:disabled) {
-  background: var(--dc-surface-hover) !important;
-}
-
-.agenda-day-brief span,
-.agenda-day-brief em {
-  color: var(--dc-muted) !important;
-  font-size: 0.72rem !important;
-  font-style: normal !important;
-}
-
-.agenda-day-brief strong {
-  color: var(--dc-text) !important;
-  font-size: 0.94rem !important;
-  font-weight: 780 !important;
-  line-height: 1.14 !important;
-}
-
-.agenda-lab-summary {
-  min-height: 38px !important;
-  display: flex !important;
-  align-items: center !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  padding: 6px 8px !important;
-  background: var(--dc-surface-soft) !important;
-}
-
-.agenda-lab-summary button {
-  min-height: 28px !important;
-  border-color: color-mix(in srgb, var(--dc-primary) 24%, var(--dc-border)) !important;
-  background: var(--dc-surface) !important;
-}
-
-.agenda-lab-summary > span,
-.agenda-lab-summary > em {
-  min-height: 22px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  border-radius: 999px !important;
-  padding: 3px 7px !important;
-  background: var(--dc-surface) !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.72rem !important;
-  font-style: normal !important;
-}
-
-.agenda-lab-summary-ok {
-  color: var(--dc-success) !important;
-}
-
-.agenda-lab-summary-pending,
-.agenda-lab-summary-danger {
-  color: var(--dc-warning) !important;
-}
-
-.agenda-lab-summary-danger {
-  background: var(--dc-danger-soft) !important;
-  color: var(--dc-danger) !important;
-}
-
-.agenda-dentcore > .agenda-layout {
-  min-height: 0 !important;
-  grid-template-columns: minmax(280px, 315px) minmax(0, 1fr) !important;
-  gap: 10px !important;
-}
-
-.agenda-left-panel {
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto !important;
-  gap: 8px !important;
-  padding: 9px !important;
-}
-
-.doctor-legend {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 5px !important;
-}
-
-.doctor-legend span {
-  min-height: 24px !important;
-  border: 1px solid color-mix(in srgb, var(--doctor-color, var(--dc-primary)) 32%, var(--dc-border)) !important;
-  border-radius: 999px !important;
-  padding: 3px 7px !important;
-  background: color-mix(in srgb, var(--doctor-color, var(--dc-primary)) 9%, var(--dc-surface)) !important;
-  color: var(--dc-text) !important;
-  font-size: 0.72rem !important;
-  font-weight: 720 !important;
-}
-
-.month-caption {
-  min-height: 28px !important;
-  color: var(--dc-text) !important;
-  font-size: 0.92rem !important;
-  font-weight: 760 !important;
-}
-
-.month-grid {
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  background: var(--dc-surface) !important;
-  overflow: hidden !important;
-}
-
-.month-grid strong,
-.month-grid button {
-  min-height: 31px !important;
-  border: 0 !important;
-  border-right: 1px solid color-mix(in srgb, var(--dc-border) 74%, transparent) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--dc-border) 74%, transparent) !important;
-  background: var(--dc-surface) !important;
-  color: var(--dc-text) !important;
-  text-align: center !important;
-}
-
-.month-grid strong {
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.68rem !important;
-  font-weight: 760 !important;
-}
-
-.month-grid button.muted {
-  color: var(--dc-muted-2) !important;
-}
-
-.month-grid button.active {
-  background: var(--dc-primary-soft) !important;
-  color: var(--dc-primary) !important;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-primary) 38%, var(--dc-border)) !important;
 }
 
 .pending-call-panel .panel-caption {
@@ -6292,16 +4403,6 @@ label {
   min-width: 520px;
   border: 0 !important;
   border-radius: 0 !important;
-}
-
-.agenda-button-grid {
-  display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-  gap: 5px !important;
-}
-
-.agenda-button-grid button {
-  color: var(--dc-muted) !important;
 }
 
 .agenda-slots {
@@ -6365,8 +4466,7 @@ label {
   font-weight: 760 !important;
 }
 
-.agenda-dentcore .agenda-appointment span,
-.agenda-dentcore .agenda-appointment em {
+.agenda-dentcore .agenda-appointment span, .agenda-dentcore .agenda-appointment em {
   color: var(--dc-muted) !important;
   font-size: 0.76rem !important;
   font-style: normal !important;
@@ -6391,12 +4491,6 @@ label {
   font-size: 0.7rem !important;
 }
 
-.agenda-search-bar {
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) auto 32px !important;
-  gap: 5px !important;
-}
-
 .agenda-empty-day {
   border: 1px dashed var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
@@ -6405,49 +4499,12 @@ label {
   color: var(--dc-muted) !important;
 }
 
-.hoy-page,
-.caja-screen,
-.listados-screen,
-.admin-extras {
+.caja-screen, .listados-screen, .admin-extras {
   display: flex !important;
   flex-direction: column !important;
   gap: 10px !important;
   border: 0 !important;
   background: transparent !important;
-}
-
-.hoy-layout {
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 330px) !important;
-  gap: 10px !important;
-}
-
-.hoy-agenda {
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  background: var(--dc-surface) !important;
-  overflow: auto !important;
-}
-
-.hoy-agenda .panel-caption {
-  border-width: 0 0 1px !important;
-  border-radius: var(--dc-radius) var(--dc-radius) 0 0 !important;
-}
-
-.hoy-citas-table,
-.hoy-agenda .dentcore-table {
-  min-width: 860px;
-  border: 0 !important;
-  border-radius: 0 !important;
-}
-
-.hoy-patient-link {
-  min-height: 0 !important;
-  border: 0 !important;
-  padding: 0 !important;
-  background: transparent !important;
-  color: var(--dc-primary) !important;
-  text-align: left !important;
-  box-shadow: none !important;
 }
 
 .clinic-flow-board {
@@ -6463,8 +4520,7 @@ label {
   padding: 10px !important;
 }
 
-.clinic-flow-board section > span,
-.clinic-flow-board small {
+.clinic-flow-board section > span, .clinic-flow-board small {
   color: var(--dc-muted) !important;
   font-size: 0.76rem !important;
 }
@@ -6480,24 +4536,14 @@ label {
   gap: 4px !important;
 }
 
-.clinic-flow-list button,
-.telefonear-item button {
+.clinic-flow-list button, .telefonear-item button {
   min-height: 28px !important;
   justify-content: flex-start !important;
   padding: 0 8px !important;
   font-size: 0.74rem !important;
 }
 
-.hoy-sidebar {
-  display: grid !important;
-  gap: 10px !important;
-  align-content: start !important;
-}
-
-.telefonear-item,
-.alert-list > div,
-.compact-list > *,
-.movement-list > * {
+.telefonear-item, .alert-list > div, .compact-list > *, .movement-list > * {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius-sm) !important;
   padding: 8px !important;
@@ -6538,57 +4584,43 @@ label {
   border-radius: 0 !important;
 }
 
-.listados-screen .desk-panel,
-.admin-extras .desk-panel {
+.listados-screen .desk-panel, .admin-extras .desk-panel {
   padding: 0 !important;
 }
 
-.listados-screen .desk-panel > :not(.panel-caption):not(table),
-.admin-extras .desk-panel > :not(.panel-caption):not(table) {
+.listados-screen .desk-panel > :not(.panel-caption):not(table), .admin-extras .desk-panel > :not(.panel-caption):not(table) {
   margin: 10px !important;
 }
 
-.listados-screen .panel-caption,
-.admin-extras .panel-caption {
+.listados-screen .panel-caption, .admin-extras .panel-caption {
   border-width: 0 0 1px !important;
   border-radius: var(--dc-radius) var(--dc-radius) 0 0 !important;
 }
 
-.listados-screen .dentcore-table,
-.admin-extras .dentcore-table {
+.listados-screen .dentcore-table, .admin-extras .dentcore-table {
   min-width: 780px;
   border: 0 !important;
   border-radius: 0 !important;
 }
 
-.fichero-grid,
-.inventory-layout,
-.settings-overview-grid,
-.admin-security-stack {
+.fichero-grid, .inventory-layout, .settings-overview-grid, .admin-security-stack {
   gap: 10px !important;
 }
 
-.fichero-grid,
-.inventory-layout {
+.fichero-grid, .inventory-layout {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px) !important;
 }
 
-.settings-form,
-.treatment-editor-panel {
+.settings-form, .treatment-editor-panel {
   overflow: visible !important;
 }
 
-.settings-form,
-.treatment-editor,
-.doctor-editor,
-.form-grid-2 {
+.settings-form, .treatment-editor, .doctor-editor, .form-grid-2 {
   display: grid !important;
   gap: 9px !important;
 }
 
-.form-grid-2,
-.treatment-editor,
-.doctor-editor {
+.form-grid-2, .treatment-editor, .doctor-editor {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 
@@ -6604,11 +4636,7 @@ label {
   color: var(--dc-text) !important;
 }
 
-.editor-actions,
-.inline-actions,
-.modal-actions,
-.whatsapp-reminder-actions,
-.table-actions {
+.editor-actions, .inline-actions, .modal-actions, .whatsapp-reminder-actions, .table-actions {
   display: flex !important;
   align-items: center !important;
   justify-content: flex-end !important;
@@ -6659,42 +4687,21 @@ label {
   overflow: auto !important;
 }
 
-.appointment-modal header,
-.appointment-modal footer,
-.modal-titlebar,
-.modal-actions {
+.appointment-modal header, .appointment-modal footer, .modal-titlebar, .modal-actions {
   border-color: var(--dc-border) !important;
 }
 
-.appointment-form-grid,
-.slot-search-grid,
-.patient-edit-grid,
-.whatsapp-reminder-grid {
+.appointment-form-grid, .slot-search-grid, .patient-edit-grid, .whatsapp-reminder-grid {
   gap: 10px !important;
 }
 
-.appointment-info,
-.appointment-lab-detail,
-.appointment-whatsapp-thread,
-.whatsapp-template-panel,
-.whatsapp-patient-panel {
+.appointment-info, .appointment-lab-detail, .appointment-whatsapp-thread, .whatsapp-template-panel, .whatsapp-patient-panel {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
   background: var(--dc-surface-soft) !important;
 }
 
-html[data-theme="dark"] :is(
-  body,
-  .app-shell,
-  .main-content,
-  .agenda-dentcore,
-  .hoy-page,
-  .caja-screen,
-  .listados-screen,
-  .admin-extras,
-  .patient-screen,
-  .whatsapp-inbox-page
-) {
+html[data-theme="dark"] :is(body, .app-shell, .main-content, .caja-screen, .listados-screen, .admin-extras, .patient-screen, .whatsapp-inbox-page) {
   background: var(--dc-bg) !important;
   color: var(--dc-text) !important;
   background-image: none !important;
@@ -6703,10 +4710,6 @@ html[data-theme="dark"] :is(
 html[data-theme="dark"] :is(input, select, textarea) {
   background: var(--dc-surface-soft) !important;
   color: var(--dc-text) !important;
-}
-
-html[data-theme="dark"] :is(.dentcore-shell-header.app-launcher-shell, .app-launcher-shell) {
-  background: color-mix(in srgb, var(--dc-surface) 96%, transparent) !important;
 }
 
 html[data-theme="dark"] :is(.toolbar, .panel-caption, .modal-titlebar, .history-ledger-toolbar, .patient-card-head) {
@@ -6718,60 +4721,23 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
 }
 
 @media (max-width: 1320px) {
-  .agenda-compact-toolbar {
-    grid-template-columns: repeat(3, minmax(140px, 1fr)) !important;
-  }
-
-  .agenda-toolbar-status,
-  .agenda-toolbar-actions {
-    grid-column: 1 / -1 !important;
-  }
-
-  .agenda-toolbar-actions {
-    justify-content: flex-start !important;
-  }
-
-  .agenda-day-brief {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
-  }
 
   .agenda-dentcore .agenda-appointment {
     grid-template-columns: 24px minmax(140px, 1fr) minmax(120px, 0.75fr) 82px !important;
   }
 
-  .agenda-appointment-lab,
-  .agenda-appointment-actions {
+  .agenda-appointment-lab, .agenda-appointment-actions {
     grid-column: 2 / -1 !important;
   }
 }
 
 @media (max-width: 1100px) {
-  .main-content {
-    padding: 10px !important;
-  }
 
-  .dentcore-titlebar-context .role-chip {
-    display: none !important;
-  }
-
-  .agenda-dentcore > .agenda-layout,
-  .hoy-layout,
-  .fichero-grid,
-  .inventory-layout {
+  .fichero-grid, .inventory-layout {
     grid-template-columns: 1fr !important;
   }
 
-  .agenda-left-panel {
-    max-height: none !important;
-  }
-
-  .hoy-sidebar {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
-  }
-
-  .form-grid-2,
-  .treatment-editor,
-  .doctor-editor {
+  .form-grid-2, .treatment-editor, .doctor-editor {
     grid-template-columns: 1fr !important;
   }
 }
@@ -6781,49 +4747,7 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     --app-topbar-height: 40px;
   }
 
-  .main-content {
-    padding: 8px !important;
-  }
-
-  .dentcore-titlebar.app-launcher-bar {
-    height: var(--app-topbar-height) !important;
-    min-height: var(--app-topbar-height) !important;
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    gap: 6px !important;
-    padding: 3px 8px !important;
-  }
-
-  .app-launcher-trigger.app-brand {
-    height: 34px !important;
-    min-height: 34px !important;
-    max-width: 180px !important;
-  }
-
-  .clinic-chip,
-  .role-chip,
-  .app-launcher-clock {
-    display: none !important;
-  }
-
-  :is(.theme-toggle, .doctor-quick-schedule-trigger, .doctor-notifications-trigger, .app-launcher-exit) {
-    width: 30px !important;
-    min-width: 30px !important;
-    height: 30px !important;
-    min-height: 30px !important;
-    padding: 0 !important;
-  }
-
-  .app-launcher-exit span:not(.nav-icon) {
-    display: none !important;
-  }
-
-  .module-launcher-menu,
-  .patient-header-actions-menu,
-  .patient-actions-menu,
-  .staff-clock-popover,
-  .doctor-quick-schedule-popover,
-  .doctor-notifications-popover {
+  .patient-header-actions-menu, .patient-actions-menu, .staff-clock-popover, .doctor-notifications-popover {
     position: fixed !important;
     top: calc(var(--app-topbar-height) + 8px) !important;
     right: 8px !important;
@@ -6833,40 +4757,13 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     overflow: auto !important;
   }
 
-  .toolbar,
-  .panel-caption,
-  .modal-titlebar {
+  .toolbar, .panel-caption, .modal-titlebar {
     align-items: flex-start !important;
     flex-wrap: wrap !important;
   }
 
-  .agenda-compact-toolbar {
-    grid-template-columns: 1fr 1fr !important;
-  }
-
-  .agenda-toolbar-status,
-  .agenda-toolbar-actions {
-    grid-column: 1 / -1 !important;
-  }
-
-  .agenda-dentcore,
-  .hoy-page,
-  .caja-screen,
-  .listados-screen,
-  .admin-extras {
+  .caja-screen, .listados-screen, .admin-extras {
     overflow: auto !important;
-  }
-
-  .agenda-dentcore > .agenda-layout {
-    display: flex !important;
-    flex-direction: column !important;
-    overflow: visible !important;
-  }
-
-  .agenda-left-panel {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) !important;
-    overflow: visible !important;
   }
 
   .agenda-slots {
@@ -6878,9 +4775,7 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     align-items: start !important;
   }
 
-  .agenda-dentcore .agenda-appointment :is(span, small, em),
-  .agenda-appointment-lab,
-  .agenda-appointment-actions {
+  .agenda-dentcore .agenda-appointment :is(span, small, em), .agenda-appointment-lab, .agenda-appointment-actions {
     grid-column: 2 / -1 !important;
   }
 
@@ -6892,11 +4787,7 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)) !important;
   }
 
-  .file-tabs,
-  .caja-screen .caja-tabs,
-  .patient-module-tabs,
-  .clinical-subtabs,
-  .treatment-subtabs {
+  .file-tabs, .caja-screen .caja-tabs, .patient-module-tabs, .clinical-subtabs, .treatment-subtabs {
     overflow-x: auto !important;
     overflow-y: hidden !important;
     scrollbar-width: thin;
@@ -6918,50 +4809,16 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     font-size: 13.5px !important;
   }
 
-  .main-content {
-    padding: 6px !important;
-  }
-
-  .app-launcher-trigger.app-brand {
-    max-width: 166px !important;
-  }
-
-  .app-brand-copy,
-  .app-launcher-trigger.app-brand strong,
-  .app-launcher-trigger.app-brand .title-clock {
-    max-width: 98px !important;
-  }
-
-  .agenda-compact-toolbar,
-  .agenda-day-brief,
-  .dashboard-metrics,
-  .dashboard-metrics.caja-metrics,
-  .clinic-flow-board,
-  .file-card-grid,
-  .hoy-sidebar {
+  .dashboard-metrics, .dashboard-metrics.caja-metrics, .clinic-flow-board, .file-card-grid {
     grid-template-columns: 1fr !important;
   }
 
-  .agenda-lab-summary,
-  .agenda-toolbar-actions,
-  .editor-actions,
-  .inline-actions,
-  .modal-actions,
-  .whatsapp-reminder-actions {
+  .editor-actions, .inline-actions, .modal-actions, .whatsapp-reminder-actions {
     justify-content: stretch !important;
   }
 
-  :is(.agenda-lab-summary, .agenda-toolbar-actions, .editor-actions, .inline-actions, .modal-actions, .whatsapp-reminder-actions) > * {
+  :is(.editor-actions, .inline-actions, .modal-actions, .whatsapp-reminder-actions) > * {
     flex: 1 1 auto;
-  }
-
-  .agenda-button-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-
-  .month-grid strong,
-  .month-grid button {
-    min-height: 34px !important;
   }
 
   .agenda-slot-row {
@@ -6990,41 +4847,30 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     grid-template-columns: 22px minmax(0, 1fr) !important;
   }
 
-  .agenda-dentcore .agenda-appointment strong,
-  .agenda-dentcore .agenda-appointment span {
+  .agenda-dentcore .agenda-appointment strong, .agenda-dentcore .agenda-appointment span {
     white-space: normal !important;
   }
 
-  .hoy-agenda,
-  .caja-table-wrap,
-  .listados-screen .desk-panel,
-  .admin-extras .desk-panel,
-  .pending-call-panel {
+  .caja-table-wrap, .listados-screen .desk-panel, .admin-extras .desk-panel, .pending-call-panel {
     overflow-x: visible !important;
   }
 
-  .hoy-citas-table,
-  .caja-table-wrap .dentcore-table,
-  .listados-screen .desk-panel > .dentcore-table,
-  .pending-call-panel .dentcore-table {
+  .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table {
     min-width: 0 !important;
     border: 0 !important;
     background: transparent !important;
   }
 
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) thead {
+  :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) thead {
     display: none !important;
   }
 
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table),
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) tbody,
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) tr,
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) td {
+  :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table), :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) tbody, :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) tr, :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) td {
     display: block !important;
     width: 100% !important;
   }
 
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) tr {
+  :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) tr {
     margin: 8px !important;
     border: 1px solid var(--dc-border) !important;
     border-radius: var(--dc-radius) !important;
@@ -7033,40 +4879,29 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     overflow: hidden !important;
   }
 
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) td {
+  :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) td {
     min-height: 0 !important;
     border-bottom: 1px solid color-mix(in srgb, var(--dc-border) 72%, transparent) !important;
     padding: 7px 9px !important;
     background: transparent !important;
   }
 
-  :is(.hoy-citas-table, .caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) td:last-child {
+  :is(.caja-table-wrap .dentcore-table, .listados-screen .desk-panel > .dentcore-table, .pending-call-panel .dentcore-table) td:last-child {
     border-bottom: 0 !important;
   }
 
-  .hoy-citas-table td,
-  .caja-table-wrap .dentcore-table td,
-  .pending-call-panel .dentcore-table td {
+  .caja-table-wrap .dentcore-table td, .pending-call-panel .dentcore-table td {
     display: grid !important;
     grid-template-columns: 104px minmax(0, 1fr) !important;
     gap: 8px !important;
     align-items: center !important;
   }
 
-  .hoy-citas-table td::before,
-  .caja-table-wrap .dentcore-table td::before,
-  .pending-call-panel .dentcore-table td::before {
+  .caja-table-wrap .dentcore-table td::before, .pending-call-panel .dentcore-table td::before {
     color: var(--dc-muted) !important;
     font-size: 0.68rem !important;
     font-weight: 760 !important;
   }
-
-  .hoy-citas-table td:nth-child(1)::before { content: "Hora"; }
-  .hoy-citas-table td:nth-child(2)::before { content: "Paciente"; }
-  .hoy-citas-table td:nth-child(3)::before { content: "Doctor"; }
-  .hoy-citas-table td:nth-child(4)::before { content: "Tratamiento"; }
-  .hoy-citas-table td:nth-child(5)::before { content: "Estado"; }
-  .hoy-citas-table td:nth-child(6)::before { content: "Accion"; }
 
   .caja-table-wrap .dentcore-table td:nth-child(1)::before { content: "Fecha"; }
   .caja-table-wrap .dentcore-table td:nth-child(2)::before { content: "Factura"; }
@@ -7093,21 +4928,8 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
 }
 
 @media (max-width: 420px) {
-  .main-content {
-    padding: 5px !important;
-  }
 
-  .app-launcher-trigger.app-brand {
-    max-width: 154px !important;
-  }
-
-  .agenda-button-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .hoy-citas-table td,
-  .caja-table-wrap .dentcore-table td,
-  .pending-call-panel .dentcore-table td {
+  .caja-table-wrap .dentcore-table td, .pending-call-panel .dentcore-table td {
     grid-template-columns: 88px minmax(0, 1fr) !important;
   }
 }

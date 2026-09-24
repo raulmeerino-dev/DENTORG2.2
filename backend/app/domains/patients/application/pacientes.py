@@ -361,7 +361,7 @@ async def proximas_citas_paciente(paciente_id: UUID, db: AsyncSession, current_u
     ensure_clinic_access(current_user, paciente.clinica_id)
     result = await db.execute(
         select(Cita)
-        .options(selectinload(Cita.paciente), selectinload(Cita.doctor))
+        .options(selectinload(Cita.paciente), selectinload(Cita.doctor), selectinload(Cita.gabinete))
         .where(Cita.paciente_id == paciente_id, Cita.fecha_hora >= datetime.now(timezone.utc))
         .order_by(Cita.fecha_hora)
     )

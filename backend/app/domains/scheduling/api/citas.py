@@ -179,7 +179,7 @@ async def crear_paciente_provisional(data: PacienteProvisionalCreate, db: Annota
 @router.get("/jornada/config", response_model=JornadaConfigResponse)
 async def jornada_config(_: CurrentUser) -> JornadaConfigResponse:
     settings = get_settings()
-    return JornadaConfigResponse(espera_aviso_min=settings.waiting_room_warning_minutes, espera_critica_min=max(settings.waiting_room_warning_minutes + 1, settings.waiting_room_critical_minutes), duracion_habitual_min=settings.appointment_default_duration_minutes)
+    return JornadaConfigResponse(espera_aviso_min=settings.waiting_room_warning_minutes, espera_critica_min=max(settings.waiting_room_warning_minutes + 1, settings.waiting_room_critical_minutes), duracion_habitual_min=settings.appointment_default_duration_minutes, zona_horaria=settings.clinic_timezone)
 
 
 @router.post("/{cita_id}/llegada", response_model=CitaResponse)
