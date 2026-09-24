@@ -13,11 +13,13 @@ from sqlalchemy.orm import selectinload
 
 from app.core.audit_log import write_audit_log
 from app.core.permissions import (
+    BILLING_ROLES,
     ROLE_ADMIN,
     ROLE_DOCTOR,
     ROLE_PACIENTE,
     ROLE_RECEPCION,
     TokenData,
+    can_view_health_data,
     ensure_clinic_access,
 )
 from app.domains.clinical.application.consentimientos import (
@@ -29,6 +31,11 @@ from app.domains.clinical.application.consentimientos import (
     _ruta_paciente as _ruta_consentimiento_paciente,
 )
 from app.domains.clinical.application.documentos import UPLOAD_ROOT, _doc_to_dict
+from app.domains.clinical.domain.document_access import (
+    ADMIN_DOCUMENT_TYPES,
+    FINANCIAL_DOCUMENT_TYPES,
+    ensure_clinical_document_access,
+)
 from app.domains.clinical.persistence.consentimiento import Consentimiento
 from app.domains.clinical.persistence.documento import DocumentoPaciente
 from app.domains.clinical.schemas.consentimientos import (
@@ -769,11 +776,16 @@ async def portal_solicitar_cambio_cita(cita_id: UUID, data: PortalSolicitarCambi
 
 async def portal_documentos(db: AsyncSession, current_user: TokenData, paciente_id: UUID | None) -> list[dict]:
     paciente = await _get_portal_paciente(db, current_user, paciente_id)
-    result = await db.execute(
+    stmt = (
         select(DocumentoPaciente)
         .where(DocumentoPaciente.paciente_id == paciente.id, DocumentoPaciente.deleted_at.is_(None))
         .order_by(DocumentoPaciente.created_at.desc())
     )
+    if current_user.rol != ROLE_PACIENTE and not can_view_health_data(current_user):
+        stmt = stmt.where(DocumentoPaciente.categoria.in_(ADMIN_DOCUMENT_TYPES))
+    if current_user.rol != ROLE_PACIENTE and current_user.rol not in BILLING_ROLES:
+        stmt = stmt.where(DocumentoPaciente.categoria.not_in(FINANCIAL_DOCUMENT_TYPES))
+    result = await db.execute(stmt)
     documentos = result.scalars().all()
     await write_audit_log(
         db,
@@ -789,6 +801,7 @@ async def portal_documentos(db: AsyncSession, current_user: TokenData, paciente_
 
 async def portal_consentimientos(db: AsyncSession, current_user: TokenData, paciente_id: UUID | None) -> list[ConsentimientoResponse]:
     paciente = await _get_portal_paciente(db, current_user, paciente_id)
+    ensure_clinical_document_access(current_user, paciente.id)
     result = await db.execute(
         select(Consentimiento)
         .where(Consentimiento.paciente_id == paciente.id)

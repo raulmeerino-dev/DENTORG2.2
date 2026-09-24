@@ -3,6 +3,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.security import hash_password
 from app.core.throttling import clear_login_failures
 from app.domains.identity.persistence.usuario import Usuario
@@ -64,6 +65,17 @@ async def test_get_me_sin_token(client: AsyncClient):
     """GET /auth/me sin token devuelve 401."""
     response = await client.get("/api/auth/me")
     assert response.status_code == 401
+
+
+async def test_get_me_includes_configured_clinic_timezone(client, db_session, monkeypatch):
+    usuario = Usuario(username="timezone-user", password_hash=hash_password("timezone123"), nombre="Timezone", rol="doctor")
+    db_session.add(usuario)
+    await db_session.commit()
+    login = await client.post("/api/auth/login", json={"username": "timezone-user", "password": "timezone123"})
+    monkeypatch.setattr(get_settings(), "clinic_timezone", "Atlantic/Canary")
+    response = await client.get("/api/auth/me", headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+    assert response.status_code == 200
+    assert response.json()["clinic_timezone"] == "Atlantic/Canary"
 
 
 @pytest.mark.asyncio

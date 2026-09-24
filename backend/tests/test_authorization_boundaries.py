@@ -452,6 +452,10 @@ async def test_financial_data_and_payments_are_isolated_between_clinics(
     client: AsyncClient,
     db_session: AsyncSession,
 ) -> None:
+    # A dedicated fixture period keeps this exact-total assertion independent
+    # of current-day legacy invoices committed by PDF tests. Both tenants are
+    # inside the same period, so a tenant leak would still produce 1,000 EUR.
+    fixture_day = date(2000, 1, 2)
     clinic_a = Clinica(nombre=f"Facturacion A {uuid4().hex[:8]}", activa=True)
     clinic_b = Clinica(nombre=f"Facturacion B {uuid4().hex[:8]}", activa=True)
     db_session.add_all([clinic_a, clinic_b])
@@ -465,7 +469,7 @@ async def test_financial_data_and_payments_are_isolated_between_clinics(
         clinica_id=clinic_a.id,
         serie="TA",
         numero=1,
-        fecha=date.today(),
+        fecha=fixture_day,
         tipo="paciente",
         subtotal=Decimal("100.00"),
         iva_total=Decimal("0.00"),
@@ -477,7 +481,7 @@ async def test_financial_data_and_payments_are_isolated_between_clinics(
         clinica_id=clinic_b.id,
         serie="TB",
         numero=1,
-        fecha=date.today(),
+        fecha=fixture_day,
         tipo="paciente",
         subtotal=Decimal("900.00"),
         iva_total=Decimal("0.00"),
@@ -498,7 +502,7 @@ async def test_financial_data_and_payments_are_isolated_between_clinics(
     income = await client.get(
         "/api/reportes/ingresos",
         headers=headers,
-        params={"desde": date.today().isoformat(), "hasta": date.today().isoformat()},
+        params={"desde": fixture_day.isoformat(), "hasta": fixture_day.isoformat()},
     )
 
     assert listed.status_code == 200

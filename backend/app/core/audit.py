@@ -29,6 +29,7 @@ AUDITED_PREFIXES = (
     "/api/dictado",
     "/api/assistant",
     "/api/laboratorio",
+    "/api/registros",
     "/api/admin/backups",
     "/api/admin/usuarios",
 )
@@ -105,6 +106,9 @@ class AuditLogMiddleware(BaseHTTPMiddleware):
             "clinica_id": str(clinica_id) if clinica_id else None,
             "usuario_id": str(user_id) if user_id else None,
         }
+        export = getattr(request.state, "audit_export", None)
+        if export is not None:
+            detalles["exportacion"] = export
 
         async with AsyncSessionLocal() as session:
             previous_hash = await session.scalar(

@@ -275,6 +275,7 @@ async def get_me(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado")
     data = UsuarioMe.model_validate(usuario)
     data.two_factor_enabled = bool(usuario.two_factor_secret)
+    data.clinic_timezone = get_settings().clinic_timezone
     return data
 
 

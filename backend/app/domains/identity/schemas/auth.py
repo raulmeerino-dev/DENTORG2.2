@@ -31,6 +31,7 @@ class UsuarioMe(BaseModel):
     paciente_id: UUID | None = None
     clinica_id: UUID | None = None
     two_factor_enabled: bool = False
+    clinic_timezone: str = "Europe/Madrid"
 
     model_config = {"from_attributes": True}
 

@@ -1,12 +1,14 @@
 """Reportes operativos, dashboard y BI de clinica."""
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import Date, case, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.core.permissions import (
     CurrentUser,
     RequireBilling,
@@ -27,8 +29,12 @@ router = APIRouter(dependencies=[RequireBilling])
 
 
 def _periodo(fecha_desde: date | None, fecha_hasta: date | None) -> tuple[date, date]:
-    hoy = date.today()
+    hoy = datetime.now(ZoneInfo(get_settings().clinic_timezone)).date()
     return fecha_desde or date(hoy.year, hoy.month, 1), fecha_hasta or hoy
+
+
+def _clinic_date(column):
+    return cast(func.timezone(get_settings().clinic_timezone, column), Date)
 
 
 def _clinic_condition(model: type, current_user: CurrentUser):
@@ -56,8 +62,8 @@ async def _facturacion_resumen(
         select(func.coalesce(func.sum(Cobro.importe), Decimal("0")))
         .join(Factura, Factura.id == Cobro.factura_id)
         .where(
-            cast(Cobro.fecha, Date) >= fecha_desde,
-            cast(Cobro.fecha, Date) <= fecha_hasta,
+            _clinic_date(Cobro.fecha) >= fecha_desde,
+            _clinic_date(Cobro.fecha) <= fecha_hasta,
             Cobro.anulado_at.is_(None),
             Factura.estado != "anulada",
         )
@@ -99,7 +105,7 @@ async def _citas_resumen(
 ) -> dict:
     stmt = (
         select(Cita.estado, func.count(Cita.id))
-        .where(cast(Cita.fecha_hora, Date) >= fecha_desde, cast(Cita.fecha_hora, Date) <= fecha_hasta)
+        .where(_clinic_date(Cita.fecha_hora) >= fecha_desde, _clinic_date(Cita.fecha_hora) <= fecha_hasta)
         .group_by(Cita.estado)
     )
     stmt = _apply_clinic(stmt, Cita, current_user)
@@ -125,8 +131,8 @@ async def _pacientes_nuevos(
     fecha_hasta: date,
 ) -> int:
     stmt = select(func.count(Paciente.id)).where(
-        cast(Paciente.created_at, Date) >= fecha_desde,
-        cast(Paciente.created_at, Date) <= fecha_hasta,
+        _clinic_date(Paciente.created_at) >= fecha_desde,
+        _clinic_date(Paciente.created_at) <= fecha_hasta,
         Paciente.activo == True,  # noqa: E712
     )
     stmt = _apply_clinic(stmt, Paciente, current_user)
@@ -221,7 +227,7 @@ async def _citas_doctores(
             duration.label("minutos"),
         )
         .join(Doctor, Doctor.id == Cita.doctor_id)
-        .where(cast(Cita.fecha_hora, Date) >= fecha_desde, cast(Cita.fecha_hora, Date) <= fecha_hasta)
+        .where(_clinic_date(Cita.fecha_hora) >= fecha_desde, _clinic_date(Cita.fecha_hora) <= fecha_hasta)
         .group_by(Doctor.id, Doctor.nombre, Doctor.color_agenda)
         .order_by(func.count(Cita.id).desc())
     )
@@ -293,14 +299,15 @@ async def _facturacion_mensual(db: AsyncSession, current_user: CurrentUser, anno
     facturas_stmt = _apply_clinic(facturas_stmt, Factura, current_user)
     facturas = {int(r.mes): {"facturado": float(r.facturado or 0), "num_facturas": int(r.num_facturas or 0)} for r in await db.execute(facturas_stmt)}
 
+    cobro_mes = func.extract("month", _clinic_date(Cobro.fecha))
     cobros_stmt = (
         select(
-            func.extract("month", Cobro.fecha).label("mes"),
+            cobro_mes.label("mes"),
             func.coalesce(func.sum(Cobro.importe), Decimal("0")).label("cobrado"),
         )
         .join(Factura, Factura.id == Cobro.factura_id)
-        .where(func.extract("year", Cobro.fecha) == anno, Cobro.anulado_at.is_(None), Factura.estado != "anulada")
-        .group_by(func.extract("month", Cobro.fecha))
+        .where(func.extract("year", _clinic_date(Cobro.fecha)) == anno, Cobro.anulado_at.is_(None), Factura.estado != "anulada")
+        .group_by(cobro_mes)
     )
     clinic_filter = _clinic_condition(Factura, current_user)
     if clinic_filter is not None:
@@ -539,7 +546,7 @@ async def listado_faltas(
             Paciente.num_historial,
         )
         .join(Paciente, Paciente.id == HistorialFaltas.paciente_id)
-        .where(cast(HistorialFaltas.fecha, Date) >= fecha_desde, cast(HistorialFaltas.fecha, Date) <= fecha_hasta)
+        .where(_clinic_date(HistorialFaltas.fecha) >= fecha_desde, _clinic_date(HistorialFaltas.fecha) <= fecha_hasta)
         .order_by(HistorialFaltas.fecha.desc())
     )
     clinic_filter = _clinic_condition(Paciente, current_user)

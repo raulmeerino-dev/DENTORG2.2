@@ -19,7 +19,7 @@ from app.domains.identity.api import admin, auth, clinicas, doctores, fichajes
 from app.domains.inventory.api import inventario
 from app.domains.laboratory.api import laboratorio
 from app.domains.patients.api import pacientes, portal, sync_import
-from app.domains.reporting.api import reportes
+from app.domains.reporting.api import registros, registros_exports, reportes
 from app.domains.scheduling.api import citas
 from app.domains.treatment_plans.api import presupuestos
 
@@ -72,6 +72,8 @@ app.include_router(presupuestos.router, prefix="/api/presupuestos", tags=["presu
 app.include_router(facturas.router, prefix="/api/facturas", tags=["facturas"], dependencies=staff_only)
 app.include_router(fichajes.router, prefix="/api/fichajes", tags=["fichajes"], dependencies=staff_only)
 app.include_router(reportes.router, prefix="/api/reportes", tags=["reportes"], dependencies=staff_only)
+app.include_router(registros.router, prefix="/api/registros", tags=["registros"], dependencies=staff_only)
+app.include_router(registros_exports.router, prefix="/api/registros", tags=["registros"], dependencies=staff_only)
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"], dependencies=staff_only)
 app.include_router(pdf.router, prefix="/api/pdf", tags=["pdf"], dependencies=staff_only)
 app.include_router(documentos.router, prefix="/api/pacientes", tags=["documentos"], dependencies=staff_only)

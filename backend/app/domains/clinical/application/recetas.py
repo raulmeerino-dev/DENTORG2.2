@@ -38,6 +38,7 @@ from app.domains.clinical.application.receta_provider_service import (
     get_receta_provider,
     provider_status_payload,
 )
+from app.domains.clinical.domain.document_access import ensure_clinical_document_access
 from app.domains.clinical.persistence.documento import DocumentoPaciente
 from app.domains.clinical.persistence.receta import RecetaClinica, RecetaPlantilla
 from app.domains.clinical.schemas.receta import (
@@ -169,6 +170,7 @@ async def _get_plantilla(db: AsyncSession, plantilla_id: uuid.UUID, current_user
 
 
 async def _get_receta_or_404(db: AsyncSession, receta_id: uuid.UUID, current_user: TokenData) -> RecetaClinica:
+    ensure_clinical_document_access(current_user)
     receta = await db.scalar(
         select(RecetaClinica)
         .options(selectinload(RecetaClinica.doctor), selectinload(RecetaClinica.plantilla))
@@ -177,6 +179,7 @@ async def _get_receta_or_404(db: AsyncSession, receta_id: uuid.UUID, current_use
     if not receta:
         raise HTTPException(status_code=404, detail="Receta no encontrada")
     ensure_clinic_access(current_user, receta.clinica_id)
+    await _get_paciente(db, receta.paciente_id, current_user)
     return receta
 
 
@@ -381,15 +384,18 @@ async def actualizar_plantilla(plantilla_id: uuid.UUID, data: RecetaPlantillaUpd
 
 
 async def listar_recetas(db: AsyncSession, current_user: TokenData, paciente_id: uuid.UUID | None, limit: int) -> list[RecetaResponse]:
+    ensure_clinical_document_access(current_user)
     if paciente_id is None and current_user.clinica_id is None and current_user.rol != "admin":
         raise HTTPException(status_code=400, detail="paciente_id es obligatorio")
     stmt = (
         select(RecetaClinica)
+        .join(Paciente, Paciente.id == RecetaClinica.paciente_id)
         .options(selectinload(RecetaClinica.doctor), selectinload(RecetaClinica.plantilla))
         .where(RecetaClinica.activo.is_(True))
         .order_by(RecetaClinica.fecha_prescripcion.desc(), RecetaClinica.created_at.desc())
         .limit(limit)
     )
+    stmt = scope_select_by_clinic(stmt, Paciente, current_user)
     if paciente_id is not None:
         paciente = await _get_paciente(db, paciente_id, current_user)
         stmt = stmt.where(RecetaClinica.paciente_id == paciente.id)

@@ -23,8 +23,18 @@ from app.core.documents.pdf import (
     validate_pdf_bytes,
     validate_signature_data_url,
 )
-from app.core.permissions import TokenData, ensure_clinic_access
+from app.core.permissions import (
+    BILLING_ROLES,
+    TokenData,
+    can_view_health_data,
+    ensure_clinic_access,
+)
 from app.core.throttling import ensure_upload_allowed
+from app.domains.clinical.domain.document_access import (
+    ADMIN_DOCUMENT_TYPES,
+    FINANCIAL_DOCUMENT_TYPES,
+    ensure_document_access,
+)
 from app.domains.clinical.persistence.documento import CATEGORIAS_DOCUMENTO, DocumentoPaciente
 from app.domains.clinical.schemas.documentos import DocumentoPdfCreate
 from app.domains.patients.persistence.paciente import Paciente
@@ -188,6 +198,10 @@ async def listar_documentos(paciente_id: uuid.UUID, db: AsyncSession, current_us
     )
     if categoria:
         q = q.where(DocumentoPaciente.categoria == categoria)
+    if not can_view_health_data(current_user):
+        q = q.where(DocumentoPaciente.categoria.in_(ADMIN_DOCUMENT_TYPES))
+    if current_user.rol not in BILLING_ROLES:
+        q = q.where(DocumentoPaciente.categoria.not_in(FINANCIAL_DOCUMENT_TYPES))
     q = q.where(DocumentoPaciente.deleted_at.is_(None))
 
     result = await db.execute(q)
@@ -332,6 +346,7 @@ async def descargar_documento(paciente_id: uuid.UUID, doc_id: uuid.UUID, db: Asy
     if not pac:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, pac.clinica_id)
+    ensure_document_access(current_user, doc.categoria)
 
     ruta_abs = _safe_patient_file(paciente_id, doc.nombre_guardado)
     if not ruta_abs.exists():

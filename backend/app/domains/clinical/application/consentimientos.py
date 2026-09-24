@@ -25,6 +25,7 @@ from app.core.permissions import (
     resolve_clinic_id,
     scope_select_by_clinic,
 )
+from app.domains.clinical.domain.document_access import ensure_clinical_document_access
 from app.domains.clinical.persistence.consentimiento import Consentimiento, ConsentimientoPlantilla
 from app.domains.clinical.persistence.documento import DocumentoPaciente
 from app.domains.clinical.schemas.consentimientos import (
@@ -197,6 +198,7 @@ def _generar_pdf_consentimiento(consentimiento: Consentimiento, paciente: Pacien
 
 
 async def _get_paciente(db: AsyncSession, paciente_id: uuid.UUID, current_user: TokenData) -> Paciente:
+    ensure_clinical_document_access(current_user, paciente_id)
     paciente = await db.get(Paciente, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -205,10 +207,14 @@ async def _get_paciente(db: AsyncSession, paciente_id: uuid.UUID, current_user: 
 
 
 async def _get_consentimiento(db: AsyncSession, consentimiento_id: uuid.UUID, current_user: TokenData) -> Consentimiento:
+    if current_user.rol != "paciente":
+        ensure_clinical_document_access(current_user)
     consentimiento = await db.get(Consentimiento, consentimiento_id)
     if not consentimiento:
         raise HTTPException(status_code=404, detail="Consentimiento no encontrado")
+    ensure_clinical_document_access(current_user, consentimiento.paciente_id)
     ensure_clinic_access(current_user, consentimiento.clinica_id)
+    await _get_paciente(db, consentimiento.paciente_id, current_user)
     return consentimiento
 
 
