@@ -28,6 +28,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
   const [descuento, setDescuento] = useState('0');
   const [precioLinea, setPrecioLinea] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [mapOpen, setMapOpen] = useState(false);
   const [rechazarOpen, setRechazarOpen] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const selectedTreatment = tratamientos.find((item) => item.id === selectedTreatmentId) ?? tratamientos[0];
@@ -207,12 +208,15 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
         </div>
       </div>
 
-      <BudgetOdontogramFlow
+      <details className="budget-step-panel" open={mapOpen} onToggle={event => setMapOpen(event.currentTarget.open)}>
+      <summary>Planificar por piezas · abrir odontograma</summary>
+      {mapOpen && <BudgetOdontogramFlow
         paciente={paciente}
         presupuesto={presupuesto}
         tratamientos={tratamientos}
         userRole={userRole}
-      />
+      />}
+      </details>
 
       {/* Workbench */}
       <details className="budget-step-panel" open>

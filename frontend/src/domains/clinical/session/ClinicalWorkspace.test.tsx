@@ -590,8 +590,8 @@ describe('ClinicalWorkspace visitas', () => {
     const user = userEvent.setup();
     const { onOpenHistorial } = renderVisits({ citas: [visitaCita], historial: [historialVisita] });
 
-    await user.click(screen.getByRole('button', { name: /Abrir detalle en Historial/i }));
-    expect(onOpenHistorial).toHaveBeenCalledTimes(1);
+    await user.click(screen.getByRole('button', { name: /Abrir visita/i }));
+    expect(onOpenHistorial).toHaveBeenCalledWith(visitaCita.id);
   });
 });
 

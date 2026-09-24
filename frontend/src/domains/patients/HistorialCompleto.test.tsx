@@ -291,7 +291,7 @@ describe('HistorialCompletoPanel filtros', () => {
     expect(screen.getByText('Cobro anulado')).toBeInTheDocument();
   });
 
-  it('muestra una lectura de historial por pieza con realizados, pendientes, notas y documentos', () => {
+  it('muestra registros por pieza solo cuando se solicita, sin odontograma general', async () => {
     renderHistorial({
       historial: [historialPieza],
       presupuestos: [presupuestoPieza],
@@ -299,6 +299,8 @@ describe('HistorialCompletoPanel filtros', () => {
       notasDentales: [notaPieza],
     });
 
+    expect(screen.queryByLabelText('Historial de pieza 16')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Odontograma' }));
     expect(screen.getAllByRole('button', { name: '16' }).length).toBeGreaterThan(0);
     expect(screen.getByLabelText('Historial de pieza 16')).toBeInTheDocument();
     expect(screen.getAllByText('Endodoncia').length).toBeGreaterThan(0);

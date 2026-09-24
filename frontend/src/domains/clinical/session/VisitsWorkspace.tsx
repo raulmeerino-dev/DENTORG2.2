@@ -33,7 +33,7 @@ export function VisitsWorkspace({
   recetas: RecetaClinica[];
   laboratorio: TrabajoLaboratorio[];
   notasDentales: NotaDental[];
-  onOpenHistorial: () => void;
+  onOpenHistorial: (citaId?: string) => void;
 }) {
   const visitas = useMemo(() => buildVisitGroups({
     citas,
@@ -58,7 +58,7 @@ export function VisitsWorkspace({
           <span><CalendarDays size={15} aria-hidden="true" /> Visitas del paciente</span>
           <strong>{visitas.length} dia{visitas.length === 1 ? '' : 's'} con actividad clinica</strong>
         </div>
-        <button type="button" onClick={onOpenHistorial}>Abrir historial completo</button>
+        <button type="button" onClick={() => onOpenHistorial()}>Abrir historial completo</button>
       </header>
       <div className="visits-list">
         {visitas.map((visita) => {
@@ -81,7 +81,8 @@ export function VisitsWorkspace({
                   <strong>Motivo: {tituloVisita}</strong>
                   <p>{[doctor, gabinete ? `Gab. ${gabinete}` : null, citaPrincipal?.duracion_min ? `${citaPrincipal.duracion_min} min` : null].filter(Boolean).join(' - ') || 'Sin doctor o gabinete asignado'}</p>
                 </div>
-                <button type="button" onClick={onOpenHistorial}>Abrir detalle en Historial</button>
+                {visita.citas.map(cita => <button key={cita.id} type="button" onClick={() => onOpenHistorial(cita.id)}>Abrir visita {getTime(cita.fecha_hora)}</button>)}
+                {!visita.citas.length && <button type="button" onClick={() => onOpenHistorial()}>Abrir historial completo</button>}
               </header>
               <div className="visit-body">
                 <section>

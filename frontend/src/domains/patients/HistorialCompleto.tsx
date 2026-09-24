@@ -1,10 +1,10 @@
 import { useMemo,useState } from 'react';
 import { formatDate, money } from '../../shared/format';
-import { fullName } from './patientName';
 import type { ApiPaciente,Cita,Consentimiento,DocumentoPaciente,Factura,HistorialClinico,NotaDental,PagoAnticipadoPaciente,Presupuesto,RecetaClinica,TrabajoLaboratorio,UserRole,WhatsAppInboxItem } from '../../api/types';
 import { DentalPieceHistoryPanel } from '../clinical/history/DentalPieceHistoryPanel';
 import { collectDentalPieces } from '../clinical/history/dentalPieceUtils';
-import { PatientOdontogramFlow } from '../clinical/odontogram';
+import { VisitDetail } from '../clinical/history/VisitDetail';
+import './history-workspace.css';
 
 type HistoryFilter = 'todo' | 'clinico' | 'citas' | 'presupuestos' | 'facturacion' | 'cobros' | 'documentos' | 'consentimientos' | 'recetas' | 'laboratorio' | 'whatsapp' | 'odontograma';
 
@@ -22,17 +22,6 @@ type TimelineEvent = {
   ledgerLabel?: string;
   ledgerTitle?: string;
   ledgerSummary?: string;
-};
-
-type LedgerGroup = {
-  id: string;
-  date: string;
-  filter: HistoryFilter;
-  label: string;
-  title: string;
-  summary: string;
-  amount?: string;
-  events: TimelineEvent[];
 };
 
 const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
@@ -121,34 +110,7 @@ function getLedgerIdentity(event: TimelineEvent) {
   };
 }
 
-function buildLedgerGroups(events: TimelineEvent[]) {
-  const groups = new Map<string, LedgerGroup>();
-  events.forEach((event) => {
-    const identity = getLedgerIdentity(event);
-    const existing = groups.get(identity.id);
-    if (!existing) {
-      groups.set(identity.id, {
-        id: identity.id,
-        date: event.date,
-        filter: event.filter,
-        label: identity.label,
-        title: identity.title,
-        summary: identity.summary,
-        amount: event.amount,
-        events: [event],
-      });
-      return;
-    }
-    existing.events.push(event);
-    if (event.date.localeCompare(existing.date) > 0) existing.date = event.date;
-    if (!existing.amount && event.amount) existing.amount = event.amount;
-  });
-
-  return Array.from(groups.values()).sort((a, b) => b.date.localeCompare(a.date));
-}
-
 export function HistorialCompletoPanel({
-  paciente,
   historial,
   citas,
   presupuestos,
@@ -165,10 +127,10 @@ export function HistorialCompletoPanel({
   onOpenFactura,
   onOpenReceta,
   onOpenTreatmentHistory,
-  userRole,
   canManageBilling = true,
   initialFilter = 'todo',
   focusedRecordId,
+  focusedVisitId,
 }: {
   paciente: ApiPaciente | null;
   historial: HistorialClinico[];
@@ -191,7 +153,9 @@ export function HistorialCompletoPanel({
   canManageBilling?: boolean;
   initialFilter?: HistoryFilter;
   focusedRecordId?: string | null;
+  focusedVisitId?: string | null;
 }) {
+  const [visit, setVisit] = useState<Cita | null>(null);
   const [filter, setFilter] = useState<HistoryFilter>(initialFilter);
   const [focusDismissed, setFocusDismissed] = useState(false);
   const availableFilters = canManageBilling
@@ -224,7 +188,7 @@ export function HistorialCompletoPanel({
         label: 'Clinico',
         title: tratamiento,
         detail: entrada.observaciones || entrada.diagnostico || entrada.estado,
-        meta: [entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.doctor?.nombre].filter(Boolean).join(' · '),
+        meta: [entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.estado, entrada.doctor?.nombre].filter(Boolean).join(' · '),
         amount: entrada.importe ? money(entrada.importe) : undefined,
         ledgerId: facturaLabel ? `factura-${facturaLabel}` : undefined,
         ledgerLabel: facturaLabel ? 'Factura / tratamientos' : undefined,
@@ -249,10 +213,11 @@ export function HistorialCompletoPanel({
         id: `cita-${cita.id}`,
         date: cita.fecha_hora,
         filter: 'citas',
-        label: 'Cita',
+        label: ['atendida', 'finalizada'].includes(cita.estado) ? 'Visita' : 'Cita',
         title: cita.motivo || 'Cita dental',
         detail: cita.observaciones || cita.estado,
-        meta: `${formatDate(cita.fecha_hora)} ${cita.fecha_hora.slice(11, 16)} · ${cita.duracion_min} min`,
+        action: () => setVisit(cita),
+        meta: [cita.doctor?.nombre, cita.estado, `${cita.duracion_min} min`].filter(Boolean).join(' · '),
       });
     });
 
@@ -379,8 +344,7 @@ export function HistorialCompletoPanel({
     });
 
     notasDentales.forEach((nota) => {
-      const isPieceNote = Boolean(nota.pieza_dental);
-      const detail = isPieceNote ? 'Nota clinica registrada' : nota.texto;
+      const detail = nota.texto;
       next.push({
         id: `nota-${nota.id}`,
         date: nota.fecha,
@@ -415,21 +379,20 @@ export function HistorialCompletoPanel({
       });
     });
 
-    return next.sort(sortDesc);
-  }, [anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, notasDentales, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
+    return next.filter(event => canManageBilling || !['facturacion', 'cobros'].includes(event.filter)).map(event => canManageBilling ? event : { ...event, amount: undefined, ledgerId: undefined, ledgerTitle: undefined, ledgerLabel: undefined, ledgerSummary: undefined }).sort(sortDesc);
+  }, [canManageBilling, anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, notasDentales, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
 
-  const visibleEvents = activeFilter === 'todo' ? events : events.filter((event) => event.filter === activeFilter);
+  const visibleEvents = activeFilter === 'todo' ? events.filter(event => event.filter !== 'odontograma') : events.filter((event) => event.filter === activeFilter);
   const focusedEvent = !focusDismissed && focusedRecordId ? events.find(event => event.id.endsWith(`-${focusedRecordId}`)) : undefined;
   const focusedGroup = focusedEvent ? getLedgerIdentity(focusedEvent).id : null;
-  const ledgerGroups = buildLedgerGroups(focusedGroup ? events.filter(event => getLedgerIdentity(event).id === focusedGroup) : visibleEvents);
+  const timeline = focusedGroup ? events.filter(event => getLedgerIdentity(event).id === focusedGroup) : visibleEvents;
+  const activeVisit = (visit ? citas.find(cita => cita.id === visit.id) : undefined) ?? (!focusDismissed ? citas.find(cita => cita.id === focusedVisitId) : undefined);
+  if (activeVisit) return <VisitDetail cita={activeVisit} historial={historial} notas={notasDentales} documentos={documentos} consentimientos={consentimientos} recetas={recetas} onClose={() => { setVisit(null); setFocusDismissed(true); }} onOpenDocumento={onOpenDocumento} onOpenConsentimiento={onOpenConsentimiento} onOpenReceta={onOpenReceta} />;
 
   return (
     <section className="complete-history-panel">
       <header className="complete-history-head">
-        <div>
-          <span>Historial completo</span>
-          <strong>{paciente ? fullName(paciente) : 'Sin paciente seleccionado'}</strong>
-        </div>
+        <h2>Historial completo</h2>
         <div className="complete-history-head-actions">
           <em>{visibleEvents.length} eventos visibles</em>
           {onOpenTreatmentHistory && (
@@ -449,80 +412,24 @@ export function HistorialCompletoPanel({
       </nav>
       {focusedEvent && <div className="history-record-focus"><strong>{focusedEvent.label} seleccionado · {focusedEvent.title}</strong><button type="button" onClick={() => { setFocusDismissed(true); setFilter('todo'); }}>Ver historial completo</button></div>}
 
-      <div className="complete-history-layout">
-        <div className="complete-history-timeline complete-history-ledger" role="list">
-          {ledgerGroups.map((group) => (
-            <article key={group.id} className={`history-ledger-group history-ledger-${group.filter}`} role="listitem">
-              <header>
-                <time>{formatDate(group.date)}</time>
-                <span>{group.label}</span>
-                <div>
-                  <strong>{group.title}</strong>
-                  <p>{group.summary}</p>
-                </div>
-                {group.amount && <b>{group.amount}</b>}
-              </header>
-              <div className="history-ledger-items">
-                {group.events.map((event) => (
-                  <div key={event.id} className={`history-ledger-item history-ledger-item-${event.filter}`}>
-                    <span>{group.events.length > 1 ? event.label : 'Detalle'}</span>
-                    <div>
-                      <strong>{group.title === event.title ? event.label : event.title}</strong>
-                      <p>{event.detail}</p>
-                      {(event.meta || event.amount) && (
-                        <small>
-                          {event.meta && <em>{event.meta}</em>}
-                          {event.amount && <b>{event.amount}</b>}
-                        </small>
-                      )}
-                    </div>
-                    {event.action && <button type="button" onClick={event.action}>Abrir</button>}
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
-          {!ledgerGroups.length && <div className="history-ledger-empty">No hay eventos para este filtro.</div>}
-        </div>
-
-        <details className="odontogram-support-panel history-odontogram-panel" open>
-          <summary>Odontograma asociado al historial</summary>
-          <div className="piece-history-selector" aria-label="Piezas con historial">
-            {pieceOptions.map((piece) => (
-              <button
-                key={piece}
-                type="button"
-                className={activePiece === piece ? 'active' : ''}
-                onClick={() => setSelectedPiece(piece)}
-              >
-                {piece}
-              </button>
-            ))}
-            {!pieceOptions.length && <span>Sin piezas vinculadas en los datos actuales.</span>}
-          </div>
-          <PatientOdontogramFlow
-            paciente={paciente}
-            mode="history"
-            title="Odontograma historico"
-            subtitle="Consulta de piezas vinculadas a eventos clinicos y documentos."
-            readOnly
-            enableQuickTreatments={false}
-            userRole={userRole}
-            onSelectDentalTarget={(selection) => {
-              const piece = Number(selection.toothNumber);
-              if (Number.isFinite(piece)) setSelectedPiece(piece);
-            }}
-          />
-          <DentalPieceHistoryPanel
-            piece={activePiece}
-            historial={historial}
-            presupuestos={presupuestos}
-            notasDentales={notasDentales}
-            documentos={documentos}
-            onOpenDocumento={onOpenDocumento}
-          />
-        </details>
+      <div className="dc-history-timeline" role="list" aria-label="Cronología del paciente">
+        {timeline.map(event => <article key={event.id} role="listitem" className="dc-history-event">
+          <time dateTime={event.date}>{formatDate(event.date)}</time>
+          <span className="dc-history-type">{event.label}</span>
+          <details>
+            <summary><strong>{event.title}</strong><span>{event.detail}</span>{event.meta && <small>{event.meta}</small>}</summary>
+            <div className="dc-history-event-detail"><p>{event.detail}</p></div>
+          </details>
+          {event.amount && <b>{event.amount}</b>}
+          {event.action && <button type="button" onClick={event.action}>{event.filter === 'citas' ? 'Abrir visita' : 'Abrir'}</button>}
+        </article>)}
+        {!timeline.length && <p>No hay eventos para este filtro.</p>}
       </div>
+      {activeFilter === 'odontograma' && <section className="dc-history-pieces" aria-label="Consulta por pieza">
+        <h2>Registros por pieza</h2>
+        <div className="piece-history-selector" aria-label="Piezas con historial">{pieceOptions.map(piece => <button key={piece} type="button" className={activePiece === piece ? 'active' : ''} onClick={() => setSelectedPiece(piece)}>{piece}</button>)}</div>
+        <DentalPieceHistoryPanel piece={activePiece} historial={historial} presupuestos={presupuestos} notasDentales={notasDentales} documentos={documentos} onOpenDocumento={onOpenDocumento} />
+      </section>}
     </section>
   );
 }

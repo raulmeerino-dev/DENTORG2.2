@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { FloatingPopover } from '../../../design-system/FloatingPopover';
 import type { CSSProperties, MouseEvent } from 'react';
 import { toast } from 'sonner';
-import type { ApiPaciente, Cobro, Factura, HistorialClinico, UserRole } from '../../../api/types';
+import type { ApiPaciente, Cobro, Factura, HistorialClinico } from '../../../api/types';
 import { colorForTreatment } from '../../clinical/components/treatmentVisual';
 import { formatDate, money } from '../../../shared/format';
 import type { TreatmentVisual } from '../../clinical/components/treatmentVisual';
@@ -10,7 +10,6 @@ import { TreatmentBadge } from '../../clinical/components/TreatmentBadge';
 import { emitirRecetaPdf } from '../../../api/prescriptions';
 import { openFacturaPdf } from '../../../api/billing';
 import { amount, getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
-import { PatientOdontogramFlow } from '../../clinical/odontogram';
 
 type HistoryBillingRow = {
   id: string;
@@ -473,46 +472,5 @@ export function InvoiceHistoryModal({
         </div>
       </section>
     </div>
-  );
-}
-
-export function ClinicalHistoryPanel({ paciente, historial, onFacturar, onCobrar, onVerDeuda, onAsociarFactura, userRole }: { paciente: ApiPaciente | null; historial: HistorialClinico[]; onFacturar: () => void; onCobrar: () => void; onVerDeuda: () => void; onAsociarFactura: () => void; userRole?: UserRole | null }) {
-  return (
-    <section className="desk-panel">
-      <div className="panel-caption"><strong>Historial clinico</strong><span>Observaciones por tratamiento, no mezcladas con la ficha general</span></div>
-      <table className="dentcore-table treatment-table">
-        <thead><tr><th>Fecha</th><th>Tipo</th><th>Tratamiento</th><th>Pieza</th><th>Diagnostico</th><th>Estado</th><th>Importe</th><th>Factura</th></tr></thead>
-        <tbody>
-          {historial.map((entrada, index) => (
-            <tr key={entrada.id} className={index === 0 ? 'selected-row treatment-coded-row' : 'treatment-coded-row'} style={{ '--treatment-color': colorForTreatment(entrada.tratamiento) } as CSSProperties}>
-              <td>{formatDate(entrada.fecha)}</td>
-              <td><TreatmentBadge tratamiento={entrada.tratamiento} /></td>
-              <td>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</td>
-              <td>{entrada.pieza_dental ?? ''}</td>
-              <td>{entrada.diagnostico ?? ''}</td>
-              <td>{entrada.estado}</td>
-              <td className="num">{entrada.importe ? money(entrada.importe) : ''}</td>
-              <td>{entrada.factura_id ? 'Si' : 'No'}</td>
-            </tr>
-          ))}
-          {!historial.length && <tr><td colSpan={8}>Sin historial clinico registrado.</td></tr>}
-        </tbody>
-      </table>
-      <div className="history-footer">
-        <button onClick={onFacturar}>Generar factura</button>
-        <button onClick={onCobrar}>Anadir cobro</button>
-        <button onClick={onVerDeuda}>Ver deuda</button>
-        <button onClick={onAsociarFactura}>Asociar factura</button>
-      </div>
-      <PatientOdontogramFlow
-        paciente={paciente}
-        mode="history"
-        title="Historial por pieza"
-        subtitle="Mapa de lectura para filtrar y consultar la evolucion clinica por pieza."
-        readOnly
-        enableQuickTreatments={false}
-        userRole={userRole}
-      />
-    </section>
   );
 }

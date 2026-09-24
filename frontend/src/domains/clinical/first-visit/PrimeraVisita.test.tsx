@@ -19,7 +19,7 @@ const paciente: ApiPaciente = {
 };
 
 describe('PrimeraVisitaPanel', () => {
-  it('prioriza el odontograma y despliega la valoración solo cuando se solicita', async () => {
+  it('muestra la valoración y carga el odontograma solo al abrir exploración', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
 
@@ -32,14 +32,11 @@ describe('PrimeraVisitaPanel', () => {
       />,
     );
 
+    expect(screen.queryByTestId('diagnostic-odontogram')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Motivo de consulta')).toBeInTheDocument();
+    HTMLElement.prototype.scrollIntoView = vi.fn();
+    await user.click(screen.getByRole('button', { name: 'Exploración / Odontograma' }));
     expect(screen.getByTestId('diagnostic-odontogram')).toBeInTheDocument();
-    expect(screen.queryByLabelText('Motivo de consulta')).not.toBeInTheDocument();
-
-    const toggle = screen.getByRole('button', { name: 'Completar valoración' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await user.type(screen.getByLabelText('Motivo de consulta'), 'Dolor en molar inferior');
     await user.click(screen.getByRole('button', { name: 'Guardar valoración' }));
 
@@ -48,7 +45,7 @@ describe('PrimeraVisitaPanel', () => {
     }));
   });
 
-  it('resume una valoración guardada sin abrir de nuevo el formulario', () => {
+  it('conserva los datos guardados accesibles y no monta el odontograma', () => {
     render(
       <PrimeraVisitaPanel
         paciente={{
@@ -68,8 +65,8 @@ describe('PrimeraVisitaPanel', () => {
     );
 
     expect(screen.getByText('Registrada 14-04-26')).toBeInTheDocument();
-    expect(screen.getByText('2 apartados clínicos informados')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Editar valoración' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByLabelText('Motivo de consulta')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Motivo de consulta')).toHaveValue('Revisión general');
+    expect(screen.getByLabelText('Estado periodontal')).toHaveValue('Sangrado localizado');
+    expect(screen.queryByTestId('diagnostic-odontogram')).not.toBeInTheDocument();
   });
 });

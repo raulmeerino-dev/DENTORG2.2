@@ -28,13 +28,16 @@
 .dc-patient-tabs svg { width: 15px; height: 15px; }
 .dc-patient-body { flex: 1; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
 .dc-patient-body > div { min-height: 100%; }
-.dc-clinical-workspace { display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; }
+.dc-clinical-workspace { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .dc-clinical-tabs { display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: var(--dc-space-2); padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); }
 .dc-clinical-tabs button { background: transparent; border: 0; color: var(--dc-muted); }
 .dc-clinical-tabs button.active { color: var(--dc-primary); background: var(--dc-primary-soft); }
 .dc-clinical-tabs .clinical-subtab-action { margin-left: auto; }
-.dc-clinical-workspace > .session-workspace, .dc-clinical-workspace > .visits-workspace { overflow: auto; min-height: 0; }
-.dc-pending-workspace, .dc-session-stack { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+.dc-clinical-workspace > .session-workspace, .dc-clinical-workspace > .visits-workspace { min-height: 0; }
+.dc-pending-workspace, .dc-session-stack { min-height: 0; min-width: 0; }
+/* The patient body is the sole vertical scroll owner for embedded clinical tasks. */
+.dc-clinical-workspace > .dc-task-surface { flex: none; }
+.dc-clinical-workspace > .dc-task-surface > .dc-task-body { flex: none; overflow: visible; }
 .dc-pending-table { width: 100%; overflow: auto; }
 .dc-pending-table table { min-width: 760px; }
 .dc-pending-map { margin: 0; padding: var(--dc-space-3); border-top: 1px solid var(--dc-border); }

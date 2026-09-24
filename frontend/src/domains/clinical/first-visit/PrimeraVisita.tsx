@@ -1,6 +1,6 @@
 import { clinicDate } from '../../../shared/time/clinicTime';
-import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, ClipboardList, Save } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ClipboardList, Save } from 'lucide-react';
 import type { ApiPaciente, UserRole } from '../../../api/types';
 import { formatDate } from '../../../shared/format';
 import { PatientOdontogramFlow } from '../odontogram';
@@ -42,116 +42,60 @@ function getPrimeraVisita(paciente?: ApiPaciente | null): PrimeraVisitaData {
   };
 }
 
-export function PrimeraVisitaPanel({
-  paciente,
-  onSave,
-  saving,
-  userRole,
-}: {
+export function PrimeraVisitaPanel({ paciente, onSave, saving, userRole }: {
   paciente: ApiPaciente | null;
   onSave: (data: PrimeraVisitaData) => void;
   saving: boolean;
   userRole?: UserRole | null;
 }) {
   const [data, setData] = useState<PrimeraVisitaData>(() => getPrimeraVisita(paciente));
-  const [editorOpen, setEditorOpen] = useState(false);
-  const savedData = getSavedPrimeraVisita(paciente);
-  const savedFieldCount = Object.entries(savedData ?? {}).filter(([key, value]) => (
-    key !== 'fecha' && typeof value === 'string' && value.trim().length > 0
-  )).length;
-  const initialData = getPrimeraVisita(paciente);
-  const hasUnsavedChanges = JSON.stringify(data) !== JSON.stringify(initialData);
-
+  const [exploring, setExploring] = useState(false);
+  const assessment = useRef<HTMLElement>(null);
+  const exploration = useRef<HTMLDetailsElement>(null);
+  const plan = useRef<HTMLElement>(null);
+  const saved = getSavedPrimeraVisita(paciente);
+  const dirty = JSON.stringify(data) !== JSON.stringify(getPrimeraVisita(paciente));
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(getPrimeraVisita(paciente));
-    setEditorOpen(false);
+    setExploring(false);
   }, [paciente?.id, paciente?.datos_salud]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function update<K extends keyof PrimeraVisitaData>(key: K, value: PrimeraVisitaData[K]) {
-    setData((current) => ({ ...current, [key]: value }));
-  }
-
-  return (
-    <section className="dc-first-visit-panel">
-      <div className="dc-first-visit-overview">
-        <span className="dc-first-visit-overview-icon" aria-hidden="true">
-          <ClipboardList size={18} strokeWidth={2} />
-        </span>
-        <div>
-          <span>Valoración inicial</span>
-          <strong>{savedData ? `Registrada ${savedData.fecha ? formatDate(savedData.fecha) : ''}`.trim() : 'Pendiente de completar'}</strong>
-          <small>{savedData ? `${savedFieldCount} apartado${savedFieldCount === 1 ? '' : 's'} clínico${savedFieldCount === 1 ? '' : 's'} informado${savedFieldCount === 1 ? '' : 's'}` : 'Antecedentes bucales y motivo de consulta'}</small>
-        </div>
-        <button
-          type="button"
-          className="dc-first-visit-toggle"
-          aria-expanded={editorOpen}
-          aria-controls="dc-first-visit-editor"
-          onClick={() => setEditorOpen((current) => !current)}
-          disabled={!paciente}
-        >
-          {editorOpen ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
-          <span>{editorOpen ? 'Ocultar valoración' : savedData ? 'Editar valoración' : 'Completar valoración'}</span>
-        </button>
+  const update = (key: keyof PrimeraVisitaData, value: string) => setData(current => ({ ...current, [key]: value }));
+  const field = (key: keyof PrimeraVisitaData, label: string) => <label key={key}>{label}<textarea value={data[key] ?? ''} onChange={event => update(key, event.target.value)} disabled={!paciente} /></label>;
+  return <section className="dc-first-visit-panel">
+    <nav className="dc-first-visit-nav" aria-label="Apartados de primera visita">
+      <button type="button" onClick={() => assessment.current?.scrollIntoView({ block: 'start' })}>Valoración</button>
+      <button type="button" onClick={() => { setExploring(true); requestAnimationFrame(() => exploration.current?.scrollIntoView({ block: 'start' })); }}>Exploración / Odontograma</button>
+      <button type="button" onClick={() => plan.current?.scrollIntoView({ block: 'start' })}>Plan y guardar</button>
+      <span>{dirty ? 'Cambios sin guardar' : saved ? `Registrada ${saved.fecha ? formatDate(saved.fecha) : ''}` : 'Pendiente de completar'}</span>
+    </nav>
+    <section ref={assessment} className="dc-first-visit-section" aria-label="Valoración de primera visita">
+      <h2><ClipboardList size={16} aria-hidden="true" /> Valoración inicial</h2>
+      <div className="dc-first-visit-grid">
+        <label>Fecha primera visita<input type="date" value={data.fecha ?? ''} onChange={event => update('fecha', event.target.value)} disabled={!paciente} /></label>
+        <label>Motivo de consulta<input value={data.motivo ?? ''} onChange={event => update('motivo', event.target.value)} disabled={!paciente} /></label>
+        {field('dientes_ausentes', 'Dientes ausentes')}
+        {field('implantes_previos', 'Implantes ya existentes')}
+        {field('protesis_previas', 'Prótesis, coronas o puentes previos')}
+        {field('caries_visibles', 'Caries o reconstrucciones visibles')}
+        {field('periodontal', 'Estado periodontal')}
+        {field('higiene', 'Higiene y mucosas')}
       </div>
-      {editorOpen && (
-        <div id="dc-first-visit-editor" className="dc-first-visit-editor" aria-label="Valoración de primera visita">
-          <div className="dc-first-visit-editor-heading">
-            <div>
-              <strong>Datos de primera visita</strong>
-              <span>Base clínica estructurada</span>
-            </div>
-            {hasUnsavedChanges && <small>Cambios sin guardar</small>}
-          </div>
-          <div className="dc-first-visit-grid">
-            <label>Fecha primera visita
-              <input type="date" value={data.fecha ?? ''} onChange={(event) => update('fecha', event.target.value)} disabled={!paciente} />
-            </label>
-            <label>Motivo de consulta
-              <input value={data.motivo ?? ''} onChange={(event) => update('motivo', event.target.value)} disabled={!paciente} />
-            </label>
-            <label>Dientes ausentes
-              <textarea value={data.dientes_ausentes ?? ''} onChange={(event) => update('dientes_ausentes', event.target.value)} disabled={!paciente} placeholder="Ej. 18, 36, 46..." />
-            </label>
-            <label>Implantes ya existentes
-              <textarea value={data.implantes_previos ?? ''} onChange={(event) => update('implantes_previos', event.target.value)} disabled={!paciente} placeholder="Implantes previos, coronas sobre implante, aditamentos..." />
-            </label>
-            <label>Prótesis, coronas o puentes previos
-              <textarea value={data.protesis_previas ?? ''} onChange={(event) => update('protesis_previas', event.target.value)} disabled={!paciente} />
-            </label>
-            <label>Caries o reconstrucciones visibles
-              <textarea value={data.caries_visibles ?? ''} onChange={(event) => update('caries_visibles', event.target.value)} disabled={!paciente} />
-            </label>
-            <label>Estado periodontal
-              <textarea value={data.periodontal ?? ''} onChange={(event) => update('periodontal', event.target.value)} disabled={!paciente} />
-            </label>
-            <label>Higiene y mucosas
-              <textarea value={data.higiene ?? ''} onChange={(event) => update('higiene', event.target.value)} disabled={!paciente} />
-            </label>
-            <label className="wide">Plan recomendado inicial
-              <textarea value={data.plan_recomendado ?? ''} onChange={(event) => update('plan_recomendado', event.target.value)} disabled={!paciente} />
-            </label>
-            <label className="wide">Observaciones específicas de la boca
-              <textarea value={data.observaciones_boca ?? ''} onChange={(event) => update('observaciones_boca', event.target.value)} disabled={!paciente} />
-            </label>
-          </div>
-          <div className="dc-first-visit-editor-actions">
-            <button type="button" onClick={() => setEditorOpen(false)}>Cerrar edición</button>
-            <button type="button" className="primary-action" onClick={() => onSave(data)} disabled={!paciente || saving}>
-              <Save size={15} strokeWidth={2} aria-hidden="true" />
-              <span>{saving ? 'Guardando...' : 'Guardar valoración'}</span>
-            </button>
-          </div>
-        </div>
-      )}
-      <PatientOdontogramFlow
-        paciente={paciente}
-        mode="initialVisit"
-        title="Odontograma diagnóstico"
-        subtitle="Base clínica del paciente para planificar presupuestos y tratamientos."
-        userRole={userRole}
-      />
     </section>
-  );
+    <details ref={exploration} className="dc-first-visit-exploration" open={exploring} onToggle={event => setExploring(event.currentTarget.open)}>
+      <summary>Exploración / Odontograma diagnóstico <span>Seleccionar piezas y registrar hallazgos</span></summary>
+      {exploring && <PatientOdontogramFlow paciente={paciente} mode="initialVisit" title="Odontograma diagnóstico" subtitle="Registro clínico de la exploración. Los cambios en piezas se guardan de forma independiente a la valoración." userRole={userRole} />}
+    </details>
+    <section ref={plan} className="dc-first-visit-section" aria-label="Plan y observaciones">
+      <h2>Plan y observaciones</h2>
+      <div className="dc-first-visit-grid">
+        {field('plan_recomendado', 'Plan recomendado inicial')}
+        {field('observaciones_boca', 'Observaciones específicas de la boca')}
+      </div>
+      <div className="dc-first-visit-editor-actions">
+        {dirty && <span>Cambios sin guardar</span>}
+        <button type="button" className="primary-action" onClick={() => onSave(data)} disabled={!paciente || saving}><Save size={15} aria-hidden="true" />{saving ? 'Guardando...' : 'Guardar valoración'}</button>
+      </div>
+    </section>
+  </section>;
 }

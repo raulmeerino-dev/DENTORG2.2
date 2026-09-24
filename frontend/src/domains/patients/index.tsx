@@ -172,8 +172,8 @@ function PatientWorkspace() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialArea = searchParams.get('tab');
-  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
-  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>(() => initialArea === 'sesion' || initialArea === 'pendiente' ? initialArea : 'primera');
+  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
+  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>(() => initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' ? initialArea : 'pendiente');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
   const [treatmentHistoryOpen, setTreatmentHistoryOpen] = useState(false);
@@ -213,6 +213,7 @@ function PatientWorkspace() {
       ? 'historial'
       : 'pacientes';
   const activeTreatmentTab = isTreatmentTab(tab) ? tab : treatmentTab;
+  const firstVisitOpen = activeMainTab === 'clinica' && activeTreatmentTab === 'primera';
   const patientSearchTerm = deferredPatientSearch.trim();
   const pacientesQuery = useQuery({
     queryKey: ['pacientes', { q: patientSearchTerm, limit: PATIENT_PAGE_SIZE, offset: patientOffset }],
@@ -1043,7 +1044,7 @@ function PatientWorkspace() {
 
   return (
     <div className="dc-patient-workspace">
-      <div className="dc-patient-header" hidden={dedicatedTaskOpen}>
+      <div className="dc-patient-header" hidden={dedicatedTaskOpen || firstVisitOpen}>
         <PatientFinder
           pacientes={pacientes}
           selectedId={active?.id ?? null}
@@ -1132,7 +1133,7 @@ function PatientWorkspace() {
         )}
       </div>
       <section className="dc-patient-view" onClick={() => setContextMenu(null)}>
-        <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen}>
+        <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen || firstVisitOpen}>
           {WORK_TABS.map((item) => (
             <button
               key={item.id}
@@ -1224,7 +1225,7 @@ function PatientWorkspace() {
             onOpenConsentimiento={(tipo) => setDesigner(active ? { mode: 'consentimiento', tipo } : null)}
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenPresupuestos={() => openPatientArea('presupuestos')}
-            onOpenHistorial={() => openPatientArea('historial')}
+            onOpenHistorial={(citaId) => { openPatientArea('historial'); if (citaId) setSearchParams(current => { const next = new URLSearchParams(current); next.set('visita_id', citaId); next.set('tab', 'historial'); return next; }); }}
             onDictarNotaSesion={() => setDictationContext({ contexto: 'sesion' })}
             canDictarNota={canDictarNota}
             onSchedulePatient={abrirAgendaPaciente}
@@ -1243,6 +1244,7 @@ function PatientWorkspace() {
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
             <HistorialCompletoPanel
+              focusedVisitId={searchParams.get('visita_id')}
               initialFilter={initialArea === 'facturacion' ? 'facturacion' : undefined}
               focusedRecordId={searchParams.get('factura_id') || searchParams.get('cobro_id') || searchParams.get('anticipo_id') || searchParams.get('registro_id') || searchParams.get('laboratorio_id')}
               paciente={active}

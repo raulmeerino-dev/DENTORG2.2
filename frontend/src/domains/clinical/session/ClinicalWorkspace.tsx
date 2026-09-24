@@ -107,7 +107,7 @@ export function ClinicalWorkspace({
   onOpenConsentimiento: (tipo?: string) => void;
   onOpenDocumentos: () => void;
   onOpenPresupuestos: () => void;
-  onOpenHistorial: () => void;
+  onOpenHistorial: (citaId?: string) => void;
   onDictarNotaSesion?: () => void;
   canDictarNota?: boolean;
   onSchedulePatient?: () => void;
@@ -125,7 +125,7 @@ export function ClinicalWorkspace({
 }) {
   return (
     <section className="dc-clinical-workspace">
-      <nav className="dc-clinical-tabs" aria-label="Secciones de clínica">
+      <nav className="dc-clinical-tabs" aria-label="Secciones de clínica" hidden={activeTab === 'primera'}>
         {CLINICAL_TABS.map((item) => (
           <button
             key={item.id}

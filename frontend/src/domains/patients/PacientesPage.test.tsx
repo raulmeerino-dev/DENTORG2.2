@@ -392,6 +392,7 @@ describe('PacientesPage structure', () => {
 
     await user.click(screen.getByRole('button', { name: /Ver detalle en Tratamientos/i }));
     expect(await screen.findByText(/Odontograma diagnóstico/i)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Volver a tratamientos' }));
     await user.click(screen.getByRole('button', { name: /^Ficha$/i }));
     expect(await screen.findByText(/Documentos y consentimientos/i)).toBeInTheDocument();
 
