@@ -14,6 +14,7 @@ const fixture = {
   doctorA: 'a31128c3-9dfc-5428-99d8-595e6aad543b', patientA: '64af3dc7-57e7-5871-b5c5-761fdac29e36',
   patientB: 'c09375ea-14db-5bda-8d55-79a66e5f1ca3', clinicalDocument: 'e320300b-3351-5581-a00a-f0b70955dfa1',
   adminDocument: 'f65a3ca3-2667-5306-9e12-74fb664852a7',
+  planA: 'ebd7f2c0-6046-5f82-bc20-5f250ea2f8d3',
 };
 interface Column { key: string; label: string; type: string }
 interface Row { id: string; cells: Record<string, string | number | boolean | null>; target: { id: string; patient_id?: string } }
@@ -174,11 +175,13 @@ test('Registros: factura seleccionada en historial y presupuesto original dentro
   await page.getByRole('combobox', { name: 'Vista', exact: true }).selectOption('planes');
   await settledRows(page);
   const plans = await get<Records>(request, token, listingUrl(page));
-  expect(plans.rows).toHaveLength(1);
-  const plan = plans.rows[0];
+  // Visual QA may create other drafts; follow the deterministic seeded plan.
+  const plan = plans.rows.find(row => row.target.id === fixture.planA);
+  expect(plan, 'The original seeded budget must be listed').toBeDefined();
+  if (!plan) throw new Error('Seeded budget missing');
   const original = await get<{ numero: number }>(request, token, `/presupuestos/${plan.target.id}`);
   const planReturn = page.url();
-  await page.getByRole('link', { name: 'Abrir detalle', exact: true }).click();
+  await page.getByRole('link', { name: 'Abrir detalle', exact: true }).nth(plans.rows.indexOf(plan)).click();
   await expect(page).toHaveURL(new RegExp(`presupuesto_id=${plan.target.id}`));
   await expect(page.locator('.budget-num')).toHaveText(`Presupuesto #${original.numero}`);
   await page.getByRole('link', { name: 'Volver a Registros', exact: true }).click();

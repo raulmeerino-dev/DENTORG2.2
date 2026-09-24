@@ -39,6 +39,8 @@ No liberar indiscriminadamente el overflow de tablas, calendarios y workspaces p
 
 ## Verificación
 
+En ventanas de hasta 600 px de altura, la cabecera y el contenido de Pacientes, tareas y Jornada pueden desplazarse dentro del workspace. Caja y Registros aplican también este comportamiento por debajo de 700 px de anchura: los resúmenes/filtros no pueden reducir la tabla a altura cero. Tablas y odontogramas conservan su desplazamiento horizontal local. Revisar siempre la llegada al último control y la paginación, no sólo la ausencia de overflow del documento. Los formularios de presupuesto se reorganizan en columnas; no obligan a desplazar campos horizontalmente.
+
 Las pruebas reproducibles están en `frontend/e2e` y sus instrucciones en [e2e/README.md](../frontend/e2e/README.md). Incluyen un circuito con PostgreSQL y FastAPI reales: presupuesto aceptado → pendiente → cita → sesión → realizado → factura → cobro → saldo cero tras recargar.
 
 Las capturas de revisión local se guardan en `output/playwright` (ignorado por Git). La revisión de esta entrega incluye datos densos, anchuras de 390, 768, 1024, 1280 y 1440 px, y temas claro y oscuro. El desplazamiento horizontal de una tabla o agenda densa pertenece a su región, no al documento entero.

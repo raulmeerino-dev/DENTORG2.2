@@ -14,6 +14,7 @@
 .jornada-search input { width: 100%; font-size: 12px; }
 .jornada-count { color: var(--dc-muted); margin: auto 0 auto auto; white-space: nowrap; font-size: 11px; }
 .jornada-content { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
+.jornada-workspace > :not(.jornada-content) { flex-shrink: 0; }
 .jornada-content > .page { width: 100%; max-width: none; margin: 0; }
 .jornada-content .hoy-page { height: auto; padding: 12px 16px; min-height: 100%; gap: 12px !important; }
 .jornada-content .hoy-command-center { border: 0; border-bottom: 1px solid var(--dc-border); border-radius: 0; padding: 0 0 12px; box-shadow: none; gap: 12px; }
@@ -72,5 +73,8 @@
   .jornada-filters select { max-width: none; }
   .jornada-search { max-width: none; }
   .jornada-content .hoy-page { padding: 8px; }
-  .waiting-room-panel { position: fixed; top: 52px; left: 64px; right: 8px; width: auto; }
+}
+@media (max-height: 600px) {
+  .jornada-workspace { overflow: auto; }
+  .jornada-content { flex: 0 0 auto; min-height: 320px; }
 }

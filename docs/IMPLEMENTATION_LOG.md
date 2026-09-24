@@ -2,6 +2,14 @@
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.
 
+## 2026-09-25 — Adaptación a zoom y ventanas pequeñas
+
+Pacientes y tareas dedicadas permiten desplazar la cabecera junto al contenido cuando la ventana tiene poca altura. Caja, Registros y Archivos mantienen tablas y paginación accesibles aunque los filtros/resúmenes ocupen varias filas. Jornada conserva el acceso al calendario tras desplegar filtros. No se reduce la tipografía ni se ocultan funciones para simular que todo cabe.
+
+Presupuestos reorganiza el editor en dos columnas en móvil, muestra nombres completos del catálogo y conserva una tabla legible con scroll propio. Los botones del pie de cita se reorganizan sin desbordarse. En sala usa FloatingPopover y respeta los límites de la ventana. El shell evita solapes en el perfil de doctor, que incorpora notificaciones adicionales.
+
+Validación en Chromium real: 70 combinaciones de siete secciones y diez tamaños (1920×1080 hasta 320×256, incluyendo tamaños CSS equivalentes a zoom de escritorio del 125–400 %; no automatización del zoom nativo del navegador). Revisión adicional de agenda, presupuesto, consentimiento, cita, En sala y shell de doctor en claro/oscuro. Capturas locales `output/playwright/responsive-*`. Pasan 344 tests unitarios, TypeScript, build y lint; los once recorridos E2E pasan contando la repetición corregida del caso de presupuesto. Ese test ahora identifica el presupuesto sembrado por UUID, sin asumir que el paciente nunca tendrá otros borradores. Datos exclusivamente sintéticos del entorno local; sin cambios de backend ni migraciones.
+
 ## 2026-09-25 — Hover estable y overlays sin recorte
 
 Corregidos desplazamientos de 1 px en acciones del paciente y elevaciones/escalados en controles de IA y odontograma. Las pestañas mantienen peso tipográfico estable; se conserva la posición anatómica de los dientes. El foco común queda dentro del control, retirando anulaciones y anillos exteriores heredados.

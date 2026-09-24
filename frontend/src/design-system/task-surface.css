@@ -8,6 +8,10 @@
 .dc-task-clinical-alert { color: var(--dc-danger); font-weight: 600; }
 .dc-task-actions { display: flex; flex-wrap: wrap; gap: var(--dc-space-2); }
 .dc-task-body { flex: 1; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
+@media (max-height: 600px) {
+  .dc-task-surface { overflow: auto; }
+  .dc-task-body { flex: 0 0 auto; }
+}
 @media (max-width: 700px) {
   .dc-task-header { gap: var(--dc-space-2); flex-wrap: wrap; padding: var(--dc-space-2); }
   .dc-task-back span { display: none; }

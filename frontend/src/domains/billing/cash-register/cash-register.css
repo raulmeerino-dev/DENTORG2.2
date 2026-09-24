@@ -1,4 +1,5 @@
 .cash-workspace { display: flex; flex: 1; flex-direction: column; min-height: 0; min-width: 0; color: var(--dc-text); background: var(--dc-surface); overflow: hidden; }
+.cash-workspace > :not(.cash-ledger) { flex-shrink: 0; }
 .cash-toolbar { display: flex; flex-wrap: wrap; gap: var(--dc-space-3); align-items: center; min-height: 44px; padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); }
 .cash-toolbar h1 { margin: 0; font-size: var(--dc-font-heading); }
 .cash-toolbar span, .cash-toolbar time { color: var(--dc-muted); font-size: var(--dc-font-body); }
@@ -24,3 +25,7 @@
 .cash-payment-fields label { display: grid; gap: var(--dc-space-1); }
 @media (max-width: 1150px) { .cash-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cash-total:nth-child(-n+3) { border-bottom: 1px solid var(--dc-border); } }
 @media (max-width: 600px) { .cash-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cash-total { padding: var(--dc-space-2); border-bottom: 1px solid var(--dc-border); } .cash-total strong { font-size: 16px; } .cash-toolbar span { display: none; } }
+@media (max-height: 600px), (max-width: 700px) {
+  .cash-workspace { overflow: auto; }
+  .cash-ledger { flex: 0 0 auto; min-height: 220px; max-height: 65dvh; }
+}

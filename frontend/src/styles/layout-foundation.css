@@ -637,7 +637,7 @@ textarea {
   padding: 12px 14px !important;
 }
 
-.appointment-modal header {
+.appointment-modal header, .appointment-modal footer {
   flex-wrap: wrap;
 }
 

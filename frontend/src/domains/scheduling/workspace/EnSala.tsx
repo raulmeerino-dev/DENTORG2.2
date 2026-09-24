@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '../../../api/errors';
 import { getVisualStatus } from '../agenda/appointmentStatus';
 import { appointmentTiming } from './appointmentTiming';
 import { EmptyState } from '../../../design-system';
+import { FloatingPopover } from '../../../design-system/FloatingPopover';
 import type { Cita } from '../../../api/types';
 import './jornada.css';
 
@@ -18,7 +19,7 @@ export default function EnSala() {
   const [open, setOpen] = useState(false);
   const [mine, setMine] = useState(Boolean(user?.doctor_id));
   const [now, setNow] = useState(Date.now);
-  const ref = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const query = useQuery({ queryKey: ['citas', 'en-sala'], queryFn: () => getCitas({ estado: 'en_clinica' }), refetchInterval: 15_000 });
   const config = useQuery({ queryKey: ['jornada-config'], queryFn: getJornadaConfig, staleTime: 300_000 });
   const waiting = (query.data ?? []).filter(cita => ['en_sala', 'en_clinica'].includes(getVisualStatus(cita)) && (!mine || cita.doctor_id === user?.doctor_id)).sort((a, b) => (a.llegada_at ?? a.fecha_hora).localeCompare(b.llegada_at ?? b.fecha_hora));
@@ -34,16 +35,9 @@ export default function EnSala() {
     openPatient(cita, true);
   } });
   useEffect(() => { const timer = window.setInterval(() => setNow(Date.now()), 30_000); return () => window.clearInterval(timer); }, []);
-  useEffect(() => {
-    if (!open) return;
-    const outside = (event: PointerEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); ref.current?.querySelector('button')?.focus(); } };
-    document.addEventListener('pointerdown', outside); document.addEventListener('keydown', escape);
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
-  }, [open]);
-  return <div className="waiting-room" ref={ref}>
-    <button type="button" className="waiting-room-trigger" aria-expanded={open} aria-controls="waiting-room-panel" onClick={() => setOpen(value => !value)}><UsersRound size={16} aria-hidden="true" />En sala <b>{waiting.length}</b></button>
-    {open && <section id="waiting-room-panel" className="waiting-room-panel" role="dialog" aria-label="En sala">
+  return <div className="waiting-room">
+    <button ref={trigger} type="button" className="waiting-room-trigger" aria-label={`En sala ${waiting.length}`} title="En sala" aria-expanded={open} aria-controls="waiting-room-panel" onClick={() => setOpen(value => !value)}><UsersRound size={16} aria-hidden="true" /><span>En sala</span><b>{waiting.length}</b></button>
+    {open && <FloatingPopover anchorRef={trigger} width={430} maxHeight={620} onClose={() => setOpen(false)} id="waiting-room-panel" className="waiting-room-panel" role="dialog" aria-label="En sala">
       <header className="waiting-room-header"><strong>En sala</strong><button type="button" className="dc-icon-button" aria-label="Cerrar En sala" onClick={() => setOpen(false)}><X size={16} /></button></header>
       <div className="waiting-room-filters"><button type="button" aria-pressed={mine} disabled={!user?.doctor_id} onClick={() => setMine(true)}>Mis pacientes</button><button type="button" aria-pressed={!mine} onClick={() => setMine(false)}>Toda la clínica</button></div>
       {query.isError && <p role="alert" className="waiting-room-empty">No se pudo cargar la sala. <button onClick={() => void query.refetch()}>Reintentar</button></p>}
@@ -60,6 +54,6 @@ export default function EnSala() {
         </article>;
       })}
       {!query.isLoading && !query.isError && !waiting.length && <EmptyState className="waiting-room-empty" title="Sin pacientes esperando" description={mine ? 'Tu sala está al día.' : 'Las llegadas aparecerán aquí.'} />}
-    </section>}
+    </FloatingPopover>}
   </div>;
 }

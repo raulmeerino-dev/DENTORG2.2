@@ -9,6 +9,7 @@ import { formatDate, money } from '../../shared/format';
 import { invalidatePatientWorkspaceQueries } from '../../shared/query/queryInvalidation';
 import { TreatmentBadge } from '../clinical/components/TreatmentBadge';
 import { BudgetOdontogramFlow } from '../clinical/odontogram';
+import './budget-responsive.css';
 
 const ESTADO_COLOR: Record<string, string> = {
   borrador: '#687480',
@@ -250,6 +251,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
       </details>
 
       {/* Lines table with totals row */}
+      <div className="budget-lines-scroll" role="region" aria-label="Líneas del presupuesto" tabIndex={0}>
       <table className="dentcore-table">
         <thead>
           <tr>
@@ -311,6 +313,7 @@ export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole
           </tfoot>
         )}
       </table>
+      </div>
 
       {rechazarOpen && (
         <div className="modal-backdrop" onMouseDown={() => setRechazarOpen(false)}>

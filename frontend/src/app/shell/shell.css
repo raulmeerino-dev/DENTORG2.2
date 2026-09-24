@@ -26,6 +26,7 @@
 .dc-clinic svg { flex-shrink: 0; }
 .dc-clinic span { overflow: hidden; text-overflow: ellipsis; }
 .dc-topbar-actions { display: flex; align-items: center; gap: 10px; margin-left: auto; min-width: 0; }
+.dc-topbar-actions > *, .dc-topbar > .dc-assistant-trigger { flex-shrink: 0; }
 .dc-assistant-trigger { display: inline-flex; gap: 7px; align-items: center; border: 1px solid var(--dc-border); padding: 5px 9px; border-radius: 5px; font-size: 12px; background: var(--dc-surface-soft); }
 .dc-assistant-trigger kbd { font-family: inherit; color: var(--dc-muted); font-size: 10px; margin-left: 10px; }
 .dc-user { display: grid; gap: 1px; font-size: 12px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -45,6 +46,7 @@
 @media (max-width: 1150px) { .dc-assistant-trigger kbd, .dc-clock .staff-clock-trigger > span, .dc-clock .staff-clock-trigger > .lucide-chevron-down { display: none; } .dc-clock .staff-clock-compact-icon { display: block; } .dc-topbar { gap: 10px; } }
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: 58px minmax(0, 1fr); }
+  .dc-user { display: none; }
   .dc-nav-link { justify-content: center; padding: 10px; }
   .dc-nav-link span, .dc-brand strong, .dc-sidebar-footer { display: none; }
   .dc-brand { padding: 0; justify-content: center; }
@@ -58,4 +60,5 @@
 }
 
 .staff-clock-compact-icon { display: none; }
+@media (max-width: 380px) { .waiting-room-trigger > span { display: none; } }
 @media (max-width: 700px) { .dc-clock .staff-clock-popover { position: fixed; left: 64px; right: 8px; top: 52px; width: auto; max-height: calc(100dvh - 64px); overflow-y: auto; } }

@@ -151,3 +151,11 @@
 }
 .history-record-focus { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-primary-soft); font-size: 12px; }
 .history-record-focus button { margin-left: auto; }
+
+/* At high zoom / short windows the header must not consume the whole workspace. */
+@media (max-height: 600px) {
+  .dc-patient-workspace { overflow: auto; }
+  .dc-patient-view { flex: 0 0 auto; min-height: 320px; }
+  .dc-patient-body { flex: 0 0 auto; overflow: visible; }
+  .dc-clinical-workspace { height: auto; min-height: 320px; }
+}
