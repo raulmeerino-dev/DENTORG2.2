@@ -7,5 +7,5 @@ button { color: inherit; }
 :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) { min-height: var(--dc-control-height); min-width: 0; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); padding: 6px 9px; background: var(--dc-surface); color: var(--dc-text); box-shadow: none; }
 :where(input, select, textarea)::placeholder { color: var(--dc-muted-2); }
 button, a, input, select, textarea, summary { -webkit-tap-highlight-color: transparent; }
-:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--dc-primary); outline-offset: 2px; }
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--dc-primary); outline-offset: -2px; }
 ::selection { background: var(--dc-primary-soft); color: var(--dc-text); }

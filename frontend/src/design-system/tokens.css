@@ -13,6 +13,7 @@
   --dc-radius-sm: 4px; --dc-radius: 6px; --dc-radius-lg: 8px;
   --dc-control-height: 32px; --dc-font-small: 11px; --dc-font-body: 13px; --dc-font-heading: 17px;
   --dc-shadow-soft: none; --dc-shadow-menu: 0 8px 30px #142c4926;
+  --dc-layer-popover: 2000;
   --focus-ring: 0 0 0 2px var(--dc-surface), 0 0 0 4px var(--dc-primary);
 }
 html[data-theme="dark"] {

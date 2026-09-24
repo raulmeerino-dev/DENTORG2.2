@@ -124,8 +124,7 @@
 
 .login-fields input:focus {
   border-color: color-mix(in srgb, var(--dc-primary) 55%, var(--dc-border));
-  outline: 0;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dc-primary) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-primary) 13%, transparent);
 }
 
 body .login-panel .primary-button {

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Clock3, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '../../../api/errors';
 import { getTrabajadoresFichaje, getUltimoFichajeTrabajador, registrarFichaje } from '../../../api/workforce';
 import type { FichajeTrabajador, TipoFichaje } from '../../../api/types';
+import { FloatingPopover } from '../../../design-system/FloatingPopover';
 
 type StaffClockPopoverProps = {
   label: string;
@@ -30,7 +31,7 @@ function lastFichajeLabel(fichaje?: FichajeTrabajador | null) {
 
 export default function StaffClockPopover({ label, currentUserId = null }: StaffClockPopoverProps) {
   const queryClient = useQueryClient();
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const [open, setOpen] = useState(false);
   const [trabajadorId, setTrabajadorId] = useState('');
   const [pin, setPin] = useState('');
@@ -85,29 +86,6 @@ export default function StaffClockPopover({ label, currentUserId = null }: Staff
     },
   });
 
-  useEffect(() => {
-    if (!open) return undefined;
-
-    function onPointerDown(event: PointerEvent) {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
   function submit(tipo: TipoFichaje) {
     if (!effectiveTrabajadorId) {
       setFormError('Selecciona un trabajador.');
@@ -133,8 +111,9 @@ export default function StaffClockPopover({ label, currentUserId = null }: Staff
   ) && !fichajeMutation.isPending;
 
   return (
-    <div className="staff-clock" ref={wrapperRef}>
+    <div className="staff-clock">
       <button
+        ref={triggerRef}
         type="button"
         className="staff-clock-trigger"
         aria-label={`Fichaje: ${label}`}
@@ -148,7 +127,7 @@ export default function StaffClockPopover({ label, currentUserId = null }: Staff
       </button>
 
       {open && (
-        <section className="staff-clock-popover" role="dialog" aria-label="Fichaje">
+        <FloatingPopover anchorRef={triggerRef} width={330} maxHeight={520} onClose={() => setOpen(false)} className="staff-clock-popover" role="dialog" aria-label="Fichaje">
           <header>
             <strong>Fichaje</strong>
             <small>{label}</small>
@@ -221,7 +200,7 @@ export default function StaffClockPopover({ label, currentUserId = null }: Staff
               </button>
             </div>
           </div>
-        </section>
+        </FloatingPopover>
       )}
     </div>
   );

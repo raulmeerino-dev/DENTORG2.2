@@ -464,14 +464,12 @@
   background: transparent;
   transition:
     background 160ms ease,
-    border-color 160ms ease,
-    transform 160ms ease;
+    border-color 160ms ease;
 }
 
 .od-occlusal-cell:hover {
   background: #f6fbfc;
   border-color: #c9e8ef;
-  transform: translateY(-1px);
 }
 
 .od-occlusal-cell.has-gap {
@@ -518,7 +516,6 @@
 .od-occlusal-svg .od-surface:hover {
   filter: drop-shadow(0 2px 5px rgba(0, 126, 167, 0.28));
   stroke: var(--od-action);
-  stroke-width: 1.6;
 }
 
 .od-occlusal-svg .od-surface.is-active {
@@ -545,15 +542,13 @@
   transition:
     background 160ms ease,
     border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    box-shadow 160ms ease;
   transform: translateY(var(--tooth-y));
 }
 
 .od-tooth:hover {
   background: #f6fbfc;
   border-color: #c9e8ef;
-  transform: translateY(-1px);
 }
 
 .od-tooth.is-selected {
@@ -682,15 +677,11 @@
   border-top: 1px solid rgba(220, 232, 239, 0.85);
 }
 
-.od-context-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 42;
-}
-
 .od-context-menu {
   position: fixed;
-  width: 226px;
+  width: min(226px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
   display: grid;
   gap: 4px;
   padding: 8px;
@@ -867,8 +858,7 @@
   color: var(--od-text);
   transition:
     border-color 140ms ease,
-    box-shadow 140ms ease,
-    transform 140ms ease;
+    box-shadow 140ms ease;
 }
 
 .od-surface-button span {
@@ -885,8 +875,7 @@
 .od-surface-button:hover,
 .od-surface-button.is-selected {
   border-color: var(--od-action);
-  box-shadow: 0 8px 18px rgba(0, 166, 166, 0.14);
-  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(0, 166, 166, 0.14);
 }
 
 .od-status-box {
@@ -962,8 +951,7 @@
   transition:
     background 140ms ease,
     border-color 140ms ease,
-    color 140ms ease,
-    transform 140ms ease;
+    color 140ms ease;
 }
 
 .od-action-button:disabled {
@@ -975,7 +963,6 @@
 .od-action-button:hover {
   border-color: var(--od-action);
   color: var(--od-primary);
-  transform: translateY(-1px);
 }
 
 .od-action-button.is-primary {
@@ -1138,12 +1125,11 @@
   border-radius: 10px;
   background: #fbfdfe;
   color: var(--od-text);
-  outline: none;
 }
 
 .od-quick-search:focus {
   border-color: var(--od-action);
-  box-shadow: 0 0 0 3px rgba(0, 166, 166, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(0, 166, 166, 0.12);
 }
 
 .od-quick-results {
@@ -1151,7 +1137,7 @@
   gap: 8px;
   max-height: 340px;
   overflow: auto;
-  padding-right: 2px;
+  padding: var(--dc-space-1);
 }
 
 .od-quick-result {
@@ -1168,14 +1154,12 @@
   text-align: left;
   transition:
     background 140ms ease,
-    border-color 140ms ease,
-    transform 140ms ease;
+    border-color 140ms ease;
 }
 
 .od-quick-result:hover {
   background: #f3fbfd;
   border-color: #bfe3eb;
-  transform: translateY(-1px);
 }
 
 .od-quick-status-dot {

@@ -654,16 +654,12 @@ a {
   background: linear-gradient(#ffffff, #dce2e8);
   color: #102330;
   box-shadow: inset -1px -1px 0 #87919c, inset 1px 1px 0 #ffffff;
-  transition: background-color .12s ease, color .12s ease, transform .08s ease, border-color .12s ease;
+  transition: background-color .12s ease, color .12s ease, border-color .12s ease;
 }
 
 .history-footer button:hover, .file-tabs button:hover {
   background: linear-gradient(#ffffff, #cfe3f4);
   border-color: #4d88b4;
-}
-
-.history-footer button:active, .file-tabs button:active {
-  transform: translateY(1px);
 }
 
 .file-tabs button.active {
@@ -4614,16 +4610,12 @@ html[data-theme="dark"] :is(.bi-bars i) {
   padding: 2px 2px 4px;
   cursor: pointer;
   overflow: visible;
-  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
 .clinical-tooth:hover, .clinical-tooth.selected {
   border-color: var(--primary);
   background: color-mix(in srgb, var(--primary) 8%, transparent);
-}
-
-.clinical-tooth.selected {
-  transform: translateY(-2px);
 }
 
 .clinical-tooth.budget-queued {
@@ -5718,18 +5710,16 @@ html[data-theme="dark"] .whatsapp-action {
   font-size: 0.78rem;
   color: #17364b;
   cursor: pointer;
-  transition: border-color 0.14s, box-shadow 0.14s, transform 0.1s;
+  transition: border-color 0.14s, box-shadow 0.14s;
 }
 
 .face-btn:hover {
   border-color: var(--primary);
-  transform: scale(1.08);
 }
 
 .face-btn-active {
   border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
-  transform: scale(1.1);
   z-index: 1;
 }
 
@@ -7482,72 +7472,6 @@ html[data-theme="dark"] .patient-edit-extras {
 html[data-theme="dark"] .patient-edit-extras > summary {
   color: #cfe6ef;
 }
-.patient-actions {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.patient-actions-primary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.patient-actions-primary button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 32px;
-  border: 1px solid var(--color-border-strong);
-  background: var(--color-surface-alt);
-  color: var(--color-text);
-  border-radius: var(--radius-sm);
-  padding: 0 10px;
-  font-weight: 700;
-  font-size: 11.5px;
-  letter-spacing: 0;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
-}
-
-.patient-actions-primary button svg {
-  flex-shrink: 0;
-  color: var(--color-primary);
-}
-
-.patient-actions-primary button:hover:not(:disabled) svg {
-  color: var(--color-primary-hover);
-}
-
-.patient-actions-more {
-  height: 32px !important;
-  width: 32px;
-  padding: 0 !important;
-}
-
-.patient-actions-primary button:hover:not(:disabled) {
-  border-color: #0f9faf;
-  color: #00748a;
-}
-
-.patient-actions-primary button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.patient-actions-more {
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  padding: 6px 0 !important;
-  line-height: 1;
-}
 
 .patient-actions-menu {
   position: fixed;
@@ -7631,17 +7555,6 @@ html[data-theme="dark"] .patient-edit-extras > summary {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
   border: 0;
-}
-
-html[data-theme="dark"] .patient-actions-primary button {
-  background: #112634;
-  border-color: #2c4a5d;
-  color: #cfe6ef;
-}
-
-html[data-theme="dark"] .patient-actions-primary button:hover:not(:disabled) {
-  border-color: #58c8d3;
-  color: #58c8d3;
 }
 
 html[data-theme="dark"] .patient-actions-menu {
@@ -8517,12 +8430,11 @@ html[data-theme="dark"] .history-ledger-empty {
 }
 
 .agenda-appointment {
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  transition: box-shadow 120ms ease;
 }
 
 .agenda-appointment:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(15, 49, 70, 0.11);
+  box-shadow: 0 1px 4px rgba(15, 49, 70, 0.11);
 }
 
 .admin-extras .file-tabs {
@@ -8563,17 +8475,6 @@ html[data-theme="dark"] .history-ledger-empty {
   border-color: transparent;
   background: transparent;
   box-shadow: none;
-}
-
-.patient-actions-primary button, .patient-actions-more {
-  border-color: transparent;
-  background: #ffffff;
-  box-shadow: 0 6px 16px rgba(15, 49, 70, 0.055);
-}
-
-.patient-actions-primary button:hover:not(:disabled), .patient-actions-more:hover:not(:disabled) {
-  border-color: transparent;
-  background: #eefbfc;
 }
 
 .complete-history-head, .history-ledger-group, .odontogram-support-panel, .secondary-clinic-panel {
@@ -9047,47 +8948,6 @@ html[data-theme="dark"] .fichero-screen .treatment-catalog-scroll thead th {
   max-width: 100%;
 }
 
-.patient-actions {
-  min-width: 0;
-  justify-self: end;
-}
-
-.patient-actions-primary {
-  display: flex;
-  flex-wrap: nowrap !important;
-  justify-content: flex-end;
-  gap: 6px !important;
-  min-width: 0;
-}
-
-.patient-actions-primary button {
-  height: 38px !important;
-  min-height: 38px !important;
-  gap: 6px !important;
-  padding: 0 10px !important;
-  border: 0 !important;
-  border-radius: 11px !important;
-  background: rgba(255, 255, 255, 0.95) !important;
-  color: #07364c !important;
-  box-shadow: 0 10px 24px rgba(18, 53, 72, 0.055) !important;
-  white-space: nowrap;
-}
-
-.patient-actions-primary button:not(.patient-actions-more):first-child, .patient-actions-primary button:not(.patient-actions-more):nth-child(2) {
-  color: #075e70 !important;
-}
-
-.patient-actions-primary button svg {
-  color: #0f8ea0;
-}
-
-.patient-actions-more {
-  width: 38px !important;
-  flex: 0 0 38px !important;
-  padding: 0 !important;
-  justify-content: center;
-}
-
 .complete-history-head, .history-ledger-group, .odontogram-support-panel, .secondary-clinic-panel {
   border: 0 !important;
   border-radius: 15px !important;
@@ -9268,44 +9128,13 @@ html[data-theme="dark"] .fichero-screen .treatment-catalog-scroll thead th {
   align-self: center;
 }
 
-@media (max-width: 1420px) {
-
-  .patient-actions-primary button:not(.patient-actions-more) span {
-    display: none;
-  }
-
-  .patient-actions-primary button:not(.patient-actions-more) {
-    width: 38px !important;
-    padding: 0 !important;
-    justify-content: center;
-  }
-}
-
 @media (max-width: 820px) {
   .history-ledger-group > header, .history-ledger-item {
     grid-template-columns: minmax(0, 1fr) !important;
   }
-
-  .patient-actions {
-    justify-self: stretch;
-  }
-
-  .patient-actions-primary {
-    justify-content: flex-start;
-    flex-wrap: wrap !important;
-  }
-
-  .patient-actions-primary button:not(.patient-actions-more) span {
-    display: inline;
-  }
-
-  .patient-actions-primary button:not(.patient-actions-more) {
-    width: auto !important;
-    padding: 0 10px !important;
-  }
 }
 
-html[data-theme="dark"] .patient-actions-primary button, html[data-theme="dark"] .complete-history-head, html[data-theme="dark"] .history-ledger-group, html[data-theme="dark"] .odontogram-support-panel, html[data-theme="dark"] .secondary-clinic-panel {
+html[data-theme="dark"] .complete-history-head, html[data-theme="dark"] .history-ledger-group, html[data-theme="dark"] .odontogram-support-panel, html[data-theme="dark"] .secondary-clinic-panel {
   border-color: transparent !important;
   background: rgba(18, 30, 40, 0.94) !important;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.2) !important;
@@ -10248,19 +10077,6 @@ html[data-theme="dark"] .theme-toggle {
 /* Acento de color por chip relevante en la tira de paciente. */
 
 /* ─── Acciones rápidas del paciente (Nueva cita / Nuevo ppto. / Cobrar / Subir doc.) ─── */
-html[data-theme="dark"] .patient-actions-primary button {
-  background: rgba(22, 41, 58, 0.95) !important;
-  border: 1px solid var(--dm-line-strong) !important;
-  color: var(--dm-ink) !important;
-  border-radius: 8px;
-  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-
-html[data-theme="dark"] .patient-actions-primary button:hover {
-  background: rgba(56, 189, 248, 0.12) !important;
-  border-color: rgba(56, 189, 248, 0.40) !important;
-  transform: translateY(-1px);
-}
 
 /* ─── Sub-tabs clínicos (Diagnóstico / Pendientes / Sesión actual / Visitas / Notas) ─── */
 html[data-theme="dark"] .clinical-subtabs {
@@ -10382,8 +10198,6 @@ html[data-theme="dark"] [data-tone="danger"] {
 /* ─── Inputs y selects con focus cian ─── */
 html[data-theme="dark"] input:focus, html[data-theme="dark"] select:focus, html[data-theme="dark"] textarea:focus {
   border-color: var(--dm-accent) !important;
-  box-shadow: 0 0 0 3px rgba(56, 189, 252, 0.18) !important;
-  outline: none !important;
 }
 
 /* ─── Botones primarios y secundarios refinados ─── */
@@ -10397,7 +10211,6 @@ html[data-theme="dark"] :is(.primary-button, .editor-actions button.primary, but
 
 html[data-theme="dark"] :is(.primary-button:hover, button.primary:hover) {
   background: linear-gradient(180deg, #67e8f9, #38bdf8) !important;
-  transform: translateY(-1px);
 }
 
 html[data-theme="dark"] :is(.secondary-button, button.secondary) {
@@ -10470,12 +10283,6 @@ html[data-theme="dark"] hr {
   margin: 10px 0;
 }
 
-/* Quitar borde fantasma que algunos componentes heredan en oscuro. */
-html[data-theme="dark"] *:focus-visible {
-  outline: 2px solid rgba(56, 189, 248, 0.55) !important;
-  outline-offset: 2px;
-}
-
 html:not([data-theme="dark"]) {
   --lm-canvas: #f3f7fa;
   --lm-surface-0: #ffffff;
@@ -10531,19 +10338,6 @@ html:not([data-theme="dark"]) .theme-toggle {
 /* Tira de paciente con chips coloreados semánticamente. */
 
 /* Acciones rápidas en la toolbar de paciente. */
-html:not([data-theme="dark"]) .patient-actions-primary button {
-  background: #ffffff !important;
-  border: 1px solid var(--lm-line-strong) !important;
-  color: var(--lm-ink) !important;
-  border-radius: 8px;
-  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-
-html:not([data-theme="dark"]) .patient-actions-primary button:hover {
-  background: rgba(14, 165, 233, 0.08) !important;
-  border-color: rgba(14, 165, 233, 0.40) !important;
-  transform: translateY(-1px);
-}
 
 /* Sub-tabs clínicos (Diagnóstico / Pendientes / Sesión actual / Visitas / Notas). */
 html:not([data-theme="dark"]) .clinical-subtabs {
@@ -10663,8 +10457,6 @@ html:not([data-theme="dark"]) [data-tone="danger"] {
 /* Inputs con focus cian. */
 html:not([data-theme="dark"]) input:focus, html:not([data-theme="dark"]) select:focus, html:not([data-theme="dark"]) textarea:focus {
   border-color: var(--lm-accent) !important;
-  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.18) !important;
-  outline: none !important;
 }
 
 /* Botones primario / secundario / peligro. */
@@ -10678,7 +10470,6 @@ html:not([data-theme="dark"]) :is(.primary-button, .editor-actions button.primar
 
 html:not([data-theme="dark"]) :is(.primary-button:hover, button.primary:hover) {
   background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
-  transform: translateY(-1px);
 }
 
 html:not([data-theme="dark"]) :is(.secondary-button, button.secondary) {
@@ -10747,11 +10538,6 @@ html:not([data-theme="dark"]) hr {
   margin: 10px 0;
 }
 
-html:not([data-theme="dark"]) *:focus-visible {
-  outline: 2px solid rgba(14, 165, 233, 0.55) !important;
-  outline-offset: 2px;
-}
-
 /* Dark clinical polish: odontogram/presupuesto workspace */
 
 html[data-theme="dark"] .budget-panel, html[data-theme="dark"] .budget-workbench, html[data-theme="dark"] .budget-treatment-picker, html[data-theme="dark"] .budget-line-editor, html[data-theme="dark"] .budget-step-panel {
@@ -10803,8 +10589,6 @@ html[data-theme="dark"] .budget-workbench input, html[data-theme="dark"] .budget
 
 html[data-theme="dark"] .budget-line-editor input:focus, html[data-theme="dark"] .budget-line-editor select:focus, html[data-theme="dark"] .budget-workbench input:focus, html[data-theme="dark"] .budget-workbench select:focus {
   border-color: var(--clinical-dark-cyan) !important;
-  box-shadow: 0 0 0 3px rgba(91, 220, 240, 0.14) !important;
-  outline: none !important;
 }
 
 html[data-theme="dark"] .budget-secondary-menu summary, html[data-theme="dark"] .secondary-clinic-panel summary, html[data-theme="dark"] .odontogram-support-panel summary, html[data-theme="dark"] .history-ledger-details summary {
@@ -10849,13 +10633,9 @@ html[data-theme="dark"] .secondary-clinic-panel, html[data-theme="dark"] .odonto
 
 /* Patient screen: gap consistente entre filas internas. */
 
-/* Botones genéricos: sin transformes residuales que produzcan saltos visuales. */
+/* El feedback genérico conserva la geometría y permite variantes funcionales. */
 button {
-  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease, transform 140ms ease !important;
-}
-
-button:active {
-  transform: translateY(0) !important;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
 }
 
 /* Agenda: gap mínimo entre cabecera y cuerpo. */
@@ -11223,7 +11003,6 @@ html[data-theme="dark"] .slot-results-summary {
 
 .staff-clock-form select:focus, .staff-clock-form input:focus {
   border-color: rgba(14, 165, 233, 0.62);
-  outline: 2px solid rgba(14, 165, 233, 0.18);
 }
 
 .staff-clock-last, .staff-clock-error {
@@ -11595,19 +11374,6 @@ html[data-theme="dark"] .clinical-subtabs .clinical-subtab-action {
 
 /* Patient dark workspace cleanup: one calm surface, compact header, readable clinic tables. */
 
-html[data-theme="dark"] :is(.patient-actions-primary button) {
-  border: 1px solid var(--patient-dark-line) !important;
-  background: var(--patient-dark-surface) !important;
-  box-shadow: none !important;
-  color: var(--patient-dark-text) !important;
-}
-
-html[data-theme="dark"] .patient-actions-primary button:hover:not(:disabled) {
-  border-color: rgba(79, 191, 208, 0.45) !important;
-  background: rgba(79, 191, 208, 0.10) !important;
-  transform: none !important;
-}
-
 html[data-theme="dark"] .clinical-workspace {
   gap: 6px !important;
 }
@@ -11676,7 +11442,7 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   color: var(--text-muted);
 }
 
-:is(.patient-actions-primary button, .clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .context-menu button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button) {
+:is(.clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .context-menu button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button) {
   min-height: 32px !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-sm) !important;
@@ -11686,7 +11452,7 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   font-weight: 800;
 }
 
-:is(.patient-actions-primary button, .clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .context-menu button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button):hover:not(:disabled) {
+:is(.clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .context-menu button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button):hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--primary) 42%, var(--border)) !important;
   background: color-mix(in srgb, var(--primary) 8%, var(--surface)) !important;
   color: var(--text) !important;
@@ -12017,7 +11783,6 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
 }
 
 .dictation-review-panel textarea:focus {
-  outline: 2px solid rgba(37, 99, 235, 0.18);
   border-color: #2563eb;
 }
 

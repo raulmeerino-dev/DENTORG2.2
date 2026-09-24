@@ -22,6 +22,14 @@ Una tarea ocupa el área central, mantiene el paciente visible y vuelve a su fic
 
 Las superficies migradas usan paneles continuos, divisores, tabs, toolbars y tablas. Las sombras quedan para overlays; las tarjetas se reservan para elementos realmente independientes. Rojo indica alerta/deuda, verde finalización/cobro, naranja planificación/espera y azul acción/información.
 
+### Controles y capas flotantes
+
+Hover, foco y pulsación no cambian geometría: no desplazan ni escalan el control, ni alteran padding, grosor de borde, altura o peso tipográfico. El feedback usa color, fondo, borde reservado o sombra interior. El anillo de foco común se dibuja dentro del control para conservarlo en regiones con scroll. No anularlo con `outline: none` por módulo.
+
+`design-system/FloatingPopover.tsx` posiciona menús y selectores en la [capa superior del navegador](https://developer.mozilla.org/en-US/docs/Web/API/Popover_API/Using), conservando su contexto DOM. Se ancla al control o al punto del menú contextual, limita tamaño al viewport, cambia de lado cuando falta espacio y se actualiza al redimensionar o desplazar. Escape cierra la capa activa y devuelve foco, sin cerrar el diálogo que la contiene; los menús admiten flechas y Home/End. Los textos `title` siguen utilizando los tooltips nativos del navegador.
+
+No liberar indiscriminadamente el overflow de tablas, calendarios y workspaces para mostrar un menú. Usar la primitiva flotante; el scroll permanece en su región. La toolbar de paciente tiene una única fuente en `domains/patients/patient-actions.css`, con holgura vertical, etiquetas en escritorio e iconos con nombres accesibles y tooltips en móvil.
+
 ## Comportamientos conservados
 
 - Jornada comparte fecha, profesional, gabinete, estado, búsqueda y cita seleccionada entre Operativa y Agenda. Los cambios rápidos se componen antes de actualizar la URL.

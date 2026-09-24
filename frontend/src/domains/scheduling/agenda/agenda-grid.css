@@ -23,12 +23,13 @@
 .agenda-create-slot:hover:not(:disabled), .agenda-create-slot:focus-visible { background: var(--dc-primary-soft); color: var(--dc-primary); }
 .agenda-resource-appointment { position: absolute; z-index: 2; min-width: 0; padding: 4px 6px; border: 1px solid var(--dc-border); border-left: 3px solid var(--doctor-color); border-radius: 3px; background: var(--dc-surface-soft); color: var(--dc-text); cursor: pointer; overflow: hidden; }
 .agenda-resource-appointment:hover { border-color: var(--dc-primary); }
-.agenda-resource-appointment:focus-visible { outline: 2px solid var(--dc-primary); outline-offset: 1px; z-index: 3; }
+.agenda-resource-appointment:focus-visible { outline: 2px solid var(--dc-primary); outline-offset: -2px; z-index: 3; }
 .agenda-resource-appointment.has-overlap { border-color: var(--dc-danger); border-left-width: 4px; background: var(--dc-danger-soft); }
 .agenda-resource-appointment-title { display: grid; grid-template-columns: minmax(0, 1fr) 20px; align-items: center; gap: 4px; }
 .agenda-resource-appointment-title strong { font-size: 12px; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-appointment-more { display: grid; place-items: center; width: 20px; height: 20px; min-height: 0; padding: 0; border: 0; background: transparent; color: inherit; font-size: 16px; line-height: 1; }
 .agenda-appointment-more:hover { background: var(--dc-surface-hover); }
+.agenda-appointment-more:focus-visible, .agenda-resource-appointment-state button:focus-visible { outline-offset: -2px; }
 .agenda-resource-appointment > p { margin: 1px 0; font-size: 11px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-resource-appointment-state { display: flex; align-items: center; gap: 5px; font-size: 10px; line-height: 16px; color: var(--dc-muted); }
 .agenda-resource-appointment-state > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

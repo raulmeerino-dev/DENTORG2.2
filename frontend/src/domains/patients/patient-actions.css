@@ -1,0 +1,13 @@
+/* One toolbar layout across patient, budget and task surfaces. */
+.patient-actions { position: relative; min-width: 0; max-width: 100%; }
+.patient-actions-primary { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; min-height: 40px; padding: var(--dc-space-1) 0; }
+.patient-actions-primary > button { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: var(--dc-control-height); min-width: var(--dc-control-height); max-width: 100%; padding: 5px 10px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); background: var(--dc-surface); color: var(--dc-text); box-shadow: none; font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
+.patient-actions-primary > button svg { flex: 0 0 auto; color: var(--dc-primary); }
+.patient-actions-primary > button:hover:not(:disabled) { background: var(--dc-primary-soft); border-color: var(--dc-primary); color: var(--dc-text); }
+.patient-actions-primary > .patient-actions-more { width: var(--dc-control-height); padding-inline: 0; }
+@media (max-width: 680px) {
+  .patient-actions { width: 100%; }
+  .patient-actions-primary { justify-content: flex-start; }
+  .patient-actions-primary > button { width: var(--dc-control-height); padding-inline: 0; }
+  .patient-actions-primary > button:not(.patient-actions-more) > span { display: none; }
+}

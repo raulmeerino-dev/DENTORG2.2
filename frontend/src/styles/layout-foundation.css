@@ -419,30 +419,6 @@ textarea {
 /* 19. Patient workspace                                               */
 /* ------------------------------------------------------------------ */
 
-.patient-actions-primary button {
-  min-height: 38px !important;
-}
-
-.patient-actions-primary {
-  display: flex !important;
-  align-items: center;
-  gap: 7px !important;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-}
-
-.patient-actions-primary button {
-  flex: 0 0 auto !important;
-  padding: 0 12px !important;
-  border-radius: var(--dc-radius-sm) !important;
-  white-space: nowrap;
-}
-
-.patient-actions-primary button span {
-  display: inline !important;
-}
-
 .clinical-subtabs, .treatment-subtabs {
   min-height: 44px !important;
   margin-bottom: 8px !important;
@@ -725,14 +701,6 @@ textarea {
     max-height: calc(var(--app-window-height) - var(--app-topbar-height) - 18px) !important;
   }
 
-  .patient-actions-primary {
-    width: 100%;
-  }
-
-  .patient-actions-primary button {
-    min-height: 38px !important;
-  }
-
   .clinical-subtabs, .treatment-subtabs, .file-tabs {
     scrollbar-gutter: stable;
   }
@@ -802,11 +770,6 @@ textarea {
 /* ------------------------------------------------------------------ */
 /* 24. Patient record compact correction                               */
 /* ------------------------------------------------------------------ */
-
-.patient-actions-primary button {
-  min-height: 32px !important;
-  height: 32px !important;
-}
 
 .patient-actions-menu {
   width: min(286px, calc(100vw - 20px)) !important;
@@ -885,18 +848,9 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
   background: color-mix(in srgb, currentColor 10%, var(--dc-surface)) !important;
 }
 
-.patient-finder, .patient-search-label, .patient-actions, .patient-actions-primary, .history-complete-workspace, .history-billing-dentcore, .history-ledger-toolbar, .history-ledger-title, .history-ledger-scroll, .complete-history-panel, .complete-history-layout {
+.patient-finder, .patient-search-label, .history-complete-workspace, .history-billing-dentcore, .history-ledger-toolbar, .history-ledger-title, .history-ledger-scroll, .complete-history-panel, .complete-history-layout {
   min-width: 0 !important;
   max-width: 100%;
-}
-
-.patient-actions-primary {
-  max-width: 100%;
-  overflow-x: visible !important;
-}
-
-.patient-actions-primary button {
-  min-width: 0 !important;
 }
 
 .history-ledger-scroll, .invoice-history-list, .admin-extras .desk-panel {
@@ -1043,15 +997,6 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
 
 @media (min-width: 640px) and (max-width: 1024px) {
 
-  .patient-actions {
-    width: 100%;
-    align-items: stretch !important;
-  }
-
-  .patient-actions-primary {
-    justify-content: flex-start !important;
-  }
-
   .history-ledger-scroll {
     overflow-x: auto !important;
   }
@@ -1080,30 +1025,6 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     min-width: 36px !important;
     min-height: 38px !important;
     padding: 0 !important;
-  }
-
-  .patient-actions {
-    width: 100%;
-    align-items: stretch !important;
-  }
-
-  .patient-actions-primary {
-    width: 100%;
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px;
-    gap: 6px !important;
-  }
-
-  .patient-actions-primary button {
-    width: 100%;
-    min-height: 38px !important;
-    justify-content: center;
-    padding: 0 8px !important;
-    white-space: nowrap !important;
-  }
-
-  .patient-actions-more {
-    width: 42px !important;
   }
 
   .clinic-flow-board, .dashboard-metrics, .file-card-grid, .admin-report-kpis {
@@ -1260,13 +1181,6 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
 }
 
 @media (max-width: 420px) {
-  .patient-actions-primary {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 42px !important;
-  }
-
-  .patient-actions-primary button:nth-child(2) span {
-    display: inline !important;
-  }
 
   .history-card-money {
     grid-template-columns: 1fr 1fr;
@@ -1525,7 +1439,7 @@ label {
   box-shadow: none;
   font-weight: 700;
   letter-spacing: 0;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 }
 
 :where(button, .dentcore-action-button, .primary-button, .secondary-button):hover:not(:disabled) {
@@ -1535,7 +1449,7 @@ label {
 }
 
 :where(button, .dentcore-action-button, .primary-button, .secondary-button):active:not(:disabled) {
-  transform: translateY(1px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-primary) 24%, transparent);
 }
 
 :where(.primary-button, .primary-action, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary) {

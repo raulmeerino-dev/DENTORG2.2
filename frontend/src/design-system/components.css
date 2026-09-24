@@ -2,6 +2,24 @@
 .dc-dialog-backdrop > [role="dialog"] { max-width: 100%; max-height: calc(100dvh - 32px); overflow: auto; }
 .dc-toolbar { display: flex; align-items: center; gap: var(--dc-space-3); min-width: 0; }
 .dc-toolbar-heading { flex: 0 0 auto; }
+
+/* Positioning belongs to the shared layer, even when legacy menu skins set insets. */
+[data-floating-layer] {
+  position: fixed !important;
+  inset: auto !important;
+  top: var(--dc-floating-top, 8px) !important;
+  left: var(--dc-floating-left, 8px) !important;
+  width: var(--dc-floating-width, 280px) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: calc(100dvw - 16px) !important;
+  max-height: var(--dc-floating-height, calc(100dvh - 16px)) !important;
+  margin: 0 !important;
+  overflow: auto !important;
+  overscroll-behavior: contain;
+  z-index: var(--dc-layer-popover);
+}
+[data-floating-layer]::backdrop { background: transparent; pointer-events: none; }
 .dc-toolbar-title { font-size: var(--dc-font-heading); margin: 0; font-weight: 650; }
 .dc-toolbar-context { color: var(--dc-muted); font-size: var(--dc-font-small); }
 .dc-toolbar-content { display: flex; align-items: center; gap: var(--dc-space-3); flex: 1; flex-wrap: wrap; min-width: 0; }

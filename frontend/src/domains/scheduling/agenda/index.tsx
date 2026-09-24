@@ -1,4 +1,5 @@
 import './agenda-workspace.css';
+import { FloatingPopover } from '../../../design-system/FloatingPopover';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import {
 Gauge,
@@ -693,7 +694,7 @@ export default function AgendaPage() {
       )}
 
       {contextMenu && (
-        <div className="context-menu" style={{ left: contextMenu.x, top: contextMenu.y, maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto' }} onClick={(event) => event.stopPropagation()} onKeyDown={event => { if (event.key === 'Escape') setContextMenu(null); }}>
+        <FloatingPopover className="context-menu" point={contextMenu} onClose={() => setContextMenu(null)} role="menu" aria-label="Acciones de cita" onClick={(event) => event.stopPropagation()}>
           <strong>Agenda</strong>
           <button onClick={() => { setModalCita(contextMenu.cita); setContextMenu(null); }}>Editar cita</button>
           <button onClick={() => openPatient(contextMenu.cita)}>Abrir ficha del paciente</button>
@@ -711,7 +712,7 @@ export default function AgendaPage() {
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Recordatorio WhatsApp</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'email')}>Recordatorio email</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'ambos')}>Recordatorio WhatsApp + email</button>
-        </div>
+        </FloatingPopover>
       )}
     </section>
   );

@@ -2,6 +2,16 @@
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.
 
+## 2026-09-25 — Hover estable y overlays sin recorte
+
+Corregidos desplazamientos de 1 px en acciones del paciente y elevaciones/escalados en controles de IA y odontograma. Las pestañas mantienen peso tipográfico estable; se conserva la posición anatómica de los dientes. El foco común queda dentro del control, retirando anulaciones y anillos exteriores heredados.
+
+La toolbar de paciente se consolida en su dominio y elimina 50 reglas repetidas de CSS global. Dispone de 4 px de holgura vertical; en móvil sus cinco acciones caben como controles de 32 px con nombres accesibles. Se corrige el conflicto que dejaba visible el texto de Cobrar dentro de un botón de ancho de icono.
+
+La primitiva `FloatingPopover` sustituye posicionamientos duplicados en acciones y búsqueda de paciente, historial/facturas, agenda, odontograma, fichaje, notificaciones y filtros de Registros. La capa superior evita el recorte por ancestros y las colisiones de z-index; tamaño y posición se ajustan al viewport. Se conserva el scroll de los workspaces. Escape cierra sólo el popover activo y restaura foco; se añade cobertura de teclado y selección dentro de un diálogo.
+
+Verificado en navegador real con datos densos, escritorio/móvil y temas claro/oscuro, comparando geometría antes/durante hover y visibilidad de menús. Pasan 344 pruebas unitarias frontend y 11 E2E existentes sin cambiar aserciones; TypeScript, build y ESLint correctos. Evidencias locales: `output/playwright/hover-*` y `output/qa/hover-frontend-final.json`. Sin cambios de backend, datos clínicos ni operaciones económicas.
+
 ## 2026-09-25 — Registros, Archivos y consulta transversal
 
 La navegación distingue Jornada, Pacientes y Caja del grupo secundario Registros, Archivos, Administración y Ajustes. Registros sustituye Listados con trece vistas SQL autorizadas, búsqueda tolerante, filtros por contexto, orden y paginación en servidor. Archivos reutiliza esa consulta para localizar documentación sin duplicar los originales del paciente. Las rutas antiguas mantienen redirecciones compatibles.

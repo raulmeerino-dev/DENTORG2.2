@@ -21,6 +21,8 @@ User,
 Wallet,
 } from 'lucide-react';
 import type { MouseEvent,ReactNode } from 'react';
+import { useRef, useState } from 'react';
+import { FloatingPopover } from '../../design-system/FloatingPopover';
 import { formatDate, money } from '../../shared/format';
 import { fullName } from './patientName';
 import { nextPatientAppointment, patientAppointmentLabel } from './patientContext';
@@ -200,9 +202,13 @@ export function PatientForm({
   const direccionCompleta = [paciente?.direccion, paciente?.codigo_postal, paciente?.ciudad, paciente?.provincia].filter(Boolean).join(' · ');
 
   function runHeaderAction(event: MouseEvent<HTMLButtonElement>, action: () => void) {
-    event.currentTarget.closest('details')?.removeAttribute('open');
+    event.preventDefault();
+    setHeaderActionsOpen(false);
     action();
   }
+
+  const [headerActionsOpen, setHeaderActionsOpen] = useState(false);
+  const headerActionsRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="dc-patient-summary">
@@ -284,12 +290,12 @@ export function PatientForm({
               <span>Cobrar</span>
             </button>
           )}
-          <details className="dc-summary-more-actions">
-            <summary role="button" aria-label="Más acciones del paciente">
+          <div className="dc-summary-more-actions">
+            <button type="button" ref={headerActionsRef} aria-haspopup="menu" aria-expanded={headerActionsOpen} onClick={() => setHeaderActionsOpen(open => !open)} aria-label="Más acciones del paciente">
               <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
               <span>Más acciones</span>
-            </summary>
-            <div className="dc-summary-header-actions-menu" role="menu" aria-label="Más acciones del paciente">
+            </button>
+            {headerActionsOpen && <FloatingPopover anchorRef={headerActionsRef} onClose={() => setHeaderActionsOpen(false)} width={250} maxHeight={350} className="dc-summary-header-actions-menu" role="menu" aria-label="Más acciones del paciente">
               <button type="button" role="menuitem" onClick={(event) => runHeaderAction(event, onEdit)} disabled={!paciente}>
                 <Edit3 size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Editar datos</span>
@@ -342,8 +348,8 @@ export function PatientForm({
                 <Eye size={14} strokeWidth={1.8} aria-hidden="true" />
                 <span>Vista completa</span>
               </button>
-            </div>
-          </details>
+            </FloatingPopover>}
+          </div>
         </div>
       </section>}
 

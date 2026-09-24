@@ -1,4 +1,5 @@
 import type { SurfaceKey, ToothData } from '../types/odontogram.types';
+import { FloatingPopover } from '../../../../design-system/FloatingPopover';
 
 type ToothContextMenuProps = {
   tooth: ToothData;
@@ -46,12 +47,14 @@ export function ToothContextMenu({
   onClose,
 }: ToothContextMenuProps) {
   return (
-    <div className="od-context-scrim" role="presentation" onMouseDown={onClose} onContextMenu={(event) => event.preventDefault()}>
-      <div
+      <FloatingPopover
         className="od-context-menu"
         role="menu"
         aria-label={`Acciones de pieza ${tooth.number}`}
-        style={{ left: x, top: y }}
+        point={{ x, y }}
+        width={226}
+        onClose={onClose}
+        onContextMenu={(event) => event.preventDefault()}
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="od-context-menu-heading">
@@ -73,7 +76,6 @@ export function ToothContextMenu({
         <button type="button" role="menuitem" onClick={onViewHistory}>
           Ver historial de la pieza
         </button>
-      </div>
-    </div>
+      </FloatingPopover>
   );
 }

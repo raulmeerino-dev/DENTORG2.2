@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { FloatingPopover } from '../../../design-system/FloatingPopover';
 import type { CSSProperties, MouseEvent } from 'react';
 import { toast } from 'sonner';
 import type { ApiPaciente, Cobro, Factura, HistorialClinico, UserRole } from '../../../api/types';
@@ -145,7 +146,8 @@ export function DentCoreHistoryBillingPanel({
   const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow | null } | null>(null);
   const [invoiceMenuOpen, setInvoiceMenuOpen] = useState(false);
   const [historyActionsOpen, setHistoryActionsOpen] = useState(false);
-  const historyToolbarRef = useRef<HTMLDivElement | null>(null);
+  const invoiceTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const historyTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[rows.length - 1] ?? null;
   const selectedFactura = selectedRow?.facturaItem ?? null;
@@ -157,28 +159,6 @@ export function DentCoreHistoryBillingPanel({
       toast.error(error instanceof Error ? error.message : 'No se pudo abrir la factura.');
     });
   }
-
-  useEffect(() => {
-    if (!historyActionsOpen && !invoiceMenuOpen) return;
-    function handlePointerDown(event: globalThis.MouseEvent) {
-      if (!historyToolbarRef.current?.contains(event.target as Node)) {
-        setHistoryActionsOpen(false);
-        setInvoiceMenuOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setHistoryActionsOpen(false);
-        setInvoiceMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [historyActionsOpen, invoiceMenuOpen]);
 
   function openBlankHistoryMenu(event: MouseEvent<HTMLDivElement>) {
     const target = event.target as HTMLElement;
@@ -224,7 +204,7 @@ export function DentCoreHistoryBillingPanel({
             )}
           </span>
         </div>
-        <div className="history-toolbar-actions" ref={historyToolbarRef}>
+        <div className="history-toolbar-actions">
           {canManageBilling && (
             <>
               <button onClick={() => {
@@ -237,21 +217,22 @@ export function DentCoreHistoryBillingPanel({
                 }
               }}>Cobrar</button>
               <span className="invoice-split-button">
-                <button onClick={() => {
+                <button ref={invoiceTriggerRef} aria-haspopup="menu" aria-expanded={invoiceMenuOpen} onClick={() => {
                   setHistoryActionsOpen(false);
                   setInvoiceMenuOpen((open) => !open);
                 }}>Facturas</button>
                 {invoiceMenuOpen && (
-                  <span className="invoice-action-popover">
+                  <FloatingPopover anchorRef={invoiceTriggerRef} onClose={() => setInvoiceMenuOpen(false)} width={220} className="invoice-action-popover" role="menu" aria-label="Facturas">
                     <button onClick={() => { onHistorialFacturas(); setInvoiceMenuOpen(false); }}>Historial de facturas</button>
                     <button onClick={() => { onFacturar(); setInvoiceMenuOpen(false); }}>Generar factura</button>
-                  </span>
+                  </FloatingPopover>
                 )}
               </span>
             </>
           )}
           <span className="invoice-split-button history-more-button">
             <button
+              ref={historyTriggerRef}
               type="button"
               className="secondary"
               aria-haspopup="menu"
@@ -264,7 +245,7 @@ export function DentCoreHistoryBillingPanel({
               Mas
             </button>
             {historyActionsOpen && (
-              <span className="invoice-action-popover history-actions-popover" role="menu" aria-label="Mas acciones de historial">
+              <FloatingPopover anchorRef={historyTriggerRef} onClose={() => setHistoryActionsOpen(false)} width={220} className="invoice-action-popover history-actions-popover" role="menu" aria-label="Mas acciones de historial">
                 {canManageBilling && (
                   <button
                     role="menuitem"
@@ -299,7 +280,7 @@ export function DentCoreHistoryBillingPanel({
                 {onOpenActivity && (
                   <button role="menuitem" onClick={() => { setHistoryActionsOpen(false); onOpenActivity(); }}>Actividad completa</button>
                 )}
-              </span>
+              </FloatingPopover>
             )}
           </span>
         </div>
@@ -435,7 +416,7 @@ export function DentCoreHistoryBillingPanel({
         />
       </label>
       {canManageBilling && historyMenu && (
-        <div className="context-menu patient-context-menu history-row-context-menu" style={{ left: historyMenu.x, top: historyMenu.y }}>
+        <FloatingPopover className="context-menu patient-context-menu history-row-context-menu" point={historyMenu} onClose={() => setHistoryMenu(null)} role="menu" aria-label="Historial y facturación">
           <strong>Historial / facturacion</strong>
           <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Anadir pago / anticipo</button>
           {historyMenu.row?.facturaItem && (
@@ -445,7 +426,7 @@ export function DentCoreHistoryBillingPanel({
             </>
           )}
           <button onClick={() => setHistoryMenu(null)}>Cerrar</button>
-        </div>
+        </FloatingPopover>
       )}
     </section>
   );

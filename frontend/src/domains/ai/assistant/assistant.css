@@ -25,13 +25,12 @@
   background: #087c8d;
   color: #fff;
   box-shadow: 0 12px 24px rgba(15, 49, 70, 0.24);
-  transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition: background 160ms ease, box-shadow 160ms ease;
 }
 
 .assistant-fab:hover {
-  transform: translateY(-1px);
   background: #006c7d;
-  box-shadow: 0 14px 28px rgba(15, 49, 70, 0.28);
+  box-shadow: 0 12px 24px rgba(15, 49, 70, 0.28);
 }
 
 .assistant-fab.open {
@@ -357,7 +356,6 @@
 }
 
 .assistant-draft-field input:focus {
-  outline: 2px solid rgba(8, 124, 141, 0.18);
   border-color: #087c8d;
 }
 

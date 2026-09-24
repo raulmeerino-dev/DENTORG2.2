@@ -16,9 +16,11 @@ StickyNote,
 Upload,
 XCircle,
 } from 'lucide-react';
-import { useEffect,useRef,useState } from 'react';
+import { useRef,useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ApiPaciente } from '../../api/types';
+import { FloatingPopover } from '../../design-system/FloatingPopover';
+import './patient-actions.css';
 
 export interface PatientActionsHandlers {
   onNuevaCita: () => void;
@@ -38,37 +40,6 @@ export interface PatientActionsHandlers {
   onVistaCompleta?: () => void;
 }
 
-type MenuPosition = {
-  top: number;
-  left: number;
-  maxHeight: number;
-};
-
-const MENU_WIDTH = 300;
-const MENU_GAP = 8;
-const MENU_MARGIN = 10;
-const MENU_MAX_HEIGHT = 420;
-
-function getMenuPosition(anchor: HTMLElement): MenuPosition {
-  const rect = anchor.getBoundingClientRect();
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const left = Math.min(
-    Math.max(MENU_MARGIN, rect.right - MENU_WIDTH),
-    Math.max(MENU_MARGIN, viewportWidth - MENU_WIDTH - MENU_MARGIN),
-  );
-  const belowTop = rect.bottom + MENU_GAP;
-  const belowSpace = viewportHeight - belowTop - MENU_MARGIN;
-  const aboveSpace = rect.top - MENU_GAP - MENU_MARGIN;
-  const opensUp = belowSpace < 220 && aboveSpace > belowSpace;
-  const maxHeight = Math.max(180, Math.min(MENU_MAX_HEIGHT, opensUp ? aboveSpace : belowSpace));
-  const top = opensUp
-    ? Math.max(MENU_MARGIN, rect.top - MENU_GAP - maxHeight)
-    : belowTop;
-
-  return { top, left, maxHeight };
-}
-
 export function PatientActionsMenu({
   paciente,
   busy,
@@ -83,44 +54,10 @@ export function PatientActionsMenu({
   handlers: PatientActionsHandlers;
 }) {
   const [open, setOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement | null>(null);
-  const menuRef = useRef<HTMLDivElement | null>(null);
   const noPatient = !paciente;
 
-  useEffect(() => {
-    if (!open) return;
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      if (
-        !containerRef.current?.contains(target)
-        && !menuRef.current?.contains(target)
-      ) {
-        setOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setOpen(false);
-    }
-    function refreshPosition() {
-      if (moreButtonRef.current) setMenuPosition(getMenuPosition(moreButtonRef.current));
-    }
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('resize', refreshPosition);
-    window.addEventListener('scroll', refreshPosition, true);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('resize', refreshPosition);
-      window.removeEventListener('scroll', refreshPosition, true);
-    };
-  }, [open]);
-
   function toggleMenu() {
-    if (!moreButtonRef.current) return;
-    setMenuPosition(getMenuPosition(moreButtonRef.current));
     setOpen((prev) => !prev);
   }
 
@@ -133,17 +70,14 @@ export function PatientActionsMenu({
 
   const recetaEnabled = Boolean(handlers.onCrearReceta);
   const laboratorioEnabled = Boolean(handlers.onPedidoLaboratorio);
-  const menu = open && !noPatient && menuPosition ? (
-    <div
-      ref={menuRef}
+  const menu = open && !noPatient ? (
+    <FloatingPopover
+      anchorRef={moreButtonRef}
+      onClose={() => setOpen(false)}
+      width={276}
       className="patient-actions-menu"
       role="menu"
       aria-label="Mas acciones del paciente"
-      style={{
-        top: menuPosition.top,
-        left: menuPosition.left,
-        maxHeight: menuPosition.maxHeight,
-      }}
     >
       <div className="patient-actions-menu-group" role="group" aria-label="Clinico">
         <span className="patient-actions-group">Clinico</span>
@@ -231,11 +165,11 @@ export function PatientActionsMenu({
           <span>Copiar datos</span>
         </button>
       </div>
-    </div>
+    </FloatingPopover>
   ) : null;
 
   return (
-    <div className="patient-actions" ref={containerRef}>
+    <div className="patient-actions">
       <div className="patient-actions-primary" aria-label="Acciones rapidas del paciente">
         <button type="button" aria-label="Nueva cita" title="Nueva cita" onClick={handlers.onNuevaCita} disabled={noPatient}>
           <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />

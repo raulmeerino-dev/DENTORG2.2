@@ -22,8 +22,8 @@
 .dc-patient-header .inline-alert { width: 100%; }
 .dc-patient-view { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; }
 .dc-patient-tabs { display: flex; align-items: stretch; flex: 0 0 auto; gap: var(--dc-space-1); padding: 0 var(--dc-space-3); background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border); }
-.dc-patient-tabs button { display: inline-flex; gap: var(--dc-space-2); align-items: center; min-height: 38px; padding: var(--dc-space-2) var(--dc-space-4); border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--dc-muted); font-size: var(--dc-font-body); }
-.dc-patient-tabs button.active { color: var(--dc-primary); border-bottom-color: var(--dc-primary); font-weight: 650; }
+.dc-patient-tabs button { display: inline-flex; gap: var(--dc-space-2); align-items: center; min-height: 38px; padding: var(--dc-space-2) var(--dc-space-4); border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--dc-muted); font-size: var(--dc-font-body); font-weight: 650; }
+.dc-patient-tabs button.active { color: var(--dc-primary); border-bottom-color: var(--dc-primary); }
 .dc-patient-tabs .tab-icon { display: inline-flex; }
 .dc-patient-tabs svg { width: 15px; height: 15px; }
 .dc-patient-body { flex: 1; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
@@ -54,6 +54,7 @@
 .dc-summary-bento-col small { color: var(--dc-muted); }
 .dc-summary-bento-col section > strong { display: block; font-size: var(--dc-font-body); line-height: 1.6; }
 .dc-summary-banner { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--dc-space-2); border: 0; border-radius: 0; padding: var(--dc-space-2) var(--dc-space-4); text-align: left; }
+.dc-summary-banner em { min-width: min-content; overflow-wrap: normal; }
 .dc-summary-banner-warning { background: var(--dc-warning-soft); color: var(--dc-warning); }
 .dc-summary-banner-danger { background: var(--dc-danger-soft); color: var(--dc-danger); }
 .dc-summary-banner em { margin-left: auto; font-style: normal; }
@@ -109,9 +110,9 @@
 .dc-summary-hub-alert > strong { font-size: var(--dc-font-body); font-weight: 500; }
 .dc-summary-hub-balance.has-debt > strong { color: var(--dc-danger); }
 .dc-summary-hub-head-actions { display: flex; flex-wrap: wrap; gap: var(--dc-space-2); }
-.dc-summary-hub-head-actions button, .dc-summary-more-actions > summary { display: inline-flex; align-items: center; gap: var(--dc-space-2); }
+.dc-summary-hub-head-actions button { display: inline-flex; align-items: center; gap: var(--dc-space-2); }
 .dc-summary-more-actions { position: relative; }
-.dc-summary-more-actions > summary { list-style: none; cursor: pointer; padding: var(--dc-space-2); }
+.dc-summary-more-actions > button { padding: var(--dc-space-2); }
 .dc-summary-header-actions-menu { position: absolute; z-index: 40; right: 0; min-width: 220px; max-height: 350px; overflow: auto; padding: var(--dc-space-2); background: var(--dc-surface); border: 1px solid var(--dc-border); box-shadow: var(--dc-shadow-menu); }
 .dc-summary-header-actions-menu button { width: 100%; background: transparent; border: 0; padding: var(--dc-space-2); text-align: left; }
 .dc-summary-status-action em { display: inline-flex; align-items: center; gap: var(--dc-space-1); font-style: normal; }
@@ -140,11 +141,11 @@
   .dc-patient-header { padding: var(--dc-space-2); }
   .dc-patient-header .dc-patient-finder { flex: 1 1 100%; }
   .dc-patient-header .dc-patient-identity { min-width: 130px; }
-  .dc-patient-header .patient-actions-primary button:not(.patient-actions-more) span { display: none; }
   .dc-patient-summary, .dc-summary-bento-col-admin { grid-template-columns: minmax(0, 1fr); }
   .dc-summary-bento-col + .dc-summary-bento-col, .dc-summary-bento-col-admin > section + section { border-left: 0; border-top: 1px solid var(--dc-border); }
   .dc-patient-tabs { padding: 0; }
-  .dc-patient-tabs button { flex: 1; justify-content: center; padding: var(--dc-space-2); }
+  .dc-patient-tabs button { flex: 1; justify-content: center; padding: var(--dc-space-2) var(--dc-space-1); font-size: 12px; white-space: nowrap; }
+  .dc-patient-tabs .tab-icon { display: none; }
   .dc-summary-billing-list > button { grid-template-columns: 1fr auto; }
   .dc-summary-billing-list em { grid-column: 1 / -1; }
 }

@@ -7,6 +7,7 @@ import { useAuth } from '../../identity/session/AuthContext';
 import { getMyDoctorNotifications, markDoctorNotificationRead } from '../../../api/communications';
 import { localAppointmentDate } from '../agenda/agendaTime';
 import type { DoctorNotification } from '../../../api/types';
+import { FloatingPopover } from '../../../design-system/FloatingPopover';
 
 const POLL_INTERVAL_MS = 6000;
 
@@ -52,7 +53,7 @@ function DoctorNotificationsBellContent({ userId }: { userId: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const initializedRef = useRef(false);
   const shownRef = useRef<Set<string>>(new Set());
 
@@ -109,29 +110,10 @@ function DoctorNotificationsBellContent({ userId }: { userId: string }) {
     });
   }, [notificationsQuery.data, openAppointment]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    function onPointerDown(event: PointerEvent) {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
   return (
-    <div className="doctor-notifications" ref={wrapperRef}>
+    <div className="doctor-notifications">
       <button
+        ref={triggerRef}
         type="button"
         className={`doctor-notifications-trigger ${unread.length ? 'has-unread' : ''}`}
         aria-label={unread.length ? `Notificaciones: ${unread.length} sin leer` : 'Notificaciones'}
@@ -144,7 +126,7 @@ function DoctorNotificationsBellContent({ userId }: { userId: string }) {
       </button>
 
       {open && (
-        <section className="doctor-notifications-popover" role="dialog" aria-label="Notificaciones del doctor">
+        <FloatingPopover anchorRef={triggerRef} width={380} maxHeight={520} onClose={() => setOpen(false)} className="doctor-notifications-popover" role="dialog" aria-label="Notificaciones del doctor">
           <header>
             <strong>Notificaciones</strong>
             <small>{unread.length ? `${unread.length} sin leer` : 'Sin pendientes'}</small>
@@ -174,7 +156,7 @@ function DoctorNotificationsBellContent({ userId }: { userId: string }) {
             )}
             {notificationsQuery.isLoading && <p>Cargando avisos...</p>}
           </div>
-        </section>
+        </FloatingPopover>
       )}
     </div>
   );

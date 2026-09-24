@@ -1,5 +1,6 @@
-import { useMemo,useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { ApiPaciente } from '../../api/types';
+import { FloatingPopover } from '../../design-system/FloatingPopover';
 
 
 function normalizePatientFinderText(value?: string | number | null) {
@@ -38,6 +39,8 @@ export function PatientFinder({
 }) {
   const [localQuery, setLocalQuery] = useState('');
   const [resultsOpen, setResultsOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const restoringFocus = useRef(false);
   const query = controlledQuery ?? localQuery;
   const usesServerSearch = Boolean(onQueryChange);
   const filtered = useMemo(() => {
@@ -74,11 +77,16 @@ export function PatientFinder({
     updateQuery('');
   }
 
+  function closeResults() {
+    setResultsOpen(false);
+    // Escape restores the anchor focus; that focus event must not reopen the search.
+    restoringFocus.current = true;
+    queueMicrotask(() => { restoringFocus.current = false; });
+  }
+
   return (
     <div className="dc-patient-finder" onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setResultsOpen(false);
-    }} onKeyDown={(event) => {
-      if (event.key === 'Escape') setResultsOpen(false);
     }}>
       <button
         type="button"
@@ -96,6 +104,7 @@ export function PatientFinder({
       </button>
       <label className="dc-patient-search-label">
         <input
+          ref={searchRef}
           id="patient-search-input"
           aria-label="Buscar paciente"
           value={query}
@@ -103,13 +112,13 @@ export function PatientFinder({
             updateQuery(event.target.value);
             setResultsOpen(true);
           }}
-          onFocus={() => setResultsOpen(true)}
+          onFocus={() => { if (!restoringFocus.current) setResultsOpen(true); }}
           placeholder="Buscar paciente..."
           autoComplete="off"
         />
       </label>
       {resultsOpen && (
-        <div className="dc-patient-live-results dc-patient-finder-results">
+        <FloatingPopover anchorRef={searchRef} width={420} maxHeight={420} align="start" onClose={closeResults} className="dc-patient-live-results dc-patient-finder-results" role="region" aria-label="Resultados de pacientes">
           {loading && <span>Buscando pacientes...</span>}
           {filtered.map((paciente) => (
             <button
@@ -145,7 +154,7 @@ export function PatientFinder({
               </button>
             </div>
           )}
-        </div>
+        </FloatingPopover>
       )}
     </div>
   );

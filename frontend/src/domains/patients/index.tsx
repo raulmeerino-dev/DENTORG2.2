@@ -1,4 +1,5 @@
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
+import { FloatingPopover } from '../../design-system/FloatingPopover';
 import type { MouseEvent,ReactNode } from 'react';
 import { useDeferredValue,useEffect,useState } from 'react';
 import { useLocation,useNavigate,useSearchParams } from 'react-router-dom';
@@ -1268,7 +1269,7 @@ function PatientWorkspace() {
         )}
       </div>
       {contextMenu && (
-        <div className="context-menu patient-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} onClick={(event) => event.stopPropagation()}>
+        <FloatingPopover className="context-menu patient-context-menu" point={contextMenu} onClose={() => setContextMenu(null)} role="menu" aria-label="Acciones del paciente" onClick={(event) => event.stopPropagation()}>
           {contextMenu.kind === 'paciente' && (
             <>
               <strong>Paciente</strong>
@@ -1321,7 +1322,7 @@ function PatientWorkspace() {
               <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Crear circular</button>
             </>
           )}
-        </div>
+        </FloatingPopover>
       )}
       {nuevoPacienteOpen && (
         <NuevoPacienteModal
