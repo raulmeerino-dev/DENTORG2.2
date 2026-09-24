@@ -43,7 +43,9 @@ async function fixture(request: APIRequestContext) {
   const cabinet = cabinets.find(item => item.activo);
   const name = `JornadaE2E${Date.now()}`;
   const patient = await api<{ id: string }>(request, admin, '/pacientes', 'POST', { nombre: name, apellidos: 'Prueba aislada', telefono: '600000000' });
-  const appointments = await api<Appointment[]>(request, admin, `/citas?doctor_id=${doctorUser.doctor_id}&fecha_desde=${localDate()}T00:00:00&fecha_hasta=${localDate()}T23:59:59`);
+  const from = new Date(`${localDate()}T00:00:00`).toISOString();
+  const through = new Date(`${localDate()}T23:59:59`).toISOString();
+  const appointments = await api<Appointment[]>(request, admin, `/citas?doctor_id=${doctorUser.doctor_id}&fecha_desde=${from}&fecha_hasta=${through}`);
   // Pick an actually free slot to make reruns independent, preserving all audit history.
   const slot = Array.from({ length: 72 }, (_, index) => new Date(`${localDate()}T00:00:00`).getTime() + ((index + 54) % 72) * 20 * 60_000)
     .find(start => appointments.every(cita => ['cancelada', 'no_presentado', 'finalizada'].includes(cita.estado_operativo) || start + 20 * 60_000 <= Date.parse(cita.fecha_hora) || start >= Date.parse(cita.fecha_hora) + cita.duracion_min * 60_000));
@@ -187,7 +189,7 @@ test('Agenda crea desde un hueco sin volver a pedir profesional ni hora', async 
   const data = await fixture(request);
   await login(page, 'recepcion', 'recep123');
   await page.getByRole('navigation', { name: 'Perspectiva de Jornada' }).getByRole('button', { name: 'Agenda', exact: true }).click();
-  const cell = page.locator(`.agenda-resource-cell[data-doctor-id="${data.doctorId}"]`)
+  const cell = page.locator(`.agenda-resource-cell:not(.outside-hours)[data-doctor-id="${data.doctorId}"]`)
     .filter({ has: page.getByRole('button', { name: /^Nueva cita \d/ }) }).first();
   await expect(cell).toBeVisible();
   const slot = await cell.getAttribute('data-slot');

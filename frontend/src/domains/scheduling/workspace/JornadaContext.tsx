@@ -37,13 +37,27 @@ export function JornadaProvider({ children }: { children: ReactNode }) {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const pendingParams = useRef(params);
-  useLayoutEffect(() => { pendingParams.current = params; }, [params]);
+  const pendingNavigations = useRef<string[]>([]);
+  useLayoutEffect(() => {
+    const committed = pendingNavigations.current.lastIndexOf(params.toString());
+    if (committed >= 0) {
+      pendingNavigations.current.splice(0, committed + 1);
+      // An older transition can commit after a newer input event. It must not
+      // replace the snapshot that already includes that newer filter.
+      if (pendingNavigations.current.length) return;
+    } else {
+      // Back/forward and links outside this provider remain authoritative.
+      pendingNavigations.current = [];
+    }
+    pendingParams.current = params;
+  }, [params]);
   function updateParams(update: (next: URLSearchParams) => void, replace = true) {
     // Router updates do not queue like React setState. Compose rapid filter and
     // perspective changes against one pending snapshot before navigation settles.
     const next = new URLSearchParams(pendingParams.current);
     update(next);
     pendingParams.current = next;
+    pendingNavigations.current.push(next.toString());
     setParams(next, { replace, state: location.state });
   }
   const requestedDay = params.get('fecha') ?? '';
