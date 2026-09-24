@@ -1,6 +1,6 @@
 # Pruebas de navegador
 
-`cita-presupuesto-linea.spec.ts` verifica el contrato de la pantalla con respuestas HTTP controladas. `jornada-real.spec.ts` usa Chromium, FastAPI y PostgreSQL reales, sin interceptar las peticiones del circuito.
+`cita-presupuesto-linea.spec.ts` verifica el contrato de la pantalla con respuestas HTTP controladas. `jornada-real.spec.ts` y `clinical-billing-real.spec.ts` usan Chromium, FastAPI y PostgreSQL reales, sin interceptar las peticiones del circuito.
 
 La suite real crea pacientes y citas sintéticos, conserva el historial de cambios y selecciona huecos libres para admitir repeticiones. Nunca debe apuntar a una base clínica. Se activa explícitamente con `DENTCORE_REAL_E2E=1` y rechaza una URL de API no local.
 
@@ -55,10 +55,13 @@ Credenciales sintéticas: `recepcion / recep123`, `doctor / doctor123`, `admin /
 - Filtros de profesional, estado y búsqueda compartidos entre Operativa y Agenda y conservados al recargar.
 - Paciente provisional sin teléfono; rechazo de solape ordinario; urgencia autorizada con motivo y persistencia del conflicto.
 - Creación desde hueco real, conservando profesional y hora sin volver a pedirlos; gabinete mostrado cuando existe.
+- Búsqueda de pacientes desde la cita contra la API, incluyendo pacientes fuera de la primera página del listado.
 
-Los datos y trazas de cada ejecución quedan en la base aislada y `frontend/test-results/` (ignorado por Git). La suite de Jornada no sustituye al recorrido de navegador completo de presupuesto, acto clínico, factura y cobro.
+`clinical-billing-real.spec.ts` cubre a 1280×720 el circuito completo: crea un presupuesto desde Pacientes, añade una línea con pieza y superficie, acepta el plan, comprueba que el pendiente nace automáticamente, programa la línea, registra llegada y atención, guarda una nota y el acto clínico, finaliza la visita, emite la factura y cobra desde Caja. Verifica en la API real los vínculos entre línea, cita, historial y factura, el importe de 75 €, el saldo cero y la persistencia tras recargar. Solo prepara paciente y forma de pago sintéticos por API; las mutaciones del circuito se ejecutan desde la interfaz. Elige un hueco libre y conserva el historial de cada ejecución.
 
-El job `jornada-e2e` de CI levanta su propio PostgreSQL 16, aplica todas las migraciones, siembra datos sintéticos y arranca FastAPI. Activa expresamente la suite real y conserva trazas y log de API si falla; no usa secretos ni servicios de producción.
+Los datos y trazas de cada ejecución quedan en la base aislada y `frontend/test-results/` (ignorado por Git). El circuito económico genera documentos fiscales sintéticos únicamente en este runtime de pruebas.
+
+El job `jornada-e2e` de CI levanta su propio PostgreSQL 16, aplica todas las migraciones, siembra datos sintéticos y arranca FastAPI. Ejecuta ambos circuitos reales, Jornada y clínica/facturación, y conserva trazas y log de API si falla; no usa secretos ni servicios de producción.
 
 ## Revisión visual
 

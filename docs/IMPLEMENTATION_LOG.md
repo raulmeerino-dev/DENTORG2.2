@@ -2,6 +2,20 @@
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.
 
+## 2026-09-24 — Workspaces y cierre de la transformación visual
+
+El checkpoint `486f588` conserva el estado de la reorganización arquitectónica al retomar el trabajo. La entrega visual posterior establece un shell permanente, contexto compartido de Jornada, calendario proporcional por profesionales, ficha continua de paciente y superficies de tarea dentro del shell para consentimiento, receta, presupuesto y primera visita/odontograma. Caja, Listados, Ajustes, Reportes y WhatsApp usan toolbars, paneles y tablas con desplazamiento propio.
+
+Los tokens y primitivas comunes viven en `frontend/src/design-system`; los estilos de cada flujo se encuentran en su dominio. Se han retirado más de 1.300 reglas obsoletas de las superficies migradas. El CSS global compilado baja de aproximadamente 483 a 299 kB, manteniendo únicamente la compatibilidad todavía consumida. [Detalle de las superficies](application-workspaces.md).
+
+La validación con datos densos detectó y permitió corregir: coordenadas de la agenda sin estilos correspondientes, pérdida de filtros al alternar perspectivas, solapamientos sobre acciones de Pendientes/Sesión, selección de pacientes limitada a los primeros 50, contexto de hora UTC en la ficha y aislamiento de tareas por paciente. No se modifican tablas ni se ejecutan migraciones de datos como parte de la transformación visual.
+
+Comprobaciones reproducibles: build TypeScript/Vite, ESLint, 321 pruebas unitarias frontend, 178 pruebas backend y Ruff; seis E2E de navegador, incluidos cinco recorridos reales contra FastAPI/PostgreSQL. El nuevo circuito comprueba presupuesto → aceptación → pendiente → cita → acto clínico → factura vinculada → cobro → saldo cero tras recargar. CI ejecuta también ese recorrido. Restauración ensayada en otra base aislada: 58 tablas, valores, claves foráneas y SHA-256 del adjunto verificados.
+
+Revisión visual: temas claro/oscuro, escritorio de 1440/1280, tablet de 1024/768 y móvil de 390 px; agenda densa, listados con más de 50 pacientes y caja con 64 facturas sintéticas. Las capturas locales están bajo `output/playwright` y `frontend/output/playwright`, ignoradas por Git.
+
+El repositorio no incluía un periodontograma. No se introduce un nuevo registro clínico periodontal en esta entrega. Las limitaciones de proveedores de receta y la validación legal de plantillas existentes se mantienen explícitas; esta entrega no certifica esos servicios.
+
 ## 2026-09-04 — Línea base de auditoría
 
 **IDs completados:** ninguno; esta entrada establece la línea base previa a la implementación.  

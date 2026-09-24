@@ -116,9 +116,9 @@ jobs:
         run: |
           npm ci
           npx playwright install --with-deps chromium
-      - name: Run real Jornada circuit
+      - name: Run real clinical and Jornada circuits
         working-directory: frontend
-        run: node node_modules/@playwright/test/cli.js test jornada-real --workers=1 --forbid-only
+        run: node node_modules/@playwright/test/cli.js test jornada-real clinical-billing-real --workers=1 --forbid-only
       - name: Preserve failure traces
         if: failure()
         uses: actions/upload-artifact@v4
