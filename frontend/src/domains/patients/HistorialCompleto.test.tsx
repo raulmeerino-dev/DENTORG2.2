@@ -194,11 +194,11 @@ describe('Historial general tabular', () => {
     const table = screen.getByRole('table', { name: 'Cronología del paciente' });
     expect(within(table).getAllByRole('row')).toHaveLength(3); // sesión y pago; sin duplicar factura ni actos
     const session = screen.getByRole('button', { name: /Ver detalle: Visita clínica/ });
-    expect(session.closest('tr')).toHaveTextContent('A/100140,00100,0040,00');
+    expect(session.closest('tr')).toHaveTextContent('A/100140,00100,00-40,00');
     await userEvent.click(session);
     const treatments = screen.getByRole('region', { name: 'Tratamientos incluidos' });
     expect(treatments).toHaveTextContent('Restauración no presupuestada');
-    expect(treatments).toHaveTextContent('60,0020,0040,00');
+    expect(treatments).toHaveTextContent('60,0020,00-40,00');
     expect(within(treatments).queryByRole('columnheader', { name: 'Profesional' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Documento · rx-pieza-16.pdf' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Facturación' }));
@@ -211,7 +211,7 @@ describe('Historial general tabular', () => {
     expect(screen.getByRole('region', { name: 'Detalle de tratamiento' })).toHaveTextContent('Conductos permeables');
     await userEvent.click(screen.getByRole('button', { name: 'Cobro · Tarjeta' }));
     const payment = screen.getByRole('region', { name: 'Detalle de cobro' });
-    expect(payment).toHaveTextContent('Saldo de cuenta al registrar el pago40,00');
+    expect(payment).toHaveTextContent('Saldo de cuenta al registrar el pago-40,00');
     const allocation = within(payment).getByRole('region', { name: 'Destino del pago' });
     expect(allocation).toHaveTextContent('Restauración no presupuestada');
     expect(within(allocation).getAllByRole('row')).toHaveLength(3);
@@ -224,7 +224,7 @@ describe('Historial general tabular', () => {
     await userEvent.click(session);
     const payments = screen.getByRole('region', { name: 'Pagos relacionados' });
     const rows = within(payments).getAllByRole('row');
-    expect(rows[1]).toHaveTextContent('100,00100,0040,00');
+    expect(rows[1]).toHaveTextContent('100,00100,00-40,00');
     expect(rows[2]).toHaveTextContent('40,0040,000,00');
     await userEvent.click(screen.getByRole('button', { name: 'Filtros' }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Con saldo pendiente' }));
@@ -261,13 +261,25 @@ describe('Historial general tabular', () => {
   it('muestra las aplicaciones reales de un tratamiento todavía sin facturar', () => {
     renderHistorial({ account, historial: [historialPieza], facturas: [], anticipos: [] });
     const row = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }).closest('tr')!;
-    expect(row).toHaveTextContent('Sin facturar150,0050,00100,00');
+    expect(row).toHaveTextContent('Sin facturar150,0050,00-100,00');
+    expect(row.lastElementChild).toHaveClass('has-debt');
+  });
+  it('identifica un documento preparado como borrador, nunca como factura emitida', async () => {
+    renderHistorial({
+      account, historial: [{ ...historialPieza, factura_id: factura.id }],
+      facturas: [{ ...factura, estado: 'borrador' }], anticipos: [],
+    });
+    const row = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }).closest('tr')!;
+    expect(row).toHaveTextContent('Borrador');
+    expect(row).not.toHaveTextContent('Emitida');
+    await userEvent.click(screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }));
+    expect(screen.getByRole('region', { name: 'Detalle de tratamiento' })).toHaveTextContent('borrador');
   });
   it.each(['facturado', 'cobrado_parcial', 'cobrado_completo'])('conserva el tratamiento realizado con estado económico heredado %s', (estado) => {
     renderHistorial({ account, historial: [{ ...historialPieza, estado, factura_id: factura.id }] });
     const row = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }).closest('tr')!;
     expect(row).toHaveTextContent('Realizado');
-    expect(row).toHaveTextContent('150,0050,00100,00');
+    expect(row).toHaveTextContent('150,0050,00-100,00');
   });
   it('un pago aplicado a dos facturas conserva una sola entrada por el importe recibido', async () => {
     renderHistorial({ account, anticipos: [], facturas: [factura, { ...factura, id: 'fac-2', numero: 101 }] });
@@ -309,7 +321,7 @@ describe('Historial general tabular', () => {
     expect(treatment).not.toHaveTextContent('120,00');
     expect(treatment).not.toHaveTextContent('80,00');
     await userEvent.click(screen.getByRole('button', { name: 'Facturación' }));
-    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent('200,00120,0080,00');
+    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent('200,00120,00-80,00');
   });
   it('conserva importes y motivo del cobro anulado con efectivo cero', async () => {
     renderHistorial({ facturas: [{ ...factura, cobros: [{ ...cobro, anulado_at: '2026-04-13T08:00:00Z', motivo_anulacion: 'Error de importe' }] }], anticipos: [] });
@@ -420,10 +432,13 @@ describe('Historial general tabular', () => {
     const annulled = rows.find(row => row.textContent?.includes('Anulada'))!;
     expect(annulled.lastElementChild).toHaveTextContent('0,00');
   });
-  it.each([['80', 'Deuda actual'], ['0', 'Saldo actual'], ['-40', 'A favor']])('muestra saldo contable %s con etiqueta %s sin depender de filtros', async (pending, label) => {
+  it.each([['80', 'Saldo pendiente'], ['0', 'Saldo actual'], ['-40', 'A favor']])('muestra saldo contable %s con etiqueta %s sin depender de filtros', async (pending, label) => {
     renderHistorial({ saldo: { paciente_id: paciente.id, total_facturado: '200', total_cobrado: String(200 - Number(pending)), pendiente: pending, facturas_pendientes: 1 } });
     const summary = screen.getByLabelText('Saldo actual del paciente');
     expect(summary).toHaveTextContent(label);
+    const balance = within(summary).getByText(label).nextElementSibling!;
+    expect(balance).toHaveTextContent(Number(pending) === 0 ? '0,00' : Number(pending) > 0 ? '-80,00' : '40,00');
+    expect(balance.parentElement).toHaveClass(Number(pending) > 0 ? 'has-debt' : Number(pending) < 0 ? 'has-credit' : 'is-settled');
     await userEvent.type(screen.getByRole('searchbox'), 'sin coincidencias');
     expect(summary).toHaveTextContent(label);
     expect(summary).toHaveTextContent('200,00');

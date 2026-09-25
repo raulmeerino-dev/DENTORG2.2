@@ -130,7 +130,8 @@ async def link_invoice_charges(db, invoice, *, cargo_ids=None, user=None):
             db.add(charge)
         if history:
             history.factura_id = invoice.id
-            history.estado = "facturado"
+            # Billing is a separate dimension: documenting an act must not
+            # replace its clinical state. Legacy billed states remain readable.
     if not lines and invoice.total:
         db.add(
             CargoPaciente(

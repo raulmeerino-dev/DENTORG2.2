@@ -19,6 +19,12 @@ La corrección de un importe aún no cobrado ni facturado mantiene auditoría. E
 
 Jornada y Caja comparten `CheckoutQueue` y `PatientCheckout`. La cuenta muestra lo realizado en la visita, deuda anterior, saldo a favor, cargos y pagos. Permite cobro completo o parcial y salida sin cobro. La factura es una acción explícita desde el mismo checkout; esta implementación no determina ni cambia el momento de emisión exigible fiscalmente.
 
+Emitir sin cobrar mantiene el pendiente y no resuelve por sí solo la salida. Registrar un pago o cerrar la salida tampoco emite una factura. El checkout permite registrar el acuerdo de pago (incluida financiación pendiente de abono) sin contabilizar dinero no recibido. El menú de tratamientos pendientes abre la revisión de cuenta; no crea una factura manual desligada del tratamiento.
+
+La emisión vincula la factura al acto, pero no cambia su estado clínico «realizado». Los estados económicos antiguos siguen siendo compatibles sin reescribir registros históricos. Las facturas existentes conservan numeración, documentos y trazabilidad.
+
+Los borradores no se incluyen en «Facturado» ni en el número de facturas pendientes de cobro del paciente. Cuando un acto tiene un documento preparado, el historial lo identifica como «Borrador».
+
 Caja ofrece Salidas, Cuentas pendientes, Pagos y Facturas. Ficha, historial económico y Registros consumen la misma cuenta; los pagos no requieren un documento previo para aparecer. La proyección de pagos de una factura representa sus aplicaciones y no debe sumarse como otro ingreso en Caja.
 
 Al finalizar la visita se guardan los campos clínicos pendientes y las notas de pieza. Si un guardado falla, la visita permanece abierta. Un tratamiento planificado no se convierte automáticamente en realizado al cerrar una visita.
@@ -38,6 +44,8 @@ La vista general agrupa los actos por visita, con totales de cargos, aplicacione
 Las facturas íntegramente representadas por tratamientos quedan como enlaces contextuales en Todo y siguen disponibles en Facturación. Las facturas manuales, mixtas, anuladas o rectificativas conservan su entrada propia. No se reparten cobros de factura por porcentajes: se muestran las aplicaciones reales del libro de cargos.
 
 Cada movimiento expone sus aplicaciones y quién lo registró. Para pagos de checkout, el saldo tras la operación procede del recibo inmutable guardado en `OperacionCheckout.resultado`; no cambia al recibir pagos posteriores. Se distingue del pendiente actual del tratamiento o sesión. Los pagos históricos sin esa instantánea muestran «—». No se reconstruyen saldos por ordenación de fechas. Una instantánea global de otra clínica no se expone a recepción aunque el paciente o pago heredado sea compartido.
+
+El historial presenta la posición del paciente: deuda como saldo negativo en rojo y crédito como saldo positivo. Esta convención visual se aplica a resumen, filas y detalle; el libro contable y los contratos mantienen su convención original (deuda positiva). Las columnas etiquetadas «Pendiente» conservan el importe adeudado sin invertirlo. La columna de saldo sigue visible en escritorios estrechos.
 
 Esta ampliación es de lectura y no requiere otra migración ni modifica la lógica de facturación o cobro.
 

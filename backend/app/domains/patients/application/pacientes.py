@@ -377,8 +377,9 @@ async def saldo_paciente(paciente_id: UUID, db: AsyncSession, current_user: Toke
     from app.domains.billing.persistence.account_queries import invoice_paid
     account = await read_account(db, paciente_id, current_user)
     scope = [] if current_user.rol == "admin" else [(Factura.clinica_id == current_user.clinica_id) | Factura.clinica_id.is_(None)]
-    total = await db.scalar(select(func.coalesce(func.sum(Factura.total), 0)).where(Factura.paciente_id == paciente_id, Factura.estado != "anulada", *scope))
-    pending = await db.scalar(select(func.count()).select_from(Factura).where(Factura.paciente_id == paciente_id, Factura.estado != "anulada", Factura.total > invoice_paid(), *scope))
+    issued = Factura.estado.not_in(["borrador", "anulada"])
+    total = await db.scalar(select(func.coalesce(func.sum(Factura.total), 0)).where(Factura.paciente_id == paciente_id, issued, *scope))
+    pending = await db.scalar(select(func.count()).select_from(Factura).where(Factura.paciente_id == paciente_id, issued, Factura.total > invoice_paid(), *scope))
     return SaldoPacienteResponse(paciente_id=paciente_id, total_facturado=total,
         total_cargos=account.total_cargos, total_cobrado=account.total_cobrado, pendiente=account.saldo,
         saldo_favor=account.saldo_favor, sin_valorar=account.sin_valorar, facturas_pendientes=pending)

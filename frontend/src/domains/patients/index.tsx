@@ -568,20 +568,6 @@ function PatientWorkspace() {
     },
   });
 
-  const facturarLinea = useMutation({
-    mutationFn: async (linea: PresupuestoLinea) => {
-      if (!active) throw new Error('Sin paciente');
-      const importe = Number(linea.importe_neto || linea.precio_unitario || 0);
-      if (!Number.isFinite(importe) || importe <= 0) throw new Error('Importe no valido');
-      return createFacturaManual(active.id, linea.tratamiento?.nombre ?? 'Tratamiento dental', importe);
-    },
-    onSuccess: () => {
-      setContextMenu(null);
-      if (active?.id) invalidatePatientWorkspace(active.id);
-      openPatientArea('historial');
-    },
-  });
-
   const subirDocumento = useMutation({
     mutationFn: async (data: { archivo: File; categoria: string; descripcion?: string; fecha_documento?: string; etiquetas?: string }) => {
       if (!active) throw new Error('Sin paciente');
@@ -1290,7 +1276,7 @@ function PatientWorkspace() {
               <strong>Tratamiento pendiente</strong>
               <button onClick={() => darCitaParaTratamiento(contextMenu.linea)}>Dar cita para este tratamiento</button>
               {canManageBilling && (
-                <button onClick={() => facturarLinea.mutate(contextMenu.linea)} disabled={facturarLinea.isPending}>Facturar tratamiento</button>
+                <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }}>Revisar cuenta y facturación</button>
               )}
               {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento', tipo: contextMenu.linea.tratamiento?.nombre } : null); setContextMenu(null); }}>Consentimiento de tratamiento</button>}
               <button onClick={() => { openPatientArea('presupuestos'); setContextMenu(null); }}>Abrir presupuesto</button>

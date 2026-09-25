@@ -177,6 +177,7 @@ function CheckoutForm({
   const maximum = Math.max(0, Number(account.pendiente_cargos) - credit);
   const [amount, setAmount] = useState(leavePending ? "0" : String(maximum));
   const [methodId, setMethodId] = useState("");
+  const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [receipt, setReceipt] = useState<CheckoutReceipt | null>(null),
@@ -241,6 +242,7 @@ function CheckoutForm({
       usar_saldo_favor: useCredit,
       cita_id: account.cita_id,
       resolver_salida: account.pendiente_salida,
+      notas: notes.trim() || undefined,
     };
     request.current = payload;
     try {
@@ -291,7 +293,7 @@ function CheckoutForm({
       setError(
         getApiErrorMessage(
           e,
-          "No se pudo emitir la factura. El cobro ya registrado se conserva.",
+          "No se pudo verificar la emisión. Reintenta la misma operación; no duplicará la factura. Los pagos registrados se conservan.",
         ),
       );
     } finally {
@@ -343,7 +345,7 @@ function CheckoutForm({
                         {c.concepto}
                         <small>
                           {c.fecha}
-                          {c.factura_id ? " · Con factura" : " · Sin factura"}
+                          {c.factura_id ? " · Con factura" : " · Pendiente de facturar"}
                           {c.motivo_cero ? ` · ${c.motivo_cero}` : ""}
                         </small>
                       </td>
@@ -467,8 +469,20 @@ function CheckoutForm({
                   >
                     Cobrar todo
                   </button>
+                  {account.pendiente_salida && <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => { setAmount("0"); setUseCredit(false); }}
+                  >
+                    Dejar pendiente de pago
+                  </button>}
                 </>
               )}
+              <label className="checkout-notes">
+                Acuerdo de pago / observaciones
+                <input value={notes} maxLength={500} onChange={event => setNotes(event.target.value)}
+                  placeholder="Ej.: financiación pendiente de abono, pago aplazado…" />
+              </label>
               <p>
                 Quedará pendiente:{" "}
                 <strong>
@@ -528,11 +542,11 @@ function CheckoutForm({
           !invoice &&
           (uninvoiced.length > 0 || invoiceRequest) && (
             <details className="checkout-invoice" open={Boolean(receipt)}>
-              <summary>Documentación económica</summary>
+              <summary>Facturación · emisión explícita</summary>
               <p>
-                {receipt ? "El pago ya está registrado. " : ""}Puedes emitir la
-                factura de los cargos sin documentar. La emisión conserva el
-                saldo actual.
+                Realizar un tratamiento o confirmar la salida no emite ninguna factura.
+                Esta acción factura {uninvoiced.length} cargo{uninvoiced.length === 1 ? "" : "s"} sin documentar,
+                incluidos los que ya estén pagados. No registra un cobro y conserva el saldo actual.
               </p>
               <button
                 type="button"

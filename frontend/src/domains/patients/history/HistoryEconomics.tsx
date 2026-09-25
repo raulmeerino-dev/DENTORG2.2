@@ -2,6 +2,7 @@ import type { HistoryData, HistoryRow } from './historyRows';
 import type { HistoryActions } from './HistoryRowDetail';
 import { formatDate, money } from '../../../shared/format';
 import { clinicDateKey } from '../../../shared/time/clinicTime';
+import { historyBalance, historyBalanceClass } from './historyBalance';
 
 /** Read the same allocations as checkout; never apportion invoice totals by percentage. */
 export function HistoryEconomics({
@@ -54,7 +55,7 @@ export function HistoryEconomics({
                     {money(importe)}
                     {row.payment?.anulado ? ' · Anulado' : ''}
                   </td>
-                  <td className="ph-numeric">{money(charge.pendiente)}</td>
+                  <td className={`ph-numeric ${historyBalanceClass(charge.pendiente)}`}>{money(charge.pendiente)}</td>
                 </tr>
               ))}
             </tbody>
@@ -115,8 +116,8 @@ export function HistoryEconomics({
                   </td>
                   <td className="ph-numeric">{money(m.importe)}</td>
                   <td className="ph-numeric">{money(m.anulado ? 0 : applied)}</td>
-                  <td className="ph-numeric">
-                    {m.saldo_tras_operacion == null || m.anulado ? '—' : money(m.saldo_tras_operacion)}
+                  <td className={`ph-numeric ${!m.anulado ? historyBalanceClass(m.saldo_tras_operacion) : ''}`}>
+                    {m.saldo_tras_operacion == null || m.anulado ? '—' : historyBalance(m.saldo_tras_operacion)}
                   </td>
                 </tr>
               ))}
@@ -124,7 +125,8 @@ export function HistoryEconomics({
           </table>
           <p className="patient-history-help">
             El saldo al registrar corresponde a la cuenta completa en ese momento. «—» indica que no se guardó
-            ese saldo o que el pago está anulado. Los importes aplicados muestran la situación actual.
+            ese saldo o que el pago está anulado. Un saldo negativo indica deuda; positivo, saldo a favor.
+            Los importes aplicados muestran la situación actual.
           </p>
         </>
       ) : (
@@ -160,7 +162,7 @@ export function HistoryLinkedTreatments({
               <>
                 <th className="ph-numeric">Importe (€)</th>
                 <th className="ph-numeric">Cobrado (€)</th>
-                <th className="ph-numeric">Pendiente (€)</th>
+                <th className="ph-numeric">Saldo (€)</th>
               </>
             )}
           </tr>
@@ -194,8 +196,8 @@ export function HistoryLinkedTreatments({
               {billing && (
                 <>
                   {(['amount', 'paid', 'balance'] as const).map((field) => (
-                    <td className="ph-numeric" key={field}>
-                      {child[field] == null ? '—' : money(child[field]!)}
+                    <td className={`ph-numeric ${field === 'balance' ? historyBalanceClass(child.balance) : ''}`} key={field}>
+                      {field === 'balance' ? historyBalance(child.balance) : child[field] == null ? '—' : money(child[field]!)}
                     </td>
                   ))}
                 </>

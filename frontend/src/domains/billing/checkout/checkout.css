@@ -18,6 +18,7 @@
 .checkout-payment input:not([type=checkbox]), .checkout-payment select, .checkout-valuation input { width: 100%; min-width: 0; height: var(--dc-control-height); border: 1px solid var(--dc-border-strong); border-radius: var(--dc-radius-sm); padding: 5px 8px; background: var(--dc-surface); color: var(--dc-text); }
 .checkout-payment .checkout-credit { display: flex; align-items: center; gap: 7px; grid-column: 1/-1; }
 .checkout-payment > p { grid-column: 1/-1; margin: 2px 0; font-size: 13px; }
+.checkout-payment .checkout-notes { grid-column: 1/-1; }
 .dc-checkout-footer { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--dc-border); flex-shrink: 0; }
 .checkout-result { display: grid; gap: 8px; padding: 12px; background: var(--dc-success-soft); color: var(--dc-text); border-left: 3px solid var(--dc-success); }
 .checkout-invoice { display: grid; gap: 8px; border-top: 1px solid var(--dc-border); padding-top: 12px; font-size: 12px; }

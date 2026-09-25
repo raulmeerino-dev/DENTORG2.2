@@ -92,7 +92,6 @@ async def ensure_history_charge(db: AsyncSession, history: HistorialClinico, *, 
             history.importe = planned.base
             if planned.factura_id:
                 history.factura_id = planned.factura_id
-                history.estado = "facturado"
                 if planned.factura_linea_id:
                     (await db.get(FacturaLinea, planned.factura_linea_id)).historial_id = history.id
             return planned

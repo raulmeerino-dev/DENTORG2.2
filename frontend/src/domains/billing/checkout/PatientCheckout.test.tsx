@@ -143,6 +143,32 @@ describe("Patient checkout independent of invoice", () => {
       ),
     );
   });
+  it("only issues an unpaid invoice after the separate invoice action", async () => {
+    api.invoice.mockResolvedValue({ id: "invoice-1", serie: "A", numero: 1248 });
+    const user = userEvent.setup();
+    setup();
+    await screen.findByLabelText("Importe a cobrar (€)");
+    expect(api.invoice).not.toHaveBeenCalled();
+    await user.click(screen.getByText("Facturación · emisión explícita"));
+    await user.click(screen.getByRole("button", { name: /Emitir factura/ }));
+    await screen.findByText("Factura A-1248 emitida");
+    expect(api.invoice).toHaveBeenCalledWith("p1", ["c1"], expect.any(String));
+    expect(api.checkout).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Importe a cobrar (€)")).toHaveValue("140");
+  });
+  it("leaves debt for later and saves a financing agreement without inventing income", async () => {
+    const user = userEvent.setup();
+    setup();
+    await user.click(await screen.findByRole("button", { name: "Dejar pendiente de pago" }));
+    await user.type(screen.getByLabelText("Acuerdo de pago / observaciones"), "Financiación pendiente de abono");
+    await user.click(screen.getByRole("button", { name: "Confirmar salida sin cobro" }));
+    await screen.findByText("Salida resuelta");
+    expect(api.checkout).toHaveBeenCalledWith("p1", expect.objectContaining({
+      importe: "0.00", forma_pago_id: null, usar_saldo_favor: false,
+      resolver_salida: true, notas: "Financiación pendiente de abono",
+    }));
+    expect(api.invoice).not.toHaveBeenCalled();
+  });
   it("reuses the exact operation after a lost response and after remounting", async () => {
     api.checkout.mockRejectedValueOnce(new Error("Conexión interrumpida"));
     const user = userEvent.setup();

@@ -22,6 +22,7 @@ import {
   type HistoryQuery,
 } from './history/historyRows';
 import { HistoryRowDetail, type HistoryActions } from './history/HistoryRowDetail';
+import { historyBalance, historyBalanceClass } from './history/historyBalance';
 import './history-workspace.css';
 
 type Props = Omit<HistoryData, 'notasDentales'> &
@@ -310,10 +311,10 @@ export function HistorialCompletoPanel({
               {Number(props.saldo.pendiente) < 0
                 ? 'A favor'
                 : Number(props.saldo.pendiente) > 0
-                  ? 'Deuda actual'
+                  ? 'Saldo pendiente'
                   : 'Saldo actual'}
             </dt>
-            <dd>{money(Math.abs(Number(props.saldo.pendiente)))} €</dd>
+            <dd>{historyBalance(props.saldo.pendiente)} €</dd>
           </div>
         </dl>
       )}
@@ -388,7 +389,7 @@ export function HistorialCompletoPanel({
                 </th>
                 <th
                   className="ph-numeric ph-balance"
-                  title="Tratamientos y visitas: pendiente actual. Cobros: saldo de la cuenta al registrar el pago."
+                  title="Negativo: pendiente de pago. Positivo: saldo a favor. En cobros, saldo de cuenta al registrar el pago."
                 >
                   Saldo
                 </th>
@@ -467,7 +468,7 @@ export function HistorialCompletoPanel({
                             title={`Abrir factura ${row.invoice.serie}/${row.invoice.numero}`}
                             onClick={() => props.onOpenFactura(row.invoice!)}
                           >
-                            {row.invoice.serie}/{row.invoice.numero}
+                            {row.invoice.estado === 'borrador' ? 'Borrador' : `${row.invoice.serie}/${row.invoice.numero}`}
                           </button>
                         ) : row.relatedInvoices?.length ? (
                           <button type="button" className="patient-history-invoice" onClick={() => setExpanded(row.id)}>{row.relatedInvoices.length} factura{row.relatedInvoices.length > 1 ? 's' : ''}</button>
@@ -484,8 +485,8 @@ export function HistorialCompletoPanel({
                         {amount(row.amount)}
                       </td>
                       <td className="ph-numeric ph-paid">{amount(row.paid)}</td>
-                      <td title={row.balanceAtPayment ? 'Saldo de cuenta al registrar este pago; puede haber movimientos posteriores.' : 'Pendiente actual de este acto o documento'} className={`ph-numeric ph-balance ${Number(row.balance) > 0 ? 'has-debt' : ''}`}>
-                        {amount(row.balance)}
+                      <td title={row.balanceAtPayment ? 'Saldo de cuenta al registrar este pago; negativo = pendiente, positivo = a favor.' : 'Saldo de este acto o documento; negativo = pendiente de pago.'} className={`ph-numeric ph-balance ${historyBalanceClass(row.balance)}`}>
+                        {historyBalance(row.balance)}
                       </td>
                     </>
                   )}

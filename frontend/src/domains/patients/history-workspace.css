@@ -34,7 +34,8 @@
 .patient-history-row.is-expanded > td { background: var(--dc-primary-soft); }
 .patient-history-row .dc-status-chip { display: inline-block; max-width: 100%; min-height: 0; font-size: 10px; line-height: 17px; padding: 1px 5px; border-radius: 4px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
 .patient-history-table .ph-numeric { text-align: right; font-variant-numeric: tabular-nums; }
-.patient-history-row .has-debt { color: var(--dc-danger); font-weight: 600; }
+.patient-history .has-debt { color: var(--dc-danger); font-weight: 600; }
+.patient-history .has-credit { color: var(--dc-success); }
 .patient-history-account { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); font-size: 11px; }
 .patient-history-account > div { display: flex; align-items: baseline; gap: 7px; }
 .patient-history-account dt { color: var(--dc-muted); }
@@ -87,7 +88,7 @@
  .patient-history-table .ph-invoice { width: 76px; }
 }
 @container (max-width: 940px) {
- .patient-history-table .ph-paid, .patient-history-table .ph-balance { display: none; }
+ .patient-history-table .ph-professional { display: none; }
  .patient-history-detail dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @container (max-width: 740px) {
@@ -100,6 +101,7 @@
 }
 @container (max-width: 560px) {
  .patient-history-table { font-size: 11px; }
+ .patient-history-table .ph-paid { display: none; }
  .patient-history-table .ph-invoice, .patient-history-table .ph-money, .patient-history-table.with-billing td:nth-child(8), .patient-history-table.with-billing td:nth-child(9), .patient-history-table.with-billing th:nth-child(8), .patient-history-table.with-billing th:nth-child(9) { display: none; }
  .patient-history-order > span { display: none; }
  .patient-history-detail { padding: 10px; }

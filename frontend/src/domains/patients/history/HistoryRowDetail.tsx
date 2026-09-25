@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { openPaymentReceipt } from '../../../api/billing';
 import { getApiErrorMessage } from '../../../api/errors';
 import { HistoryEconomics, HistoryLinkedTreatments } from './HistoryEconomics';
+import { historyBalance, historyBalanceClass } from './historyBalance';
 
 export interface HistoryActions {
   onOpenDocumento: (document: DocumentoPaciente) => void;
@@ -39,7 +40,7 @@ export function HistoryRowDetail({
   );
   const documents = data.documentos.filter((d) => d.historial_id && treatmentIds.has(d.historial_id));
   const consents = data.consentimientos.filter((c) => c.historial_id && treatmentIds.has(c.historial_id));
-  const fields = [
+  const fields: { label: string; value: string; className?: string }[] = [
     { label: 'Fecha', value: row.day ? formatDate(row.day) : 'Sin fecha registrada' },
     { label: 'Profesional', value: row.professional || 'No consta' },
     ...(row.status ? [{ label: 'Estado', value: row.status }] : []),
@@ -59,7 +60,7 @@ export function HistoryRowDetail({
         value: `${money(row.paid)} €`,
       });
     if (row.balance != null)
-      fields.push({ label: row.balanceAtPayment ? 'Saldo de cuenta al registrar el pago' : row.visit ? 'Pendiente de la sesión' : row.treatment ? 'Pendiente del tratamiento' : 'Saldo actual de la factura', value: `${money(row.balance)} €` });
+      fields.push({ label: row.balanceAtPayment ? 'Saldo de cuenta al registrar el pago' : row.visit ? 'Saldo de la sesión' : row.treatment ? 'Saldo del tratamiento' : 'Saldo actual de la factura', value: `${historyBalance(row.balance)} €`, className: historyBalanceClass(row.balance) });
   }
   return (
     <section className="patient-history-detail" aria-label={`Detalle de ${row.type.toLowerCase()}`}>
@@ -68,7 +69,7 @@ export function HistoryRowDetail({
         {fields.map((field, i) => (
           <div key={i}>
             <dt>{field.label}</dt>
-            <dd>{field.value}</dd>
+            <dd className={field.className}>{field.value}</dd>
           </div>
         ))}
       </dl>

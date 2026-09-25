@@ -179,6 +179,55 @@ async def test_zero_charge_keeps_clinical_act_and_exit_without_payment(db_sessio
         None,
     )
     assert result.cobro_id is None and result.salida_resuelta
+    assert not await db_session.scalar(select(Factura.id).where(Factura.paciente_id == patient.id))
+
+
+@pytest.mark.parametrize("payment,remaining,state", [(0, 150, "emitida"), (60, 90, "parcial"), (150, 0, "pagada")])
+async def test_explicit_invoice_before_payment_preserves_clinical_act(db_session, payment, remaining, state):
+    from app.domains.clinical.persistence.historial import HistorialClinico
+
+    user, patient, method, visit, history, *_ = await setup(db_session, "150")
+    account = await read_account(db_session, patient.id, user, visit.id)
+    assert history.estado == "realizado" and history.factura_id is None
+    assert account.pendiente_salida and account.cargos[0].factura_id is None
+    assert not await db_session.scalar(select(Factura.id).where(Factura.paciente_id == patient.id))
+    reception = TokenData(user.user_id, user.username, "recepcion", patient.clinica_id)
+    invoice = await invoice_charges(
+        db_session, patient.id,
+        FacturarCargosRequest(request_id=uuid4(), cargo_ids=[account.cargos[0].id]), reception,
+    )
+    assert invoice.estado == "emitida" and invoice.total_cobrado == 0 and invoice.pendiente == 150
+    # Document issuance alone neither collects money nor completes reception checkout.
+    account = await read_account(db_session, patient.id, reception, visit.id)
+    assert account.saldo == 150 and account.pendiente_salida and not account.movimientos
+    await checkout(
+        db_session, patient.id,
+        CheckoutRequest(request_id=uuid4(), version=account.version, importe=payment,
+                        forma_pago_id=method.id if payment else None, cita_id=visit.id,
+                        resolver_salida=True, notas="Financiación pendiente de abono" if not payment else None),
+        reception, None,
+    )
+    account = await read_account(db_session, patient.id, reception, visit.id)
+    assert account.saldo == remaining and account.total_cobrado == payment
+    assert not account.pendiente_salida and len(account.cargos) == 1
+    assert (await db_session.get(Factura, invoice.id)).estado == state
+    act = await db_session.get(HistorialClinico, history.id)
+    assert act.estado == "realizado" and act.factura_id == invoice.id
+
+
+async def test_prepared_invoice_does_not_count_as_issued_or_as_another_debt(db_session):
+    from app.domains.patients.application.pacientes import saldo_paciente
+
+    user, patient, *_ = await setup(db_session, "150", visit=False)
+    db_session.add(Factura(
+        paciente_id=patient.id, clinica_id=patient.clinica_id, serie="QA",
+        numero=uuid4().int % 100000000, fecha=date.today(), subtotal=150,
+        iva_total=0, total=150, estado="borrador",
+    ))
+    await db_session.commit()
+    balance = await saldo_paciente(patient.id, db_session, user)
+    assert balance.total_cargos == 150 and balance.pendiente == 150
+    assert balance.total_facturado == 0 and balance.facturas_pendientes == 0
 
 
 @pytest.mark.parametrize("same_request", [True, False])
