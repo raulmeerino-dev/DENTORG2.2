@@ -24,9 +24,8 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('complementary', { name: 'Barra lateral' })).toHaveAttribute('data-compact', 'true');
     expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
     await userEvent.hover(screen.getByRole('link', { name: 'Ajustes' }));
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Ajustes');
-    await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Expandir navegación' }).textContent).toBe('');
     await userEvent.click(screen.getByRole('button', { name: 'Expandir navegación' }));
     expect(screen.getByRole('complementary', { name: 'Barra lateral' })).toHaveAttribute('data-compact', 'false');
   });

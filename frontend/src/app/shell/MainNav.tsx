@@ -51,12 +51,12 @@ export default function MainNav() {
           const jornadaParams = new URLSearchParams(location.pathname === '/jornada' ? location.search : '');
           if (item.id === 'agenda' || item.id === 'hoy') jornadaParams.set('vista', item.id === 'agenda' ? 'agenda' : 'operativa');
           const route = item.id === 'agenda' || item.id === 'hoy' ? `/jornada?${jornadaParams}` : item.route!;
-          return <SidebarLink key={item.id} to={route} label={item.label} active={active} compact={compact} icon={<Icon size={18} aria-hidden="true" />} />;
+          return <SidebarLink key={item.id} to={route} label={item.label} active={active} icon={<Icon size={18} aria-hidden="true" />} />;
         })}
         </div>)}
       </nav>
-      <div className="dc-sidebar-control"><button type="button" aria-label={compact ? 'Expandir navegación' : 'Contraer navegación'} title={compact ? 'Expandir navegación' : 'Contraer navegación'} aria-expanded={!compact} aria-controls="dc-navigation" onClick={() => setCompact(value => !value)}>
-        {compact ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}<span>Contraer</span>
+      <div className="dc-sidebar-control"><button type="button" aria-label={compact ? 'Expandir navegación' : 'Contraer navegación'} aria-expanded={!compact} aria-controls="dc-navigation" onClick={() => setCompact(value => !value)}>
+        {compact ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
       </button></div>
     </aside>
     <header className="dc-topbar">

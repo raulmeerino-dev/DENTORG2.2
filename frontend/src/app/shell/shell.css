@@ -14,11 +14,12 @@
 .dc-sidebar { grid-area: 1 / 1 / 4 / 2; display: flex; flex-direction: column; height: 100dvh; min-height: 0; border-right: 1px solid var(--dc-border); background: var(--dc-surface-soft); }
 .dc-brand { flex: 0 0 52px; display: flex; align-items: center; gap: 8px; padding: 0 16px; color: var(--dc-text); text-decoration: none; font-size: 17px; letter-spacing: -.5px; }
 .dc-brand img { width: 27px; height: 27px; border-radius: 6px; }
-.dc-navigation { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 12px 8px; gap: 16px; overflow-y: auto; overscroll-behavior-y: contain; }
+.dc-navigation { display: flex; flex: 1 1 0; min-height: 0; flex-direction: column; padding: 8px; gap: 8px; overflow: visible; overscroll-behavior-y: contain; }
 .dc-nav-group { display: flex; flex: 0 0 auto; flex-direction: column; gap: 4px; }
-.dc-nav-group-secondary { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--dc-border); }
+.dc-nav-group-daily { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.dc-nav-group-secondary { flex: 0 1 auto; max-height: 50%; overflow-y: auto; overscroll-behavior: contain; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--dc-border); }
 .dc-nav-group:empty { display: none; }
-.dc-nav-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 40px; border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: 550; color: var(--dc-muted); }
+.dc-nav-link { display: flex; align-items: center; gap: 10px; padding: 8px 12px; min-height: 36px; flex: 0 0 auto; border-radius: 5px; text-decoration: none; font-size: 13px; font-weight: 550; color: var(--dc-muted); }
 .dc-nav-link:hover { background: var(--dc-surface-hover); color: var(--dc-text); }
 .dc-nav-link.is-active { color: var(--dc-primary); background: var(--dc-primary-soft); }
 .dc-topbar { grid-area: 1 / 2; display: flex; align-items: center; gap: 16px; padding: 0 16px; min-width: 0; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); z-index: 60; }
@@ -68,15 +69,14 @@
 .dc-nav-link { white-space: nowrap; }
 .dc-nav-link svg { flex-shrink: 0; }
 .dc-nav-link.is-active { box-shadow: inset 3px 0 var(--dc-primary); }
-.dc-sidebar-control { flex: none; padding: 6px 8px; border-top: 1px solid var(--dc-border); }
-.dc-sidebar-control button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 32px; padding: 6px 10px; border: 0; background: transparent; color: var(--dc-muted); font-size: 12px; }
+.dc-sidebar-control { flex: none; display: flex; justify-content: flex-end; padding: 4px 10px; border-top: 1px solid var(--dc-border); }
+.dc-sidebar-control button { display: grid; place-items: center; width: 28px; min-height: 28px; padding: 4px; border: 0; border-radius: var(--dc-radius-sm); background: transparent; color: var(--dc-muted); }
 .dc-sidebar-control button:hover { background: var(--dc-surface-hover); color: var(--dc-text); }
-.dc-sidebar[data-compact="true"] :is(.dc-nav-link span, .dc-brand strong, .dc-sidebar-control span) { display: none; }
+.dc-sidebar[data-compact="true"] :is(.dc-nav-link span, .dc-brand strong) { display: none; }
 .dc-sidebar[data-compact="true"] :is(.dc-nav-link, .dc-brand, .dc-sidebar-control button) { justify-content: center; padding-inline: 0; }
-.dc-sidebar-tooltip { padding: 8px 12px; border: 1px solid var(--dc-border-strong); border-radius: var(--dc-radius-sm); background: var(--dc-surface); color: var(--dc-text); box-shadow: var(--dc-shadow-menu); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) { .app-shell { transition: none; } }
 
-.dc-nav-link span, .dc-brand strong, .dc-sidebar-control span { min-width: 0; overflow: hidden; white-space: nowrap; }
+.dc-nav-link span, .dc-brand strong { min-width: 0; overflow: hidden; white-space: nowrap; }
 .dc-brand img, .dc-sidebar-control svg { flex-shrink: 0; }
 
 /* Shared module context in the permanent application header. */
@@ -96,3 +96,6 @@
   .dc-toolbar-slot-module .agenda-date-picker { flex-wrap: wrap; flex-shrink: 1; }
   .dc-global-patient { max-width: 100%; }
 }
+
+.dc-sidebar[data-compact="true"] .dc-sidebar-control { justify-content: center; }
+@media (max-height: 440px) { .dc-brand { flex-basis: 40px; } .dc-navigation { padding-block: 4px; gap: 4px; } .dc-nav-link { min-height: 30px; padding-block: 5px; } .dc-nav-group { gap: 2px; } }
