@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
@@ -26,8 +27,16 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Ajustes' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Agenda' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
+    expect(screen.queryByText('Clínica de prueba')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Asistente' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Menú de usuario' }));
     expect(await screen.findByText('Clínica de prueba')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Asistente' })).toBeVisible();
+    const openAssistant = vi.fn();
+    window.addEventListener('dentcore:open-assistant', openAssistant);
+    await userEvent.click(screen.getByRole('menuitem', { name: /Asistente/ }));
+    expect(openAssistant).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    window.removeEventListener('dentcore:open-assistant', openAssistant);
   });
   it('restricts reception and clinical navigation by role', () => {
     renderNav('doctor', '/jornada?vista=agenda&fecha=2026-09-25&doctor_id=doc-1');

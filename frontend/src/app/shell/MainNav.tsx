@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getClinicas } from '../../api/identity';
-import { Building2, Banknote, CalendarDays, ClipboardList, FolderOpen, BriefcaseBusiness, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
+import { Banknote, CalendarDays, ClipboardList, FolderOpen, BriefcaseBusiness, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
+import { FloatingPopover } from '../../design-system/FloatingPopover';
 import { useAuth } from '../../domains/identity/session/AuthContext';
 import { GLOBAL_LAUNCHER_IDS, ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../navigation/workflow';
 import type { AppSection } from '../navigation/workflow';
@@ -18,7 +19,9 @@ const icons: Partial<Record<AppSection, typeof CalendarDays>> = { hoy: CalendarD
 export default function MainNav() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const clinics = useQuery({ queryKey: ['clinicas', user?.clinica_id], queryFn: getClinicas, enabled: user?.rol !== 'paciente', staleTime: 300_000 });
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuAnchor = useRef<HTMLButtonElement>(null);
+  const clinics = useQuery({ queryKey: ['clinicas', user?.clinica_id], queryFn: getClinicas, enabled: userMenuOpen && user?.rol !== 'paciente', staleTime: 300_000 });
   const clinic = clinics.data?.find(item => item.id === user?.clinica_id) ?? (clinics.data?.length === 1 ? clinics.data[0] : undefined);
   const clinicLabel = clinic?.nombre ?? (clinics.isError ? 'Clínica no disponible' : clinics.data && clinics.data.length > 1 ? 'Todas las clínicas' : 'Clínica Dental');
   const [theme, setTheme] = useState(() => localStorage.getItem('dentcore-theme') ?? 'light');
@@ -49,13 +52,15 @@ export default function MainNav() {
       </nav>
     </aside>
     <header className="dc-topbar">
-      <div className="dc-clinic" title={clinicLabel}><Building2 size={16} aria-hidden="true" /><span>{clinicLabel}</span></div>
-      {user?.rol !== 'paciente' && <button type="button" className="dc-assistant-trigger" aria-label="Asistente" onClick={() => window.dispatchEvent(new Event('dentcore:open-assistant'))}><Sparkles size={15} aria-hidden="true" /><span>Asistente</span><kbd>Ctrl Espacio</kbd></button>}
       <div className="dc-topbar-actions">
         {user?.rol !== 'paciente' && <EnSala />}
         <DoctorNotificationsBell />
         {user?.rol !== 'paciente' && <div className="dc-clock"><StaffClockPopover label={clock} currentUserId={user?.id} /></div>}
-        <span className="dc-user" title={user?.rol ? ROLE_LABELS[user.rol] : ''}>{user?.nombre}<small>{user?.rol ? ROLE_LABELS[user.rol] : ''}</small></span>
+        <button type="button" ref={userMenuAnchor} className="dc-user-menu-trigger" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen(!userMenuOpen)} title={user?.nombre}><UsersRound size={16} aria-hidden="true" /><span>{user?.nombre}</span></button>
+        {userMenuOpen && <FloatingPopover anchorRef={userMenuAnchor} onClose={() => setUserMenuOpen(false)} role="menu" aria-label="Menú de usuario" className="patient-actions-menu" width={260}>
+          <div className="dc-user-menu-context"><strong>{user?.nombre}</strong><span>{user?.rol ? ROLE_LABELS[user.rol] : ''}</span>{user?.rol !== 'paciente' && <span>{clinicLabel}</span>}</div>
+          {user?.rol !== 'paciente' && <button type="button" role="menuitem" onClick={() => { setUserMenuOpen(false); window.dispatchEvent(new Event('dentcore:open-assistant')); }}><Sparkles size={15} aria-hidden="true" /><span>Asistente · Ctrl Espacio</span></button>}
+        </FloatingPopover>}
         <button type="button" className="dc-icon-button" aria-label={theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'} onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</button>
         <button type="button" className="dc-icon-button" aria-label="Cerrar sesión" onClick={() => void logout()}><LogOut size={17} /></button>
       </div>

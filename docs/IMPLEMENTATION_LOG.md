@@ -2,6 +2,14 @@
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.
 
+## 2026-09-25 — Cabecera y acciones de Jornada (alcance acotado)
+
+Clínica y Asistente dejan de ocupar accesos permanentes en la cabecera y se consultan desde el menú de usuario. En sala, fichaje/fecha, tema y cierre de sesión se mantienen. No se cambia el sidebar, rutas ni permisos.
+
+Jornada reutiliza `PatientFinder`, `FloatingPopover` y `ActionGroup`, extraído del toolbar de Pacientes con sus mismas reglas CSS. La extracción conserva la presentación de Pacientes. El buscador consulta la API paginada y abre la ficha seleccionada; Recordatorios permanece visible y Nueva ficha, Cobros y Respuestas quedan en Más. Se elimina la antigua implementación de acciones de Jornada.
+
+Validado con 349 pruebas frontend, ESLint, TypeScript y build. Navegador real: 1366×768, 1440×900, 1920×1080, 1024×400 y 390×844; búsqueda y apertura de paciente, geometría estable durante hover, menús completos, acceso a Recordatorios y Asistente. No se envían mensajes ni se modifican datos clínicos para esta validación. Evidencias locales en `output/playwright/toolbar-*`.
+
 ## 2026-09-25 — Altura del shell y contexto clínico
 
 El sidebar ocupa exactamente el viewport, conserva el logo y divide navegación diaria/secundaria. Los grupos no se contraen: cuando falta altura, toda la navegación se recorre dentro del sidebar sin mover el workspace. Agenda tiene acceso directo y comparte filtros con Jornada. Caja no aparece para doctor/auxiliar; Administración y Ajustes mantienen sus permisos existentes.
