@@ -4,7 +4,7 @@ import type { HorariosPorDoctor, SlotDraft } from './agendaTypes';
 import { addMinutes, localAppointmentTime, minutesFromTime, slotInHorario, slotIso, todayIso, weekdayIndex } from './agendaTime';
 import { AGENDA_STATUS_LEGEND, appointmentFlags, getVisualStatus, STATUS_META } from './appointmentStatus';
 import { appointmentConflicts, appointmentTiming } from './appointmentTiming';
-import { patientName } from './agendaSearch';
+import { patientName, shortDoctorName } from './agendaSearch';
 import { buildLabAlerts, labShortName } from './laboratorioAgenda';
 import { appointmentLanes } from './agendaLayout';
 import './agenda-grid.css';
@@ -45,7 +45,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
       {onOpenHorario && <button type="button" onClick={onOpenHorario}>Abrir horarios</button>}
     </div> : <div className="agenda-resource-scroll" tabIndex={0} aria-label="Parrilla horaria, desplazamiento por profesionales">
       <div className="agenda-resource-grid" style={{ '--agenda-columns': columns, minWidth: 52 + Math.max(1, visibleDoctors.length) * 220 } as CSSProperties}>
-        <div className="agenda-resource-heading"><span>Hora</span>{visibleDoctors.map(doctor => <strong key={doctor.id} style={{ '--doctor-color': doctor.color_agenda ?? 'var(--dc-primary)' } as CSSProperties}>{doctor.nombre}</strong>)}</div>
+        <div className="agenda-resource-heading"><span>Hora</span>{visibleDoctors.map(doctor => <strong key={doctor.id} style={{ '--doctor-color': doctor.color_agenda ?? 'var(--dc-primary)' } as CSSProperties} title={doctor.nombre}>{visibleDoctors.filter(item => shortDoctorName(item.nombre) === shortDoctorName(doctor.nombre)).length > 1 ? doctor.nombre : shortDoctorName(doctor.nombre)}</strong>)}</div>
         <div className="agenda-timeline-body" style={{ height }}>
           <div className="agenda-timeline-hours">
             {timeline.filter(minute => minute === startMinute || minute % 30 === 0).map(minute => <time key={minute} style={{ top: (minute - startMinute) * scale }} dateTime={`${day}T${addMinutes('00:00', minute)}`}>{addMinutes('00:00', minute)}</time>)}
@@ -57,7 +57,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
               const occupied = allCitas.some(cita => cita.doctor_id === doctor.id && !['cancelada', 'no_presentado'].includes(getVisualStatus(cita))
                 && new Date(cita.fecha_hora).getTime() <= instant && new Date(cita.fecha_hora).getTime() + cita.duracion_min * 60_000 > instant);
               const working = slotInHorario(slot, horarios[doctor.id]?.find(horario => horario.dia_semana === weekdayIndex(day)));
-              return <div className={`agenda-resource-cell${!working ? ' outside-hours' : ''}${occupied ? ' has-continuation' : ''}`} key={slot}
+              return <div className={`agenda-resource-cell${minute % 60 === 0 ? ' is-hour-start' : minute % 30 === 0 ? ' is-half-hour' : ''}${!working ? ' outside-hours' : ''}${occupied ? ' has-continuation' : ''}`} key={slot}
                 data-doctor-id={doctor.id} data-slot={slot} data-occupied={occupied}
                 style={{ top: (minute - startMinute) * scale, height: (timeline[index + 1] - minute) * scale }}
                 onDragOver={event => event.preventDefault()} onDrop={event => {
@@ -92,7 +92,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
                 onClick={() => onOpenCita(cita)} onDoubleClick={() => onOpenPatient(cita)} onContextMenu={event => onContext(event, cita)}
                 onKeyDown={event => { if (event.key === 'Enter' && event.target === event.currentTarget) onOpenCita(cita); }}>
                 <div className="agenda-resource-appointment-title"><strong>{patientName(cita)}</strong><button type="button" className="agenda-appointment-more" aria-label={`Más acciones de ${patientName(cita)}`} onClick={event => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); onContext({ clientX: rect.left, clientY: rect.bottom, preventDefault() {} } as MouseEvent, cita); }}>···</button></div>
-                {regular && <p>{cita.motivo || 'Cita dental'}</p>}
+                {regular && <p><time>{slot}–{addMinutes(slot, cita.duracion_min)}</time> · <span>{cita.motivo || 'Cita dental'}</span></p>}
                 {extended && lab && <span className="agenda-resource-lab">Lab: {labShortName(lab)}</span>}
                 {regular && <div className="agenda-resource-appointment-state" title={statusDetails}>
                   <span className={conflicts.length || cita.es_urgencia ? 'agenda-urgency-flag' : ''}>{cita.es_urgencia ? 'Urgencia · ' : ''}{conflicts.length ? 'Solape · ' : ''}{timing.overtime ? `+${timing.overtime} min` : visual.label}{cita.gabinete_nombre && <> · <span>{cita.gabinete_nombre}</span></>}{labAlerts.length ? ' · Lab pendiente' : ''}</span>
@@ -102,7 +102,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
               </article>;
             })}
           </div>)}
-          {day === todayIso() && nowMinutes >= startMinute && nowMinutes < endMinute && <div className="agenda-current-time" style={{ top: (nowMinutes - startMinute) * scale }}><span>{now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span></div>}
+          {day === todayIso() && nowMinutes >= startMinute && nowMinutes < endMinute && <div className="agenda-current-time" style={{ top: (nowMinutes - startMinute) * scale }}><span>{localAppointmentTime(now.toISOString())}</span></div>}
         </div>
       </div>
     </div>}

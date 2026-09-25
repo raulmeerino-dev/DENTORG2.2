@@ -1,3 +1,4 @@
+import { AgendaDatePicker } from '../agenda/AgendaDatePicker';
 import { lazy, Suspense, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, List, Search, SlidersHorizontal } from 'lucide-react';
@@ -26,7 +27,7 @@ function JornadaContent() {
         <button type="button" aria-pressed={perspective === 'operativa'} onClick={() => changePerspective('operativa')}><List size={15} />Operativa</button>
         <button type="button" aria-pressed={perspective === 'agenda'} onClick={() => changePerspective('agenda')}><CalendarDays size={15} />Agenda</button>
       </nav>
-      <label className="jornada-date">Fecha<input type="date" aria-label="Fecha de Jornada" value={jornada.day} onChange={e => jornada.setDay(e.target.value)} /></label>
+      {perspective === 'agenda' ? <AgendaDatePicker day={jornada.day} onChange={jornada.setDay} /> : <label className="jornada-date">Fecha<input type="date" aria-label="Fecha de Jornada" value={jornada.day} onChange={e => jornada.setDay(e.target.value)} /></label>}
 
     </Toolbar>
     <button type="button" className="jornada-filter-toggle" aria-expanded={filtersOpen} aria-controls="jornada-filters" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={14} />Filtros{activeFilters ? ` · ${activeFilters} activos` : ''}<span>{jornada.citas.length} citas</span></button>

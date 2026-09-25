@@ -1,14 +1,12 @@
 import {
 CalendarPlus,
 CalendarSearch,
-ChevronLeft,
-ChevronRight,
 Clock3,
 RefreshCw,
 Search
 } from 'lucide-react';
 import type { Doctor } from '../../../api/types';
-import { addDaysIso,todayIso } from './agendaTime';
+import { AgendaDatePicker } from './AgendaDatePicker';
 
 export function AgendaToolbar({
   embedded = false,
@@ -49,19 +47,7 @@ export function AgendaToolbar({
 
   return (
     <div className="agenda-compact-toolbar" aria-label="Filtros y acciones de agenda" onClick={(event) => event.stopPropagation()}>
-      {!embedded && <><div className="agenda-date-field">
-        <span>Fecha</span>
-        <div className="agenda-date-control">
-          <button type="button" aria-label="Día anterior" title="Día anterior" onClick={() => onDayChange(addDaysIso(day, -1))}>
-            <ChevronLeft size={17} aria-hidden="true" />
-          </button>
-          <input aria-label="Fecha" type="date" value={day} onChange={(event) => onDayChange(event.target.value)} />
-          <button type="button" aria-label="Día siguiente" title="Día siguiente" onClick={() => onDayChange(addDaysIso(day, 1))}>
-            <ChevronRight size={17} aria-hidden="true" />
-          </button>
-          <button type="button" className="agenda-today-button" onClick={() => onDayChange(todayIso())}>Hoy</button>
-        </div>
-      </div>
+      {!embedded && <><AgendaDatePicker day={day} onChange={onDayChange} />
       <label className="agenda-toolbar-doctor">
         <span>Doctor</span>
         <select value={doctorId} onChange={(event) => onDoctorChange(event.target.value)}>

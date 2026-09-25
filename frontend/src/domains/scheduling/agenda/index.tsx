@@ -1,3 +1,4 @@
+import { AgendaMonthCalendar } from './AgendaDatePicker';
 import './agenda-workspace.css';
 import { FloatingPopover } from '../../../design-system/FloatingPopover';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ Home,
 Printer,
 UsersRound
 } from 'lucide-react';
-import type { CSSProperties,MouseEvent } from 'react';
+import type { MouseEvent } from 'react';
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import { useNavigate,useSearchParams } from 'react-router-dom';
 import { cancelarCitaAvanzada, confirmarCita, createCita, getCitas, getGabinetes, getHorarios, getJornadaConfig, marcarFaltaCita, updateCita, marcarLlegadaCita, iniciarAtencionCita, finalizarVisitaCita, createPacienteProvisional } from '../../../api/scheduling';
@@ -19,8 +20,8 @@ import type { Cita,TelefonearPendiente } from '../../../api/types';
 import { AgendaDayBrief } from './AgendaDayBrief';
 import { AgendaResourceGrid } from './AgendaResourceGrid';
 import { AgendaLabSummaryStrip } from './AgendaLabSummaryStrip';
-import { citaMatchesQuery,shortDoctorName } from './agendaSearch';
-import { buildAgendaSlots,isoDate,minutesFromTime,monthGrid,slotInHorario,todayIso,weekdayIndex,localAppointmentDate,localAppointmentTime,localDayRange,slotIso,overlaps } from './agendaTime';
+import { citaMatchesQuery } from './agendaSearch';
+import { buildAgendaSlots,minutesFromTime,slotInHorario,todayIso,weekdayIndex,localAppointmentDate,localAppointmentTime,localDayRange,slotIso,overlaps } from './agendaTime';
 import { AgendaToolbar } from './AgendaToolbar';
 import type { HorariosPorDoctor,SlotDraft } from './agendaTypes';
 import { getVisualStatus } from './appointmentStatus';
@@ -294,9 +295,6 @@ export default function AgendaPage() {
     return () => window.removeEventListener('dentcore:horarios-updated', refreshHorarios);
   }, [horariosAgendaQuery]);
 
-  const selected = new Date(`${day}T12:00:00`);
-  const days = monthGrid(day);
-  const monthName = selected.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
   const horariosByDoctor = useMemo(() => horariosAgendaQuery.data ?? {}, [horariosAgendaQuery.data]);
   const slots = useMemo(() => buildAgendaSlots({
     day,
@@ -533,31 +531,7 @@ export default function AgendaPage() {
       />
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
-          <div className="doctor-legend">
-            {doctores.map((doctor) => (
-              <span key={doctor.id} style={{ '--doctor-color': doctor.color_agenda ?? '#2a7de1' } as CSSProperties}>
-                {shortDoctorName(doctor.nombre)}
-              </span>
-            ))}
-          </div>
-
-          <div className="month-caption">{monthName}</div>
-          <div className="month-grid">
-            {['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'].map((item) => <strong key={item}>{item}</strong>)}
-            {days.map((date) => {
-              const iso = isoDate(date);
-              const inMonth = date.getMonth() === selected.getMonth();
-              return (
-                <button
-                  key={iso}
-                  className={`${iso === day ? 'active' : ''} ${inMonth ? '' : 'muted'}`}
-                  onClick={() => setDay(iso)}
-                >
-                  {date.getDate()}
-                </button>
-              );
-            })}
-          </div>
+          <AgendaMonthCalendar day={day} onChange={setDay} />
 
           <div className="dc-pending-call-panel">
             <div className="dc-calls-caption"><strong>Telefonear</strong><span>Arrastre a un hueco</span></div>

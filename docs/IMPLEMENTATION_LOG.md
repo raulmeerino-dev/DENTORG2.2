@@ -1,3 +1,9 @@
+## 2026-09-25 — Agenda: calendario, selector temporal y cuadrícula
+
+Cambio limitado a Agenda: calendario mensual compartido con días adyacentes atenuados y seleccionables; selector de día/mes/año y Hoy en cabecera, conservando filtros y ajustando finales de mes. El workspace compartido solo monta el selector en perspectiva Agenda; Operativa conserva su control anterior. Cabeceras profesionales compactas y sin leyenda duplicada, separación horaria gradual, intervalos visibles en citas y etiqueta de hora actual coherente con zona clínica. Sin cambios en backend, permisos o navegación.
+
+Validación: 352 tests frontend; 43 tests de Agenda repetidos tras el último ajuste; ESLint, TypeScript y build. Navegador real con 60 citas, varios profesionales y solapes, temas claro/oscuro, 1366×768, 1440×900, 1920×1080 y 1366×600. Cambio a días de meses anterior/siguiente, salto mes/año, febrero bisiesto, cruce diciembre/enero, conservación de profesional y gabinete. Desplegable dentro del viewport y sin overflow horizontal de página. Evidencias locales en output/playwright/agenda-*.png.
+
 # Registro de implementación de DentCore
 
 Este documento registra lo realizado. El estado y el trabajo pendiente se consultan en `IMPROVEMENT_BACKLOG.md`.

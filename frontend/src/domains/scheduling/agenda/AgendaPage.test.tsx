@@ -234,20 +234,20 @@ describe('AgendaPage flujos de cita', () => {
     renderAgenda();
 
     const toolbar = await screen.findByLabelText(/Filtros y acciones de agenda/i);
-    const dateInput = within(toolbar).getByLabelText(/^Fecha$/i);
-    const initialDay = (dateInput as HTMLInputElement).value;
+    const dateInput = within(toolbar).getByRole('button', { name: 'Elegir fecha de Agenda' });
+    const initialDay = dateInput.textContent!;
 
     expect(within(toolbar).queryByLabelText(/^Vista$/i)).not.toBeInTheDocument();
 
     await user.click(within(toolbar).getByRole('button', { name: /^Día siguiente$/i }));
-    await waitFor(() => expect(dateInput).not.toHaveValue(initialDay));
+    await waitFor(() => expect(dateInput).not.toHaveTextContent(initialDay));
 
     await user.click(within(toolbar).getByRole('button', { name: /^Día anterior$/i }));
-    await waitFor(() => expect(dateInput).toHaveValue(initialDay));
+    await waitFor(() => expect(dateInput).toHaveTextContent(initialDay));
 
     await user.click(within(toolbar).getByRole('button', { name: /^Día siguiente$/i }));
     await user.click(within(toolbar).getByRole('button', { name: /^Hoy$/i }));
-    await waitFor(() => expect(dateInput).toHaveValue(initialDay));
+    await waitFor(() => expect(dateInput).toHaveTextContent(initialDay));
   });
 
   it('muestra laboratorio en la tarjeta y en el detalle rapido de cita', async () => {

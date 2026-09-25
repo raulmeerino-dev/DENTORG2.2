@@ -25,16 +25,6 @@
 .agenda-layout { flex: 1; display: grid; grid-template-columns: 220px minmax(0, 1fr); min-width: 0; min-height: 0; gap: 0; }
 .agenda-left-panel { display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; overflow: auto; padding: 10px; border-right: 1px solid var(--dc-border); background: var(--dc-surface-soft); }
 .agenda-left-panel > * { flex-shrink: 0; }
-.doctor-legend { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 10px; }
-.doctor-legend span { display: inline-flex; align-items: center; gap: 4px; }
-.doctor-legend span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--doctor-color); }
-.month-caption { font-size: 12px; font-weight: 600; text-transform: capitalize; margin-top: 5px; }
-.month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
-.month-grid strong { color: var(--dc-muted); font-size: 9px; text-align: center; padding: 4px 0; }
-.month-grid button { min-width: 0; min-height: 25px; border: 0; padding: 3px; background: transparent; border-radius: 3px; font-size: 11px; color: var(--dc-text); }
-.month-grid button:hover { background: var(--dc-surface-hover); }
-.month-grid button.active { background: var(--dc-primary-soft); color: var(--dc-primary); font-weight: 700; }
-.month-grid button.muted { color: var(--dc-muted-2); }
 .agenda-left-panel .dc-pending-call-panel { min-height: 0; overflow: visible; margin-top: 8px; padding: 0; border: 0; border-top: 1px solid var(--dc-border); background: transparent; box-shadow: none; }
 .agenda-left-panel .dc-pending-call-panel .dc-calls-caption { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0; border: 0; background: transparent; font-size: 11px; }
 .agenda-left-panel .dc-pending-call-panel .dc-calls-caption span { font-size: 10px; color: var(--dc-muted); }
@@ -57,7 +47,7 @@
   .agenda-layout { display: flex; flex-direction: column; }
   .agenda-left-panel { order: 2; border-right: 0; border-top: 1px solid var(--dc-border); overflow: visible; }
   .agenda-layout > .agenda-resource-workspace { height: 60dvh; min-height: 380px; flex: none; }
-  .agenda-left-panel .month-grid { max-width: 300px; }
+  .agenda-left-panel .agenda-month-calendar { max-width: 300px; }
   .agenda-toolbar-status { flex: 1; }
   .agenda-compact-toolbar { gap: 4px; padding-inline: 8px; }
   .agenda-toolbar-status { flex-basis: 100%; }
