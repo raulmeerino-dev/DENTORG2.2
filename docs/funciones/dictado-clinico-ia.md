@@ -1,108 +1,49 @@
-# Dictado clinico por IA
+# Dictado clínico
 
-## Alcance de esta fase
+Doctor y administración pueden grabar o subir un audio, escucharlo, pulsar **Transcribir audio**, revisar el texto y guardar la nota. La transcripción no crea tratamientos, presupuestos ni decisiones clínicas. También se puede escribir directamente sin micrófono ni proveedor de IA.
 
-La fase 1 permite que un doctor o admin grabe audio desde la ficha del paciente o desde la sesion clinica, envie la grabacion al backend, reciba una transcripcion, la revise en un campo editable y la guarde como nota clinica del paciente.
+Desde **Sesión actual → Dictar nota de sesión**, la nota se vincula a la visita actual cuando existe una cita inequívoca. En otro caso se guarda como nota del paciente para ese día, indicándolo en el editor. Se muestra en **Notas de sesión** y permanece en el historial. El texto puede editarse posteriormente desde la sesión; cada revisión conserva el texto original de transcripción y una revisión cifrada del antes/después. Una edición concurrente devuelve conflicto en lugar de sobrescribir cambios ajenos.
 
-Flujo implementado:
+El audio permanece en memoria del navegador durante la edición, con reproducción y descarga. Un error de transcripción permite reintentar sin perderlo ni perder el texto escrito. No se archiva el audio en el servidor. Cerrar con contenido pendiente requiere descartarlo expresamente; no se guarda automáticamente. Los reintentos de guardado reutilizan el identificador de dictado o de petición para evitar notas duplicadas.
 
-1. Grabar audio en el navegador con `MediaRecorder`.
-2. Enviar el blob al backend.
-3. Transcribir mediante un proveedor configurado.
-4. Mostrar la transcripcion editable.
-5. Guardar el texto revisado como nota clinica con origen `dictado_clinico`.
+## Transcripción local
 
-## Fuera de alcance
+Instalar en el entorno del backend, bajo el mismo usuario que ejecutará el servicio:
 
-Esta fase no:
+```sh
+pip install -e ".[transcription]"
+python -m scripts.prepare_dictation_model
+```
 
-- Detecta piezas dentales.
-- Detecta tratamientos.
-- Propone presupuestos.
-- Crea tratamientos, sesiones, facturas ni acciones clinicas.
-- Modifica datos del paciente automaticamente.
-- Conserva audio por defecto.
+Configurar y reiniciar el backend:
 
-La IA solo produce texto. El doctor siempre revisa y confirma antes de guardar.
+```dotenv
+CLINICAL_DICTATION_PROVIDER=local_whisper
+CLINICAL_DICTATION_LOCAL_MODEL=small
+CLINICAL_DICTATION_LOCAL_THREADS=4
+```
 
-## Endpoints
+La preparación descarga explícitamente el modelo una vez. El servidor exige que esté ya disponible; nunca descarga modelos al recibir un audio clínico. Puede usarse una ruta local como modelo. El proveedor usa [Faster Whisper](https://github.com/SYSTRAN/faster-whisper), CPU int8, español y detección de voz, sin competir por la GPU del asistente. Durante la transcripción local no se envía audio a un servicio externo. Cada instalación debe provisionar su modelo: subir el código a GitHub no instala modelos en otros equipos.
 
-- `POST /api/dictado/pacientes/{paciente_id}/transcribir`
-  - Recibe `multipart/form-data` con `audio`, `duracion_segundos` y `contexto`.
-  - Valida rol, clinica, paciente, formato, tamano y duracion declarada.
-  - Devuelve `dictado_id` y `transcripcion`.
-  - No guarda nota clinica.
+Se admite una transcripción simultánea por proceso; una segunda solicitud recibe un error recuperable. Se comprueba la duración real del audio antes de recorrer la transcripción. Silencio, audio ilegible o modelo ausente producen un error visible, nunca texto simulado.
 
-- `POST /api/dictado/pacientes/{paciente_id}/guardar-nota`
-  - Recibe `dictado_id` opcional y `texto`.
-  - Guarda el texto revisado como nota clinica general.
-  - Marca el dictado como `guardado` si se informa `dictado_id`.
+## Proveedor externo existente
 
-## Configuracion
+`CLINICAL_DICTATION_PROVIDER=external_http` conserva la integración HTTP. Requiere `CLINICAL_DICTATION_ENDPOINT`; `CLINICAL_DICTATION_API_KEY` es opcional según proveedor y nunca llega al frontend. El audio se envía al endpoint configurado. `CLINICAL_DICTATION_TIMEOUT_SECONDS` vale 45 por defecto. La duración declarada se valida en DentCore; el proveedor externo debe aplicar además sus límites de decodificación.
 
-Variables de entorno:
+## Límites y permisos
 
-- `CLINICAL_DICTATION_PROVIDER`
-  - Vacio por defecto.
-  - Valor soportado ahora: `external_http`.
+- Audio: 15 MB y 180 segundos por defecto; WebM, WAV, MP3, MP4/M4A. La grabación se detiene al alcanzar tres minutos y libera el micrófono.
+- Texto: máximo 10.000 caracteres. El profesional revisa antes de guardar.
+- Backend: roles doctor/admin, paciente y clínica autorizados, cita/historial del mismo paciente, auditoría de solicitudes, errores, guardado y edición. No se amplían permisos de otros roles.
+- `CLINICAL_DICTATION_KEEP_AUDIO` es un ajuste heredado sin almacenamiento asociado; la respuesta siempre declara `audio_conservado=false`.
 
-- `CLINICAL_DICTATION_ENDPOINT`
-  - URL del proveedor externo cuando `CLINICAL_DICTATION_PROVIDER=external_http`.
+## API
 
-- `CLINICAL_DICTATION_API_KEY`
-  - Token del proveedor externo.
-  - Nunca se expone al frontend.
+- `POST /api/dictado/pacientes/{id}/transcribir`: multipart `audio`, `duracion_segundos` opcional y contexto validado; devuelve transcripción y `dictado_id`, sin crear nota.
+- `POST /api/dictado/pacientes/{id}/guardar-nota`: texto revisado, `dictado_id` o `request_id` opcionales, `cita_id`/`historial_id` opcionales; guarda una nota trazable.
+- `PATCH /api/dictado/pacientes/{id}/notas/{nota_id}`: `texto` y `texto_anterior`; limitado a notas de origen dictado, con control de concurrencia y revisión cifrada.
 
-- `CLINICAL_DICTATION_TIMEOUT_SECONDS`
-  - Por defecto `45`.
+## Validación
 
-- `CLINICAL_DICTATION_MAX_AUDIO_MB`
-  - Por defecto `15`.
-
-- `CLINICAL_DICTATION_MAX_DURATION_SECONDS`
-  - Por defecto `180`.
-
-- `CLINICAL_DICTATION_ALLOWED_MIME_TYPES`
-  - Por defecto `audio/webm,audio/wav,audio/mpeg,audio/mp3,audio/mp4,audio/x-m4a,audio/m4a`.
-
-- `CLINICAL_DICTATION_KEEP_AUDIO`
-  - Por defecto `false`.
-  - El backend no persiste audio en esta fase.
-
-Si no hay proveedor configurado, el backend responde con `Servicio de transcripcion no configurado`.
-
-## Seguridad y privacidad
-
-- Solo `doctor` y `admin` pueden dictar o guardar notas dictadas.
-- El backend valida `clinica_id` del paciente.
-- Recepcion y paciente no pueden dictar notas clinicas.
-- El audio se trata como dato sensible.
-- El audio no se publica por URL.
-- El audio no se conserva por defecto.
-- La auditoria registra eventos y metadatos, no el texto clinico completo.
-
-Eventos auditados:
-
-- `DICTADO_TRANSCRIPCION_SOLICITADA`
-- `DICTADO_TRANSCRIPCION_COMPLETADA`
-- `DICTADO_TRANSCRIPCION_ERROR`
-- `DICTADO_NOTA_GUARDADA`
-
-## Prueba manual
-
-1. Entrar como doctor o admin.
-2. Abrir un paciente.
-3. En ficha, pulsar `Dictar nota`.
-4. Permitir microfono.
-5. Grabar menos de 3 minutos.
-6. Detener.
-7. Revisar la transcripcion.
-8. Guardar como nota clinica.
-9. Abrir historial completo y comprobar que aparece como `Dictado clinico`.
-10. Repetir desde `Clinica > Sesion actual > Dictar nota de sesion`.
-
-## Riesgos pendientes
-
-- La duracion se limita en frontend y se valida por valor declarado en backend; una fase posterior puede extraer duracion real del contenedor de audio.
-- Falta seleccionar proveedor definitivo para produccion.
-- Fase 2 puede anadir extraccion de intenciones, piezas y tratamientos, siempre con confirmacion humana.
+Las pruebas cubren proveedor local, audio vacío/silencio/duración, permisos y clínicas, reintentos, relación con visita, edición concurrente y auditoría. En navegador se verifica grabación MediaRecorder con audio sintético, subida de WAV, transcripción real, edición, guardado, recarga y distintas alturas. La precisión depende del audio y debe revisarse, especialmente nombres, piezas, cifras y negaciones.

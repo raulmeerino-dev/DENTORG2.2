@@ -114,7 +114,7 @@ export function ClinicalWorkspace({
   onOpenDocumentos: () => void;
   onOpenPresupuestos: () => void;
   onOpenHistorial: (citaId?: string) => void;
-  onDictarNotaSesion?: () => void;
+  onDictarNotaSesion?: (citaId?: string) => void;
   canDictarNota?: boolean;
   onSchedulePatient?: () => void;
   onOpenCobro?: () => void;

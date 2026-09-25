@@ -881,6 +881,7 @@ export interface DictadoTranscripcionResponse {
 }
 
 export interface DictadoGuardarNotaInput {
+  request_id?: string;
   dictado_id?: string | null;
   texto: string;
   fecha?: string | null;
@@ -895,6 +896,8 @@ export interface DictadoNotaGuardadaResponse {
   texto: string;
   fecha: string;
   origen: 'dictado_clinico';
+  cita_id?: string | null;
+  historial_id?: string | null;
 }
 
 export interface RecetaCreateInput {

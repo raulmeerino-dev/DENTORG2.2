@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from datetime import date as date_type
 from datetime import datetime, timezone
+from math import isfinite
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.audit_log import write_audit_log
+from app.core.crypto import cifrar_json
 from app.core.permissions import ROLE_ADMIN, ROLE_DOCTOR, CurrentUser, ensure_clinic_access
 from app.database import get_db
 from app.domains.ai.application.audio_transcription_service import (
@@ -20,6 +23,8 @@ from app.domains.ai.application.audio_transcription_service import (
 )
 from app.domains.ai.persistence.dictado import DictadoClinico
 from app.domains.ai.schemas.dictado import (
+    DictadoContexto,
+    DictadoEditarNotaRequest,
     DictadoGuardarNotaRequest,
     DictadoNotaGuardadaResponse,
     DictadoTranscripcionResponse,
@@ -27,6 +32,7 @@ from app.domains.ai.schemas.dictado import (
 from app.domains.clinical.persistence.historial import HistorialClinico, NotaDental
 from app.domains.identity.persistence.usuario import Usuario
 from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.application.clinic_time import clinic_datetime
 from app.domains.scheduling.persistence.cita import Cita
 
 router = APIRouter()
@@ -82,7 +88,7 @@ async def transcribir_dictado_paciente(
     current_user: CurrentUser,
     audio: UploadFile = File(...),
     duracion_segundos: float | None = Form(None),
-    contexto: str | None = Form("ficha"),
+    contexto: DictadoContexto = Form("ficha"),
 ) -> DictadoTranscripcionResponse:
     _ensure_dictation_role(current_user)
     settings = get_settings()
@@ -95,6 +101,8 @@ async def transcribir_dictado_paciente(
             detail="Formato de audio no permitido.",
         )
 
+    if duracion_segundos is not None and (not isfinite(duracion_segundos) or duracion_segundos < 0):
+        raise HTTPException(status_code=422, detail="Duración de audio no válida.")
     if duracion_segundos is not None and duracion_segundos > settings.clinical_dictation_max_duration_seconds:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
@@ -112,7 +120,7 @@ async def transcribir_dictado_paciente(
         usuario_id=current_user.user_id,
         contexto=(contexto or "ficha")[:40],
         estado="recibido",
-        audio_conservado=bool(settings.clinical_dictation_keep_audio),
+        audio_conservado=False,
         mime_type=content_type,
         audio_size_bytes=len(audio_bytes),
         duration_seconds=duration_int,
@@ -223,12 +231,22 @@ async def guardar_dictado_como_nota(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="La nota no puede estar vacia.")
 
     dictado: DictadoClinico | None = None
-    if data.dictado_id:
-        dictado = await db.get(DictadoClinico, data.dictado_id)
+    dictado_id = data.dictado_id
+    if not dictado_id and data.request_id:
+        await db.execute(insert(DictadoClinico).values(
+            id=data.request_id, paciente_id=paciente.id, clinica_id=paciente.clinica_id,
+            usuario_id=current_user.user_id, contexto="texto", estado="recibido", audio_conservado=False,
+        ).on_conflict_do_nothing(index_elements=["id"]))
+        dictado_id = data.request_id
+    if dictado_id:
+        dictado = await db.scalar(select(DictadoClinico).where(DictadoClinico.id == dictado_id).with_for_update())
         if not dictado or dictado.paciente_id != paciente.id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dictado no encontrado para el paciente")
         ensure_clinic_access(current_user, dictado.clinica_id)
         if dictado.nota_id:
+            existing = await db.get(NotaDental, dictado.nota_id)
+            if existing and existing.texto == texto and existing.cita_id == data.cita_id and existing.historial_id == data.historial_id:
+                return _saved_note(existing, dictado.id)
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Este dictado ya fue guardado como nota clinica.")
 
     doctor_id = dictado.doctor_id if dictado else None
@@ -254,7 +272,7 @@ async def guardar_dictado_como_nota(
         pieza_dental=None,
         caras=None,
         texto=texto,
-        fecha=data.fecha or date_type.today(),
+        fecha=data.fecha or clinic_datetime(datetime.now(timezone.utc)).date(),
         origen="dictado_clinico",
     )
     db.add(nota)
@@ -282,10 +300,45 @@ async def guardar_dictado_como_nota(
         request=request,
     )
     await db.commit()
+    return _saved_note(nota, dictado.id if dictado else None)
+
+
+def _saved_note(nota: NotaDental, dictado_id: UUID | None = None) -> DictadoNotaGuardadaResponse:
     return DictadoNotaGuardadaResponse(
-        dictado_id=dictado.id if dictado else None,
+        dictado_id=dictado_id,
         nota_id=nota.id,
-        paciente_id=paciente.id,
+        paciente_id=nota.paciente_id,
         texto=nota.texto,
         fecha=nota.fecha,
+        cita_id=nota.cita_id,
+        historial_id=nota.historial_id,
     )
+
+
+@router.patch("/pacientes/{paciente_id}/notas/{nota_id}", response_model=DictadoNotaGuardadaResponse)
+async def editar_nota_dictada(
+    paciente_id: UUID, nota_id: UUID, data: DictadoEditarNotaRequest, request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)], current_user: CurrentUser,
+) -> DictadoNotaGuardadaResponse:
+    _ensure_dictation_role(current_user)
+    paciente = await _get_patient_for_dictation(db, paciente_id, current_user)
+    nota = await db.scalar(select(NotaDental).where(NotaDental.id == nota_id).with_for_update())
+    if not nota or nota.paciente_id != paciente.id or nota.origen != "dictado_clinico":
+        raise HTTPException(status_code=404, detail="Nota dictada no encontrada para el paciente.")
+    texto = data.texto.strip()
+    if not texto:
+        raise HTTPException(status_code=422, detail="La nota no puede estar vacía.")
+    if nota.texto == texto:
+        return _saved_note(nota)
+    if nota.texto != data.texto_anterior:
+        raise HTTPException(status_code=409, detail="La nota ha cambiado. Recarga su versión actual antes de editarla.")
+    revision = await cifrar_json(db, {"antes": nota.texto, "despues": texto})
+    nota.texto = texto
+    dictado = await db.scalar(select(DictadoClinico).where(DictadoClinico.nota_id == nota.id))
+    if dictado:
+        dictado.transcripcion_editada = texto
+    await write_audit_log(db, user=current_user, action="DICTADO_NOTA_EDITADA", entity_type="notas_dentales",
+                          entity_id=nota.id, new_values={"revision_cifrada": revision.hex(), "texto_chars": len(texto)},
+                          clinica_id=paciente.clinica_id, request=request)
+    await db.commit()
+    return _saved_note(nota, dictado.id if dictado else None)

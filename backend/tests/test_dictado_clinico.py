@@ -153,7 +153,9 @@ async def test_audio_demasiado_grande_falla(
 
 
 @pytest.mark.asyncio
-async def test_proveedor_no_configurado_devuelve_error_claro(client: AsyncClient, db_session: AsyncSession):
+async def test_proveedor_no_configurado_devuelve_error_claro(client: AsyncClient, db_session: AsyncSession, monkeypatch):
+    monkeypatch.setenv("CLINICAL_DICTATION_PROVIDER", "")
+    get_settings.cache_clear()
     clinica, doctor, paciente = await clinical_context(db_session)
     headers = await auth_headers(client, db_session, rol="doctor", clinica_id=clinica.id, doctor_id=doctor.id)
 
@@ -169,6 +171,7 @@ async def test_proveedor_no_configurado_devuelve_error_claro(client: AsyncClient
     dictado = await db_session.scalar(select(DictadoClinico).where(DictadoClinico.paciente_id == paciente.id))
     assert dictado is not None
     assert dictado.estado == "error"
+    get_settings.cache_clear()
 
 
 @pytest.mark.asyncio
@@ -215,3 +218,64 @@ async def test_guardar_nota_crea_nota_general_y_registra_auditoria(
 
     audit = await db_session.scalar(select(AuditLog).where(AuditLog.accion == "DICTADO_NOTA_GUARDADA"))
     assert audit is not None
+
+
+@pytest.mark.asyncio
+async def test_dictated_note_preserves_visit_is_idempotent_and_edits_are_audited(client, db_session, monkeypatch):
+    from datetime import datetime, timezone
+
+    import app.domains.ai.api.dictado as dictado_api
+    from app.core.crypto import descifrar_json
+    from app.domains.scheduling.persistence.cita import Cita
+
+    clinica, doctor, paciente = await clinical_context(db_session)
+    visit = Cita(paciente_id=paciente.id, clinica_id=clinica.id, doctor_id=doctor.id, fecha_hora=datetime.now(timezone.utc), duracion_min=30)
+    db_session.add(visit)
+    await db_session.commit()
+    headers = await auth_headers(client, db_session, clinica_id=clinica.id, doctor_id=doctor.id)
+    monkeypatch.setattr(dictado_api, 'transcribe_clinical_audio', fake_transcriber)
+    result = await client.post(f'/api/dictado/pacientes/{paciente.id}/transcribir', headers=headers, files={'audio': ('note.wav', b'audio', 'audio/wav')})
+    payload = {'dictado_id': result.json()['dictado_id'], 'texto': 'Nota revisada.', 'cita_id': str(visit.id)}
+    saved = await client.post(f'/api/dictado/pacientes/{paciente.id}/guardar-nota', headers=headers, json=payload)
+    assert saved.status_code == 201, saved.text
+    repeat = await client.post(f'/api/dictado/pacientes/{paciente.id}/guardar-nota', headers=headers, json=payload)
+    assert repeat.json()['nota_id'] == saved.json()['nota_id']
+    assert repeat.json()['cita_id'] == str(visit.id)
+    note_id = saved.json()['nota_id']
+    edit_url = f'/api/dictado/pacientes/{paciente.id}/notas/{note_id}'
+    changed = await client.patch(edit_url, headers=headers, json={'texto': 'Nota corregida y revisada.', 'texto_anterior': 'Nota revisada.'})
+    assert changed.status_code == 200, changed.text
+    stale = await client.patch(edit_url, headers=headers, json={'texto': 'Otra corrección.', 'texto_anterior': 'Nota revisada.'})
+    assert stale.status_code == 409
+    note = await db_session.get(NotaDental, UUID(note_id), populate_existing=True)
+    assert note.cita_id == visit.id and note.texto == 'Nota corregida y revisada.'
+    dictado = await db_session.get(DictadoClinico, UUID(payload['dictado_id']), populate_existing=True)
+    assert dictado.transcripcion_raw.startswith('Paciente refiere')
+    assert dictado.transcripcion_editada == note.texto
+    audit = await db_session.scalar(select(AuditLog).where(AuditLog.accion == 'DICTADO_NOTA_EDITADA'))
+    revision = await descifrar_json(db_session, bytes.fromhex(audit.datos_despues['new_values']['revision_cifrada']))
+    assert revision == {'antes': 'Nota revisada.', 'despues': 'Nota corregida y revisada.'}
+    reception = await auth_headers(client, db_session, rol='recepcion', clinica_id=clinica.id)
+    denied = await client.patch(edit_url, headers=reception, json={'texto': 'No permitido', 'texto_anterior': note.texto})
+    assert denied.status_code == 403
+    foreign = Clinica(nombre='Otra clínica de prueba', activa=True)
+    db_session.add(foreign)
+    await db_session.commit()
+    foreign_headers = await auth_headers(client, db_session, rol='doctor', clinica_id=foreign.id)
+    denied = await client.patch(edit_url, headers=foreign_headers, json={'texto': 'No permitido', 'texto_anterior': note.texto})
+    assert denied.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_manual_dictation_save_deduplicates_by_request(client, db_session):
+    clinica, doctor, paciente = await clinical_context(db_session)
+    headers = await auth_headers(client, db_session, clinica_id=clinica.id, doctor_id=doctor.id)
+    url = f'/api/dictado/pacientes/{paciente.id}/guardar-nota'
+    payload = {'request_id': str(uuid4()), 'texto': 'Nota escrita y revisada.'}
+    first = await client.post(url, headers=headers, json=payload)
+    assert first.status_code == 201, first.text
+    second = await client.post(url, headers=headers, json=payload)
+    assert second.status_code == 201, second.text
+    assert first.json()['nota_id'] == second.json()['nota_id']
+    changed = await client.post(url, headers=headers, json={**payload, 'texto': 'No sobrescribir'})
+    assert changed.status_code == 409

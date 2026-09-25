@@ -1,188 +1,107 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ClinicalDictationButton, ClinicalDictationModal } from './ClinicalDictation';
+import { ClinicalDictationModal } from './ClinicalDictation';
 import { saveClinicalDictationNote, transcribeClinicalDictation } from '../../../api/ai';
 
-vi.mock('../../../api/ai', () => ({
-  transcribeClinicalDictation: vi.fn(),
-  saveClinicalDictationNote: vi.fn(),
-}));
-
+vi.mock('../../../api/ai', () => ({ transcribeClinicalDictation: vi.fn(), saveClinicalDictationNote: vi.fn() }));
 class FakeMediaRecorder {
-  static isTypeSupported() {
-    return true;
-  }
-
-  state: 'inactive' | 'recording' = 'inactive';
-  mimeType = 'audio/webm';
+  static isTypeSupported() { return true; }
+  state = 'inactive'; mimeType = 'audio/webm';
   ondataavailable: ((event: { data: Blob }) => void) | null = null;
-  onstop: (() => void) | null = null;
-  onerror: (() => void) | null = null;
-
-  constructor() {}
-
-  start() {
-    this.state = 'recording';
-  }
-
-  stop() {
-    this.state = 'inactive';
-    this.ondataavailable?.({ data: new Blob(['audio'], { type: this.mimeType }) });
-    this.onstop?.();
-  }
+  onstop: (() => void) | null = null; onerror: (() => void) | null = null;
+  start() { this.state = 'recording'; }
+  stop() { this.state = 'inactive'; this.ondataavailable?.({ data: new Blob(['audio'], { type: this.mimeType }) }); this.onstop?.(); }
 }
-
-function stubMicrophone(success = true) {
-  const stop = vi.fn();
-  const getUserMedia = success
-    ? vi.fn().mockResolvedValue({ getTracks: () => [{ stop }] })
-    : vi.fn().mockRejectedValue(new DOMException('Denied', 'NotAllowedError'));
-  Object.defineProperty(navigator, 'mediaDevices', {
-    value: { getUserMedia },
-    configurable: true,
-  });
+const stopTrack = vi.fn(), getUserMedia = vi.fn();
+function open() {
+  const onSaved = vi.fn(), onClose = vi.fn();
+  const result = render(<ClinicalDictationModal pacienteId="pac-1" pacienteNombre="Laura Prueba" contexto="sesion" citaId="visit-1" onClose={onClose} onSaved={onSaved} />);
+  return { ...result, onSaved, onClose };
+}
+async function record(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Iniciar grabación' }));
+  await user.click(screen.getByRole('button', { name: 'Detener grabación' }));
+}
+beforeEach(() => {
+  vi.clearAllMocks();
+  getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: stopTrack }] });
+  Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia }, configurable: true });
   vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
-  return { getUserMedia, stop };
-}
-
-describe('ClinicalDictation', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    stubMicrophone(true);
-    vi.mocked(transcribeClinicalDictation).mockResolvedValue({
-      dictado_id: 'dictado-1',
-      paciente_id: 'pac-1',
-      transcripcion: 'Texto transcrito inicial',
-      estado: 'transcrito',
-      proveedor: 'test',
-      audio_conservado: false,
-    });
-    vi.mocked(saveClinicalDictationNote).mockResolvedValue({
-      dictado_id: 'dictado-1',
-      nota_id: 'nota-1',
-      paciente_id: 'pac-1',
-      texto: 'Texto transcrito inicial',
-      fecha: '2026-06-24',
-      origen: 'dictado_clinico',
-    });
+  URL.createObjectURL = vi.fn(() => 'blob:test-audio'); URL.revokeObjectURL = vi.fn();
+  vi.mocked(transcribeClinicalDictation).mockResolvedValue({ dictado_id: 'dict-1', paciente_id: 'pac-1', transcripcion: 'Revisar pieza 24.', estado: 'transcrito', proveedor: 'local_whisper', audio_conservado: false });
+  vi.mocked(saveClinicalDictationNote).mockResolvedValue({ dictado_id: 'dict-1', nota_id: 'note-1', paciente_id: 'pac-1', texto: 'Texto revisado', fecha: '2026-09-25', origen: 'dictado_clinico', cita_id: 'visit-1' });
+});
+describe('Clinical dictation', () => {
+  it('records, explicitly transcribes and saves reviewed text linked to the current visit', async () => {
+    const user = userEvent.setup(), { onSaved } = open();
+    await record(user);
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(transcribeClinicalDictation).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Escuchar grabación')).toHaveAttribute('src', 'blob:test-audio');
+    await user.click(screen.getByRole('button', { name: 'Transcribir audio' }));
+    const editor = await screen.findByDisplayValue('Revisar pieza 24.');
+    await user.clear(editor); await user.type(editor, 'Texto revisado');
+    await user.click(screen.getByRole('button', { name: 'Guardar en sesión' }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledOnce());
+    expect(saveClinicalDictationNote).toHaveBeenCalledWith('pac-1', expect.objectContaining({ dictado_id: 'dict-1', texto: 'Texto revisado', cita_id: 'visit-1', request_id: expect.any(String) }));
   });
-
-  it('el boton abre el modal en un flujo contenedor', async () => {
-    const user = userEvent.setup();
-    function Wrapper() {
-      const [open, setOpen] = useState(false);
-      return (
-        <>
-          <ClinicalDictationButton label="Dictar nota" onClick={() => setOpen(true)} />
-          {open && (
-            <ClinicalDictationModal
-              pacienteId="pac-1"
-              pacienteNombre="Laura Dictado"
-              contexto="ficha"
-              onClose={() => setOpen(false)}
-              onSaved={vi.fn()}
-            />
-          )}
-        </>
-      );
-    }
-
-    render(<Wrapper />);
-    await user.click(screen.getByRole('button', { name: 'Dictar nota' }));
-    expect(screen.getByRole('dialog', { name: 'Dictado clinico' })).toBeInTheDocument();
-  });
-
-  it('muestra estado de grabacion y luego transcripcion editable', async () => {
-    const user = userEvent.setup();
-    render(
-      <ClinicalDictationModal
-        pacienteId="pac-1"
-        pacienteNombre="Laura Dictado"
-        contexto="ficha"
-        onClose={vi.fn()}
-        onSaved={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Iniciar grabacion/i }));
-    expect(screen.getByText('Grabando')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Detener/i }));
-
-    expect(await screen.findByDisplayValue('Texto transcrito inicial')).toBeInTheDocument();
-    expect(transcribeClinicalDictation).toHaveBeenCalledWith(
-      'pac-1',
-      expect.any(Blob),
-      expect.objectContaining({ contexto: 'ficha' }),
-    );
-  });
-
-  it('muestra error si el microfono se deniega', async () => {
-    stubMicrophone(false);
-    const user = userEvent.setup();
-    render(
-      <ClinicalDictationModal
-        pacienteId="pac-1"
-        pacienteNombre="Laura Dictado"
-        contexto="ficha"
-        onClose={vi.fn()}
-        onSaved={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Iniciar grabacion/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Permiso de microfono denegado.');
-  });
-
-  it('guardar llama al endpoint correcto con el texto editado', async () => {
-    const user = userEvent.setup();
-    const onSaved = vi.fn();
-    render(
-      <ClinicalDictationModal
-        pacienteId="pac-1"
-        pacienteNombre="Laura Dictado"
-        contexto="sesion"
-        onClose={vi.fn()}
-        onSaved={onSaved}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Iniciar grabacion/i }));
-    await user.click(screen.getByRole('button', { name: /Detener/i }));
-    const textarea = await screen.findByDisplayValue('Texto transcrito inicial');
-    await user.clear(textarea);
-    await user.type(textarea, 'Texto revisado por doctor');
-    await user.click(screen.getByRole('button', { name: /Guardar como nota clinica/i }));
-
-    await waitFor(() => {
-      expect(saveClinicalDictationNote).toHaveBeenCalledWith('pac-1', {
-        dictado_id: 'dictado-1',
-        texto: 'Texto revisado por doctor',
-      });
-    });
-    expect(onSaved).toHaveBeenCalledTimes(1);
-  });
-
-  it('descartar cierra sin guardar', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    render(
-      <ClinicalDictationModal
-        pacienteId="pac-1"
-        pacienteNombre="Laura Dictado"
-        contexto="ficha"
-        onClose={onClose}
-        onSaved={vi.fn()}
-      />,
-    );
-
-    await user.click(screen.getByRole('button', { name: /Iniciar grabacion/i }));
-    await user.click(screen.getByRole('button', { name: /Detener/i }));
-    await screen.findByDisplayValue('Texto transcrito inicial');
-    await user.click(screen.getByRole('button', { name: /Descartar/i }));
-
+  it('retains the audio and written text after a transcription failure and supports retry', async () => {
+    const user = userEvent.setup(); open();
+    await user.type(screen.getByRole('textbox', { name: 'Texto editable' }), 'Observación previa.');
+    await record(user);
+    vi.mocked(transcribeClinicalDictation).mockRejectedValueOnce(new Error('Motor ocupado'));
+    await user.click(screen.getByRole('button', { name: 'Transcribir audio' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Motor ocupado');
+    expect(screen.getByRole('link', { name: 'Descargar audio' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Transcribir audio' }));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Texto editable' })).toHaveValue('Observación previa.\n\nRevisar pieza 24.'));
+    const calls = vi.mocked(transcribeClinicalDictation).mock.calls;
+    expect(calls[0][1]).toBe(calls[1][1]);
     expect(saveClinicalDictationNote).not.toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+  it('can transcribe an uploaded recording and releases its object URL', async () => {
+    const user = userEvent.setup(), { unmount } = open();
+    const file = new File(['wav'], 'sesion.wav', { type: 'audio/wav' });
+    await user.upload(screen.getByLabelText('Archivo de audio'), file);
+    await user.click(screen.getByRole('button', { name: 'Transcribir audio' }));
+    await screen.findByDisplayValue('Revisar pieza 24.');
+    expect(transcribeClinicalDictation).toHaveBeenCalledWith('pac-1', file, expect.objectContaining({ contexto: 'sesion' }));
+    unmount(); expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-audio');
+  });
+  it('keeps manual text available when microphone permission is denied and reuses the save request on retry', async () => {
+    const user = userEvent.setup(); open();
+    getUserMedia.mockRejectedValueOnce(new DOMException('Denied', 'NotAllowedError'));
+    await user.click(screen.getByRole('button', { name: 'Iniciar grabación' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Permiso de micrófono denegado');
+    await user.type(screen.getByRole('textbox', { name: 'Texto editable' }), 'Nota manual');
+    vi.mocked(saveClinicalDictationNote).mockRejectedValueOnce(new Error('Sin conexión'));
+    await user.click(screen.getByRole('button', { name: 'Guardar en sesión' }));
+    await screen.findByText('Sin conexión');
+    await user.click(screen.getByRole('button', { name: 'Guardar en sesión' }));
+    const calls = vi.mocked(saveClinicalDictationNote).mock.calls;
+    expect(calls[0]).toEqual(calls[1]);
+    expect(transcribeClinicalDictation).not.toHaveBeenCalled();
+  });
+  it('requires explicit discard and never saves on Escape', async () => {
+    const user = userEvent.setup(), { onClose } = open();
+    await user.type(screen.getByRole('textbox', { name: 'Texto editable' }), 'Borrador');
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Seguir editando' }));
+    expect(screen.getByRole('textbox')).toHaveValue('Borrador');
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await user.click(screen.getByRole('button', { name: 'Descartar y cerrar' }));
+    expect(onClose).toHaveBeenCalledOnce(); expect(saveClinicalDictationNote).not.toHaveBeenCalled();
+  });
+  it('releases a microphone granted after the dialog has unmounted', async () => {
+    let grant!: (stream: { getTracks: () => { stop: typeof stopTrack }[] }) => void;
+    getUserMedia.mockReturnValueOnce(new Promise(resolve => { grant = resolve; }));
+    const { unmount } = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar grabación' }));
+    unmount();
+    await act(async () => grant({ getTracks: () => [{ stop: stopTrack }] }));
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(transcribeClinicalDictation).not.toHaveBeenCalled();
   });
 });

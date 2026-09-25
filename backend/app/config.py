@@ -72,6 +72,8 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 50
     clinical_dictation_provider: str = ""
     clinical_dictation_endpoint: str = ""
+    clinical_dictation_local_model: str = "small"
+    clinical_dictation_local_threads: int = 4
     clinical_dictation_api_key: str = ""
     clinical_dictation_timeout_seconds: int = 45
     clinical_dictation_max_audio_mb: int = 15

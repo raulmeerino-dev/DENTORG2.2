@@ -193,7 +193,7 @@ function PatientWorkspace() {
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
   const [recetasDrawerOpen, setRecetasDrawerOpen] = useState(false);
   const [recetaError, setRecetaError] = useState<string | null>(null);
-  const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion' } | null>(null);
+  const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion'; citaId?: string } | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
   const dedicatedTaskOpen = Boolean(designer || recetaModalOpen);
@@ -1241,7 +1241,7 @@ function PatientWorkspace() {
             onOpenDocumentos={() => openDocumentsDrawer()}
             onOpenPresupuestos={() => openPatientArea('presupuestos')}
             onOpenHistorial={(citaId) => { openPatientArea('historial'); if (citaId) setSearchParams(current => { const next = new URLSearchParams(current); next.set('visita_id', citaId); next.set('tab', 'historial'); return next; }); }}
-            onDictarNotaSesion={() => setDictationContext({ contexto: 'sesion' })}
+            onDictarNotaSesion={(citaId) => setDictationContext({ contexto: 'sesion', citaId })}
             canDictarNota={canDictarNota}
             onSchedulePatient={abrirAgendaPaciente}
             onOpenCobro={canManageBilling ? () => abrirCobroDesdeFicha() : undefined}
@@ -1460,6 +1460,7 @@ function PatientWorkspace() {
           pacienteId={active.id}
           pacienteNombre={fullName(active)}
           contexto={dictationContext.contexto}
+          citaId={dictationContext.citaId}
           onClose={() => setDictationContext(null)}
           onSaved={(result) => {
             setDictationContext(null);

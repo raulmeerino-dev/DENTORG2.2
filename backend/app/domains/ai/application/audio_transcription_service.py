@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
+from io import BytesIO
+from threading import Lock
 
 import httpx
+from starlette.concurrency import run_in_threadpool
 
 from app.config import Settings
 
@@ -64,6 +68,8 @@ class ExternalHttpTranscriptionProvider:
         except ValueError as exc:
             raise TranscriptionServiceError("Respuesta invalida del proveedor de transcripcion") from exc
 
+        if not isinstance(payload, dict):
+            raise TranscriptionServiceError("Respuesta invalida del proveedor de transcripcion")
         text = payload.get("text") or payload.get("transcription") or payload.get("transcripcion")
         if not isinstance(text, str) or not text.strip():
             raise TranscriptionServiceError("El proveedor no devolvio una transcripcion valida")
@@ -72,12 +78,63 @@ class ExternalHttpTranscriptionProvider:
         return TranscriptionResult(text=text.strip(), provider=provider_name)
 
 
-def build_transcription_provider(settings: Settings) -> ExternalHttpTranscriptionProvider:
+_local_lock = Lock()
+
+
+@lru_cache(maxsize=1)
+def _local_model(model: str, threads: int):
+    try:
+        from faster_whisper import WhisperModel
+        # Models are provisioned explicitly; a clinical request never downloads software.
+        return WhisperModel(model, device="cpu", compute_type="int8", cpu_threads=threads,
+                            num_workers=1, local_files_only=True)
+    except (ImportError, OSError, ValueError, RuntimeError) as exc:
+        raise TranscriptionServiceNotConfigured(
+            "El transcriptor local no está preparado. Instala el modelo de dictado en el servidor."
+        ) from exc
+
+
+class LocalWhisperTranscriptionProvider:
+    def __init__(self, settings: Settings):
+        self.model = settings.clinical_dictation_local_model
+        self.threads = max(1, min(8, settings.clinical_dictation_local_threads))
+        self.max_duration = settings.clinical_dictation_max_duration_seconds
+
+    def _transcribe(self, audio: AudioPayload) -> TranscriptionResult:
+        if not _local_lock.acquire(blocking=False):
+            raise TranscriptionServiceError("Hay otro audio transcribiéndose. Reintenta en unos segundos.")
+        try:
+            model = _local_model(self.model, self.threads)
+            segments, info = model.transcribe(BytesIO(audio.content), language="es", beam_size=5,
+                                              vad_filter=True, condition_on_previous_text=False,
+                                              temperature=0)
+            if info.duration > self.max_duration + 1:
+                raise TranscriptionServiceError(f"El audio supera el máximo de {self.max_duration} segundos.")
+            text = " ".join(segment.text.strip() for segment in segments).strip()
+            if not text:
+                raise TranscriptionServiceError("No se ha detectado voz. Revisa el audio y vuelve a intentarlo.")
+            if len(text) > 10000:
+                raise TranscriptionServiceError("La transcripción es demasiado larga. Divide la grabación.")
+            return TranscriptionResult(text=text, provider="local_whisper")
+        except (TranscriptionServiceError, TranscriptionServiceNotConfigured):
+            raise
+        except Exception as exc:
+            raise TranscriptionServiceError("No se pudo leer o transcribir el audio. Revisa la grabación.") from exc
+        finally:
+            _local_lock.release()
+
+    async def transcribe(self, audio: AudioPayload) -> TranscriptionResult:
+        return await run_in_threadpool(self._transcribe, audio)
+
+
+def build_transcription_provider(settings: Settings) -> ExternalHttpTranscriptionProvider | LocalWhisperTranscriptionProvider:
     provider = settings.clinical_dictation_provider.strip().lower()
     if not provider:
         raise TranscriptionServiceNotConfigured("Servicio de transcripcion no configurado")
     if provider == "external_http":
         return ExternalHttpTranscriptionProvider(settings)
+    if provider == "local_whisper":
+        return LocalWhisperTranscriptionProvider(settings)
     raise TranscriptionServiceNotConfigured("Servicio de transcripcion no configurado")
 
 

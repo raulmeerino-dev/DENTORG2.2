@@ -35,6 +35,7 @@ import type {
   UserRole,
 } from '../../../api/types';
 import { ClinicalDictationButton } from '../../ai/clinical-dictation/ClinicalDictation';
+import { SessionDictationNotes } from '../../ai/clinical-dictation/SessionDictationNotes';
 import { useSessionDraft } from '../../identity/session/sessionDrafts';
 import { TreatmentBadge } from '../components/TreatmentBadge';
 import { CatalogTreatmentSelector } from '../treatment-selection/TreatmentSelector';
@@ -126,7 +127,7 @@ export function SessionWorkspace({
   onOpenDocumentos: () => void;
   onOpenPresupuestos: () => void;
   onOpenHistorial: () => void;
-  onDictarNotaSesion: () => void;
+  onDictarNotaSesion: (citaId?: string) => void;
   canDictarNota?: boolean;
   onSchedulePatient?: () => void;
   onOpenCobro?: () => void;
@@ -528,7 +529,7 @@ export function SessionWorkspace({
           />
           <ClinicalDictationButton
             label="Dictar nota de sesión"
-            onClick={onDictarNotaSesion}
+            onClick={() => onDictarNotaSesion(currentVisit?.id)}
             disabled={!paciente || !canDictarNota}
             compact
           />
@@ -829,6 +830,7 @@ export function SessionWorkspace({
           </section>
         )}
         <aside className="clinical-session-context">
+          <SessionDictationNotes notes={notasDentales} citaId={currentVisit?.id} canEdit={canDictarNota} />
           <PatientExitChecklistPanel
             title={exitChecklist.title}
             ready={exitChecklist.ready}
