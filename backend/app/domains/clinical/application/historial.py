@@ -117,7 +117,8 @@ async def registrar_tratamiento(
 
 
 async def notas_dentales_paciente(
-    paciente_id: UUID, db: AsyncSession, current_user: TokenData, pieza: int | None
+    paciente_id: UUID, db: AsyncSession, current_user: TokenData, pieza: int | None,
+    *, limit: int | None = None,
 ) -> list[NotaDentalResponse]:
     paciente = await db.get(Paciente, paciente_id)
     if not paciente:
@@ -131,6 +132,8 @@ async def notas_dentales_paciente(
     )
     if pieza:
         stmt = stmt.where(NotaDental.pieza_dental == pieza)
+    if limit is not None:
+        stmt = stmt.limit(limit)
     result = await db.execute(stmt)
     return [NotaDentalResponse.model_validate(item) for item in result.scalars().all()]
 

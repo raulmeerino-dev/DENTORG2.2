@@ -63,6 +63,7 @@ export default function MainNav() {
       <div className="dc-global-context"><h1>{WORKFLOW_ITEMS.find(item => item.route && location.pathname.startsWith(item.route))?.label ?? 'DentCore'}</h1><ToolbarSlot name="module" /></div>
       <div className="dc-topbar-actions">
         {user?.rol !== 'paciente' && <EnSala />}
+        {user?.rol !== 'paciente' && <button type="button" className="dc-icon-button dc-assistant-access" aria-label="Abrir asistente IA" aria-haspopup="dialog" aria-keyshortcuts="Control+Space Meta+Space" title="Asistente IA · Ctrl / ⌘ Espacio" onClick={() => window.dispatchEvent(new Event('dentcore:open-assistant'))}><Sparkles size={18} aria-hidden="true" /></button>}
         <DoctorNotificationsBell />
         {user?.rol !== 'paciente' && <div className="dc-clock"><StaffClockPopover label={clock} currentUserId={user?.id} /></div>}
         <button type="button" ref={userMenuAnchor} className="dc-user-menu-trigger" aria-label="Menú de usuario" aria-haspopup="menu" aria-expanded={userMenuOpen} onClick={() => setUserMenuOpen(!userMenuOpen)} title={user?.nombre}><UsersRound size={16} aria-hidden="true" /><span>{user?.nombre}</span></button>

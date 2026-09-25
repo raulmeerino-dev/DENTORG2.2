@@ -24,6 +24,7 @@
 .dc-copilot-composer textarea { flex: 1; min-width: 0; resize: none; padding: 8px 10px; border: 1px solid var(--dc-border, #dbe2e8); border-radius: 5px; background: var(--dc-surface, #fff); color: inherit; font: inherit; font-size: 13px; line-height: 1.4; }
 .dc-copilot .dc-copilot-send { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; flex-shrink: 0; }
 .dc-copilot-status, .dc-copilot-error { margin: 8px 14px 0; font-size: 12px; flex-shrink: 0; }
+.dc-copilot-status { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dc-copilot-error { color: var(--dc-danger, #b42318); display: flex; gap: 8px; align-items: center; }
 .dc-copilot-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 14px 10px; font-size: 10px; color: var(--dc-muted, #607080); flex-shrink: 0; }
 .dc-copilot-footer button { color: inherit; font: inherit; background: none; border: 0; padding: 3px; text-decoration: underline; }

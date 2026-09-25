@@ -1,6 +1,8 @@
 # Asistente operativo
 
-El acceso global está en el menú de usuario y en Ctrl/⌘ + Espacio. El texto y la voz del navegador llegan al mismo orquestador de herramientas. La voz solamente transcribe: el usuario revisa el texto antes de enviarlo. El dictado clínico especializado conserva su editor y servicio de transcripción existentes.
+El acceso global es el icono de destellos de la cabecera, junto a En sala; también está en el menú de usuario y en Ctrl/⌘ + Espacio. Está disponible para personal autenticado, no en el portal de pacientes ni en el login. El encabezado muestra el paciente activo. El texto y la voz del navegador llegan al mismo orquestador de herramientas; la voz añade texto al borrador, sin sustituir lo escrito ni enviarlo automáticamente. Para grabaciones clínicas se utiliza el [editor de dictado](funciones/dictado-clinico-ia.md).
+
+Las consultas pueden detenerse y reintentarse. Una respuesta tardía a una consulta cerrada no navega ni altera la interfaz. Durante una confirmación se mantiene abierto el resultado hasta verificarlo; los reintentos utilizan el mismo identificador y no duplican el cambio. Los resúmenes clínicos incorporan las seis últimas notas revisadas, con fecha, profesional, origen y enlace al historial; los textos largos se identifican como extractos, no como el historial completo.
 
 ## Arquitectura
 

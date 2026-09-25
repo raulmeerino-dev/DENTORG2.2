@@ -115,6 +115,33 @@ async def note_count(db, patient):
     )
 
 
+async def test_patient_summary_includes_recent_reviewed_notes_with_bounded_context(db_session):
+    user, patient, doctor, _ = await fixture(db_session)
+    for day in range(1, 8):
+        db_session.add(NotaDental(
+            paciente_id=patient.id, doctor_id=doctor.id, fecha=date(2026, 9, day),
+            texto=f"Nota revisada {day}. " + "x" * 1600, origen="dictado_clinico",
+        ))
+    await db_session.commit()
+    result = await TOOLS["patient_summary"].handler(
+        S.PatientReference(patient_id=patient.id), db_session, user, None,
+    )
+    notes = result["recent_notes"]
+    assert len(notes) == 6
+    assert notes[0]["text"].startswith("Nota revisada 7.")
+    assert len(notes[0]["text"]) == 1500 and notes[0]["text_truncated"]
+    assert notes[0]["professional"] == doctor.nombre
+    assert notes[-1]["date"] == "2026-09-02"
+    assert "tab=historial" in notes[0]["source"]
+    assert "recepcion" not in TOOLS["patient_summary"].roles
+    with pytest.raises(HTTPException) as error:
+        await TOOLS["patient_summary"].handler(
+            S.PatientReference(patient_id=patient.id), db_session,
+            TokenData(user.user_id, user.username, "doctor", uuid4()), None,
+        )
+    assert error.value.status_code == 403
+
+
 async def test_navigation_and_request_retry_are_idempotent(db_session):
     user, patient, *_ = await fixture(db_session)
     request = turn(patient)

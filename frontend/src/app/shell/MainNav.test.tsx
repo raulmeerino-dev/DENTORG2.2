@@ -41,7 +41,14 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Agenda' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
     expect(screen.queryByText('Clínica de prueba')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Asistente' })).not.toBeInTheDocument();
+    const assistantAccess = screen.getByRole('button', { name: 'Abrir asistente IA' });
+    expect(assistantAccess).toBeVisible();
+    expect(assistantAccess.textContent).toBe('');
+    const quickOpen = vi.fn();
+    window.addEventListener('dentcore:open-assistant', quickOpen);
+    await userEvent.click(assistantAccess);
+    expect(quickOpen).toHaveBeenCalledOnce();
+    window.removeEventListener('dentcore:open-assistant', quickOpen);
     await userEvent.click(screen.getByRole('button', { name: 'Menú de usuario' }));
     expect(await screen.findByText('Clínica de prueba')).toBeVisible();
     const openAssistant = vi.fn();
@@ -69,5 +76,6 @@ describe('Persistent navigation', () => {
     expect(screen.getByRole('link', { name: 'Portal paciente' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Jornada' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'En sala' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Abrir asistente IA' })).not.toBeInTheDocument();
   });
 });

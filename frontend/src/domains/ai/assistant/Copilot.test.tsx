@@ -6,10 +6,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { askCopilot, confirmCopilot } from '../../../api/copilot';
 import AssistantFloatingButton from './AssistantFloatingButton';
 import { copilotContext } from './copilotContext';
+import { captureVoiceInput, voiceAvailable } from './voiceInputService';
 
 vi.mock('../../../api/copilot', () => ({ askCopilot: vi.fn(), confirmCopilot: vi.fn() }));
 vi.mock('../../identity/session/AuthContext', () => ({ useAuth: () => ({ user: { id: 'admin', rol: 'admin', clinica_id: 'clinic' } }) }));
-vi.mock('./voiceInputService', () => ({ voiceAvailable: () => false }));
+vi.mock('./voiceInputService', () => ({ voiceAvailable: vi.fn(() => false), captureVoiceInput: vi.fn() }));
+vi.mock('../../../api/patients', () => ({ getPaciente: async () => ({ nombre: 'Laura', apellidos: 'Prueba' }) }));
 const patient = '64af3dc7-57e7-5871-b5c5-761fdac29e36';
 function open() {
   render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[`/pacientes?paciente_id=${patient}&tab=sesion`]}><AssistantFloatingButton /></MemoryRouter></QueryClientProvider>);
@@ -17,9 +19,51 @@ function open() {
 }
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(voiceAvailable).mockReturnValue(false);
   HTMLElement.prototype.scrollTo = vi.fn();
 });
 describe('Copilot', () => {
+  it('shows the real patient context and stops late responses when the panel is closed', async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { message: string; sources: []; navigation: string }) => void;
+    vi.mocked(askCopilot).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    open();
+    await screen.findByText('Laura Prueba');
+    await user.type(screen.getByRole('textbox'), 'Abre agenda');
+    await user.click(screen.getByRole('button', { name: 'Enviar petición' }));
+    await user.click(screen.getByRole('button', { name: 'Cerrar asistente' }));
+    expect(vi.mocked(askCopilot).mock.calls[0][1]?.aborted).toBe(true);
+    await act(async () => resolve({ message: 'Respuesta tardía', navigation: '/jornada?vista=agenda', sources: [] }));
+    act(() => window.dispatchEvent(new Event('dentcore:open-assistant')));
+    expect(screen.queryByText('Respuesta tardía')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  });
+  it('keeps confirmation visible until the saved result is known', async () => {
+    const user = userEvent.setup();
+    let resolve!: (result: { message: string; sources: []; saved: boolean }) => void;
+    vi.mocked(askCopilot).mockResolvedValue({ message: 'Revisa', sources: [], proposal: { id: 'proposal', label: 'Confirmar nota', steps: [] } });
+    vi.mocked(confirmCopilot).mockReturnValueOnce(new Promise(done => { resolve = done; }));
+    open();
+    await user.type(screen.getByRole('textbox'), 'Anota revisión');
+    await user.click(screen.getByRole('button', { name: 'Enviar petición' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirmar nota' }));
+    await user.keyboard('{Escape}');
+    fireEvent.keyDown(window, { code: 'Space', ctrlKey: true });
+    expect(screen.getByRole('dialog', { name: 'Asistente DentCore' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Cerrar asistente' })).toBeDisabled();
+    await act(async () => resolve({ message: 'Guardado', sources: [], saved: true }));
+    expect(screen.getByRole('button', { name: 'Cerrar asistente' })).toBeEnabled();
+  });
+  it('appends voice to the existing draft without sending it automatically', async () => {
+    const user = userEvent.setup();
+    vi.mocked(voiceAvailable).mockReturnValue(true);
+    vi.mocked(captureVoiceInput).mockResolvedValue('mañana por la tarde');
+    open();
+    await user.type(screen.getByRole('textbox'), 'Buscar hueco');
+    await user.click(screen.getByRole('button', { name: 'Dictar petición' }));
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('Buscar hueco mañana por la tarde'));
+    expect(askCopilot).not.toHaveBeenCalled();
+  });
   it('uses only the active route context', () => {
     expect(copilotContext('/pacientes', `?paciente_id=${patient}&tab=presupuestos`)).toEqual({ module: 'pacientes', patient_id: patient, section: 'presupuestos' });
     expect(copilotContext('/caja', `?paciente_id=${patient}`)).toEqual({ module: 'caja' });
