@@ -46,4 +46,23 @@ describe('Parrilla por profesional', () => {
     expect(onAction).toHaveBeenCalledWith(cita, 'llegada');
     expect(onOpenCita).not.toHaveBeenCalled();
   });
+
+  it('arrastra un tramo libre y conserva su duración y profesional', async () => {
+    const { user, onCreate } = setup();
+    const start = screen.getByRole('button', { name: 'Nueva cita 09:00 · Dr. Manuel Díaz' });
+    const end = screen.getByRole('button', { name: 'Nueva cita 09:20 · Dr. Manuel Díaz' });
+    await user.pointer([{ target: start, keys: '[MouseLeft>]' }, { target: end }, { keys: '[/MouseLeft]' }]);
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith({ day, slot: '09:00', doctorId: 'two', duration: 30 });
+  });
+
+  it('no crea un tramo que atraviesa una cita existente', async () => {
+    const { user, onCreate } = setup();
+    await user.pointer([
+      { target: screen.getByRole('button', { name: 'Nueva cita 09:00 · Dra. Elena Ruiz' }), keys: '[MouseLeft>]' },
+      { target: screen.getByRole('button', { name: 'Nueva cita 09:50 · Dra. Elena Ruiz' }) },
+      { keys: '[/MouseLeft]' },
+    ]);
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('contiene una cita');
+  });
 });

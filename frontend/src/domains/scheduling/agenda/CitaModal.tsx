@@ -75,7 +75,7 @@ export function CitaModal({
 }) {
   const [query, setQuery] = useState('');
   const [patientResultsOpen, setPatientResultsOpen] = useState(false);
-  const initialPacienteId = cita?.paciente_id ?? draft?.pacienteId ?? sessionStorage.getItem('dentcore_selected_patient_id') ?? '';
+  const initialPacienteId = cita?.paciente_id ?? draft?.pacienteId ?? (draft && draft.scheduleKnown !== false ? '' : sessionStorage.getItem('dentcore_selected_patient_id')) ?? '';
   const [pacienteId, setPacienteId] = useState(initialPacienteId);
   const [showPatientPicker, setShowPatientPicker] = useState(!initialPacienteId);
   const canEditSchedule = !cita || !['en_atencion', 'finalizada', 'cancelada', 'no_presentado'].includes(getVisualStatus(cita));
@@ -89,13 +89,13 @@ export function CitaModal({
   const [hora, setHora] = useState(initialTime);
   const [durationOverride, setDurationOverride] = useState<number | null>(cita?.duracion_min ?? draft?.duration ?? null);
   const [estado, setEstado] = useState(cita?.estado ?? 'programada');
-  const storedTreatment = !cita ? sessionStorage.getItem('dentcore_selected_treatment') : null;
-  const storedPresupuestoLineaId = !cita ? sessionStorage.getItem('dentcore_selected_presupuesto_linea_id') : null;
+  const storedTreatment = !cita && initialPacienteId ? sessionStorage.getItem('dentcore_selected_treatment') : null;
+  const storedPresupuestoLineaId = !cita && initialPacienteId ? sessionStorage.getItem('dentcore_selected_presupuesto_linea_id') : null;
   const [motivo, setMotivo] = useState(cita?.motivo ?? draft?.motivo ?? storedTreatment ?? '');
   const suggestedTreatment = tratamientos.find(item => item.nombre.toLocaleLowerCase() === motivo.trim().toLocaleLowerCase());
   const suggestedDuration = suggestedTreatment?.duracion_habitual_min ?? defaultDuration;
   const duracion = durationOverride ?? suggestedDuration;
-  const [presupuestoLineaId] = useState(cita?.presupuesto_linea_id ?? draft?.presupuestoLineaId ?? storedPresupuestoLineaId ?? null);
+  const [presupuestoLineaId] = useState(cita?.presupuesto_linea_id ?? (initialPacienteId ? draft?.presupuestoLineaId ?? storedPresupuestoLineaId : null) ?? null);
   const [observaciones, setObservaciones] = useState(cita?.observaciones ?? '');
   const [gabinete, setGabinete] = useState(cita?.gabinete_id ?? draft?.gabineteId ?? '');
   const [esUrgencia, setEsUrgencia] = useState(cita?.es_urgencia ?? false);
@@ -279,6 +279,7 @@ export function CitaModal({
                     setPacienteId(paciente.id);
                     setQuery(`${paciente.apellidos}, ${paciente.nombre}`);
                     setPatientResultsOpen(false);
+                    setShowPatientPicker(false);
                   }}
                 >
                   <strong>{paciente.apellidos}, {paciente.nombre}</strong>
@@ -331,7 +332,7 @@ export function CitaModal({
           <label>Duración (minutos)<input aria-label="Duración (minutos)" type="number" min={5} max={480} step={5} required disabled={!canEditSchedule} value={duracion} onChange={event => setDurationOverride(Number(event.target.value))} />
             {canEditSchedule && durationOverride !== null && durationOverride !== suggestedDuration && <button type="button" onClick={() => setDurationOverride(null)}>Usar habitual: {suggestedDuration} min</button>}
           </label>
-          {(gabinetes.length > 0 || gabinete) && <label>Gabinete (opcional)<select disabled={!canEditSchedule} value={gabinete} onChange={event => setGabinete(event.target.value)}>
+          {(gabinetes.length > 0 || gabinete) && <label>Gabinete (opcional)<select aria-label="Gabinete (opcional)" disabled={!canEditSchedule} value={gabinete} onChange={event => setGabinete(event.target.value)}>
             <option value="">Sin gabinete asignado</option>
             {gabinete && !gabinetes.some(item => item.id === gabinete) && <option value={gabinete}>{cita?.gabinete_nombre ?? 'Gabinete asignado'}</option>}
             {gabinetes.filter(item => item.activo || item.id === gabinete).map(item => <option key={item.id} value={item.id}>{item.nombre}</option>)}
@@ -351,12 +352,12 @@ export function CitaModal({
           {(validationError || error) && <p className="inline-alert wide" role="alert">{validationError || error}</p>}
         </div>
 
-        <aside className="appointment-info">
+        {cita && <aside className="appointment-info">
           <span>Paciente en clínica: {cita && ['en_sala', 'en_atencion'].includes(getVisualStatus(cita)) ? 'Sí' : 'No'}</span>
           <span>Recordatorio: {cita?.recordatorio_enviado ? 'Enviado' : 'No enviado'}</span>
           <span>Canal: {cita?.recordatorio_canal ?? '-'}</span>
           <span>Confirmación: {cita?.confirmado_at || ['confirmada', 'confirmed'].includes(estado) ? 'Confirmada' : 'Pendiente'}</span>
-        </aside>
+        </aside>}
         {cita && (labWorks.length > 0 || labSuggested) && (
           <section className="appointment-lab-detail" aria-label="Laboratorio asociado a la cita">
             <header>

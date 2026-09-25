@@ -12,7 +12,9 @@ export function monthGrid(day: string) {
   const start = new Date(first);
   const offset = (first.getDay() + 6) % 7;
   start.setDate(first.getDate() - offset);
-  return Array.from({ length: 42 }, (_, index) => {
+  const daysInMonth = new Date(current.getFullYear(), current.getMonth() + 1, 0).getDate();
+  const length = Math.ceil((offset + daysInMonth) / 7) * 7;
+  return Array.from({ length }, (_, index) => {
     const date = new Date(start);
     date.setDate(start.getDate() + index);
     return date;

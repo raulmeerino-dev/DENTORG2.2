@@ -52,3 +52,6 @@
 .agenda-resource-cell.is-half-hour { border-top-color: var(--dc-border); }
 .agenda-resource-cell.is-hour-start { border-top-color: color-mix(in srgb, var(--dc-muted) 45%, var(--dc-border)); }
 .agenda-resource-appointment time { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.agenda-resource-cell.is-selecting { background: var(--dc-primary-soft); box-shadow: inset 3px 0 var(--dc-primary); }
+.agenda-create-slot { touch-action: pan-y; }

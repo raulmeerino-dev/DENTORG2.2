@@ -13,7 +13,9 @@ describe('Agenda calendar navigation', () => {
   });
   it('keeps adjacent-month days available across months and years', () => {
     const september = monthGrid('2026-09-25').map(isoDate);
-    expect(september).toHaveLength(42);
+    expect(september).toHaveLength(35);
+    expect(monthGrid('2026-03-01')).toHaveLength(42);
+    expect(monthGrid('2027-02-01')).toHaveLength(28);
     expect(september).toContain('2026-08-31');
     expect(september).toContain('2026-10-01');
     expect(monthGrid('2026-12-25').map(isoDate)).toContain('2027-01-01');

@@ -35,6 +35,14 @@ beforeEach(() => {
 });
 
 describe('Cita: contexto y disponibilidad', () => {
+  it('un hueco nuevo no adopta silenciosamente al último paciente de otra pantalla', () => {
+    sessionStorage.setItem('dentcore_selected_patient_id', 'unrelated-patient');
+    setup({ draft: { day: '2026-09-21', slot: '10:00', doctorId: doctor.id, duration: 40 } });
+    expect(screen.getByLabelText('Buscar paciente')).toBeInTheDocument();
+    expect(screen.getByLabelText('Duración (minutos)')).toHaveValue(40);
+    expect(mocks.getPaciente).not.toHaveBeenCalledWith('unrelated-patient');
+    expect(screen.getByText(/10:00–10:40/)).toBeInTheDocument();
+  });
   it('busca pacientes fuera de la primera página y permite citarlos', async () => {
     const remoto = { ...paciente, id: 'patient-remote', nombre: 'Beatriz', num_historial: 501 };
     mocks.getPacientes.mockResolvedValue([remoto]);

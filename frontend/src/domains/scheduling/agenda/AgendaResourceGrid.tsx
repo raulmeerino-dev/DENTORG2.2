@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { CSSProperties, MouseEvent } from 'react';
 import type { Cita, Doctor } from '../../../api/types';
 import type { HorariosPorDoctor, SlotDraft } from './agendaTypes';
@@ -19,6 +20,26 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
   onAction: (cita: Cita, action: VisitAction) => void;
   onContext: (event: MouseEvent, cita: Cita) => void; onOpenHorario?: () => void;
 }) {
+  const [range, setRange] = useState<{ doctorId: string; start: number; end: number } | null>(null);
+  const [rangeError, setRangeError] = useState('');
+  useEffect(() => {
+    const clear = () => setRange(null);
+    window.addEventListener('pointerup', clear);
+    window.addEventListener('pointercancel', clear);
+    return () => { window.removeEventListener('pointerup', clear); window.removeEventListener('pointercancel', clear); };
+  }, []);
+  function finishRange(doctor: Doctor) {
+    if (!range || range.doctorId !== doctor.id) return;
+    const start = Math.min(range.start, range.end);
+    const end = Math.max(range.start, range.end);
+    const duration = (timeline[timeline.indexOf(end) + 1] ?? end + 10) - start;
+    const slot = addMinutes('00:00', start);
+    const from = new Date(slotIso(day, slot)).getTime();
+    const conflict = allCitas.some(cita => cita.doctor_id === doctor.id && !['cancelada', 'no_presentado'].includes(getVisualStatus(cita)) && new Date(cita.fecha_hora).getTime() < from + duration * 60000 && new Date(cita.fecha_hora).getTime() + cita.duracion_min * 60000 > from);
+    setRange(null);
+    if (range.start !== range.end && (conflict || duration > 480)) { setRangeError(conflict ? 'El tramo seleccionado contiene una cita. Elige un tramo libre.' : 'Selecciona un tramo de hasta 8 horas.'); return; }
+    onCreate({ day, slot, doctorId: doctor.id, ...(range.start !== range.end ? { duration } : {}) });
+  }
   const allDoctors = [...doctores];
   for (const cita of citas) {
     if (!allDoctors.some(doctor => doctor.id === cita.doctor_id)) allDoctors.push({ id: cita.doctor_id, nombre: cita.doctor?.nombre ?? 'Profesional', especialidad: null, color_agenda: cita.doctor?.color_agenda ?? null, activo: false });
@@ -40,6 +61,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
     <div className="dc-agenda-status-legend" aria-label="Leyenda de estados de cita">
       {AGENDA_STATUS_LEGEND.map(status => <span className={STATUS_META[status].className} key={status}><b>{STATUS_META[status].mark}</b>{STATUS_META[status].label}</span>)}
     </div>
+    {rangeError && <p role="alert" className="inline-alert">{rangeError}</p>}
     {!slots.length ? <div className="agenda-empty-day">
       <strong>Sin horario para este día.</strong><span>Revisa el profesional o configura sus bloques de trabajo. Puedes crear una urgencia desde Nueva cita.</span>
       {onOpenHorario && <button type="button" onClick={onOpenHorario}>Abrir horarios</button>}
@@ -57,7 +79,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
               const occupied = allCitas.some(cita => cita.doctor_id === doctor.id && !['cancelada', 'no_presentado'].includes(getVisualStatus(cita))
                 && new Date(cita.fecha_hora).getTime() <= instant && new Date(cita.fecha_hora).getTime() + cita.duracion_min * 60_000 > instant);
               const working = slotInHorario(slot, horarios[doctor.id]?.find(horario => horario.dia_semana === weekdayIndex(day)));
-              return <div className={`agenda-resource-cell${minute % 60 === 0 ? ' is-hour-start' : minute % 30 === 0 ? ' is-half-hour' : ''}${!working ? ' outside-hours' : ''}${occupied ? ' has-continuation' : ''}`} key={slot}
+              return <div className={`agenda-resource-cell${minute % 60 === 0 ? ' is-hour-start' : minute % 30 === 0 ? ' is-half-hour' : ''}${!working ? ' outside-hours' : ''}${occupied ? ' has-continuation' : ''}${range?.doctorId === doctor.id && minute >= Math.min(range.start, range.end) && minute <= Math.max(range.start, range.end) ? ' is-selecting' : ''}`} key={slot}
                 data-doctor-id={doctor.id} data-slot={slot} data-occupied={occupied}
                 style={{ top: (minute - startMinute) * scale, height: (timeline[index + 1] - minute) * scale }}
                 onDragOver={event => event.preventDefault()} onDrop={event => {
@@ -69,7 +91,10 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
                     if (item.pacienteId) onCreate({ day, slot, doctorId: doctor.id, pacienteId: item.pacienteId, telefonearId: item.telefonearId, motivo: item.motivo });
                   } catch { /* Ignore unrelated drag payloads. */ }
                 }}>
-                {!occupied && <button type="button" className="agenda-create-slot" disabled={!doctor.activo} aria-label={`Nueva cita ${slot} · ${doctor.nombre}`} onClick={() => onCreate({ day, slot, doctorId: doctor.id })}>{working ? '+' : ''}</button>}
+                {!occupied && <button type="button" className="agenda-create-slot" disabled={!doctor.activo || busy} title={working ? `${slot} · Hueco libre. Pulsa o arrastra para elegir duración.` : `${slot} · Fuera del horario habitual`} aria-label={`Nueva cita ${slot} · ${doctor.nombre}`} onPointerDown={event => { if (event.button !== 0) return; setRangeError(''); setRange({ doctorId: doctor.id, start: minute, end: minute }); }}
+                  onPointerEnter={event => { if (event.buttons === 1 && range?.doctorId === doctor.id) setRange({ ...range, end: minute }); }}
+                  onPointerUp={() => finishRange(doctor)}
+                  onClick={event => { if (event.detail === 0) onCreate({ day, slot, doctorId: doctor.id }); }}>{working ? '+' : ''}</button>}
               </div>;
             })}
             {appointmentLanes(citas.filter(cita => cita.doctor_id === doctor.id)).map(({ cita, lane, laneCount }) => {

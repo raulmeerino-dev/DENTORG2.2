@@ -57,3 +57,21 @@
   .dc-agenda-day-brief button { padding-inline: 6px; }
   .dc-agenda-day-brief-main strong { max-width: 230px; }
 }
+/* Appointment composition within Agenda; other consumers keep their layout. */
+.agenda-dentcore .appointment-modal { width: min(700px, calc(100vw - 32px)) !important; padding: var(--dc-space-4); }
+.agenda-dentcore .appointment-modal > header { padding: 0 0 var(--dc-space-3); }
+.agenda-dentcore .appointment-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.agenda-dentcore .appointment-form-grid .wide { grid-column: 1 / -1; }
+.agenda-dentcore .appointment-known-context { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dc-space-2); padding: var(--dc-space-3); background: var(--dc-surface-soft); border-block: 1px solid var(--dc-border); }
+.agenda-dentcore .appointment-known-context > button { margin-left: auto; }
+.agenda-dentcore .appointment-form-grid .appointment-check { display: flex !important; flex-direction: row; align-items: center; gap: var(--dc-space-2); }
+.agenda-dentcore .appointment-check input[type="checkbox"] { width: 16px !important; height: 16px !important; min-height: 16px !important; min-width: 16px !important; padding: 0; margin: 0; flex: none; }
+.agenda-dentcore .appointment-modal footer { display: flex; justify-content: flex-end; gap: var(--dc-space-2); padding: var(--dc-space-3) 0 0; }
+.agenda-dentcore .appointment-modal footer button { flex: none; width: auto; min-width: 100px; }
+@media (max-width: 600px) { .agenda-dentcore .appointment-form-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.agenda-dentcore .appointment-modal { display: block; }
+.agenda-dentcore .appointment-form-grid { margin-top: var(--dc-space-3); }
+.agenda-dentcore .patient-live-results { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; height: auto; max-height: 180px; grid-auto-rows: min-content; overflow: auto; align-content: start; }
+.agenda-dentcore .patient-live-results button { max-width: none; width: 100%; }
+.agenda-dentcore .patient-live-results strong { white-space: normal; overflow-wrap: anywhere; }
