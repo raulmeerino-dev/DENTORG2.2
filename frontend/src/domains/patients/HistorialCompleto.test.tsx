@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { describe,expect,it,vi } from 'vitest';
 import type { ApiPaciente,Cita,Consentimiento,Cobro,DocumentoPaciente,Factura,HistorialClinico,NotaDental,PagoAnticipadoPaciente,Presupuesto } from '../../api/types';
 import { HistorialCompletoPanel } from './HistorialCompleto';
+import type { PatientAccount } from '../../api/accounts';
+
+const receiptApi = vi.hoisted(() => ({ open: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../../api/billing', () => ({ openPaymentReceipt: receiptApi.open }));
 
 const paciente: ApiPaciente = {
   id: 'pac-1',
@@ -157,6 +161,54 @@ function renderHistorial(overrides: Partial<Parameters<typeof HistorialCompletoP
 }
 
 describe('Historial general tabular', () => {
+  const account: PatientAccount = {
+    paciente_id: paciente.id, paciente_nombre: 'Ana Lopez', version: 'v1',
+    total_cargos: '150', total_cobrado: '50', pendiente_cargos: '100', saldo_favor: '0',
+    saldo: '100', realizado_hoy: '150', saldo_anterior: '0', sin_valorar: 0,
+    cita_id: null, doctor_id: null, gabinete_id: null, pendiente_salida: false,
+    cargos: [{ id: 'charge', historial_id: historialPieza.id, factura_id: null,
+      cita_id: null, doctor_id: 'doc-1', concepto: 'Endodoncia', fecha: '2026-04-16',
+      pieza_dental: 16, caras: 'O', importe: '150', cobrado: '50', pendiente: '100',
+      motivo_cero: null, origen: 'tratamiento' }],
+    movimientos: [{ id: cobro.id, tipo: 'cobro', fecha: '2026-04-16', importe: '50',
+      forma_pago: 'Tarjeta', aplicado: '50', anulado: false, factura_id: null,
+      notas: 'Pago sin factura previa' }],
+  };
+  it('abre el pago sin factura enlazado desde Registros y su recibo', async () => {
+    renderHistorial({ account, facturas: [], anticipos: [], focusedRecordId: cobro.id });
+    const detail = screen.getByRole('region', { name: 'Detalle de cobro' });
+    expect(detail).toHaveTextContent('Pago sin factura previa');
+    expect(detail).toHaveTextContent('Sin factura asociada');
+    await userEvent.click(within(detail).getByRole('button', { name: 'Abrir recibo' }));
+    expect(receiptApi.open).toHaveBeenCalledWith(cobro.id);
+  });
+  it('muestra las aplicaciones reales de un tratamiento todavía sin facturar', () => {
+    renderHistorial({ account, historial: [historialPieza], facturas: [], anticipos: [] });
+    const row = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }).closest('tr')!;
+    expect(row).toHaveTextContent('Sin facturar150,0050,00100,00');
+  });
+  it.each(['facturado', 'cobrado_parcial', 'cobrado_completo'])('conserva el tratamiento realizado con estado económico heredado %s', (estado) => {
+    renderHistorial({ account, historial: [{ ...historialPieza, estado, factura_id: factura.id }] });
+    const row = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }).closest('tr')!;
+    expect(row).toHaveTextContent('Realizado');
+    expect(row).toHaveTextContent('150,0050,00100,00');
+  });
+  it('un pago aplicado a dos facturas conserva una sola entrada por el importe recibido', async () => {
+    renderHistorial({ account, anticipos: [], facturas: [factura, { ...factura, id: 'fac-2', numero: 101 }] });
+    await userEvent.click(screen.getByRole('button', { name: 'Cobros' }));
+    const rows = within(screen.getByRole('table')).getAllByRole('row');
+    expect(rows).toHaveLength(2);
+    expect(rows[1]).toHaveTextContent('50,0050,00');
+    await userEvent.click(within(rows[1]).getByRole('button', { name: /Ver detalle/ }));
+    expect(screen.getByRole('button', { name: 'Abrir factura A/100' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Abrir factura A/101' })).toBeInTheDocument();
+  });
+  it('no muestra los pagos ni las aplicaciones de cargos a un perfil clínico', () => {
+    renderHistorial({ account, historial: [historialPieza], canManageBilling: false });
+    expect(screen.queryByText('Tarjeta')).not.toBeInTheDocument();
+    expect(screen.queryByText('50,00')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cobros' })).not.toBeInTheDocument();
+  });
   it('muestra una fila por registro sin repetir eventos de odontograma', () => {
     renderHistorial({ historial: [historialPieza], notasDentales: [notaPieza] });
     const table = screen.getByRole('table', { name: 'Cronología del paciente' });

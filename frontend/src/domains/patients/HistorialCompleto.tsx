@@ -47,6 +47,7 @@ export function HistorialCompletoPanel({
   presupuestos,
   facturas,
   anticipos,
+  account,
   documentos,
   consentimientos,
   notasDentales = EMPTY,
@@ -77,11 +78,12 @@ export function HistorialCompletoPanel({
       presupuestos,
       facturas,
       anticipos,
+      account,
       documentos,
       consentimientos,
       notasDentales,
     }),
-    [historial, citas, presupuestos, facturas, anticipos, documentos, consentimientos, notasDentales],
+    [historial, citas, presupuestos, facturas, anticipos, account, documentos, consentimientos, notasDentales],
   );
   const rows = useMemo(
     () => buildHistoryRows(data, canManageBilling, professionals),
@@ -374,7 +376,7 @@ export function HistorialCompletoPanel({
                 </th>
                 <th
                   className="ph-numeric ph-balance"
-                  title="Saldo pendiente actual de la factura, no saldo histórico acumulado"
+                  title="Pendiente actual del tratamiento o factura, no saldo histórico acumulado"
                 >
                   Saldo
                 </th>

@@ -1,3 +1,4 @@
+import type { PatientAccount } from '../../../api/accounts';
 import { useMemo, useRef, useState } from 'react';
 import { FloatingPopover } from '../../../design-system/FloatingPopover';
 import type { CSSProperties, MouseEvent } from 'react';
@@ -67,18 +68,19 @@ function formatCobros(cobros: Cobro[]) {
   return formaPago ? `${cobros.length} - ${formaPago}` : `${cobros.length} cobro${cobros.length === 1 ? '' : 's'}`;
 }
 
-function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[]) {
+function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factura[], account?: PatientAccount) {
   return historial
     .filter((entrada) => hasFinishedState(entrada.estado))
     .map((entrada) => {
       const { factura, linea } = getFacturaForHistorial(entrada, facturas);
       const cobros = activeCobros(factura);
       const importeLinea = amount(linea?.subtotal ?? entrada.importe);
-      const importe = importeLinea || amount(entrada.importe);
+      const charge = account?.cargos.find(c => c.historial_id === entrada.id);
+      const importe = charge ? amount(charge.importe) : importeLinea || amount(entrada.importe);
       const totalFactura = amount(factura?.total);
       const totalCobrado = amount(factura?.total_cobrado);
       const factorLinea = factura && totalFactura > 0 && importe > 0 ? importe / totalFactura : 1;
-      const cobrado = factura ? Math.min(importe, totalCobrado * factorLinea) : 0;
+      const cobrado = charge ? amount(charge.cobrado) : factura ? Math.min(importe, totalCobrado * factorLinea) : 0;
       const saldo = Math.max(0, importe - cobrado);
 
       return {
@@ -88,7 +90,7 @@ function buildHistoryBillingRows(historial: HistorialClinico[], facturas: Factur
         pieza: [entrada.pieza_dental ? String(entrada.pieza_dental) : '', entrada.caras].filter(Boolean).join(' '),
         doctor: entrada.doctor?.nombre ?? '',
         factura: formatFactura(factura),
-        recibo: formatCobros(cobros),
+        recibo: charge && Number(charge.cobrado) > 0 ? "Pago aplicado" : formatCobros(cobros),
         importe,
         cobrado,
         saldo,
@@ -114,6 +116,7 @@ function formatStateLabel(estado: string) {
 
 export function DentCoreHistoryBillingPanel({
   paciente,
+  account,
   historial,
   facturas,
   onFacturar,
@@ -128,6 +131,7 @@ export function DentCoreHistoryBillingPanel({
   canManageBilling = true,
 }: {
   paciente: ApiPaciente | null;
+  account?: PatientAccount;
   historial: HistorialClinico[];
   facturas: Factura[];
   onFacturar: () => void;
@@ -141,7 +145,7 @@ export function DentCoreHistoryBillingPanel({
   onOpenActivity?: () => void;
   canManageBilling?: boolean;
 }) {
-  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas), [historial, facturas]);
+  const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, account), [historial, facturas, account]);
   const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow | null } | null>(null);
   const [invoiceMenuOpen, setInvoiceMenuOpen] = useState(false);
   const [historyActionsOpen, setHistoryActionsOpen] = useState(false);
@@ -173,7 +177,7 @@ export function DentCoreHistoryBillingPanel({
       onCobrarImporte(row.facturaItem);
       return;
     }
-    onAddAnticipo();
+    onCobrar();
   }
 
   function openRowMenuFromButton(event: MouseEvent<HTMLButtonElement>, row: HistoryBillingRow) {
@@ -199,7 +203,7 @@ export function DentCoreHistoryBillingPanel({
             {' - '}
             {rows.length} realizado{rows.length === 1 ? '' : 's'}
             {canManageBilling && (
-              <> - saldo {money(totals.pendiente)}</>
+              <> - saldo {money(account?.saldo ?? totals.pendiente)}</>
             )}
           </span>
         </div>
@@ -407,6 +411,7 @@ export function DentCoreHistoryBillingPanel({
         </div>
       </div>
 
+      {canManageBilling && account && account.movimientos.length > 0 && <details className="history-payments"><summary>Pagos y anticipos ({account.movimientos.length})</summary><table className="dentcore-table"><thead><tr><th>Fecha</th><th>Movimiento</th><th>Forma de pago</th><th>Importe</th><th>Estado</th></tr></thead><tbody>{account.movimientos.map(m => <tr key={m.id}><td>{formatDate(m.fecha)}</td><td>{m.tipo === 'anticipo' ? 'Anticipo' : 'Cobro'}</td><td>{m.forma_pago}</td><td>{money(m.importe)}</td><td>{m.anulado ? 'Anulado' : 'Registrado'}</td></tr>)}</tbody></table></details>}
       <label className="history-comments">
         <span>Observaciones</span>
         <textarea
@@ -417,7 +422,7 @@ export function DentCoreHistoryBillingPanel({
       {canManageBilling && historyMenu && (
         <FloatingPopover className="context-menu patient-context-menu history-row-context-menu" point={historyMenu} onClose={() => setHistoryMenu(null)} role="menu" aria-label="Historial y facturación">
           <strong>Historial / facturacion</strong>
-          <button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Anadir pago / anticipo</button>
+          <button onClick={() => { onCobrar(); setHistoryMenu(null); }}>Cobrar cuenta del paciente</button><button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Añadir anticipo</button>
           {historyMenu.row?.facturaItem && (
             <>
               <button onClick={() => { onCobrarImporte(historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Anadir cobro a esta factura</button>

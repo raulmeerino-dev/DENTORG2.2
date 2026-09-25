@@ -626,7 +626,8 @@ describe('Cierre de visita y guardados de sesión', () => {
     const name = screen.getByLabelText('Nombre en sesion');
     await user.clear(name);
     await user.type(name, 'Corona revisada');
-    expect(finish).toBeDisabled();
+    // Confirmation can save local edits; in-flight writes still block closing.
+    expect(finish).toBeEnabled();
     await user.tab();
     await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
     const notes = screen.getByLabelText('Observacion clinica del tratamiento');
@@ -651,7 +652,8 @@ describe('Cierre de visita y guardados de sesión', () => {
     await user.type(name, 'Corona revisada');
     await user.tab();
     await act(async () => write.reject(new Error('Error al guardar la sesión')));
-    expect(screen.getByRole('button', { name: /^Finalizar visita$/i })).toBeDisabled();
+    // The confirmation retries dirty fields and cannot finish if saving fails.
+    expect(screen.getByRole('button', { name: /^Finalizar visita$/i })).toBeEnabled();
     expect(screen.getByText('Error al guardar la sesión')).toBeInTheDocument();
     await user.click(name);
     await user.tab();

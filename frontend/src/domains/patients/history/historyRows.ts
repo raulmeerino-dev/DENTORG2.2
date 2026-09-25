@@ -11,6 +11,8 @@ import type {
 import { getVisualStatus } from '../../scheduling/agenda/appointmentStatus';
 import { isClinicalNote } from '../../clinical/history/clinicalNotes';
 import { clinicDateKey, clinicTime } from '../../../shared/time/clinicTime';
+import type { AccountMovement, PatientAccount } from '../../../api/accounts';
+import { money } from '../../../shared/format';
 
 export type HistoryFilter = 'todo' | 'clinico' | 'visitas' | 'facturacion' | 'cobros';
 export type HistoryTone = 'neutral' | 'success' | 'info' | 'warning' | 'danger';
@@ -23,6 +25,7 @@ export interface HistoryData {
   documentos: DocumentoPaciente[];
   consentimientos: Consentimiento[];
   notasDentales: NotaDental[];
+  account?: PatientAccount;
 }
 export interface HistoryRow {
   id: string;
@@ -39,6 +42,8 @@ export interface HistoryRow {
   tone: HistoryTone;
   observation?: string | null;
   invoice?: Factura;
+  relatedInvoices?: Factura[];
+  payment?: AccountMovement;
   amount?: string | number | null;
   paid?: string | number | null;
   balance?: string | number | null;
@@ -104,7 +109,9 @@ const invoiceLabel = (invoice?: Factura) => (invoice ? `${invoice.serie}/${invoi
 
 /** The clinical history table stores actual procedures, not odontogram revisions. */
 export function isPerformedTreatment(treatment: HistorialClinico) {
-  return treatment.estado === 'realizado' && Boolean(treatment.tratamiento_id);
+  // Legacy economic states still represent the same performed clinical act.
+  return ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(treatment.estado)
+    && Boolean(treatment.tratamiento_id);
 }
 /** Appointment status/administrative observations alone do not establish a clinical act. */
 export function isClinicalVisit(
@@ -132,6 +139,7 @@ export function buildHistoryRows(
     if (item.doctor?.nombre && item.doctor_id) doctors.set(item.doctor_id, item.doctor.nombre);
   });
   const invoices = new Map((billing ? data.facturas : []).map((f) => [f.id, f]));
+  const charges = new Map((billing ? data.account?.cargos ?? [] : []).map((c) => [c.historial_id, c]));
   type Input = Omit<HistoryRow, 'day' | 'search' | 'pieces' | 'tone' | 'fields'> &
     Partial<Pick<HistoryRow, 'pieces' | 'tone' | 'fields'>>;
   function add(row: Input) {
@@ -167,6 +175,7 @@ export function buildHistoryRows(
     rows.push(result);
   }
   data.historial.filter(isPerformedTreatment).forEach((t) => {
+    const charge = charges.get(t.id);
     const budget = data.presupuestos.find((b) => b.lineas.some((l) => l.id === t.presupuesto_linea_id));
     add({
       id: `hist-${t.id}`,
@@ -177,7 +186,7 @@ export function buildHistoryRows(
       concept: t.procedimiento || t.tratamiento?.nombre || 'Tratamiento dental',
       pieces: piecesOf([t.pieza_dental]),
       professionalId: t.doctor_id,
-      ...historyStatus(t.estado),
+      ...historyStatus('realizado'),
       observation:
         [
           t.observaciones,
@@ -187,8 +196,10 @@ export function buildHistoryRows(
         ]
           .filter(Boolean)
           .join('\n') || null,
-      amount: t.importe,
-      invoice: t.factura_id ? invoices.get(t.factura_id) : undefined,
+      amount: charge ? charge.importe : t.importe,
+      paid: charge?.cobrado,
+      balance: charge?.importe != null ? charge.pendiente : undefined,
+      invoice: invoices.get(charge?.factura_id || t.factura_id || ''),
       treatment: t,
       budget,
       fields: details({
@@ -230,6 +241,7 @@ export function buildHistoryRows(
       });
     });
   if (billing) {
+    const seenPayments = new Set<string>();
     data.facturas
       .filter((f) => f.estado !== 'borrador')
       .forEach((f) => {
@@ -251,7 +263,9 @@ export function buildHistoryRows(
             'Rectifica a': invoiceLabel(invoices.get(f.factura_rectificada_id || '')),
           }),
         });
-        f.cobros.forEach((c) =>
+        if (!data.account) f.cobros.forEach((c) => {
+          if (seenPayments.has(c.id) || data.anticipos.some((a) => a.id === c.id)) return;
+          seenPayments.add(c.id);
           add({
             id: `cobro-${c.id}`,
             recordId: c.id,
@@ -268,10 +282,34 @@ export function buildHistoryRows(
               Anulación: c.anulado_at ? clinicDateKey(c.anulado_at) : null,
               Notas: c.motivo_anulacion ? c.notas : null,
             }),
-          }),
-        );
+          });
+        });
       });
-    data.anticipos.forEach((a) =>
+    if (data.account) data.account.movimientos.forEach((m) => {
+      const related = data.facturas.filter((f) => f.id === m.factura_id || f.cobros.some((c) => c.id === m.id));
+      add({
+        id: `${m.tipo}-${m.id}`,
+        recordId: m.id,
+        date: m.fecha,
+        group: 'cobros',
+        type: m.tipo === 'anticipo' ? 'Anticipo' : 'Cobro',
+        concept: m.concepto || m.forma_pago || 'Pago registrado',
+        ...historyStatus(m.anulado ? 'anulado' : 'cobrado'),
+        invoice: related.length === 1 ? related[0] : undefined,
+        relatedInvoices: related,
+        payment: m,
+        amount: m.importe,
+        paid: m.anulado ? '0' : m.importe,
+        observation: m.motivo_anulacion || m.notas,
+        fields: details({
+          'Forma de pago': m.forma_pago,
+          'Aplicado a tratamientos': `${money(m.aplicado)} €`,
+          Facturas: related.length > 1 ? related.map(invoiceLabel).join(' · ') : related.length ? null : 'Sin factura asociada',
+          Notas: m.motivo_anulacion ? m.notas : null,
+        }),
+      });
+    });
+    else data.anticipos.forEach((a) =>
       add({
         id: `anticipo-${a.id}`,
         recordId: a.id,

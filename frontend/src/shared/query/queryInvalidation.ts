@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
 
 const patientScopedQueryKeys = (pacienteId: string) => [
+  ['cuenta-paciente', pacienteId],
   ['paciente-detalle', pacienteId],
   ['presupuestos', pacienteId],
   ['trabajo-pendiente', pacienteId],
@@ -27,6 +28,9 @@ const patientScopedQueryKeys = (pacienteId: string) => [
 ] as const;
 
 const globalOperationalQueryKeys = [
+  ['checkout-queue'],
+  ['cuentas-pendientes'],
+  ['registros'],
   ['pacientes'],
   ['citas'],
   ['hoy-citas'],

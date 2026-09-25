@@ -2,6 +2,9 @@ import type { Consentimiento, DocumentoPaciente, Factura, Presupuesto, Cita } fr
 import { clinicDateKey } from '../../../shared/time/clinicTime';
 import { formatDate, money } from '../../../shared/format';
 import { isClinicalVisit, isPerformedTreatment, type HistoryData, type HistoryRow } from './historyRows';
+import { useState } from 'react';
+import { openPaymentReceipt } from '../../../api/billing';
+import { getApiErrorMessage } from '../../../api/errors';
 
 export interface HistoryActions {
   onOpenDocumento: (document: DocumentoPaciente) => void;
@@ -21,6 +24,7 @@ export function HistoryRowDetail({
   actions: HistoryActions;
   billing: boolean;
 }) {
+  const [receiptError, setReceiptError] = useState<string | null>(null);
   const treatment = row.treatment;
   const relatedVisit = row.visit || data.citas.find((c) => c.id === treatment?.cita_id);
   const visit = relatedVisit && isClinicalVisit(relatedVisit, data) ? relatedVisit : undefined;
@@ -47,11 +51,11 @@ export function HistoryRowDetail({
       });
     if (row.paid != null)
       fields.push({
-        label: row.group === 'facturacion' ? 'Cobrado actual de la factura' : 'Cobro efectivo',
+        label: row.group === 'facturacion' ? 'Cobrado actual de la factura' : row.treatment ? 'Cobrado del tratamiento' : 'Cobro efectivo',
         value: `${money(row.paid)} €`,
       });
     if (row.balance != null)
-      fields.push({ label: 'Saldo actual de la factura', value: `${money(row.balance)} €` });
+      fields.push({ label: row.treatment ? 'Pendiente del tratamiento' : 'Saldo actual de la factura', value: `${money(row.balance)} €` });
   }
   return (
     <section className="patient-history-detail" aria-label={`Detalle de ${row.type.toLowerCase()}`}>
@@ -97,6 +101,17 @@ export function HistoryRowDetail({
         </section>
       )}
       <div className="patient-history-detail-actions">
+        {billing && row.payment?.tipo === 'cobro' && (
+          <button type="button" onClick={() => {
+            setReceiptError(null);
+            void openPaymentReceipt(row.payment!.id).catch(e => setReceiptError(getApiErrorMessage(e, 'No se pudo abrir el recibo.')));
+          }}>Abrir recibo</button>
+        )}
+        {billing && !row.invoice && row.relatedInvoices?.map(invoice => (
+          <button key={invoice.id} type="button" onClick={() => actions.onOpenFactura(invoice)}>
+            Abrir factura {invoice.serie}/{invoice.numero}
+          </button>
+        ))}
         {visit && (
           <>
             <button type="button" onClick={() => actions.onOpenVisit(visit)}>
@@ -130,6 +145,7 @@ export function HistoryRowDetail({
           </button>
         ))}
       </div>
+      {receiptError && <p role="alert">{receiptError}</p>}
     </section>
   );
 }

@@ -1,3 +1,4 @@
+import { getPatientAccount } from '../../api/accounts';
 import { ToolbarContribution } from '../../design-system/ToolbarSlots';
 import { ContextToolbar } from '../../design-system/ContextToolbar';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
@@ -22,11 +23,11 @@ import { fullName } from './patientName';
 import { invalidatePatientWorkspaceQueries } from '../../shared/query/queryInvalidation';
 import type { ApiPaciente,Consentimiento,DocumentoPaciente,Factura,HistorialClinico,HistorialSinFacturar,NotaDentalCreateInput,PagoAnticipadoPaciente,Presupuesto,PresupuestoLinea,SesionClinicaItem,SesionClinicaItemCreateInput,SesionClinicaItemUpdateInput,SesionTratamientoRealizadoInput,TrabajoLaboratorioCreateInput } from '../../api/types';
 import { ClinicalDictationModal } from '../ai/clinical-dictation/ClinicalDictation';
-import { getBillingTotals,getFacturaPendientePreferida } from '../billing/patient-account/billingUtils';
+import { getBillingTotals } from '../billing/patient-account/billingUtils';
 import { DentCoreHistoryBillingPanel,InvoiceHistoryModal } from '../billing/patient-account/HistorialFacturacion';
 import type { AnticipoModalMode } from '../billing/patient-account/modals/AnticipoModal';
 import { AnticipoModal } from '../billing/patient-account/modals/AnticipoModal';
-import { CobroModal } from '../billing/patient-account/modals/CobroModal';
+import { PatientCheckout } from '../billing/checkout/PatientCheckout';
 import { FacturaManualModal } from '../billing/patient-account/modals/FacturaManualModal';
 import { InvoiceCreationModal } from '../billing/patient-account/modals/FacturaModal';
 import type { PrimeraVisitaData } from '../clinical/first-visit/PrimeraVisita';
@@ -183,7 +184,7 @@ function PatientWorkspace() {
   const [invoiceCreatorOpen, setInvoiceCreatorOpen] = useState(false);
   const [invoiceHistoryOpen, setInvoiceHistoryOpen] = useState(false);
   const [contextMenu, setContextMenu] = useState<PatientContextMenu | null>(null);
-  const [cobroFactura, setCobroFactura] = useState<Factura | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [anticipoModal, setAnticipoModal] = useState<AnticipoModalMode | null>(null);
   const [facturaManualOpen, setFacturaManualOpen] = useState(false);
   const [revocarConsentimientoTarget, setRevocarConsentimientoTarget] = useState<Consentimiento | null>(null);
@@ -266,6 +267,7 @@ function PatientWorkspace() {
     queryFn: () => getPagosAnticipadosPaciente(active!.id),
     enabled: Boolean(active) && canManageBilling,
   });
+  const accountQuery = useQuery({ queryKey: ['cuenta-paciente', active?.id], queryFn: () => getPatientAccount(active!.id), enabled: Boolean(active?.id && canManageBilling) });
   const saldoQuery = useQuery({
     queryKey: ['saldo-paciente', active?.id],
     queryFn: () => getSaldoPaciente(active!.id),
@@ -527,8 +529,8 @@ function PatientWorkspace() {
         lineas: data.lineas,
         observaciones: 'Factura generada desde tratamientos no facturados',
       });
-      if (data.generarCobro && data.formaPagoId) {
-        await registrarCobro(factura.id, data.formaPagoId, Number(factura.total));
+      if (data.generarCobro && data.formaPagoId && Number(factura.pendiente) > 0) {
+        await registrarCobro(factura.id, data.formaPagoId, Number(factura.pendiente));
       }
       return factura;
     },
@@ -539,30 +541,6 @@ function PatientWorkspace() {
       void openFacturaPdf(factura.id).catch((error) => {
         toast.error(error instanceof Error ? error.message : 'Factura creada, pero no se pudo abrir el PDF.');
       });
-    },
-  });
-
-  const cobrarFactura = useMutation({
-    mutationFn: async () => {
-      const forma = formasPagoQuery.data?.[0];
-      if (!forma) throw new Error('No hay formas de pago configuradas');
-      const factura = getFacturaPendientePreferida(facturas);
-      if (!factura) throw new Error('No hay facturas pendientes');
-      return registrarCobro(factura.id, forma.id, Number(factura.pendiente));
-    },
-    onSuccess: () => {
-      if (active?.id) invalidatePatientWorkspace(active.id);
-      openPatientArea('historial');
-    },
-  });
-
-  const cobrarImporteFactura = useMutation({
-    mutationFn: ({ facturaId, formaPagoId, importe }: { facturaId: string; formaPagoId: string; importe: number }) =>
-      registrarCobro(facturaId, formaPagoId, importe),
-    onSuccess: () => {
-      setCobroFactura(null);
-      if (active?.id) invalidatePatientWorkspace(active.id);
-      openPatientArea('historial');
     },
   });
 
@@ -848,13 +826,8 @@ function PatientWorkspace() {
     window.setTimeout(() => document.getElementById('patient-search-input')?.focus(), 0);
   }
 
-  function abrirCobroDesdeFicha(factura?: Factura | null) {
-    const target = getFacturaPendientePreferida(facturas, factura);
-    if (target) {
-      setCobroFactura(target);
-      return;
-    }
-    setAnticipoModal({ kind: 'crear' });
+  function abrirCobroDesdeFicha() {
+    if (active && canManageBilling) setCheckoutOpen(true);
   }
 
   function revocarConsentimientoPaciente(consentimiento: Consentimiento) {
@@ -874,8 +847,7 @@ function PatientWorkspace() {
   }
 
   function abrirRecibos() {
-    openPatientArea('historial');
-    if (facturas[0]) abrirPdfFactura(facturas[0]);
+    abrirCobroDesdeFicha();
   }
 
   function openContext(event: MouseEvent, menu: PatientContextDraft) {
@@ -1260,11 +1232,12 @@ function PatientWorkspace() {
           <section className="history-complete-workspace">
             <HistorialCompletoPanel
               key={active?.id}
+              account={accountQuery.data}
               saldo={saldoQuery.data}
               professionals={doctoresQuery.data ?? []}
               onOpenPresupuesto={(presupuesto) => openBudget(presupuesto.id)}
-              loading={[historialQuery, citasPacienteQuery, presupuestosQuery, facturasQuery, pagosAnticipadosQuery, documentosQuery, consentimientosQuery, notasDentalesQuery, saldoQuery].some(query => query.isLoading)}
-              error={[historialQuery, citasPacienteQuery, presupuestosQuery, facturasQuery, pagosAnticipadosQuery, documentosQuery, consentimientosQuery, notasDentalesQuery, saldoQuery].some(query => query.isError)}
+              loading={[historialQuery, citasPacienteQuery, presupuestosQuery, facturasQuery, pagosAnticipadosQuery, documentosQuery, consentimientosQuery, notasDentalesQuery, saldoQuery, accountQuery].some(query => query.isLoading)}
+              error={[historialQuery, citasPacienteQuery, presupuestosQuery, facturasQuery, pagosAnticipadosQuery, documentosQuery, consentimientosQuery, notasDentalesQuery, saldoQuery, accountQuery].some(query => query.isError)}
               focusedVisitId={searchParams.get('visita_id')}
               initialFilter={initialArea === 'facturacion' ? 'facturacion' : undefined}
               focusedRecordId={searchParams.get('factura_id') || searchParams.get('cobro_id') || searchParams.get('anticipo_id') || searchParams.get('registro_id') || searchParams.get('laboratorio_id')}
@@ -1327,7 +1300,7 @@ function PatientWorkspace() {
             <>
               <strong>Factura</strong>
               <button onClick={() => abrirPdfFactura(contextMenu.factura)}>Ver / imprimir PDF</button>
-              <button onClick={() => { cobrarFactura.mutate(); setContextMenu(null); }} disabled={cobrarFactura.isPending || Number(contextMenu.factura.pendiente) <= 0}>Registrar cobro pendiente</button>
+              <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={Number(contextMenu.factura.pendiente) <= 0}>Registrar cobro pendiente</button>
               <button onClick={() => emitirRecetaFactura(contextMenu.factura)}>Emitir receta</button>
               <button onClick={() => { openDocumentsDrawer(); setContextMenu(null); }}>Ver documentos del paciente</button>
             </>
@@ -1435,16 +1408,18 @@ function PatientWorkspace() {
               <strong>{canManageBilling ? 'Tratamientos y facturación' : 'Tratamientos realizados'}</strong>
               <button type="button" onClick={() => setTreatmentHistoryOpen(false)}>Cerrar</button>
             </header>
+            {canManageBilling && accountQuery.isError && <p role="alert">No se pudo actualizar la cuenta. <button onClick={() => void accountQuery.refetch()}>Reintentar</button></p>}
             <DentCoreHistoryBillingPanel
+              account={accountQuery.data}
               paciente={active}
               historial={historialQuery.data ?? []}
               facturas={facturas}
               canManageBilling={canManageBilling}
               onFacturar={() => setInvoiceCreatorOpen(true)}
               onHistorialFacturas={() => setInvoiceHistoryOpen(true)}
-              onCobrar={() => cobrarFactura.mutate()}
+              onCobrar={() => abrirCobroDesdeFicha()}
               onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
-              onCobrarImporte={(factura) => setCobroFactura(factura)}
+              onCobrarImporte={() => abrirCobroDesdeFicha()}
               onRecibos={abrirRecibos}
               onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
               onCrearReceta={() => {
@@ -1535,14 +1510,7 @@ function PatientWorkspace() {
           onSave={(data) => guardarFichaPaciente.mutate(data)}
         />
       )}
-      {canManageBilling && cobroFactura && (
-        <CobroModal
-          factura={cobroFactura}
-          formasPago={formasPagoQuery.data ?? []}
-          onClose={() => setCobroFactura(null)}
-          onConfirm={(formaPagoId, importe) => cobrarImporteFactura.mutate({ facturaId: cobroFactura.id, formaPagoId, importe })}
-        />
-      )}
+      {canManageBilling && active && checkoutOpen && <PatientCheckout patientId={active.id} onClose={() => setCheckoutOpen(false)} />}
       {canManageBilling && anticipoModal && active && (
         <AnticipoModal
           pacienteNombre={fullName(active)}

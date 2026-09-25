@@ -107,3 +107,5 @@
 .dc-visit-pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
 
 @media (max-width: 700px) { .dc-visit-detail dl { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+
+.history-payments { padding: var(--dc-space-2); border-top: 1px solid var(--dc-border); max-height: 240px; overflow: auto; }

@@ -18,7 +18,7 @@ function localDate() {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-test('Circuito real: presupuesto → aceptación → cita → sesión → realizado → factura → cobro', async ({ page, request }) => {
+test('Circuito real: presupuesto → aceptación → cita → sesión → realizado → cobro → factura', async ({ page, request }) => {
   expect(['localhost', '127.0.0.1']).toContain(new URL(apiBase).hostname);
   const auth = await request.post(`${apiBase}/auth/login`, { data: { username: 'admin', password: 'admin1234' } });
   expect(auth.ok()).toBeTruthy();
@@ -106,33 +106,42 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
   await page.getByRole('dialog', { name: 'Finalizar visita clínica' }).getByRole('button', { name: 'Confirmar finalización de visita' }).click();
   await expect.poll(async () => (await api<Appointment>(request, token, `/citas/${appointment.id}`)).pendiente_salida).toBe(true);
 
-  // Invoice the accepted/performed plan using the existing budget action.
-  await page.goto(`/pacientes?paciente_id=${patient.id}`);
-  await page.getByRole('button', { name: /^Presupuestos 1$/ }).click();
-  const createdInvoice = page.waitForResponse(response => response.url().includes(`/presupuestos/${budget.id}/convertir-a-factura`) && response.request().method() === 'POST');
-  await page.locator('.budget-panel').getByRole('button', { name: 'Facturar', exact: true }).click();
-  const invoiceDialog = page.getByRole('dialog', { name: 'Confirmar facturación' });
-  await expect(invoiceDialog).toContainText('75,00');
-  await invoiceDialog.getByRole('button', { name: 'Confirmar factura', exact: true }).click();
-  const invoiceResponse = await createdInvoice;
-  expect(invoiceResponse.ok(), await invoiceResponse.text()).toBeTruthy();
-  const invoice = await invoiceResponse.json() as { id: string; total: string; lineas: Array<{ historial_id: string }> };
-  expect(Number(invoice.total)).toBe(75);
-  expect(invoice.lineas.map(item => item.historial_id)).toContain(clinical.id);
-
+  // Reception collects performed charges BEFORE a fiscal document exists.
+  const initial = await api<{ pendiente: string; total_facturado: string }>(request, token, `/pacientes/${patient.id}/saldo`);
+  expect(Number(initial.pendiente)).toBe(75);
+  expect(Number(initial.total_facturado)).toBe(0);
   await page.goto('/caja');
-  const invoiceRow = page.getByRole('row').filter({ has: page.locator(`a[href="/pacientes?paciente_id=${patient.id}"]`) });
-  await invoiceRow.getByRole('button', { name: 'Cobrar', exact: true }).click();
-  const paymentDialog = page.getByRole('dialog', { name: 'Registrar cobro', exact: true });
-  await expect(paymentDialog.getByLabel('Importe (€)')).toHaveValue('75.00');
-  await paymentDialog.getByRole('button', { name: 'Registrar cobro', exact: true }).click();
-  await expect(paymentDialog).not.toBeVisible();
+  await page.locator(`.jornada-checkout-item[data-cita-id="${appointment.id}"]`).getByRole('button', { name: 'Cobrar', exact: true }).click();
+  const checkout = page.getByRole('dialog', { name: 'Cobro y salida', exact: true });
+  await expect(checkout.getByLabel('Importe a cobrar (€)')).toHaveValue('75');
+  await checkout.getByRole('button', { name: /Confirmar cobro/ }).click();
+  await expect(checkout.getByText('Salida resuelta', { exact: true })).toBeVisible();
+  const collected = await api<{ pendiente: string; total_facturado: string; total_cobrado: string }>(request, token, `/pacientes/${patient.id}/saldo`);
+  expect(Number(collected.total_facturado)).toBe(0);
+  expect(Number(collected.total_cobrado)).toBe(75);
+  expect(Number(collected.pendiente)).toBe(0);
+  const invoiceResponse = page.waitForResponse(response => response.url().endsWith(`/cuentas/${patient.id}/facturar`) && response.request().method() === 'POST');
+  await checkout.getByRole('button', { name: /Emitir factura/ }).click();
+  const response = await invoiceResponse;
+  expect(response.status(), await response.text()).toBe(201);
+  const invoice = await response.json() as { id: string; total: string; total_cobrado: string; lineas: Array<{ historial_id: string }> };
+  expect(Number(invoice.total)).toBe(75);
+  expect(Number(invoice.total_cobrado)).toBe(75);
+  expect(invoice.lineas.map(item => item.historial_id)).toContain(clinical.id);
+  await checkout.getByRole('button', { name: 'Terminar', exact: true }).click();
+  await page.reload();
+  await expect(page.locator(`.jornada-checkout-item[data-cita-id="${appointment.id}"]`)).toHaveCount(0);
   const balance = await api<{ pendiente: string; total_facturado: string; total_cobrado: string }>(request, token, `/pacientes/${patient.id}/saldo`);
   expect(Number(balance.total_facturado)).toBe(75);
   expect(Number(balance.total_cobrado)).toBe(75);
   expect(Number(balance.pendiente)).toBe(0);
-  await page.reload();
-  await expect(invoiceRow).toHaveCount(0);
   const history = await api<Array<{ id: string; factura_id: string }>>(request, token, `/tratamientos/historial/${patient.id}`);
   expect(history.find(item => item.id === clinical.id)?.factura_id).toBe(invoice.id);
+  await page.goto(`/pacientes?paciente_id=${patient.id}&tab=historial`);
+  await expect(page.getByRole('button', { name: /Ver detalle: Tratamiento/ })).toHaveCount(1);
+  const performedRow = page.getByRole('row').filter({ has: page.getByRole('button', { name: /Ver detalle: Tratamiento/ }) });
+  await expect(performedRow).toContainText('Realizado');
+  await expect(performedRow).toContainText('75,0075,000,00');
+  await page.getByRole('button', { name: 'Cobros', exact: true }).click();
+  await expect(page.getByRole('button', { name: /Ver detalle: Cobro/ })).toHaveCount(1);
 });

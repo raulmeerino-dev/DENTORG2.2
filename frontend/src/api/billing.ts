@@ -123,3 +123,8 @@ export async function openFacturaPdf(facturaId: string) {
   const { data } = await api.get<Blob>(`/pdf/facturas/${facturaId}`, { responseType: 'blob' });
   return openOrDownloadBlob(data, `factura_${facturaId}.pdf`, { requirePdf: true });
 }
+
+export async function openPaymentReceipt(paymentId: string) {
+  const { data } = await api.get<Blob>(`/pdf/cobros/${paymentId}`, { responseType: "blob" });
+  return openOrDownloadBlob(data, `recibo_${paymentId}.pdf`, { requirePdf: true });
+}

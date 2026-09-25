@@ -9,7 +9,7 @@ import { localAppointmentDate } from '../../scheduling/agenda/agendaTime';
 import { Dialog } from '../../../design-system';
 import type { Cita, UserRole } from '../../../api/types';
 
-export default function FinishVisitAction({ citas, role, doctorId, hasUnsaved }: { citas: Cita[]; role?: UserRole | null; doctorId?: string | null; hasUnsaved: boolean }) {
+export default function FinishVisitAction({ citas, role, doctorId, hasUnsaved, beforeFinish }: { citas: Cita[]; role?: UserRole | null; doctorId?: string | null; hasUnsaved: boolean; beforeFinish?: () => Promise<void> }) {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -17,7 +17,7 @@ export default function FinishVisitAction({ citas, role, doctorId, hasUnsaved }:
   const [chosen, setChosen] = useState('');
   const active = citas.filter(cita => getVisualStatus(cita) === 'en_atencion' && (role !== 'doctor' || cita.doctor_id === doctorId));
   const cita = active.find(item => item.id === (chosen || params.get('cita_id'))) ?? (active.length === 1 ? active[0] : null);
-  const finish = useMutation({ mutationFn: () => finalizarVisitaCita(cita!.id), onSuccess: result => {
+  const finish = useMutation({ mutationFn: async () => { await beforeFinish?.(); return finalizarVisitaCita(cita!.id); }, onSuccess: result => {
     invalidatePatientWorkspaceQueries(queryClient, result.paciente_id);
     setConfirm(false);
     navigate(`/jornada?fecha=${localAppointmentDate(result.fecha_hora)}&vista=operativa`);

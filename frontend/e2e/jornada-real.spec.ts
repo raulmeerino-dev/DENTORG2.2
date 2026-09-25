@@ -106,8 +106,8 @@ test('Jornada real: recepción → sala → atención → finalización → sali
     await reception.getByRole('button', { name: /^Filtros/ }).click();
     await reception.getByLabel('Buscar en Jornada').fill(data.name);
     await reception.keyboard.press('Escape');
-    await reception.getByRole('region', { name: 'Pendiente de salida' }).locator(`[data-cita-id="${data.appointment.id}"]`).getByRole('button', { name: 'Resolver salida', exact: true }).click();
-    await reception.getByRole('dialog', { name: 'Resolver salida' }).getByRole('button', { name: 'Confirmar salida revisada' }).click();
+    await reception.getByRole('region', { name: 'Pendiente de salida' }).locator(`[data-cita-id="${data.appointment.id}"]`).getByRole('button', { name: 'Dejar pendiente', exact: true }).click();
+    await reception.getByRole('dialog', { name: 'Cobro y salida' }).getByRole('button', { name: 'Confirmar salida y dejar pendiente' }).click();
     await expect.poll(async () => (await read()).pendiente_salida).toBe(false);
     const finished = await read();
     expect(finished.estado_operativo).toBe('finalizada');

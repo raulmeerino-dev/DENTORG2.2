@@ -306,7 +306,7 @@ export function SessionWorkspace({
     return promise;
   }
 
-  async function persistUpdate(item: SessionTreatment, cambios: SesionClinicaItemUpdateInput) {
+  async function persistUpdate(item: SessionTreatment, cambios: SesionClinicaItemUpdateInput, propagateError = false) {
     if (Object.keys(cambios).length === 0) return;
     const submittedFields = Object.keys(cambios).map((field) => {
       const key = `${item.id}:${field}`;
@@ -342,6 +342,7 @@ export function SessionWorkspace({
       });
     } catch (error) {
       setSessionError(error instanceof Error ? error.message : 'No se pudo guardar el cambio en la sesion.');
+      if (propagateError) throw error;
     } finally {
       setPendingSessionWrites((count) => count - 1);
     }
@@ -475,7 +476,7 @@ export function SessionWorkspace({
     }
   }
 
-  async function saveQuickDentalNote() {
+  async function saveQuickDentalNote(propagateError = false) {
     if (!paciente || !selected || !selectedPieceNumber || !quickNote.trim()) return;
     setSavingNote(true);
     setSessionError(null);
@@ -491,8 +492,21 @@ export function SessionWorkspace({
       setQuickNote('');
     } catch (error) {
       setSessionError(error instanceof Error ? error.message : 'No se pudo guardar la nota de pieza.');
+      if (propagateError) throw error;
     } finally {
       setSavingNote(false);
+    }
+  }
+
+  async function saveBeforeFinish() {
+    for (const item of draftItems) {
+      const values: SesionClinicaItemUpdateInput = { titulo: item.title.trim() || null, tratamiento_id: item.tratamientoId || null, pieza_dental: pieceToUpdate(item.piezaDental), caras: item.caras || null, observaciones: item.observaciones.trim() || null, estado: item.status === 'realizado' ? undefined : item.status };
+      const changes = Object.fromEntries(Object.entries(values).filter(([field, value]) => value !== undefined && dirtyFields.has(`${item.id}:${field}`))) as SesionClinicaItemUpdateInput;
+      await persistUpdate(item, changes, true);
+    }
+    if (quickNote.trim()) {
+      if (!selectedPieceNumber) throw new Error('Selecciona la pieza de la nota antes de finalizar.');
+      await saveQuickDentalNote(true);
     }
   }
 
@@ -518,13 +532,12 @@ export function SessionWorkspace({
             citas={citas}
             role={userRole}
             doctorId={doctorId}
+            beforeFinish={saveBeforeFinish}
             hasUnsaved={Boolean(
               recordOpen ||
-              quickNote.trim() ||
               savingId ||
               savingNote ||
-              pendingSessionWrites ||
-              dirtyFields.size,
+              pendingSessionWrites,
             )}
           />
           <ClinicalDictationButton
