@@ -10,6 +10,9 @@
 .patient-history-filters button[aria-pressed="true"] { color: var(--dc-primary); background: var(--dc-primary-soft); font-weight: 650; }
 .patient-history-filters button:hover { background: var(--dc-surface-hover); }
 .patient-history-filters .patient-history-clear { margin-left: auto; text-decoration: underline; }
+.patient-history-filters .patient-history-group { margin-left: auto; border-left-color: var(--dc-border); }
+.patient-history-check { display: flex; align-items: center; gap: 8px; }
+.patient-history-check input { width: auto; }
 .patient-history-focus { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--dc-primary-soft); padding: 6px 12px; font-size: 12px; }
 .patient-history-focus span { min-width: 0; overflow-wrap: anywhere; }
 .patient-history-focus button { flex-shrink: 0; }
@@ -41,6 +44,15 @@
 .patient-history-account .is-settled dd { color: var(--dc-success); }
 .patient-history-payments { padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--dc-border); }
 .patient-history-payments p, .patient-history-billing-status { margin: 6px 0; }
+.patient-history-economics { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--dc-border); }
+.patient-history-detail-table { width: 100%; margin-top: 8px; border-collapse: collapse; table-layout: auto; }
+.patient-history-detail-table th, .patient-history-detail-table td { padding: 6px 8px; border-bottom: 1px solid var(--dc-border); text-align: left; vertical-align: top; white-space: normal; }
+.patient-history-detail-table th { position: static; font-size: 10px; height: auto; }
+.patient-history-detail-table td:first-child { min-width: 130px; }
+.patient-history-detail-table small { display: block; margin-top: 3px; color: var(--dc-muted); white-space: pre-wrap; }
+.patient-history-detail-table button { padding: 0; min-height: 25px; background: transparent; color: var(--dc-primary); border: 0; font: inherit; text-align: left; cursor: pointer; white-space: normal; text-decoration: underline; }
+.patient-history-detail-table .ph-numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.patient-history-help { color: var(--dc-muted); font-size: 11px; margin: 8px 0 0; }
 .patient-history .patient-history-expand, .patient-history .patient-history-note { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 25px; min-height: 25px; padding: 0; border: 0; background: transparent; color: var(--dc-muted); border-radius: 3px; cursor: pointer; }
 .patient-history-expand:hover, .patient-history-note:hover { color: var(--dc-primary); background: var(--dc-primary-soft); }
 .patient-history-concept { display: flex; align-items: center; gap: 5px; min-width: 0; }

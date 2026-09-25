@@ -23,6 +23,11 @@ class CargoResponse(BaseModel):
     origen: str
 
 
+class AplicacionResponse(BaseModel):
+    cargo_id: UUID
+    importe: Decimal
+
+
 class MovimientoResponse(BaseModel):
     id: UUID
     tipo: str
@@ -35,6 +40,9 @@ class MovimientoResponse(BaseModel):
     concepto: str | None = None
     notas: str | None = None
     motivo_anulacion: str | None = None
+    registrado_por: str | None = None
+    aplicaciones: list[AplicacionResponse] = Field(default_factory=list)
+    saldo_tras_operacion: Decimal | None = None
 
 
 class CuentaResponse(BaseModel):

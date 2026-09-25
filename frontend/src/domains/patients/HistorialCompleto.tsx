@@ -60,6 +60,8 @@ export function HistorialCompletoPanel({
   const [focusDismissed, setFocusDismissed] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [page, setPage] = useState(0);
+  const [groupVisits, setGroupVisits] = useState(true);
+  const [localRecord, setLocalRecord] = useState<string | null>(null);
   const [query, setQuery] = useState<HistoryQuery>({
     group: initialFilter,
     search: '',
@@ -94,31 +96,25 @@ export function HistorialCompletoPanel({
   );
   const activeGroup = availableFilters.some((f) => f.id === query.group) ? query.group : 'todo';
   const focused =
-    !focusDismissed && props.focusedRecordId
-      ? rows.find((r) => r.recordId === props.focusedRecordId)
+    localRecord || (!focusDismissed && props.focusedRecordId)
+      ? rows.find((r) => r.recordId === (localRecord || props.focusedRecordId))
       : undefined;
   const filtered = useMemo(
-    () => filterHistoryRows(rows, { ...query, group: activeGroup }),
-    [rows, query, activeGroup],
+    () => filterHistoryRows(rows, { ...query, group: activeGroup }, groupVisits),
+    [rows, query, activeGroup, groupVisits],
   );
-  const visible = focused
-    ? rows
-        .filter(
-          (r) => r.id === focused.id || Boolean(focused.invoice && r.invoice?.id === focused.invoice.id),
-        )
-        .sort((a, b) => b.date.localeCompare(a.date))
-    : filtered;
+  const visible = focused ? [focused] : filtered;
   const currentPage = Math.min(page, Math.max(0, Math.ceil(visible.length / PAGE_SIZE) - 1));
   const displayed = visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
   const expandedId = expanded || focused?.id;
   const doctorOptions = [
     ...new Map(
-      rows.filter((r) => r.professionalId && r.professional).map((r) => [r.professionalId!, r.professional!]),
+      rows.filter((r) => r.professionalId && r.professional && !r.children?.length).map((r) => [r.professionalId!, r.professional!]),
     ).entries(),
   ].sort((a, b) => a[1].localeCompare(b[1]));
   const states = [...new Set(rows.map((r) => r.status).filter((v): v is string => Boolean(v)))].sort();
   const pieces = [...new Set(rows.flatMap((r) => r.pieces))].sort((a, b) => a - b);
-  const advancedCount = [query.from, query.to, query.professional, query.state, query.piece].filter(
+  const advancedCount = [query.from, query.to, query.professional, query.state, query.piece, query.pendingOnly].filter(
     Boolean,
   ).length;
   const activeVisit = citas.find(
@@ -131,10 +127,18 @@ export function HistorialCompletoPanel({
     onOpenFactura: props.onOpenFactura,
     onOpenPresupuesto: props.onOpenPresupuesto,
     onOpenVisit: setVisit,
+    onOpenRecord: (id) => {
+      setLocalRecord(id);
+      setFocusDismissed(true);
+      setExpanded(null);
+      setPage(0);
+      tableRef.current?.closest('.dc-patient-body')?.scrollTo({ top: 0 });
+    },
   };
   function change(patch: Partial<HistoryQuery>) {
     setQuery((q) => ({ ...q, ...patch }));
     setFocusDismissed(true);
+    setLocalRecord(null);
     setPage(0);
     setExpanded(null);
   }
@@ -218,10 +222,14 @@ export function HistorialCompletoPanel({
               ))}
             </select>
           </label>
+          {canManageBilling && <label className="patient-history-check">
+            <input type="checkbox" checked={Boolean(query.pendingOnly)} onChange={event => change({ pendingOnly: event.target.checked })} />
+            Con saldo pendiente
+          </label>}
           {advancedCount > 0 && (
             <button
               type="button"
-              onClick={() => change({ from: '', to: '', professional: '', state: '', piece: '' })}
+              onClick={() => change({ from: '', to: '', professional: '', state: '', piece: '', pendingOnly: false })}
             >
               Limpiar filtros avanzados
             </button>
@@ -243,7 +251,6 @@ export function HistorialCompletoPanel({
         </button>
         <span className="patient-history-count" role="status">
           {visible.length} {visible.length === 1 ? 'registro' : 'registros'}
-          {visible.length !== rows.length ? ` de ${rows.length}` : ''}
         </span>
         {props.onOpenTreatmentHistory && (
           <button type="button" onClick={props.onOpenTreatmentHistory}>
@@ -262,11 +269,14 @@ export function HistorialCompletoPanel({
             {f.label}
           </button>
         ))}
+        {activeGroup === 'todo' && !focused && <button type="button" className="patient-history-group" aria-pressed={groupVisits} onClick={() => { setGroupVisits(value => !value); setPage(0); setExpanded(null); }}>
+          Agrupar por visita
+        </button>}
         {(query.search || advancedCount > 0) && (
           <button
             type="button"
             className="patient-history-clear"
-            onClick={() => change({ search: '', from: '', to: '', professional: '', state: '', piece: '' })}
+            onClick={() => change({ search: '', from: '', to: '', professional: '', state: '', piece: '', pendingOnly: false })}
           >
             Limpiar búsqueda y filtros
           </button>
@@ -278,6 +288,7 @@ export function HistorialCompletoPanel({
           aria-label="Saldo actual del paciente"
           title="Contabilidad actual del paciente, independiente de los filtros del historial"
         >
+          {account && <div><dt>Cargos</dt><dd>{money(account.total_cargos)} €</dd></div>}
           <div>
             <dt>Facturado</dt>
             <dd>{money(props.saldo.total_facturado)} €</dd>
@@ -316,6 +327,7 @@ export function HistorialCompletoPanel({
             type="button"
             onClick={() => {
               setFocusDismissed(true);
+              setLocalRecord(null);
               setExpanded(null);
             }}
           >
@@ -376,7 +388,7 @@ export function HistorialCompletoPanel({
                 </th>
                 <th
                   className="ph-numeric ph-balance"
-                  title="Pendiente actual del tratamiento o factura, no saldo histórico acumulado"
+                  title="Tratamientos y visitas: pendiente actual. Cobros: saldo de la cuenta al registrar el pago."
                 >
                   Saldo
                 </th>
@@ -457,7 +469,9 @@ export function HistorialCompletoPanel({
                           >
                             {row.invoice.serie}/{row.invoice.numero}
                           </button>
-                        ) : row.treatment ? (
+                        ) : row.relatedInvoices?.length ? (
+                          <button type="button" className="patient-history-invoice" onClick={() => setExpanded(row.id)}>{row.relatedInvoices.length} factura{row.relatedInvoices.length > 1 ? 's' : ''}</button>
+                        ) : row.treatment || row.children?.length ? (
                           <span title={Number(row.amount) === 0 && row.amount != null ? 'Cortesía · sin factura' : 'Tratamiento realizado pendiente de facturar'}>{Number(row.amount) === 0 && row.amount != null ? 'Cortesía' : 'Sin facturar'}</span>
                         ) : (
                           '—'
@@ -470,7 +484,7 @@ export function HistorialCompletoPanel({
                         {amount(row.amount)}
                       </td>
                       <td className="ph-numeric ph-paid">{amount(row.paid)}</td>
-                      <td className={`ph-numeric ph-balance ${Number(row.balance) > 0 ? 'has-debt' : ''}`}>
+                      <td title={row.balanceAtPayment ? 'Saldo de cuenta al registrar este pago; puede haber movimientos posteriores.' : 'Pendiente actual de este acto o documento'} className={`ph-numeric ph-balance ${Number(row.balance) > 0 ? 'has-debt' : ''}`}>
                         {amount(row.balance)}
                       </td>
                     </>

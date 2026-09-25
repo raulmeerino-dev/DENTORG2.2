@@ -29,6 +29,9 @@ export interface AccountMovement {
   concepto?: string | null;
   notas?: string | null;
   motivo_anulacion?: string | null;
+  registrado_por?: string | null;
+  aplicaciones?: { cargo_id: string; importe: string }[];
+  saldo_tras_operacion?: string | null;
 }
 export interface PatientAccount {
   paciente_id: string;

@@ -10,6 +10,7 @@ import { formatDate } from '../../../shared/format';
 import { clinicTime } from '../../../shared/time/clinicTime';
 import { useEffect, useRef } from 'react';
 import { isClinicalNote } from './clinicalNotes';
+import { isPerformedTreatment } from './clinicalActs';
 
 export function VisitDetail({
   cita,
@@ -36,7 +37,7 @@ export function VisitDetail({
     if (owner) owner.scrollTop = 0;
     panel.current?.focus({ preventScroll: true });
   }, [cita.id]);
-  const linked = historial.filter((row) => row.cita_id === cita.id && row.estado === 'realizado');
+  const linked = historial.filter((row) => row.cita_id === cita.id && isPerformedTreatment(row));
   const linkedNotes = notas.filter(
     (row) =>
       isClinicalNote(row) && (row.cita_id === cita.id || (row.historial_id && linked.some((item) => item.id === row.historial_id))),

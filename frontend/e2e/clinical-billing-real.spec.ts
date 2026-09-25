@@ -138,6 +138,10 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
   const history = await api<Array<{ id: string; factura_id: string }>>(request, token, `/tratamientos/historial/${patient.id}`);
   expect(history.find(item => item.id === clinical.id)?.factura_id).toBe(invoice.id);
   await page.goto(`/pacientes?paciente_id=${patient.id}&tab=historial`);
+  await expect(page.getByRole('button', { name: /Ver detalle: Visita clínica/ })).toHaveCount(1);
+  await page.getByRole('button', { name: /Ver detalle: Visita clínica/ }).click();
+  await expect(page.getByRole('region', { name: 'Pagos relacionados', exact: true })).toContainText('75,00');
+  await page.getByRole('navigation', { name: 'Filtros del historial completo' }).getByRole('button', { name: 'Tratamientos', exact: true }).click();
   await expect(page.getByRole('button', { name: /Ver detalle: Tratamiento/ })).toHaveCount(1);
   const performedRow = page.getByRole('row').filter({ has: page.getByRole('button', { name: /Ver detalle: Tratamiento/ }) });
   await expect(performedRow).toContainText('Realizado');

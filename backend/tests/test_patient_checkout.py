@@ -596,3 +596,55 @@ async def test_receipt_without_invoice_has_patient_and_is_clinic_scoped(db_sessi
     response = await pdf_recibo_cobro(receipt.cobro_id, db_session, user)
     content = "\n".join(p.extract_text() for p in PdfReader(BytesIO(response.body)).pages)
     assert f"{invoice.serie}-{invoice.numero:04d}" in content
+
+
+async def test_history_exposes_actual_allocations_and_immutable_payment_balances(db_session):
+    user, patient, method, _, *_ = await setup(db_session, "180", visit=False)
+    initial = await read_account(db_session, patient.id, user)
+    receipts = []
+    for amount in [80, 100]:
+        account = await read_account(db_session, patient.id, user)
+        receipts.append(
+            await checkout(
+                db_session,
+                patient.id,
+                CheckoutRequest(
+                    request_id=uuid4(),
+                    version=account.version,
+                    importe=amount,
+                    forma_pago_id=method.id,
+                ),
+                user,
+                None,
+            )
+        )
+    await invoice_charges(
+        db_session,
+        patient.id,
+        FacturarCargosRequest(request_id=uuid4(), cargo_ids=[initial.cargos[0].id]),
+        user,
+    )
+    account = await read_account(db_session, patient.id, user)
+    payments = {p.id: p for p in account.movimientos}
+    assert account.saldo == 0 and account.cargos[0].cobrado == 180
+    for receipt, amount, remaining in zip(receipts, [80, 100], [100, 0], strict=True):
+        movement = payments[receipt.cobro_id]
+        assert movement.saldo_tras_operacion == remaining
+        assert movement.registrado_por
+        assert [(a.cargo_id, a.importe) for a in movement.aplicaciones] == [
+            (initial.cargos[0].id, amount)
+        ]
+    # Do not expose an admin's global balance to another clinic on a shared patient.
+    own_clinic = await read_account(
+        db_session, patient.id, TokenData(user.user_id, user.username, "recepcion", user.clinica_id)
+    )
+    assert {m.saldo_tras_operacion for m in own_clinic.movimientos} == {0, 100}
+    patient.clinica_id = None
+    for receipt in receipts:
+        (await db_session.get(Cobro, receipt.cobro_id)).clinica_id = None
+    await db_session.commit()
+    restricted = await read_account(
+        db_session, patient.id, TokenData(user.user_id, user.username, "recepcion", uuid4())
+    )
+    assert len(restricted.movimientos) == 2
+    assert all(m.saldo_tras_operacion is None for m in restricted.movimientos)

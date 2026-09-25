@@ -13,6 +13,8 @@ import { isClinicalNote } from '../../clinical/history/clinicalNotes';
 import { clinicDateKey, clinicTime } from '../../../shared/time/clinicTime';
 import type { AccountMovement, PatientAccount } from '../../../api/accounts';
 import { money } from '../../../shared/format';
+import { isPerformedTreatment } from '../../clinical/history/clinicalActs';
+export { isPerformedTreatment } from '../../clinical/history/clinicalActs';
 
 export type HistoryFilter = 'todo' | 'clinico' | 'visitas' | 'facturacion' | 'cobros';
 export type HistoryTone = 'neutral' | 'success' | 'info' | 'warning' | 'danger';
@@ -44,6 +46,9 @@ export interface HistoryRow {
   invoice?: Factura;
   relatedInvoices?: Factura[];
   payment?: AccountMovement;
+  children?: HistoryRow[];
+  chargeIds?: string[];
+  balanceAtPayment?: boolean;
   amount?: string | number | null;
   paid?: string | number | null;
   balance?: string | number | null;
@@ -107,12 +112,6 @@ const piecesOf = (values: (number | null | undefined)[]) =>
   [...new Set(values.filter((v): v is number => Boolean(v)))].sort((a, b) => a - b);
 const invoiceLabel = (invoice?: Factura) => (invoice ? `${invoice.serie}/${invoice.numero}` : '');
 
-/** The clinical history table stores actual procedures, not odontogram revisions. */
-export function isPerformedTreatment(treatment: HistorialClinico) {
-  // Legacy economic states still represent the same performed clinical act.
-  return ['realizado', 'facturado', 'cobrado_parcial', 'cobrado_completo'].includes(treatment.estado)
-    && Boolean(treatment.tratamiento_id);
-}
 /** Appointment status/administrative observations alone do not establish a clinical act. */
 export function isClinicalVisit(
   visit: Cita,
@@ -157,6 +156,7 @@ export function buildHistoryRows(
       delete result.paid;
       delete result.balance;
       delete result.invoice;
+      delete result.relatedInvoices;
     }
     result.search = normalizeHistoryText(
       [
@@ -167,6 +167,8 @@ export function buildHistoryRows(
         result.status,
         result.observation,
         invoiceLabel(result.invoice),
+        ...(result.relatedInvoices ?? []).map(invoiceLabel),
+        ...(result.visit ? result.children ?? [] : []).map((child) => child.search),
         ...result.fields.map((f) => f.value),
       ]
         .filter(Boolean)
@@ -201,6 +203,7 @@ export function buildHistoryRows(
       balance: charge?.importe != null ? charge.pendiente : undefined,
       invoice: invoices.get(charge?.factura_id || t.factura_id || ''),
       treatment: t,
+      chargeIds: charge ? [charge.id] : [],
       budget,
       fields: details({
         Tratamiento: t.tratamiento?.nombre,
@@ -216,6 +219,12 @@ export function buildHistoryRows(
     .forEach((c) => {
       const treatments = data.historial.filter((t) => t.cita_id === c.id && isPerformedTreatment(t));
       const notes = data.notasDentales.filter((n) => n.cita_id === c.id && isClinicalNote(n));
+      const children = rows.filter((r) => r.treatment?.cita_id === c.id);
+      const relatedInvoices = [...new Map(children.filter(r => r.invoice).map(r => [r.invoice!.id, r.invoice!])).values()];
+      const total = (field: 'amount' | 'paid' | 'balance') => children.length && children.every(r => r[field] != null)
+        ? (children.reduce((sum, r) => sum + Math.round(Number(r[field]) * 100), 0) / 100).toFixed(2)
+        : undefined;
+      const practitioners = new Set(children.map(r => r.professionalId).filter(Boolean));
       add({
         id: `cita-${c.id}`,
         recordId: c.id,
@@ -224,19 +233,23 @@ export function buildHistoryRows(
         type: 'Visita clínica',
         concept: c.motivo || 'Actuación clínica',
         professionalId: c.doctor_id,
+        professional: practitioners.size > 1 ? 'Varios profesionales' : children[0]?.professional,
         ...historyStatus(getVisualStatus(c)),
         status: treatments.length ? `${treatments.length} tratamientos` : 'Nota clínica',
         observation: notes.map((n) => n.texto).join('\n') || null,
         visit: c,
+        children,
+        chargeIds: children.flatMap(r => r.chargeIds ?? []),
+        relatedInvoices,
+        invoice: relatedInvoices.length === 1 && children.every(r => r.invoice?.id === relatedInvoices[0].id) ? relatedInvoices[0] : undefined,
+        amount: total('amount'),
+        paid: total('paid'),
+        balance: total('balance'),
         pieces: piecesOf([...treatments, ...notes].map((t) => t.pieza_dental)),
         fields: details({
           Hora: clinicTime(c.fecha_hora),
           Duración: `${c.duracion_min} min`,
           Gabinete: c.gabinete_nombre,
-          'Tratamientos realizados': treatments
-            .map((t) => t.procedimiento || t.tratamiento?.nombre)
-            .filter(Boolean)
-            .join(' · '),
         }),
       });
     });
@@ -254,6 +267,7 @@ export function buildHistoryRows(
           concept: f.lineas.map((l) => l.concepto).join(' · ') || `Factura ${invoiceLabel(f)}`,
           ...historyStatus(f.estado),
           invoice: f,
+          children: rows.filter(r => r.treatment && (r.invoice?.id === f.id || f.lineas.some(l => l.historial_id === r.recordId))),
           amount: f.total,
           paid: f.total_cobrado,
           balance: f.estado === 'anulada' ? '0' : f.pendiente,
@@ -294,15 +308,19 @@ export function buildHistoryRows(
         group: 'cobros',
         type: m.tipo === 'anticipo' ? 'Anticipo' : 'Cobro',
         concept: m.concepto || m.forma_pago || 'Pago registrado',
+        professional: m.registrado_por || undefined,
         ...historyStatus(m.anulado ? 'anulado' : 'cobrado'),
         invoice: related.length === 1 ? related[0] : undefined,
         relatedInvoices: related,
         payment: m,
-        amount: m.importe,
         paid: m.anulado ? '0' : m.importe,
+        balance: m.anulado ? undefined : m.saldo_tras_operacion,
+        balanceAtPayment: true,
+        chargeIds: m.aplicaciones?.map(a => a.cargo_id) ?? [],
         observation: m.motivo_anulacion || m.notas,
         fields: details({
           'Forma de pago': m.forma_pago,
+          'Importe recibido': `${money(m.importe)} €`,
           'Aplicado a tratamientos': `${money(m.aplicado)} €`,
           Facturas: related.length > 1 ? related.map(invoiceLabel).join(' · ') : related.length ? null : 'Sin factura asociada',
           Notas: m.motivo_anulacion ? m.notas : null,
@@ -341,19 +359,28 @@ export interface HistoryQuery {
   state: string;
   piece: string;
   order: 'desc' | 'asc';
+  pendingOnly?: boolean;
 }
-export function filterHistoryRows(rows: HistoryRow[], query: HistoryQuery) {
+export function filterHistoryRows(rows: HistoryRow[], query: HistoryQuery, groupVisits = false) {
   const terms = normalizeHistoryText(query.search.trim()).split(/\s+/).filter(Boolean);
-  return rows
+  const performedIds = new Set(rows.filter(r => r.treatment).map(r => r.recordId));
+  const matches = (r: HistoryRow) =>
+    (!query.professional || r.professionalId === query.professional || r.children?.some(c => c.professionalId === query.professional)) &&
+    (!query.state || r.status === query.state || r.children?.some(c => c.status === query.state)) &&
+    (!query.piece || r.pieces.includes(Number(query.piece))) &&
+    (!query.pendingOnly || (r.group !== 'cobros' && Number(r.balance) > 0)) &&
+    terms.every((term) => r.search.includes(term));
+  const filtered = rows
     .filter(
       (r) =>
         (query.group === 'todo' || r.group === query.group) &&
         (!query.from || r.day >= query.from) &&
         (!query.to || (Boolean(r.day) && r.day <= query.to)) &&
-        (!query.professional || r.professionalId === query.professional) &&
-        (!query.state || r.status === query.state) &&
-        (!query.piece || r.pieces.includes(Number(query.piece))) &&
-        terms.every((term) => r.search.includes(term)),
+        matches(r) &&
+        // An invoice entirely represented by clinical acts stays contextual in Todo.
+        (query.group !== 'todo' || r.group !== 'facturacion' || !r.invoice?.lineas.length ||
+          r.invoice.es_rectificativa || r.invoice.estado === 'anulada' ||
+          !r.invoice.lineas.every(l => l.historial_id && performedIds.has(l.historial_id))),
     )
     .sort((a, b) => {
       // Keep undated records last in both directions. Offset timestamps sort as instants.
@@ -363,4 +390,10 @@ export function filterHistoryRows(rows: HistoryRow[], query: HistoryQuery) {
       const comparison = a.day.localeCompare(b.day) || time(a) - time(b) || a.id.localeCompare(b.id);
       return query.order === 'asc' ? comparison : -comparison;
     });
+  if (query.group !== 'todo') return filtered;
+  const visits = new Set(filtered.filter(r => r.visit && r.children?.length).map(r => r.recordId));
+  const visibleTreatments = new Set(filtered.filter(r => r.treatment).map(r => r.recordId));
+  return filtered.filter(r => groupVisits
+    ? !(r.treatment?.cita_id && visits.has(r.treatment.cita_id))
+    : !(r.visit && r.children?.some(child => visibleTreatments.has(child.recordId))));
 }

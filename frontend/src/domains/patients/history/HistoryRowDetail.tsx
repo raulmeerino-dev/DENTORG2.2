@@ -5,6 +5,7 @@ import { isClinicalVisit, isPerformedTreatment, type HistoryData, type HistoryRo
 import { useState } from 'react';
 import { openPaymentReceipt } from '../../../api/billing';
 import { getApiErrorMessage } from '../../../api/errors';
+import { HistoryEconomics, HistoryLinkedTreatments } from './HistoryEconomics';
 
 export interface HistoryActions {
   onOpenDocumento: (document: DocumentoPaciente) => void;
@@ -12,6 +13,7 @@ export interface HistoryActions {
   onOpenFactura: (invoice: Factura) => void;
   onOpenPresupuesto?: (budget: Presupuesto) => void;
   onOpenVisit: (visit: Cita) => void;
+  onOpenRecord?: (recordId: string) => void;
 }
 export function HistoryRowDetail({
   row,
@@ -31,7 +33,9 @@ export function HistoryRowDetail({
   const treatmentIds = new Set(
     treatment
       ? [treatment.id]
-      : data.historial.filter((t) => t.cita_id === visit?.id && isPerformedTreatment(t)).map((t) => t.id),
+      : row.children?.map((child) => child.recordId) ?? (visit
+        ? data.historial.filter((t) => t.cita_id === visit.id && isPerformedTreatment(t)).map((t) => t.id)
+        : []),
   );
   const documents = data.documentos.filter((d) => d.historial_id && treatmentIds.has(d.historial_id));
   const consents = data.consentimientos.filter((c) => c.historial_id && treatmentIds.has(c.historial_id));
@@ -51,11 +55,11 @@ export function HistoryRowDetail({
       });
     if (row.paid != null)
       fields.push({
-        label: row.group === 'facturacion' ? 'Cobrado actual de la factura' : row.treatment ? 'Cobrado del tratamiento' : 'Cobro efectivo',
+        label: row.group === 'facturacion' ? 'Cobrado actual de la factura' : row.visit ? 'Cobrado de la sesión' : row.treatment ? 'Cobrado del tratamiento' : 'Cobro efectivo',
         value: `${money(row.paid)} €`,
       });
     if (row.balance != null)
-      fields.push({ label: row.treatment ? 'Pendiente del tratamiento' : 'Saldo actual de la factura', value: `${money(row.balance)} €` });
+      fields.push({ label: row.balanceAtPayment ? 'Saldo de cuenta al registrar el pago' : row.visit ? 'Pendiente de la sesión' : row.treatment ? 'Pendiente del tratamiento' : 'Saldo actual de la factura', value: `${money(row.balance)} €` });
   }
   return (
     <section className="patient-history-detail" aria-label={`Detalle de ${row.type.toLowerCase()}`}>
@@ -68,6 +72,7 @@ export function HistoryRowDetail({
           </div>
         ))}
       </dl>
+      <HistoryLinkedTreatments row={row} actions={actions} billing={billing} />
       {row.observation && (
         <div className="patient-history-observation">
           <strong>Observaciones</strong>
@@ -83,7 +88,8 @@ export function HistoryRowDetail({
               : 'Pendiente de facturar'}
         </p>
       )}
-      {billing && row.invoice && (
+      {billing && <HistoryEconomics row={row} data={data} actions={actions} />}
+      {billing && row.invoice && !data.account && (
         <section className="patient-history-payments" aria-label="Cobros relacionados con la factura">
           <strong>
             Factura {row.invoice.serie}/{row.invoice.numero} · Cobrado {money(row.invoice.total_cobrado)} € ·{' '}

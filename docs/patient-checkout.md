@@ -31,6 +31,16 @@ El cliente bloquea doble clic y conserva la operación pendiente en `sessionStor
 
 La emisión desde cargos también usa un UUID de operación. La numeración de factura se serializa por serie. Las escrituras económicas comparten el bloqueo de paciente. Recepción y administración gestionan cuenta y salidas; solo administración anula cobros, con motivo. Los lectores y comandos respetan clínica y los perfiles clínicos no obtienen saldos por los nuevos endpoints.
 
+## Historial clínico-económico
+
+La vista general agrupa los actos por visita, con totales de cargos, aplicaciones vigentes y pendiente. Puede desagruparse, buscar por notas/pieza/profesional o limitarse a actos con saldo pendiente. Los tratamientos sin presupuesto utilizan exactamente los mismos cargos. El detalle abre los registros originales de tratamiento, visita, factura y pago; los documentos y consentimientos vinculados son enlaces contextuales, no eventos independientes.
+
+Las facturas íntegramente representadas por tratamientos quedan como enlaces contextuales en Todo y siguen disponibles en Facturación. Las facturas manuales, mixtas, anuladas o rectificativas conservan su entrada propia. No se reparten cobros de factura por porcentajes: se muestran las aplicaciones reales del libro de cargos.
+
+Cada movimiento expone sus aplicaciones y quién lo registró. Para pagos de checkout, el saldo tras la operación procede del recibo inmutable guardado en `OperacionCheckout.resultado`; no cambia al recibir pagos posteriores. Se distingue del pendiente actual del tratamiento o sesión. Los pagos históricos sin esa instantánea muestran «—». No se reconstruyen saldos por ordenación de fechas. Una instantánea global de otra clínica no se expone a recepción aunque el paciente o pago heredado sea compartido.
+
+Esta ampliación es de lectura y no requiere otra migración ni modifica la lógica de facturación o cobro.
+
 ## Migración 0049
 
 Migración aditiva, sin eliminar facturas, cobros ni historias. Conserva importes y vínculos de las facturas anteriores en cargos históricos; aplica sus pagos hasta el importe del cargo y mantiene cualquier exceso como saldo a favor. Los movimientos de facturas anuladas no desaparecen: el dinero vigente conserva su naturaleza de saldo a favor.
@@ -47,3 +57,5 @@ Verificación local: copia restaurada de la base sintética, comparación de imp
 - `frontend/e2e/clinical-billing-real.spec.ts`: presupuesto → cita → realizado → finalizar visita → cobro → factura, contra API y PostgreSQL reales. `jornada-real` comprueba la entrega doctor/recepción; `records-real` verifica consulta, permisos y exportación.
 - Navegador local: deuda anterior 50 € + visita 140 € + cortesía 0 €, cobro parcial 100 €, salida resuelta y saldo 90 € persistente. Revisión a 1366×768, 1440×900, 1920×1080 y 1366×580.
 - Cobro posterior de los 90 € restantes, recibo sin factura y apertura desde Registros; emisión posterior de 190 € sin alterar el saldo cero. El historial mantiene los actos realizados aunque tengan el estado económico heredado «facturado» y cada pago aparece una sola vez, incluso aplicado a varias facturas.
+- Historial agrupado y desagrupado, sesiones de varios profesionales, aplicaciones exactas y saldos inmutables de pagos posteriores; las instantáneas económicas respetan el ámbito de clínica. Los enlaces abren tratamientos, pagos y visitas originales.
+- Historial sintético de 65 tratamientos: paginación, búsqueda de una nota fuera de la página visible, detalle con teclado y acceso al final a las cuatro resoluciones anteriores, sin desbordamiento horizontal.

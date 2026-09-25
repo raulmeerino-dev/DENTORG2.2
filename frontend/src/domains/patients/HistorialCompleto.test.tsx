@@ -174,6 +174,82 @@ describe('Historial general tabular', () => {
       forma_pago: 'Tarjeta', aplicado: '50', anulado: false, factura_id: null,
       notas: 'Pago sin factura previa' }],
   };
+  function sessionFixture(laterPayment = false) {
+    const visit = { id: 'visit-1', paciente_id: paciente.id, fecha_hora: '2024-01-01T10:00:00Z', doctor_id: 'doc-1', motivo: 'Sesión restauradora', duracion_min: 30, estado: 'atendida' } as Cita;
+    const treatments = [
+      { ...historialPieza, cita_id: visit.id, fecha: '2024-01-01', importe: '80', factura_id: factura.id, presupuesto_linea_id: 'linea-16' },
+      { ...historialPieza, id: 'hist-37', cita_id: visit.id, fecha: '2024-01-01', pieza_dental: 37, procedimiento: 'Restauración no presupuestada', observaciones: 'Reconstrucción oclusal', importe: '60', factura_id: factura.id, presupuesto_linea_id: null },
+    ];
+    const sessionInvoice: Factura = { ...factura, total: '140', total_cobrado: laterPayment ? '140' : '100', pendiente: laterPayment ? '0' : '40',
+      lineas: treatments.map(t => ({ id: `line-${t.id}`, historial_id: t.id, concepto: t.procedimiento!, concepto_ficticio: null, cantidad: 1, precio_unitario: t.importe!, iva_porcentaje: '0', subtotal: t.importe! })) };
+    const sessionAccount: PatientAccount = { ...account, total_cargos: '140', total_cobrado: laterPayment ? '140' : '100', saldo: laterPayment ? '0' : '40', pendiente_cargos: laterPayment ? '0' : '40',
+      cargos: treatments.map((t, index) => ({ ...account.cargos[0], id: `charge-${index}`, historial_id: t.id, cita_id: visit.id, factura_id: factura.id, concepto: t.procedimiento!, pieza_dental: t.pieza_dental, importe: t.importe, cobrado: index ? (laterPayment ? '60' : '20') : '80', pendiente: index && !laterPayment ? '40' : '0' })),
+      movimientos: [{ ...account.movimientos[0], importe: '100', aplicado: '100', registrado_por: 'Recepción', saldo_tras_operacion: '40', aplicaciones: [{ cargo_id: 'charge-0', importe: '80' }, { cargo_id: 'charge-1', importe: '20' }] },
+        ...(laterPayment ? [{ ...account.movimientos[0], id: 'later-payment', fecha: '2026-04-19', importe: '40', aplicado: '40', registrado_por: 'Recepción', saldo_tras_operacion: '0', aplicaciones: [{ cargo_id: 'charge-1', importe: '40' }] }] : [])],
+    };
+    return { account: sessionAccount, historial: treatments, citas: [visit], facturas: [sessionInvoice], anticipos: [], documentos: [documentoPieza] };
+  }
+  it('agrupa la sesión con totales reales y factura contextual, conservando tratamientos no presupuestados', async () => {
+    renderHistorial(sessionFixture());
+    const table = screen.getByRole('table', { name: 'Cronología del paciente' });
+    expect(within(table).getAllByRole('row')).toHaveLength(3); // sesión y pago; sin duplicar factura ni actos
+    const session = screen.getByRole('button', { name: /Ver detalle: Visita clínica/ });
+    expect(session.closest('tr')).toHaveTextContent('A/100140,00100,0040,00');
+    await userEvent.click(session);
+    const treatments = screen.getByRole('region', { name: 'Tratamientos incluidos' });
+    expect(treatments).toHaveTextContent('Restauración no presupuestada');
+    expect(treatments).toHaveTextContent('60,0020,0040,00');
+    expect(within(treatments).queryByRole('columnheader', { name: 'Profesional' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Documento · rx-pieza-16.pdf' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Facturación' }));
+    expect(screen.getByRole('button', { name: /Ver detalle: Factura/ })).toBeInTheDocument();
+  });
+  it('abre el tratamiento y el pago originales desde una sesión', async () => {
+    renderHistorial(sessionFixture());
+    await userEvent.click(screen.getByRole('button', { name: /Ver detalle: Visita clínica/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Ver tratamiento: Endodoncia · 16' }));
+    expect(screen.getByRole('region', { name: 'Detalle de tratamiento' })).toHaveTextContent('Conductos permeables');
+    await userEvent.click(screen.getByRole('button', { name: 'Cobro · Tarjeta' }));
+    const payment = screen.getByRole('region', { name: 'Detalle de cobro' });
+    expect(payment).toHaveTextContent('Saldo de cuenta al registrar el pago40,00');
+    const allocation = within(payment).getByRole('region', { name: 'Destino del pago' });
+    expect(allocation).toHaveTextContent('Restauración no presupuestada');
+    expect(within(allocation).getAllByRole('row')).toHaveLength(3);
+    expect(within(payment).queryByRole('button', { name: 'Documento · rx-pieza-16.pdf' })).not.toBeInTheDocument();
+  });
+  it('actualiza el saldo actual tras un pago posterior y conserva el saldo histórico de cada cobro', async () => {
+    renderHistorial(sessionFixture(true));
+    const session = screen.getByRole('button', { name: /Ver detalle: Visita clínica/ });
+    expect(session.closest('tr')).toHaveTextContent('140,00140,000,00');
+    await userEvent.click(session);
+    const payments = screen.getByRole('region', { name: 'Pagos relacionados' });
+    const rows = within(payments).getAllByRole('row');
+    expect(rows[1]).toHaveTextContent('100,00100,0040,00');
+    expect(rows[2]).toHaveTextContent('40,0040,000,00');
+    await userEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Con saldo pendiente' }));
+    expect(screen.getByText('No hay actos clínicos o movimientos económicos que coincidan con estos filtros.')).toBeInTheDocument();
+  });
+  it('permite desagrupar y buscar por el motivo de una sesión sin perder su contexto', async () => {
+    renderHistorial(sessionFixture());
+    await userEvent.click(screen.getByRole('button', { name: 'Agrupar por visita' }));
+    expect(screen.getAllByRole('button', { name: /Ver detalle: Tratamiento/ })).toHaveLength(2);
+    await userEvent.type(screen.getByRole('searchbox'), 'sesion restauradora');
+    expect(screen.getByRole('button', { name: /Ver detalle: Visita clínica/ })).toBeInTheDocument();
+  });
+  it('conserva los nombres y filtros de profesionales en sesiones compartidas', async () => {
+    const fixture = sessionFixture();
+    fixture.historial[1] = { ...fixture.historial[1], doctor_id: 'doc-2', doctor: { id: 'doc-2', nombre: 'Dr. Martín' } };
+    renderHistorial(fixture);
+    expect(screen.getByRole('button', { name: /Ver detalle: Visita clínica/ }).closest('tr')).toHaveTextContent('Varios profesionales');
+    await userEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    const filter = screen.getByRole('combobox', { name: 'Profesional' });
+    expect(within(filter).getByRole('option', { name: 'Dra. Ruiz' })).toBeInTheDocument();
+    await userEvent.selectOptions(filter, 'doc-2');
+    const session = screen.getByRole('button', { name: /Ver detalle: Visita clínica/ });
+    await userEvent.click(session);
+    expect(screen.getByRole('region', { name: 'Tratamientos incluidos' })).toHaveTextContent('Dr. Martín');
+  });
   it('abre el pago sin factura enlazado desde Registros y su recibo', async () => {
     renderHistorial({ account, facturas: [], anticipos: [], focusedRecordId: cobro.id });
     const detail = screen.getByRole('region', { name: 'Detalle de cobro' });
@@ -198,7 +274,7 @@ describe('Historial general tabular', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cobros' }));
     const rows = within(screen.getByRole('table')).getAllByRole('row');
     expect(rows).toHaveLength(2);
-    expect(rows[1]).toHaveTextContent('50,0050,00');
+    expect(rows[1]).toHaveTextContent('2 facturas—50,00—');
     await userEvent.click(within(rows[1]).getByRole('button', { name: /Ver detalle/ }));
     expect(screen.getByRole('button', { name: 'Abrir factura A/100' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Abrir factura A/101' })).toBeInTheDocument();

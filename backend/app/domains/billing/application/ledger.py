@@ -14,16 +14,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import TokenData, ensure_clinic_access
-from app.domains.billing.persistence.cuenta import AplicacionPago, CargoPaciente
+from app.domains.billing.persistence.cuenta import AplicacionPago, CargoPaciente, OperacionCheckout
 from app.domains.billing.persistence.factura import (
     Cobro,
     Factura,
     FacturaLinea,
     PagoAnticipadoPaciente,
 )
-from app.domains.billing.schemas.cuenta import CargoResponse, CuentaResponse, MovimientoResponse
+from app.domains.billing.schemas.cuenta import (
+    AplicacionResponse,
+    CargoResponse,
+    CuentaResponse,
+    MovimientoResponse,
+)
 from app.domains.clinical.persistence.historial import HistorialClinico
 from app.domains.clinical.persistence.tratamiento import TratamientoCatalogo
+from app.domains.identity.persistence.usuario import Usuario
 from app.domains.patients.persistence.paciente import Paciente
 from app.domains.scheduling.application.clinic_time import clinic_datetime
 from app.domains.scheduling.persistence.cita import Cita
@@ -305,6 +311,37 @@ async def read_account(
         else [c for c in active if c.fecha == today]
     )
     current_pending = sum((ledger.remaining(c) for c in current), ZERO)
+    sources = [*ledger.payments, *ledger.advances]
+    operators = dict(
+        (
+            await db.execute(
+                select(Usuario.id, Usuario.nombre).where(
+                    Usuario.id.in_({p.usuario_id for p in sources})
+                )
+            )
+        ).all()
+    )
+    operations = (
+        await db.scalars(
+            select(OperacionCheckout).where(
+                OperacionCheckout.paciente_id == patient_id,
+                OperacionCheckout.id.in_({p.request_id for p in ledger.payments if p.request_id}),
+            )
+        )
+    ).all()
+    balances = {
+        str(op.resultado.get("cobro_id")): op.resultado.get("saldo_pendiente")
+        for op in operations
+        # A global/admin receipt may include other clinics for a shared legacy patient.
+        if user.rol == "admin" or (op.clinica_id is not None and op.clinica_id == user.clinica_id)
+    }
+    active_ids = {c.id for c in active}
+    applications = {}
+    for allocation in ledger.allocations:
+        if allocation.cargo_id in active_ids:
+            applications.setdefault(allocation.cobro_id or allocation.anticipo_id, []).append(
+                AplicacionResponse(cargo_id=allocation.cargo_id, importe=allocation.importe)
+            )
     movements = [
         MovimientoResponse(
             id=p.id,
@@ -318,6 +355,9 @@ async def read_account(
             concepto=getattr(p, "concepto", None),
             notas=p.notas,
             motivo_anulacion=p.motivo_anulacion,
+            registrado_por=operators.get(p.usuario_id),
+            aplicaciones=applications.get(p.id, []),
+            saldo_tras_operacion=balances.get(str(p.id)),
         )
         for kind, sources in [("cobro", ledger.payments), ("anticipo", ledger.advances)]
         for p in sources
