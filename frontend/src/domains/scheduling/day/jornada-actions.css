@@ -1,0 +1,4 @@
+.jornada-patient-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dc-space-3); min-width: 0; padding: 0 0 var(--dc-space-2); border-bottom: 1px solid var(--dc-border); }
+.jornada-patient-toolbar > .dc-patient-finder { flex: 1 1 220px; max-width: 420px; min-width: 0; }
+.jornada-patient-toolbar > .patient-actions { width: auto; }
+.jornada-patient-toolbar > [role="alert"] { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--dc-danger); }

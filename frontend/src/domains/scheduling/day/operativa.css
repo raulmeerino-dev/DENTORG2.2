@@ -1,6 +1,6 @@
 /* Operational view: a continuous list and a reception queue, not card islands. */
 .hoy-page { display: flex; flex-direction: column; min-width: 0; gap: 12px; color: var(--dc-text); background: var(--dc-surface); }
-.hoy-command-center { display: grid; grid-template-columns: minmax(160px, .8fr) minmax(290px, 1.4fr) auto; align-items: center; gap: 16px; border-bottom: 1px solid var(--dc-border); padding-bottom: 12px; }
+.hoy-command-center { display: grid; grid-template-columns: minmax(160px, .8fr) minmax(290px, 1.4fr); align-items: center; gap: 16px; border-bottom: 1px solid var(--dc-border); padding-bottom: 12px; }
 .hoy-next-action { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .hoy-next-action > div { display: grid; gap: 3px; min-width: 0; }
 .hoy-next-action span { color: var(--dc-muted); font-size: 10px; font-weight: 600; }
@@ -14,12 +14,6 @@
 .hoy-command-counters strong { font-size: 17px; text-align: left; color: var(--dc-text); }
 .hoy-command-counters .attention strong { color: var(--dc-warning); }
 .hoy-command-counters .active strong { color: var(--dc-primary); }
-.hoy-command-actions { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 5px; }
-.hoy-command-actions :is(button, a, summary) { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 7px; min-height: 30px; font-size: 11px; font-weight: 500; text-decoration: none; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); white-space: nowrap; box-shadow: none; }
-.hoy-command-actions .primary-action { background: var(--dc-primary); border-color: var(--dc-primary); color: var(--dc-surface); }
-.hoy-more-actions { position: relative; }
-.hoy-more-actions > div { position: absolute; top: calc(100% + 5px); right: 0; z-index: 30; min-width: 180px; padding: 6px; display: grid; gap: 3px; background: var(--dc-surface); border: 1px solid var(--dc-border); box-shadow: var(--dc-shadow-menu); border-radius: 5px; }
-.hoy-more-actions > div a { justify-content: start; border: 0; }
 .hoy-layout { display: grid; grid-template-columns: minmax(0, 1fr) 248px; align-items: start; gap: 16px; min-width: 0; }
 .hoy-agenda { min-width: 0; overflow: visible; }
 .hoy-agenda > .panel-caption, .hoy-work-queue > .panel-caption { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 10px; margin: 0; border: 0 !important; background: transparent !important; box-shadow: none !important; }
@@ -58,12 +52,11 @@
 .hoy-empty-agenda a { color: var(--dc-primary); }
 @media (max-width: 1180px) {
   .hoy-command-center { grid-template-columns: minmax(180px, 1fr) 2fr; }
-  .hoy-command-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; }
+
 }
 @media (max-width: 1100px) { .hoy-layout { grid-template-columns: minmax(0, 1fr); } .hoy-sidebar { border-left: 0; padding-left: 0; border-top: 1px solid var(--dc-border); } }
-@media (max-width: 600px) { .hoy-command-center { grid-template-columns: minmax(0, 1fr); } .hoy-command-counters { border-inline: 0; } .hoy-command-actions { grid-column: auto; } }
+@media (max-width: 600px) { .hoy-command-center { grid-template-columns: minmax(0, 1fr); } .hoy-command-counters { border-inline: 0; } }
 
 .hoy-citas-table .jornada-time-notes { white-space: normal; overflow-wrap: normal; }
 .hoy-citas-table .dc-status-chip { white-space: normal; }
-.hoy-command-actions svg { width: 15px; height: 15px; }
 .hoy-page .jornada-checkout-item a { color: var(--dc-primary); font-size: 12px; }

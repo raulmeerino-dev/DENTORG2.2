@@ -5,14 +5,9 @@ import {
   ArrowRight,
   CalendarPlus,
   Clock3,
-  Ellipsis,
-  MessageCircle,
   Phone,
   RefreshCw,
-  Search,
   UserCheck,
-  UserPlus,
-  Wallet,
 } from 'lucide-react';
 import { getCitas } from '../../../api/scheduling';
 import { enviarRecordatorioCita, getTelefonear, getWhatsAppComunicaciones } from '../../../api/communications';
@@ -23,6 +18,7 @@ import { getVisualStatus, statusMetaForCita } from '../agenda/appointmentStatus'
 import AppointmentActions, { AppointmentStatusBadge, AppointmentTiming } from '../workspace/AppointmentActions';
 import CheckoutQueue from '../workspace/CheckoutQueue';
 import './operativa.css';
+import { JornadaActions } from './JornadaActions';
 import type { Cita, TelefonearPendiente } from '../../../api/types';
 
 function todayIso() {
@@ -97,15 +93,6 @@ const REMINDER_TEMPLATES = [
       'Hola {paciente}, le esperamos en {clinica} el {fecha} a las {hora}. Traiga DNI y cualquier informe o radiografía que tenga. Gracias.',
   },
 ];
-
-function WhatsAppIcon() {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <path d="M16.03 3.2c-7.03 0-12.74 5.62-12.74 12.55 0 2.2.59 4.34 1.7 6.23L3.2 28.8l7.02-1.78a12.95 12.95 0 0 0 5.81 1.37c7.02 0 12.73-5.63 12.73-12.56S23.05 3.2 16.03 3.2Zm0 22.9c-1.86 0-3.68-.49-5.27-1.42l-.38-.22-4.17 1.06 1.09-4.03-.25-.41a10.1 10.1 0 0 1-1.49-5.33c0-5.66 4.7-10.27 10.47-10.27 5.76 0 10.45 4.61 10.45 10.27 0 5.67-4.69 10.35-10.45 10.35Zm5.74-7.7c-.31-.15-1.85-.9-2.14-1-.28-.1-.49-.15-.7.15-.2.3-.8 1-.98 1.19-.18.2-.36.22-.67.07-.31-.15-1.31-.48-2.5-1.52a9.26 9.26 0 0 1-1.72-2.1c-.18-.31-.02-.47.13-.62.14-.13.31-.35.47-.52.15-.18.2-.3.31-.5.1-.2.05-.37-.03-.52-.08-.15-.7-1.65-.96-2.27-.25-.6-.51-.52-.7-.53h-.6c-.2 0-.52.07-.8.37-.28.3-1.06 1.02-1.06 2.48 0 1.46 1.08 2.88 1.23 3.08.15.2 2.13 3.2 5.16 4.48.72.31 1.28.49 1.72.63.72.22 1.38.19 1.9.11.58-.08 1.85-.74 2.11-1.46.26-.72.26-1.33.18-1.46-.08-.13-.28-.2-.59-.35Z" />
-    </svg>
-  );
-}
-
 
 export default function HoyPage() {
   const navigate = useNavigate();
@@ -250,10 +237,6 @@ export default function HoyPage() {
     setSelectedReminderIds(selectableReminderCitas.map((cita) => cita.id));
   }
 
-  function prepararNuevaFicha() {
-    sessionStorage.setItem('dentcore_patient_action', 'new');
-  }
-
   function prepararNuevaCita() {
     sessionStorage.setItem('dentcore_agenda_action', 'new');
   }
@@ -264,6 +247,7 @@ export default function HoyPage() {
         <div className="inline-alert">No se han podido cargar las citas de hoy. Revisa la conexión.</div>
       )}
 
+      <JornadaActions onReminders={abrirRecordatorios} canManageBilling={canManageBilling} replies={whatsappPendientes.length} onNewAppointment={!jornada ? () => { prepararNuevaCita(); navigate(agendaUrl); } : undefined} />
       <section className="hoy-command-center" aria-label="Prioridades de hoy">
         <div className="hoy-next-action">
           <div>
@@ -313,40 +297,7 @@ export default function HoyPage() {
           </button>
         </div>
 
-        <nav className="hoy-command-actions" aria-label="Acciones rápidas de recepción">
-          {!jornada && <Link to={agendaUrl} className="primary-action" onClick={prepararNuevaCita}>
-            <CalendarPlus size={15} aria-hidden="true" />
-            Nueva cita
-          </Link>}
-          <Link to="/pacientes">
-            <Search size={15} aria-hidden="true" />
-            Buscar paciente
-          </Link>
-          <button type="button" onClick={abrirRecordatorios} aria-label="Enviar recordatorios por WhatsApp">
-            <WhatsAppIcon />
-            Recordatorios
-          </button>
-          <details className="hoy-more-actions">
-            <summary role="button" aria-label="Más acciones">
-              <Ellipsis size={16} aria-hidden="true" />
-              Más
-            </summary>
-            <div>
-              <Link to="/pacientes" onClick={prepararNuevaFicha}>
-                <UserPlus size={15} aria-hidden="true" />
-                Nueva ficha
-              </Link>
-              {canManageBilling && <Link to="/caja">
-                <Wallet size={15} aria-hidden="true" />
-                Cobros
-              </Link>}
-              <Link to="/whatsapp">
-                <MessageCircle size={15} aria-hidden="true" />
-                Respuestas{whatsappPendientes.length > 0 ? ` (${whatsappPendientes.length})` : ''}
-              </Link>
-            </div>
-          </details>
-        </nav>
+
       </section>
 
       <div className="hoy-layout">

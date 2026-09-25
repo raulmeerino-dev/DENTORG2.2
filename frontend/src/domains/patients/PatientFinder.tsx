@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import './patient-finder.css';
 import type { ApiPaciente } from '../../api/types';
 import { FloatingPopover } from '../../design-system/FloatingPopover';
 
@@ -27,7 +28,7 @@ export function PatientFinder({
   pacientes: ApiPaciente[];
   selectedId: string | null;
   onSelect: (paciente: ApiPaciente) => void;
-  onNew: () => void;
+  onNew?: () => void;
   query?: string;
   onQueryChange?: (query: string) => void;
   loading?: boolean;
@@ -88,7 +89,7 @@ export function PatientFinder({
     <div className="dc-patient-finder" onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setResultsOpen(false);
     }}>
-      <button
+      {onNew && <button
         type="button"
         className="dc-patient-new-shortcut"
         onClick={onNew}
@@ -101,7 +102,7 @@ export function PatientFinder({
           <line x1="16" y1="13" x2="16" y2="21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           <line x1="12" y1="17" x2="20" y2="17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
-      </button>
+      </button>}
       <label className="dc-patient-search-label">
         <input
           ref={searchRef}

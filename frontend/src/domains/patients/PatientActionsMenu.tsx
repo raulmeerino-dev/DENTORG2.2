@@ -20,7 +20,7 @@ import { useRef,useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ApiPaciente } from '../../api/types';
 import { FloatingPopover } from '../../design-system/FloatingPopover';
-import './patient-actions.css';
+import { ActionGroup } from '../../design-system/ActionGroup';
 
 export interface PatientActionsHandlers {
   onNuevaCita: () => void;
@@ -170,7 +170,7 @@ export function PatientActionsMenu({
 
   return (
     <div className="patient-actions">
-      <div className="patient-actions-primary" aria-label="Acciones rapidas del paciente">
+      <ActionGroup aria-label="Acciones rapidas del paciente">
         <button type="button" aria-label="Nueva cita" title="Nueva cita" onClick={handlers.onNuevaCita} disabled={noPatient}>
           <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />
           <span>Nueva cita</span>
@@ -203,7 +203,7 @@ export function PatientActionsMenu({
           <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
           <span className="sr-only">Mas acciones</span>
         </button>
-      </div>
+      </ActionGroup>
       {menu ? createPortal(menu, document.body) : null}
     </div>
   );

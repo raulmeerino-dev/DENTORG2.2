@@ -1,0 +1,11 @@
+.dc-patient-finder { position: relative; display: flex; gap: var(--dc-space-2); align-items: center; }
+.dc-patient-new-shortcut { width: var(--dc-control-height); flex: 0 0 var(--dc-control-height); padding: 5px; display: grid; place-items: center; }
+.dc-patient-new-shortcut svg { width: 20px; height: 20px; }
+.dc-patient-search-label { flex: 1; min-width: 0; }
+.dc-patient-search-label input { width: 100%; min-width: 0; }
+.dc-patient-live-results { position: absolute; top: calc(100% + 4px); left: 0; width: min(420px, calc(100vw - 36px)); max-height: 420px; overflow: auto; z-index: 50; background: var(--dc-surface); border: 1px solid var(--dc-border-strong); border-radius: var(--dc-radius); box-shadow: var(--dc-shadow-menu); }
+.dc-patient-live-results > button { display: flex; width: 100%; flex-direction: column; align-items: flex-start; gap: var(--dc-space-1); padding: var(--dc-space-2) var(--dc-space-3); border: 0; border-bottom: 1px solid var(--dc-border); border-radius: 0; text-align: left; background: transparent; }
+.dc-patient-live-results > button.active, .dc-patient-live-results > button:hover { background: var(--dc-primary-soft); }
+.dc-patient-live-results span { color: var(--dc-muted); font-size: var(--dc-font-small); }
+.dc-patient-finder-pagination { display: flex; align-items: center; gap: var(--dc-space-2); padding: var(--dc-space-2); }
+.dc-patient-finder-pagination small { flex: 1; text-align: center; }

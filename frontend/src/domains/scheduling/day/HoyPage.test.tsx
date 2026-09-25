@@ -45,6 +45,7 @@ vi.mock('../../../api/communications', () => ({
   getTelefonear: vi.fn(async () => []),
   getWhatsAppComunicaciones: vi.fn(async () => []),
 }));
+vi.mock('../../../api/patients', () => ({ getPacientes: vi.fn(async () => []) }));
 
 vi.mock('../../../api/reporting', () => ({
   getReportDashboard: vi.fn(async () => ({
@@ -107,7 +108,8 @@ describe('HoyPage flujo operativo', () => {
     });
     expect(screen.queryByText(/^Alertas$/i)).not.toBeInTheDocument();
 
-    await user.click(within(commandCenter).getByRole('link', { name: /^Nueva cita$/i }));
+    await user.click(screen.getByRole('button', { name: 'Más acciones' }));
+    await user.click(screen.getByRole('menuitem', { name: /^Nueva cita$/i }));
     expect(sessionStorage.getItem('dentcore_agenda_action')).toBe('new');
   });
 });
