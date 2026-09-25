@@ -16,6 +16,7 @@ Se recuperaron las peticiones interrumpidas y se contrastaron con los cambios ya
 - Backend: 224 pruebas aprobadas sobre PostgreSQL aislado, incluidas permisos, multi-clínica, confirmación del asistente, rollback, reintentos clínicos e importes cero/reales.
 - Playwright: 11 recorridos aprobados, incluidos el circuito presupuesto → cita → realizado → confirmación de factura → cobro, Jornada, Agenda, Registros y Archivos. Diez usan API y PostgreSQL reales; uno valida el contrato de cita con respuestas controladas.
 - TypeScript y build Vite, ESLint, Ruff y `git diff --check` correctos. Alembic tiene una sola cabeza, `0048`; la base local de revisión está en esa revisión.
+- La instalación limpia de CI detectó que faltaba declarar `sqlalchemy[asyncio]`; se añade el extra para instalar `greenlet` también cuando no existe un entorno local previo.
 - Chromium: 1366×768, 1440×900 y 1920×1080; además, sidebar a 1024×400 y 1024×240. Se revisaron los ocho destinos del lateral, persistencia, ancho ganado y ausencia de desbordamiento horizontal del documento.
 - Primera visita, presupuestos, pendientes, sesión e historial: contenido inferior accesible. Historial denso de 123 registros sintéticos y visitas reales de prueba con y sin información dental. El odontograma solo aparece en el detalle pertinente.
 - Modelo local Ollama: navegación a Agenda/Ajustes, búsqueda de paciente, continuidad hacia su historial, fecha lejana, ambigüedad y preparación de nota clínica. Las consultas ambiguas presentan candidatos y no eligen uno automáticamente.
