@@ -116,4 +116,4 @@ Jornada full-stack (`jornada-e2e`):
 
 - En Windows local, `pytest` falla si `TEST_DATABASE_URL` apunta a `postgres:5432` y ese host no existe. Usar `127.0.0.1` con el puerto real del PostgreSQL local.
 - Vite avisa de chunk frontend grande; se puede resolver con code splitting por rutas en una fase de optimizacion.
-- Jornada dispone de E2E con backend y PostgreSQL reales. Sigue pendiente el recorrido completo de navegador que una presupuesto, acto clínico, factura y cobro, además de las pruebas de integración backend existentes.
+- Jornada y el circuito presupuesto → cita → acto clínico → confirmación de factura → cobro disponen de E2E con backend y PostgreSQL reales. Ver [pruebas de navegador](../frontend/e2e/README.md) y [cierre de validación del 25/09/2026](delivery-status-2026-09-25.md).

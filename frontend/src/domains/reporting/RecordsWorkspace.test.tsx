@@ -52,7 +52,9 @@ describe('RecordsWorkspace', () => {
     expect(screen.getByTestId('return-to').textContent).toContain('offset=50');
     await user.click(screen.getByRole('button', { name: 'Volver a resultados' }));
     expect(await screen.findByRole('searchbox', { name: 'Buscar registros' })).toHaveValue('Martina');
+    await user.click(screen.getByRole('button', { name: /Filtros/ }));
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-01-01');
+    await user.keyboard('{Escape}');
     expect(screen.getByRole('columnheader', { name: 'Paciente' })).toHaveAttribute('aria-sort', 'descending');
     await user.click(screen.getByRole('button', { name: 'Ordenar por Paciente' }));
     await waitFor(() => expect(getRecordPage).toHaveBeenLastCalledWith('pacientes', expect.objectContaining({ offset: 0, q: 'Martina', sort_dir: 'asc' }), expect.any(AbortSignal)));
@@ -62,7 +64,9 @@ describe('RecordsWorkspace', () => {
     renderWorkspace('/archivos', 'files');
     await screen.findByText('Martina Pérez');
     expect(screen.queryByRole('option', { name: 'Pacientes' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Filtros/ }));
     expect(screen.getByLabelText('Tipo de archivo')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     await user.type(screen.getByRole('searchbox', { name: 'Buscar archivos' }), 'Martina');
     expect(screen.getByRole('link', { name: 'Abrir detalle' })).toHaveAttribute('aria-disabled', 'true');
     await waitFor(() => expect(getRecordPage).toHaveBeenLastCalledWith('documentos', expect.objectContaining({ q: 'Martina' }), expect.any(AbortSignal)));
@@ -77,6 +81,7 @@ describe('RecordsWorkspace', () => {
     renderWorkspace('/registros?vista=auditoria');
     await screen.findByText('Martina Pérez');
     expect(screen.queryByRole('combobox', { name: 'Acción' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Filtros/ }));
     await user.type(screen.getByRole('textbox', { name: 'Acción' }), 'UPDATE');
     await waitFor(() => expect(getRecordPage).toHaveBeenLastCalledWith('auditoria', expect.objectContaining({ estado: 'UPDATE' }), expect.any(AbortSignal)));
     expect(vi.mocked(getRecordPage).mock.calls.filter(([, query]) => query.estado && query.estado !== 'UPDATE')).toHaveLength(0);

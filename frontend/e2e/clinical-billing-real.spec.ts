@@ -109,6 +109,9 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
   await page.getByRole('button', { name: /^Presupuestos 1$/ }).click();
   const createdInvoice = page.waitForResponse(response => response.url().includes(`/presupuestos/${budget.id}/convertir-a-factura`) && response.request().method() === 'POST');
   await page.locator('.budget-panel').getByRole('button', { name: 'Facturar', exact: true }).click();
+  const invoiceDialog = page.getByRole('dialog', { name: 'Confirmar facturación' });
+  await expect(invoiceDialog).toContainText('75,00');
+  await invoiceDialog.getByRole('button', { name: 'Confirmar factura', exact: true }).click();
   const invoiceResponse = await createdInvoice;
   expect(invoiceResponse.ok(), await invoiceResponse.text()).toBeTruthy();
   const invoice = await invoiceResponse.json() as { id: string; total: string; lineas: Array<{ historial_id: string }> };
