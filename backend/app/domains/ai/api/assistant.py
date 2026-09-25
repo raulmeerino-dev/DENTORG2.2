@@ -45,8 +45,9 @@ async def copilot_turn(
     current_user: CurrentUser,
 ):
     from app.domains.ai.application.copilot import run_turn
+    from app.domains.ai.application.copilot_lifecycle import await_turn
 
-    return await run_turn(data, db, current_user, request)
+    return await await_turn(run_turn(data, db, current_user, request), request, db)
 
 
 @router.post("/sessions/{session_id}/confirm")

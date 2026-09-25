@@ -23,6 +23,27 @@ beforeEach(() => {
   HTMLElement.prototype.scrollTo = vi.fn();
 });
 describe('Copilot', () => {
+  it('unlocks immediately on stop and a late response cannot unlock a newer request', async () => {
+    const user = userEvent.setup();
+    let resolveOld!: (result: { message: string; sources: [] }) => void;
+    let resolveNew!: (result: { message: string; sources: [] }) => void;
+    vi.mocked(askCopilot)
+      .mockReturnValueOnce(new Promise(done => { resolveOld = done; }))
+      .mockReturnValueOnce(new Promise(done => { resolveNew = done; }));
+    open();
+    await user.type(screen.getByRole('textbox'), 'Primera consulta');
+    await user.click(screen.getByRole('button', { name: 'Enviar petición' }));
+    await user.click(screen.getByRole('button', { name: 'Detener consulta' }));
+    expect(screen.getByRole('textbox')).toBeEnabled();
+    await user.type(screen.getByRole('textbox'), 'Segunda consulta');
+    await user.click(screen.getByRole('button', { name: 'Enviar petición' }));
+    await act(async () => resolveOld({ message: 'Respuesta antigua', sources: [] }));
+    expect(screen.queryByText('Respuesta antigua')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox')).toBeDisabled();
+    await act(async () => resolveNew({ message: 'Respuesta actual', sources: [] }));
+    expect(screen.getByText('Respuesta actual')).toBeVisible();
+    expect(screen.getByRole('textbox')).toBeEnabled();
+  });
   it('shows the real patient context and stops late responses when the panel is closed', async () => {
     const user = userEvent.setup();
     let resolve!: (result: { message: string; sources: []; navigation: string }) => void;

@@ -3,6 +3,7 @@
 The scripted model replaces only inference, not permissions or business services.
 """
 
+import asyncio
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -13,6 +14,7 @@ from sqlalchemy import func, select
 
 from app.core.permissions import TokenData
 from app.domains.ai.application import copilot
+from app.domains.ai.application.copilot_lifecycle import await_turn
 from app.domains.ai.application.copilot_provider import ProviderUnavailable, strict_schema
 from app.domains.ai.application.copilot_tools import TOOLS
 from app.domains.ai.persistence.copilot import CopilotSession
@@ -23,6 +25,7 @@ from app.domains.identity.persistence.clinica import Clinica
 from app.domains.identity.persistence.doctor import Doctor
 from app.domains.identity.persistence.usuario import Usuario
 from app.domains.patients.persistence.paciente import Paciente
+from app.domains.scheduling.persistence.cita import Cita
 
 pytestmark = pytest.mark.asyncio
 
@@ -203,6 +206,8 @@ async def test_note_requires_confirmation_and_retries_never_duplicate(db_session
     saved = await confirm(db_session, user, request, result, decision)
     assert await confirm(db_session, user, request, result, decision) == saved
     assert await note_count(db_session, patient) == (1 if decision == "confirm" else 0)
+    if decision == "confirm":
+        assert any("tab=sesion" in source["path"] for source in saved["sources"])
 
 
 async def test_multi_action_plan_rolls_back_even_services_that_commit(db_session, monkeypatch):
@@ -357,6 +362,75 @@ async def test_provider_outage_has_no_simulated_fallback(db_session):
     result = await copilot.run_turn(turn(patient), db_session, user, None, ScriptedModel(fail=True))
     assert result["unavailable"] is True and result["proposal"] is None
     assert result["navigation"] is None and await note_count(db_session, patient) == 0
+
+
+async def test_dense_schedule_has_real_totals_and_bounded_named_details(db_session):
+    user, patient, doctor, _ = await fixture(db_session)
+    start = datetime(2026, 9, 25, 8, tzinfo=timezone.utc)
+    for i in range(35):
+        db_session.add(Cita(
+            clinica_id=user.clinica_id, paciente_id=patient.id, doctor_id=doctor.id,
+            fecha_hora=start + timedelta(minutes=i * 10), duracion_min=10,
+            estado="confirmada" if i < 30 else "atendida",
+            finalizada_at=start if i >= 30 else None,
+        ))
+    await db_session.commit()
+    # A day is sufficient for a read: the model need not invent a time or ask for it.
+    args = S.Schedule(start="2026-09-25", end="2026-09-25", patient_id=patient.id)
+    assert args.start.tzinfo and args.start.hour == 0
+    assert args.end.hour == 23 and args.end.minute == 59
+    result = await TOOLS["get_schedule"].handler(args, db_session, user, None)
+    assert result["total"] == 35 and result["truncated"]
+    assert result["counts_by_status"] == {"confirmada": 30, "finalizada": 5}
+    assert result["pending_checkout"] == 5
+    assert len(result["appointments"]) == 8
+    assert result["appointments"][0]["patient"] == "Paciente Copilot"
+    assert result["appointments"][0]["professional"] == doctor.nombre
+
+
+async def test_cancelled_inference_releases_session_and_allows_retry(db_session):
+    from types import SimpleNamespace
+
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient)
+    started = asyncio.Event()
+
+    class WaitingModel(ScriptedModel):
+        async def complete(self, *args):
+            started.set()
+            await asyncio.Event().wait()
+
+    async def disconnected():
+        await started.wait()
+        return {"type": "http.disconnect"}
+
+    with pytest.raises(HTTPException) as error:
+        await await_turn(
+            copilot.run_turn(request, db_session, user, None, WaitingModel()),
+            SimpleNamespace(receive=disconnected), db_session,
+        )
+    assert error.value.status_code == 499
+    async with asyncio.timeout(2):
+        result = await copilot.run_turn(request, db_session, user, None, ScriptedModel())
+    assert result["message"] == "Revisión terminada."
+
+
+async def test_new_turn_retrieves_facts_instead_of_replaying_old_tool_payloads(db_session):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient)
+    await run(db_session, user, request, [("patient_summary", {"patient_id": str(patient.id)})])
+
+    class CheckingModel(ScriptedModel):
+        async def complete(self, system, messages, tools):
+            assert all(m["role"] in {"user", "assistant"} for m in messages)
+            assert all(not m.get("calls") and not m.get("native_output") for m in messages)
+            assert messages[-1]["content"] == "Continúa"
+            return await super().complete(system, messages, tools)
+
+    await copilot.run_turn(
+        request.model_copy(update={"request_id": uuid4(), "text": "Continúa"}),
+        db_session, user, None, CheckingModel(),
+    )
 
 
 async def test_ambiguous_search_stops_before_selecting_or_preparing_changes(

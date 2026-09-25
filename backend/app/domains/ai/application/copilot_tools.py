@@ -1,5 +1,6 @@
 """Allowlisted tools. All reads/writes use permission-aware application services."""
 
+from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -256,13 +257,13 @@ async def patient_balance(a, db, user, request):
 
 @tool(
     "get_schedule",
-    "Consultar agenda y pendientes operativos en un rango de hasta 31 días. Incluye fuente por cita y avisos deterministas de espera/salida, sin inventar estados.",
+    "Consultar agenda y pendientes operativos en un rango de hasta 31 días. Devuelve totales reales por estado y una muestra de citas con nombres y enlaces. Para más detalle, acota el rango o profesional.",
     S.Schedule,
 )
 async def get_schedule(a, db, user, request):
     rows = await citas.listar_citas(db, user, a.professional_id, a.patient_id, a.start, a.end, None)
     data = []
-    for c in rows[:30]:
+    for c in rows[:8]:
         x = plain(c)
         data.append(
             {
@@ -274,13 +275,17 @@ async def get_schedule(a, db, user, request):
                     "fecha_hora",
                     "duracion_min",
                     "motivo",
-                    "estado",
                     "estado_operativo",
-                    "llegada_at",
                     "pendiente_salida",
                 )
             }
         )
+        data[-1]["fecha_hora"] = clinic_datetime(c.fecha_hora).isoformat()
+        if c.paciente:
+            data[-1]["patient"] = f"{c.paciente.nombre} {c.paciente.apellidos}"
+        if c.doctor:
+            data[-1]["professional"] = c.doctor.nombre
+        data[-1]["source_label"] = f"{clinic_datetime(c.fecha_hora):%H:%M} · {data[-1].get('patient', 'Cita')}"
         data[-1]["source"] = "/jornada?" + urlencode(
             {
                 "vista": "agenda",
@@ -291,7 +296,12 @@ async def get_schedule(a, db, user, request):
     return {
         "appointments": data,
         "total": len(rows),
-        "truncated": len(rows) > 30,
+        "counts_by_status": dict(Counter(c.estado_operativo for c in rows)),
+        "detail_scope": "Muestra de las primeras ocho citas, no listado completo. Los totales por estado incluyen todo el rango consultado.",
+        "pending_checkout": sum(c.pendiente_salida for c in rows),
+        "truncated": len(rows) > len(data),
+        "source": "/jornada?" + urlencode({"vista": "operativa", "fecha": clinic_datetime(a.start).date().isoformat()}),
+        "source_label": f"Ver Jornada · {clinic_datetime(a.start):%d/%m/%Y}",
         "workflow": [
             {
                 "appointment_id": r["id"],
@@ -442,7 +452,8 @@ async def clinical_note(a, db, user, request):
     return {
         "id": str(note_id),
         "message": "Nota clínica guardada.",
-        "source": patient_path(a.patient_id, "historial"),
+        "source": patient_path(a.patient_id, "historial" if a.appointment_id else "sesion"),
+        "source_label": "Ver nota en la visita" if a.appointment_id else "Ver nota en sesión",
     }
 
 

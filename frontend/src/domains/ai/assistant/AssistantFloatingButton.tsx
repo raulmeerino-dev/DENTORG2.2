@@ -48,7 +48,12 @@ function Copilot() {
   function stopWaiting() {
     if (confirming) return;
     abort.current?.abort();
+    abort.current = null;
     if (pendingRequest.current) { setRetry(pendingRequest.current); setError('Consulta detenida. Puedes reintentar la misma petición.'); }
+    pendingRequest.current = null;
+    lock.current = false;
+    setBusy(false);
+    inputRef.current?.focus();
   }
   function close() { if (confirming) return; if (busy) stopWaiting(); setOpen(false); }
   const toggle = useEffectEvent(() => { if (open) close(); else setOpen(true); });
@@ -85,7 +90,13 @@ function Copilot() {
       }
     }
     catch { if (!controller.signal.aborted) { setError('No se ha podido obtener respuesta. Puedes reintentar la misma petición.'); setRetry(request); } }
-    finally { pendingRequest.current = null; lock.current = false; setBusy(false); inputRef.current?.focus(); }
+    finally {
+      // A stopped request can settle after another request has already started.
+      if (abort.current === controller) {
+        abort.current = null; pendingRequest.current = null; lock.current = false;
+        setBusy(false); inputRef.current?.focus();
+      }
+    }
   }
   async function decide(entry: Entry, decision: 'confirm' | 'cancel') {
     const proposal = entry.result.proposal;
@@ -119,7 +130,7 @@ function Copilot() {
         </div>}
       </article>)}
     </div>}
-    {busy && <div className="dc-copilot-status" role="status">{confirming ? 'Guardando y verificando el resultado…' : 'Consultando y comprobando…'}{!confirming && <button type="button" className="btn btn-secondary" onClick={stopWaiting}>Detener consulta</button>}</div>}
+    {busy && <div className="dc-copilot-status">{confirming ? <span role="status">Guardando y verificando el resultado…</span> : <><ConsultationStatus /><button type="button" className="btn btn-secondary" onClick={stopWaiting}>Detener consulta</button></>}</div>}
     {error && <div className="dc-copilot-error" role="alert">{error}{retry && <button type="button" className="btn btn-secondary" onClick={() => void send(retry.text, retry)} disabled={busy}>Reintentar</button>}</div>}
     {!entries.length && <div className="dc-copilot-suggestions">{suggestions.map(text => <button type="button" key={text} onClick={() => void send(text)}>{text}</button>)}</div>}
     <form className="dc-copilot-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
@@ -129,4 +140,14 @@ function Copilot() {
     </form>
     <footer className="dc-copilot-footer"><span>{listening ? 'Escuchando…' : 'Los cambios se revisan antes de guardar.'}</span>{entries.length > 0 && <button type="button" disabled={busy} onClick={() => { setEntries([]); setError(''); setRetry(null); setSessionId(crypto.randomUUID()); inputRef.current?.focus(); }}>Nueva conversación</button>}</footer>
   </Dialog>;
+}
+
+function ConsultationStatus() {
+  const [started] = useState(Date.now);
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => setSeconds(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [started]);
+  return <span><span role="status">{seconds < 15 ? 'Consultando y preparando respuesta…' : 'El modelo está tardando. Puedes detener la consulta.'}</span> <span aria-hidden="true">{seconds}s</span></span>;
 }

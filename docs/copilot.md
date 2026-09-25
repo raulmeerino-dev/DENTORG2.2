@@ -4,6 +4,10 @@ El acceso global es el icono de destellos de la cabecera, junto a En sala; tambi
 
 Las consultas pueden detenerse y reintentarse. Una respuesta tardía a una consulta cerrada no navega ni altera la interfaz. Durante una confirmación se mantiene abierto el resultado hasta verificarlo; los reintentos utilizan el mismo identificador y no duplican el cambio. Los resúmenes clínicos incorporan las seis últimas notas revisadas, con fecha, profesional, origen y enlace al historial; los textos largos se identifican como extractos, no como el historial completo.
 
+Una consulta detenida libera inmediatamente el editor y cancela la inferencia y la transacción de lectura/preparación del servidor. El límite de 90 segundos incluye las esperas de base de datos. Las confirmaciones de escritura conservan su transacción y recibo aunque se pierda la conexión. La interfaz muestra el tiempo de espera y permite detener sin que una respuesta antigua afecte a la siguiente petición.
+
+Una nota confirmada sin cita se muestra entre las notas de hoy en Sesión y su enlace abre ese contexto. No crea una visita ficticia ni una fila de tratamiento en el historial. Las notas vinculadas a una cita conservan el acceso a su visita.
+
 ## Arquitectura
 
 `ai/application/copilot.py` dirige un bucle acotado de llamadas nativas a herramientas. `copilot_provider.py` adapta Ollama y OpenAI Responses; no hay interpretación simulada ni rescate mediante palabras clave cuando falla el modelo. `LLM_PROVIDER=auto` usa OpenAI cuando está configurada su clave y Ollama en caso contrario. El modelo y endpoint siguen la configuración existente. Responses usa `store=false` y conserva los elementos necesarios para continuar llamadas a herramientas, incluido el contexto de razonamiento cifrado ([documentación oficial](https://developers.openai.com/api/docs/guides/migrate-to-responses)).
@@ -13,6 +17,14 @@ Las herramientas usan servicios de dominio, schemas Pydantic estrictos y permiso
 Consultas y navegación se ejecutan directamente. Citas, estados de visita, notas, tratamientos realizados, presupuestos y cobros preparan una revisión con datos reales. El botón de confirmación ejecuta el plan en una transacción que incluye el recibo idempotente. Se vuelven a validar permisos, paciente, estado de cita y precios/saldo pertinentes. Un fallo revierte todos los pasos. Repetir una confirmación devuelve el resultado anterior.
 
 Las conversaciones se guardan cifradas y caducan a los 30 minutos. El siguiente acceso purga el contenido caducado; los eventos de auditoría no guardan prompts ni contenido clínico en claro. La migración 0048 añade una tabla y la conserva durante un rollback de aplicación; volver a subir la revisión es idempotente. Una propuesta caducada exige prepararla de nuevo.
+
+El contexto conserva las tres últimas intervenciones de diálogo; los resultados completos de herramientas antiguas se vuelven a consultar cuando hacen falta. La agenda devuelve totales de todo el rango y una muestra explícita de ocho citas con nombres y horas de la clínica, evitando saturar al modelo con listados densos. Las fechas sin hora representan días completos para las consultas; reservar una cita sigue exigiendo una hora explícita. «Hoy» se calcula desde el reloj de la clínica, independientemente del día abierto en Agenda.
+
+### Ollama local
+
+Dimensionar el modelo para el equipo. En la prueba local con RTX 3060 Laptop de 6 GB, `qwen2.5:14b-instruct` se ejecutaba parcialmente en CPU a unos 4,2 tokens/s; `qwen2.5:7b-instruct` redujo la espera. Se puede cambiar `OLLAMA_MODEL` en el entorno de DentCore sin cambiar el modelo de Codex CLI. No hay cambio automático de proveedor ni envío a servicios externos.
+
+`OLLAMA_CONTEXT_LENGTH` (16384 por defecto) reserva espacio para política, herramientas y resultados; reducirlo demasiado puede hacer que Ollama trunque instrucciones. `OLLAMA_MAX_OUTPUT_TOKENS` (768 por defecto) acota cada generación; las respuestas truncadas se rechazan antes de preparar acciones. Los límites de inferencia no garantizan una latencia concreta: depende del hardware, la carga y el modelo.
 
 ## Capacidades y límites
 

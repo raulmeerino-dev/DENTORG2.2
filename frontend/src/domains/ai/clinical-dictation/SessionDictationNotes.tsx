@@ -35,12 +35,12 @@ function NoteEditor({ note, onClose }: { note: NotaDental; onClose: () => void }
 export function SessionDictationNotes({ notes, citaId, canEdit }: { notes: NotaDental[]; citaId?: string; canEdit: boolean }) {
   const [editing, setEditing] = useState<NotaDental | null>(null);
   const today = clinicDate(new Date());
-  const current = notes.filter(note => note.origen === 'dictado_clinico' &&
+  const current = notes.filter(note => ['dictado_clinico', 'asistente_confirmado'].includes(note.origen || '') &&
     (citaId ? note.cita_id === citaId || (!note.cita_id && note.fecha === today) : note.fecha === today));
   if (!current.length) return null;
-  return <section className="dc-session-dictations" aria-label="Notas dictadas de sesión">
-    <header><strong>{citaId ? 'Notas de sesión' : 'Notas dictadas de hoy'}</strong><span>{current.length}</span></header>
-    {current.map(note => <details key={note.id}><summary>{note.texto.slice(0, 90)}{note.texto.length > 90 ? '…' : ''}</summary><p>{note.texto}</p><small>{note.doctor?.nombre || 'Nota clínica'} · {note.cita_id ? 'Vinculada a visita' : 'Sin cita asociada'}</small>{canEdit && <button type="button" className="btn btn-secondary" onClick={() => setEditing(note)}>Editar texto</button>}</details>)}
+  return <section className="dc-session-dictations" aria-label="Notas de sesión">
+    <header><strong>{citaId ? 'Notas de sesión' : 'Notas de hoy'}</strong><span>{current.length}</span></header>
+    {current.map(note => <details key={note.id}><summary>{note.texto.slice(0, 90)}{note.texto.length > 90 ? '…' : ''}</summary><p>{note.texto}</p><small>{note.doctor?.nombre || 'Nota clínica'} · {note.cita_id ? 'Vinculada a visita' : 'Sin cita asociada'}</small>{canEdit && note.origen === 'dictado_clinico' && <button type="button" className="btn btn-secondary" onClick={() => setEditing(note)}>Editar texto</button>}</details>)}
     {editing && <NoteEditor key={editing.id} note={editing} onClose={() => setEditing(null)} />}
   </section>;
 }

@@ -82,3 +82,28 @@ async def test_malformed_tool_response_is_not_executed(monkeypatch):
     )
     with pytest.raises(InvalidModelResponse):
         await ToolCallingProvider(settings).complete("System", [], [])
+
+
+@pytest.mark.asyncio
+async def test_ollama_respects_resource_budget_and_rejects_truncated_generation(monkeypatch):
+    import json
+
+    settings = SimpleNamespace(
+        llm_provider="ollama", ollama_model="local-model", ollama_timeout_seconds=5,
+        ollama_base_url="http://localhost:11434",
+        ollama_context_length=8192, ollama_max_output_tokens=512,
+    )
+    real_client = httpx.AsyncClient
+
+    def handle(request):
+        payload = json.loads(request.content)
+        assert payload["options"] == {"temperature": 0, "num_ctx": 8192, "num_predict": 512}
+        return httpx.Response(200, json={
+            "done_reason": "length", "message": {"content": "Respuesta incompleta"},
+        })
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: real_client(
+        transport=httpx.MockTransport(handle), **kwargs,
+    ))
+    with pytest.raises(InvalidModelResponse):
+        await ToolCallingProvider(settings).complete("System", [], [])

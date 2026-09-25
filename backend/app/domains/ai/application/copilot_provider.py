@@ -78,12 +78,20 @@ class ToolCallingProvider:
                             "stream": False,
                             "messages": native,
                             "tools": [{"type": "function", "function": t} for t in tools],
-                            "options": {"temperature": 0, "num_ctx": 16384, "num_predict": 1200},
+                            "options": {
+                                "temperature": 0,
+                                "num_ctx": getattr(self.settings, "ollama_context_length", 16384),
+                                "num_predict": getattr(self.settings, "ollama_max_output_tokens", 768),
+                            },
                             "keep_alive": "10m",
                         },
                     )
                     response.raise_for_status()
-                    message = response.json()["message"]
+                    payload = response.json()
+                    # Incomplete tool arguments must never become a proposed action.
+                    if payload.get("done_reason") == "length":
+                        raise InvalidModelResponse()
+                    message = payload["message"]
                     calls = [
                         parse_call(c["function"]["name"], c["function"]["arguments"])
                         for c in message.get("tool_calls", [])

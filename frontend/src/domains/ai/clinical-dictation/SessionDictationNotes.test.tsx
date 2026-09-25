@@ -14,6 +14,13 @@ function open(notes = [note], canEdit = true) {
 }
 beforeEach(() => vi.clearAllMocks());
 
+it('shows notes confirmed through the assistant without using the dictation-only editor', () => {
+  open([{ ...note, cita_id: null, origen: 'asistente_confirmado', texto: 'Nota confirmada desde IA' }]);
+  expect(screen.getByRole('region', { name: 'Notas de sesión' })).toBeVisible();
+  expect(screen.getAllByText('Nota confirmada desde IA')).toHaveLength(2);
+  expect(screen.queryByRole('button', { name: 'Editar texto' })).not.toBeInTheDocument();
+});
+
 it('shows current-visit and unassigned notes today, excluding other visits and non-dictation notes', () => {
   open([note, { ...note, id: 'general', cita_id: null, texto: 'General de hoy' }, { ...note, id: 'other', cita_id: 'other', texto: 'Otra visita' }, { ...note, id: 'old', cita_id: null, fecha: '2026-09-24', texto: 'Nota antigua' }, { ...note, id: 'manual', origen: 'manual', texto: 'Nota dental manual' }], false);
   expect(screen.getAllByText('Nota original')).toHaveLength(2);

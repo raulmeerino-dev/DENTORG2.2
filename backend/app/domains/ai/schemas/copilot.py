@@ -1,10 +1,12 @@
 """Strict transport contracts; client context never grants authority."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Literal
 from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from app.domains.scheduling.application.clinic_time import clinic_datetime
 
 
 class StrictModel(BaseModel):
@@ -97,13 +99,17 @@ class Navigate(StrictModel):
 
 
 class Schedule(StrictModel):
-    start: AwareDatetime
-    end: AwareDatetime
+    start: AwareDatetime | date = Field(description="Inicio inclusivo: fecha YYYY-MM-DD (día completo en zona de la clínica) o fecha/hora ISO con zona horaria.")
+    end: AwareDatetime | date = Field(description="Final inclusivo: fecha YYYY-MM-DD (hasta el final de ese día en la clínica) o fecha/hora ISO con zona horaria.")
     patient_id: UUID | None = None
     professional_id: UUID | None = None
 
     @model_validator(mode="after")
     def bounded_range(self):
+        if not isinstance(self.start, datetime):
+            self.start = clinic_datetime(datetime.combine(self.start, time.min))
+        if not isinstance(self.end, datetime):
+            self.end = clinic_datetime(datetime.combine(self.end, time.max))
         if not timedelta(minutes=1) <= self.end - self.start <= timedelta(days=31):
             raise ValueError("El rango debe tener entre un minuto y 31 días")
         return self
