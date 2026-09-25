@@ -131,6 +131,7 @@ function certificationLabel(receta: RecetaClinica) {
 }
 
 export function RecetaModal({
+  backLabel,
   paciente,
   doctores,
   plantillas = [],
@@ -142,6 +143,7 @@ export function RecetaModal({
   onSubmit,
   onImportPlantilla,
 }: {
+  backLabel?: string;
   paciente: ApiPaciente;
   doctores: Doctor[];
   plantillas?: RecetaPlantilla[];
@@ -235,7 +237,7 @@ export function RecetaModal({
   }
 
   return (
-    <TaskSurface title="Nueva receta" context={<PatientTaskContext paciente={paciente} />} onClose={onClose} className="dc-prescription-task">
+    <TaskSurface backLabel={backLabel} title="Nueva receta" context={<PatientTaskContext paciente={paciente} />} onClose={onClose} className="dc-prescription-task">
       <form
         className="dc-prescription-form"
         onSubmit={onFormSubmit}

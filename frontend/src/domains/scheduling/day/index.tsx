@@ -242,7 +242,7 @@ export default function HoyPage() {
         <div className="inline-alert">No se han podido cargar las citas de hoy. Revisa la conexión.</div>
       )}
 
-      <JornadaActions onReminders={abrirRecordatorios} canManageBilling={canManageBilling} replies={whatsappPendientes.length} onNewAppointment={!jornada ? () => { prepararNuevaCita(); navigate(agendaUrl); } : undefined} />
+      <JornadaActions canPrescribe={user?.rol === 'admin' || user?.rol === 'doctor'} canUseConsents={user?.rol === 'admin' || user?.rol === 'doctor' || user?.rol === 'auxiliar'} onReminders={abrirRecordatorios} canManageBilling={canManageBilling} replies={whatsappPendientes.length} onNewAppointment={!jornada ? () => { prepararNuevaCita(); navigate(agendaUrl); } : undefined} />
       <section className="hoy-command-center" aria-label="Prioridades de hoy">
         <div className="hoy-next-action">
           <div>

@@ -78,3 +78,12 @@
   .jornada-workspace { overflow: auto; }
   .jornada-content { flex: 0 0 auto; min-height: 320px; }
 }
+
+.jornada-workspace { position: relative; }
+.jornada-toolbar { padding-block: var(--dc-space-2); gap: var(--dc-space-2); }
+.jornada-toolbar .dc-toolbar-content { flex: 1; gap: var(--dc-space-3); }
+.jornada-toolbar .jornada-date { margin-left: 0; }
+
+.jornada-header-professional { display: flex; align-items: center; gap: var(--dc-space-2); margin-left: auto; font-size: var(--dc-font-small); color: var(--dc-muted); }
+.jornada-header-professional select { max-width: 200px; }
+@media (max-width: 1000px) { .jornada-toolbar .dc-toolbar-content { flex-wrap: wrap; } .jornada-header-professional { margin-left: 0; } }

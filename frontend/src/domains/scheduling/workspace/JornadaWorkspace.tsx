@@ -28,11 +28,10 @@ function JornadaContent() {
         <button type="button" aria-pressed={perspective === 'agenda'} onClick={() => changePerspective('agenda')}><CalendarDays size={15} />Agenda</button>
       </nav>
       {perspective === 'agenda' ? <AgendaDatePicker day={jornada.day} onChange={jornada.setDay} /> : <label className="jornada-date">Fecha<input type="date" aria-label="Fecha de Jornada" value={jornada.day} onChange={e => jornada.setDay(e.target.value)} /></label>}
-
+      <label className="jornada-header-professional">Profesional<select aria-label="Profesional de Jornada" value={jornada.doctorId} onChange={e => jornada.setDoctorId(e.target.value)}><option value="">Todos los profesionales</option>{jornada.doctores.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}</select></label>
     </Toolbar>
     <button type="button" className="jornada-filter-toggle" aria-expanded={filtersOpen} aria-controls="jornada-filters" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={14} />Filtros{activeFilters ? ` · ${activeFilters} activos` : ''}<span>{jornada.citas.length} citas</span></button>
     <div id="jornada-filters" className={`jornada-filters${filtersOpen ? ' is-open' : ''}`} aria-label="Filtros de Jornada">
-      <label>Profesional<select aria-label="Profesional de Jornada" value={jornada.doctorId} onChange={e => jornada.setDoctorId(e.target.value)}><option value="">Todos los profesionales</option>{jornada.doctores.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}</select></label>
       {Boolean(gabinetes.data?.length) && <label>Gabinete<select aria-label="Gabinete de Jornada" value={jornada.gabineteId} onChange={e => jornada.setGabineteId(e.target.value)}><option value="">Todos los gabinetes</option>{gabinetes.data?.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}</select></label>}
       <label>Estado<select aria-label="Estado de Jornada" value={jornada.status} onChange={e => jornada.setStatus(e.target.value)}><option value="">Todos los estados</option>{AGENDA_STATUS_LEGEND.map(s => <option key={s} value={s}>{STATUS_META[s].label}</option>)}</select></label>
       <label className="jornada-search"><Search size={15} aria-hidden="true" /><input aria-label="Buscar en Jornada" placeholder="Paciente, teléfono o tratamiento" value={jornada.searchQuery} onChange={e => jornada.setSearchQuery(e.target.value)} /></label>

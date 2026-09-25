@@ -166,6 +166,8 @@ export function SignaturePad({ onChange }: { onChange: (dataUrl: string | null) 
 
 export function DocumentDesignerModal({
   mode,
+  contextDate,
+  backLabel,
   paciente,
   plantillas,
   initialTipo,
@@ -175,6 +177,8 @@ export function DocumentDesignerModal({
   errorMessage,
 }: {
   mode: DocumentDesignerMode;
+  contextDate?: string;
+  backLabel?: string;
   paciente: ApiPaciente;
   plantillas: PlantillaConsentimiento[];
   initialTipo?: string;
@@ -183,12 +187,13 @@ export function DocumentDesignerModal({
   saving?: boolean;
   errorMessage?: string | null;
 }) {
+  const contextualize = (text: string) => renderTemplate(text, paciente) + (contextDate ? `\n\nFecha: ${formatDate(contextDate)}` : '');
   const defaultTipo = initialTipo || (mode === 'consentimiento' ? plantillas[0]?.nombre || 'Consentimiento personalizado' : 'Justificante de asistencia');
   const textos = mode === 'consentimiento' ? CONSENTIMIENTO_TEXTOS : CIRCULAR_TEXTOS;
   const initialPlantilla = mode === 'consentimiento' ? plantillas.find((item) => item.nombre === defaultTipo) : null;
   const [tipo, setTipo] = useState(defaultTipo);
   const [titulo, setTitulo] = useState(mode === 'consentimiento' ? `Consentimiento informado - ${defaultTipo}` : defaultTipo);
-  const [contenido, setContenido] = useState(renderTemplate(initialPlantilla?.contenido ?? textos[defaultTipo] ?? '', paciente));
+  const [contenido, setContenido] = useState(contextualize(initialPlantilla?.contenido ?? textos[defaultTipo] ?? ''));
   const [firmaDataUrl, setFirmaDataUrl] = useState<string | null>(null);
   const [templateMsg, setTemplateMsg] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -199,7 +204,7 @@ export function DocumentDesignerModal({
     const base = plantilla?.contenido ?? textos[nextTipo] ?? '';
     setTipo(nextTipo);
     setTitulo(mode === 'consentimiento' ? `Consentimiento informado - ${nextTipo}` : nextTipo);
-    setContenido(renderTemplate(base, paciente));
+    setContenido(contextualize(base));
   }
 
   function saveLocalTemplate() {
@@ -228,6 +233,7 @@ export function DocumentDesignerModal({
 
   return (
     <TaskSurface
+      backLabel={backLabel}
       title={mode === 'consentimiento' ? 'Consentimiento informado' : 'Circular personalizada'}
       context={<PatientTaskContext paciente={paciente} />}
       onClose={onClose}

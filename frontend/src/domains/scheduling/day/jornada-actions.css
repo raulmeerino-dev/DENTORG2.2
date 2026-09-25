@@ -1,4 +1,13 @@
 .jornada-patient-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dc-space-3); min-width: 0; padding: 0 0 var(--dc-space-2); border-bottom: 1px solid var(--dc-border); }
-.jornada-patient-toolbar > .dc-patient-finder { flex: 1 1 220px; max-width: 420px; min-width: 0; }
+.jornada-patient-toolbar > .dc-patient-finder { flex: 1 1 240px; max-width: 360px; min-width: 0; }
 .jornada-patient-toolbar > .patient-actions { width: auto; }
 .jornada-patient-toolbar > [role="alert"] { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--dc-danger); }
+
+.jornada-patient-toolbar .dc-action-group { gap: var(--dc-space-2); flex-wrap: wrap; }
+.jornada-patient-toolbar .patient-actions button { white-space: nowrap; }
+.jornada-task-patient-picker { width: min(520px, calc(100vw - 32px)); padding: var(--dc-space-4); background: var(--dc-surface); border: 1px solid var(--dc-border); border-radius: var(--dc-radius); display: grid; gap: var(--dc-space-3); }
+.jornada-task-patient-picker h2, .jornada-task-patient-picker p { margin: 0; }
+.jornada-task-patient-picker h2 { font-size: var(--dc-font-heading); }
+.jornada-task-patient-picker > button { justify-self: end; }
+.jornada-patient-task { position: absolute; inset: 0; z-index: 80; display: flex; flex-direction: column; min-height: 0; background: var(--dc-surface); overflow: auto; }
+.jornada-task-return { flex: none; align-self: flex-start; margin: 8px 12px; }

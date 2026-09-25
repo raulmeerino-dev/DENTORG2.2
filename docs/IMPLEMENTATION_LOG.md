@@ -1,3 +1,11 @@
+## 2026-09-25 — Jornada: accesos documentales; Agenda: selección de tramos
+
+Cabecera de Jornada compacta con profesional integrado; acciones visibles de búsqueda, recordatorios, justificantes/circulares, recetas y consentimientos, con extras en menú. Selección explícita de paciente y reutilización de los editores existentes dentro del workspace; plantillas y fecha contextual para circulares, guardado mediante APIs actuales y retorno a Jornada. Los nuevos accesos respetan permisos existentes (recetas: admin/doctor; consentimientos: acceso clínico). Los editores compartidos solo reciben opciones de contexto/retorno, conservando sus valores predeterminados en Pacientes.
+
+Calendario mensual con semanas necesarias (4/5/6). Selección por arrastre conserva profesional, hora y duración, impide atravesar citas y mantiene la creación con teclado. Un hueco sin paciente no hereda silenciosamente la ficha anterior. Formulario de Agenda con contexto alineado, casillas de tamaño normal, búsqueda sin solapamiento y menos datos redundantes.
+
+Validación: 81 tests relevantes, 5 E2E reales (incluido vínculo con presupuesto), TypeScript, build y lint. Navegador a 1366×768, 1440×900, 1920×1080 y 1280×600; sin overflow de página ni errores de ejecución/red en el recorrido final. Guardados reales sobre paciente sintético: circular PDF y cita 09:00–09:30 por arrastre. Apertura de recetas y consentimientos, recordatorios, búsqueda y extras; foco bloqueado al workspace subyacente durante tareas documentales. Sin cambios en permisos, backend, sidebar, Caja ni Ajustes.
+
 ## 2026-09-25 — Acabado transversal y fiabilidad de workspaces
 
 Correcciones incrementales sin migraciones ni cambios de permisos: estilos de acción primaria consolidados en el design system (incluido contraste oscuro), eliminación de overrides sustituidos, etiquetas y estados legibles, una sola región principal por pantalla, recuperación al cambiar de ruta tras un error y destino desconocido con respuesta visible. Los diálogos anidados atienden Escape y tabulación únicamente en el superior.

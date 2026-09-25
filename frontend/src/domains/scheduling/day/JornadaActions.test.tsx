@@ -13,6 +13,15 @@ function show(canManageBilling = true) {
   return reminders;
 }
 describe('JornadaActions', () => {
+  it('muestra accesos documentales sin conceder permisos clínicos', async () => {
+    const user = userEvent.setup(); show();
+    expect(screen.getByRole('button', { name: 'Recetas médicas' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Consentimientos' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Justificantes / circulares' }));
+    expect(screen.getByRole('dialog', { name: /Elegir paciente/ })).toBeVisible();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
   it('abre el paciente encontrado por la API y mantiene recordatorios accesible', async () => {
     const user = userEvent.setup(); const reminders = show();
     await user.click(screen.getByRole('button', { name: 'Enviar recordatorios por WhatsApp' }));
