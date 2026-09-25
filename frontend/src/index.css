@@ -3770,59 +3770,6 @@ html[data-theme="dark"] .history-billing-dentcore {
   min-height: 0;
 }
 
-.budget-treatment-list {
-  min-height: 178px;
-  max-height: 240px;
-  display: grid;
-  gap: 6px;
-  overflow: auto;
-  padding: 5px;
-  border: 1px solid #bfd0da;
-  border-radius: 10px;
-  background: #f8fbfd;
-}
-
-.budget-treatment-list button {
-  min-height: 38px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #d7e4ec;
-  border-radius: 8px;
-  padding: 6px 8px;
-  color: #18344a;
-  background: #ffffff;
-  text-align: left;
-  cursor: pointer;
-}
-
-.budget-treatment-list button:hover, .budget-treatment-list button.active {
-  border-color: #0f7cad;
-  background: #edf8fd;
-  box-shadow: inset 3px 0 0 #0f7cad;
-}
-
-.budget-treatment-list button strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
-
-.budget-treatment-list button > span:last-child {
-  color: #0f4f72;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-
-.budget-treatment-list p {
-  margin: 0;
-  color: #627586;
-  font-weight: 700;
-}
-
 .budget-line-editor {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 80px 90px 80px 110px;
@@ -6349,12 +6296,8 @@ html[data-theme="dark"] .legend-chip {
   max-height: 260px;
 }
 
-.budget-treatment-picker, .budget-treatment-list, .budget-line-editor {
+.budget-treatment-picker, .budget-line-editor {
   min-width: 0;
-}
-
-.budget-treatment-list {
-  max-height: 320px;
 }
 
 @media (max-width: 980px) {
@@ -7063,17 +7006,6 @@ html[data-theme="dark"] .mini-odontogram-footer b {
   background: #fbfdfe;
 }
 
-.budget-treatment-list button {
-  border-color: #dce8ee;
-  border-radius: 9px;
-  background: #fff;
-}
-
-.budget-treatment-list button.active {
-  border-color: #0f9faf;
-  background: #effbfe;
-}
-
 /* Pendientes, realizados, historial */
 .odontogram-support-panel, .secondary-clinic-panel {
   border: 1px solid var(--line);
@@ -7209,7 +7141,7 @@ html[data-theme="dark"] .page-shell .desk-panel, html[data-theme="dark"] .odonto
   border-color: var(--line);
 }
 
-html[data-theme="dark"] .treatment-subtabs, html[data-theme="dark"] .history-filter-tabs, html[data-theme="dark"] .agenda-slot-content, html[data-theme="dark"] .budget-treatment-list button, html[data-theme="dark"] .admin-create-panel {
+html[data-theme="dark"] .treatment-subtabs, html[data-theme="dark"] .history-filter-tabs, html[data-theme="dark"] .agenda-slot-content, html[data-theme="dark"] .admin-create-panel {
   background: var(--surface-soft);
   border-color: var(--line);
 }
@@ -7301,10 +7233,6 @@ html[data-theme="dark"] .page-shell .dentcore-table th {
 
 .budget-workbench {
   grid-template-columns: minmax(280px, 0.9fr) minmax(280px, 1.1fr);
-}
-
-.budget-treatment-list {
-  max-height: min(360px, 42vh);
 }
 
 .budget-panel > .dentcore-table, .complete-history-timeline {
@@ -10519,39 +10447,10 @@ html[data-theme="dark"] .budget-panel, html[data-theme="dark"] .budget-workbench
   color: #edfaff !important;
 }
 
-html[data-theme="dark"] .budget-treatment-list {
-  background: #071a25 !important;
-  border-color: #315d73 !important;
-}
-
-html[data-theme="dark"] .budget-treatment-list button {
-  background: #112e40 !important;
-  border-color: #365f75 !important;
-  color: #edfaff !important;
-}
-
-html[data-theme="dark"] .budget-treatment-list button:hover, html[data-theme="dark"] .budget-treatment-list button.active {
-  background: linear-gradient(90deg, rgba(91, 220, 240, 0.18), rgba(69, 224, 198, 0.12)) !important;
-  border-color: var(--clinical-dark-teal) !important;
-  box-shadow: inset 4px 0 0 var(--clinical-dark-teal) !important;
-}
-
-html[data-theme="dark"] .budget-treatment-list button strong {
-  color: #f6fdff !important;
-}
-
-html[data-theme="dark"] .budget-treatment-list button > span:first-child, html[data-theme="dark"] .treatment-badge {
+html[data-theme="dark"] .treatment-badge {
   background: rgba(247, 201, 72, 0.16) !important;
   border-color: rgba(247, 201, 72, 0.38) !important;
   color: #ffe7a1 !important;
-}
-
-html[data-theme="dark"] .budget-treatment-list button > span:last-child {
-  color: #5bdcf0 !important;
-}
-
-html[data-theme="dark"] .budget-treatment-list p {
-  color: #a9c3d1 !important;
 }
 
 html[data-theme="dark"] .budget-workbench input, html[data-theme="dark"] .budget-workbench select, html[data-theme="dark"] .budget-line-editor input, html[data-theme="dark"] .budget-line-editor select {

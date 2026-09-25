@@ -40,10 +40,12 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
   expect(budgetResponse.status()).toBe(201);
   const budget = await budgetResponse.json() as { id: string; doctor_id: string };
   const budgetPanel = page.locator('.budget-panel');
-  await budgetPanel.getByPlaceholder('Buscar tratamiento', { exact: true }).fill('Empaste');
-  await budgetPanel.getByRole('listbox', { name: 'Tratamientos del presupuesto' }).getByRole('button').filter({ has: page.getByText('Empaste', { exact: true }) }).click();
   await budgetPanel.getByLabel('Pieza', { exact: true }).fill('36');
   await budgetPanel.getByLabel('Caras', { exact: true }).fill('O');
+  await budgetPanel.getByRole('combobox', { name: 'Buscar tratamiento', exact: true }).fill('Empaste');
+  await budgetPanel.getByRole('option', { name: /Empaste/ }).first().click();
+  await expect(budgetPanel.getByLabel('Pieza', { exact: true })).toHaveValue('36');
+  await expect(budgetPanel.getByLabel('Caras', { exact: true })).toHaveValue('O');
   await budgetPanel.getByLabel('Precio', { exact: true }).fill('75');
   await budgetPanel.getByRole('button', { name: 'Anadir', exact: true }).click();
   await expect(budgetPanel.getByRole('button', { name: 'Aceptar todo', exact: true })).toBeEnabled();

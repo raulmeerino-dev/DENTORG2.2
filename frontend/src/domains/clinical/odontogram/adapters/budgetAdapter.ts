@@ -49,6 +49,7 @@ export function treatmentCatalogToQuickTreatments(tratamientos: TratamientoCatal
   return tratamientos.map((tratamiento) => ({
     id: tratamiento.id,
     name: tratamiento.nombre,
+    code: tratamiento.codigo,
     category: tratamiento.familia?.nombre ?? 'Tratamiento',
     status: statusForTreatment(tratamiento.nombre),
     targetScope: tratamiento.requiere_caras ? 'surface' : 'tooth',

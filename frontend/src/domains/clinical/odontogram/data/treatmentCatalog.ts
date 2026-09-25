@@ -3,6 +3,7 @@ import type { SurfaceKey, ToothStatus, TreatmentTargetScope } from '../types/odo
 export type QuickTreatment = {
   id: string;
   name: string;
+  code?: string | null;
   category: string;
   status: ToothStatus;
   targetScope?: TreatmentTargetScope;

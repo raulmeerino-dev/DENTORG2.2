@@ -27,6 +27,7 @@ import { formatDate, money } from '../../shared/format';
 import { invalidatePatientWorkspaceQueries } from '../../shared/query/queryInvalidation';
 import { TreatmentBadge } from '../clinical/components/TreatmentBadge';
 import { BudgetOdontogramFlow } from '../clinical/odontogram';
+import { CatalogTreatmentSelector } from '../clinical/treatment-selection/TreatmentSelector';
 import './budget-responsive.css';
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -52,7 +53,7 @@ export function PresupuestoPanel({
   onOpenBudget?: (budget: Presupuesto) => void;
 }) {
   const queryClient = useQueryClient();
-  const [selectedTreatmentId, setSelectedTreatmentId] = useState(tratamientos[0]?.id ?? '');
+  const [selectedTreatmentId, setSelectedTreatmentId] = useState('');
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
   const lineaSeleccionada = presupuesto.lineas.find((line) => line.id === selectedLineId) ?? null;
   const [invoiceOpen, setInvoiceOpen] = useState(false);
@@ -64,14 +65,7 @@ export function PresupuestoPanel({
   const [mapOpen, setMapOpen] = useState(false);
   const [rechazarOpen, setRechazarOpen] = useState(false);
   const [motivoRechazo, setMotivoRechazo] = useState('');
-  const selectedTreatment = tratamientos.find((item) => item.id === selectedTreatmentId) ?? tratamientos[0];
-  const catalog = tratamientos
-    .filter((item) => {
-      const q = catalogSearch.trim().toLowerCase();
-      if (!q) return true;
-      return `${item.codigo ?? ''} ${item.nombre} ${item.familia?.nombre ?? ''}`.toLowerCase().includes(q);
-    })
-    .slice(0, 120);
+  const selectedTreatment = tratamientos.find((item) => item.id === selectedTreatmentId);
 
   const invalidate = () => invalidatePatientWorkspaceQueries(queryClient, presupuesto.paciente_id);
 
@@ -176,6 +170,7 @@ export function PresupuestoPanel({
     setDescuento(String(linea.descuento_porcentaje ?? '0'));
     setPrecioLinea(String(linea.precio_unitario ?? ''));
     setSelectedTreatmentId(linea.tratamiento_id);
+    setCatalogSearch(linea.tratamiento?.nombre ?? tratamientos.find(item => item.id === linea.tratamiento_id)?.nombre ?? '');
   }
 
   function selectTreatment(id: string) {
@@ -183,7 +178,7 @@ export function PresupuestoPanel({
     setSelectedTreatmentId(id);
     setSelectedLineId(null);
     setPrecioLinea(tratamiento?.precio ?? '');
-    setCatalogSearch('');
+    setCatalogSearch(tratamiento?.nombre ?? '');
   }
 
   function abrirPdfPresupuesto() {
@@ -379,26 +374,10 @@ export function PresupuestoPanel({
         <summary>Añadir o editar tratamientos desde catálogo</summary>
         <div className="budget-workbench">
           <aside className="budget-treatment-picker">
-            <input
-              value={catalogSearch}
-              onChange={(event) => setCatalogSearch(event.target.value)}
-              placeholder="Buscar tratamiento"
-            />
-            <div className="budget-treatment-list" role="listbox" aria-label="Tratamientos del presupuesto">
-              {catalog.map((tratamiento) => (
-                <button
-                  key={tratamiento.id}
-                  type="button"
-                  className={selectedTreatment?.id === tratamiento.id ? 'active' : ''}
-                  onClick={() => selectTreatment(tratamiento.id)}
-                >
-                  <TreatmentBadge tratamiento={tratamiento} />
-                  <strong>{tratamiento.nombre}</strong>
-                  <span>{money(tratamiento.precio)}</span>
-                </button>
-              ))}
-              {!catalog.length && <p>No hay tratamientos con ese criterio.</p>}
-            </div>
+            <CatalogTreatmentSelector items={tratamientos} query={catalogSearch} selectedId={selectedTreatmentId}
+              label="Buscar tratamiento" placeholder="Buscar tratamiento" showPrice catalogInitiallyOpen
+              disabled={presupuestoCerrado} onQueryChange={query => { setCatalogSearch(query); setSelectedTreatmentId(''); setSelectedLineId(null); }}
+              onSelect={tratamiento => selectTreatment(tratamiento.id)} />
           </aside>
           <div className="budget-line-editor">
             <label>

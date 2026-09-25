@@ -7,15 +7,11 @@
   .budget-context-workspace .budget-line-editor label:first-child { grid-column: 1 / -1; }
   .budget-context-workspace .budget-line-editor input { width: 100%; }
   .budget-context-workspace .budget-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .budget-context-workspace .budget-treatment-list button { grid-template-columns: minmax(0, 1fr) auto; }
-  .budget-context-workspace .budget-treatment-list button strong { grid-column: 1 / -1; grid-row: 2; white-space: normal; overflow-wrap: anywhere; }
 }
 
 .dc-clinical-workspace > .budget-context-workspace { margin: 0; padding: var(--dc-space-3); min-width: 0; }
 
 .budget-context-workspace .budget-panel { border: 0; border-radius: 0; box-shadow: none; }
 .budget-context-workspace .budget-panel-header { padding: 8px 12px; }
-.budget-context-workspace .budget-treatment-list { max-height: 170px; }
-.budget-context-workspace .budget-treatment-list button { border-radius: var(--dc-radius-sm); }
 .budget-context-workspace .budget-workbench { padding: 8px 0; }
 .budget-context-workspace .presupuesto-selector { flex-wrap: wrap; }

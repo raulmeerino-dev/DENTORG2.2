@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { CatalogTreatmentSelector } from '../../clinical/treatment-selection/TreatmentSelector';
 import type { FormEvent } from 'react';
 import { useEffect,useMemo,useState } from 'react';
 import { getWhatsAppComunicaciones } from '../../../api/communications';
@@ -337,8 +338,9 @@ export function CitaModal({
             {gabinete && !gabinetes.some(item => item.id === gabinete) && <option value={gabinete}>{cita?.gabinete_nombre ?? 'Gabinete asignado'}</option>}
             {gabinetes.filter(item => item.activo || item.id === gabinete).map(item => <option key={item.id} value={item.id}>{item.nombre}</option>)}
           </select></label>}
-          <label className="wide">Tratamiento previsto<input maxLength={500} list="appointment-treatment-options" value={motivo} onChange={(event) => setMotivo(event.target.value)} /></label>
-          <datalist id="appointment-treatment-options">{tratamientos.map(item => <option key={item.id} value={item.nombre}>{item.duracion_habitual_min ? `${item.duracion_habitual_min} min` : ''}</option>)}</datalist>
+          <div className="wide"><CatalogTreatmentSelector items={tratamientos} query={motivo} onQueryChange={setMotivo}
+            onSelect={item => setMotivo(item.nombre)} selectedId={suggestedTreatment?.id} label="Tratamiento previsto"
+            onManual={setMotivo} manualValue={!suggestedTreatment ? motivo : ''} /></div>
           {!cita && <label className="appointment-check"><input type="checkbox" checked={estado === 'confirmada'} onChange={event => setEstado(event.target.checked ? 'confirmada' : 'programada')} />Cita confirmada por el paciente</label>}
           <label className="wide notes">Observaciones de la cita/tratamiento<textarea maxLength={1000} value={observaciones} onChange={(event) => setObservaciones(event.target.value)} /></label>
           <label className="appointment-check"><input type="checkbox" disabled={!canEditSchedule} checked={esUrgencia} onChange={event => setEsUrgencia(event.target.checked)} />Urgencia</label>

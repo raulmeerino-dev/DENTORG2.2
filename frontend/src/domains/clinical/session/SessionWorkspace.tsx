@@ -37,6 +37,7 @@ import type {
 import { ClinicalDictationButton } from '../../ai/clinical-dictation/ClinicalDictation';
 import { useSessionDraft } from '../../identity/session/sessionDrafts';
 import { TreatmentBadge } from '../components/TreatmentBadge';
+import { CatalogTreatmentSelector } from '../treatment-selection/TreatmentSelector';
 import type { ToothSelection } from '../odontogram';
 import { PatientOdontogramFlow, mapSurfaceToCaras } from '../odontogram';
 import { PatientExitChecklistPanel } from './PatientExitChecklistPanel';
@@ -50,7 +51,6 @@ import {
   SESSION_STATUS_LABELS,
   buildCreatePayload,
   buildSessionTreatments,
-  normalizeSessionText,
   sessionTreatmentFromSesionItem,
 } from './sessionTreatments';
 
@@ -168,6 +168,8 @@ export function SessionWorkspace({
   const currentVisit = sessionVisit(citas, doctorId);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
+  const [manualConcept, setManualConcept] = useState('');
+  const [bindingSearch, setBindingSearch] = useState<{ id: string; text: string } | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [quickNote, setQuickNote] = useSessionDraft(`session-note:${paciente?.id}:${selectedId ?? 'none'}`);
@@ -194,15 +196,6 @@ export function SessionWorkspace({
     ];
   }
   const selected = draftItems.find((item) => item.id === selectedId) ?? draftItems[0] ?? null;
-  const filteredCatalog = tratamientos
-    .filter((tratamiento) => {
-      const q = normalizeSessionText(catalogSearch);
-      if (!q) return true;
-      return normalizeSessionText(
-        `${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`,
-      ).includes(q);
-    })
-    .slice(0, 80);
   const selectedPieceNumber = selected?.piezaDental ? Number(selected.piezaDental) : null;
   const selectedPieceNotes = selectedPieceNumber
     ? notasDentales.filter((nota) => nota.pieza_dental === selectedPieceNumber).slice(0, 3)
@@ -359,17 +352,16 @@ export function SessionWorkspace({
   }
 
   async function addTreatmentFromCatalog() {
-    const tratamiento = tratamientos.find((item) => item.id === selectedCatalogId) ?? filteredCatalog[0];
-    if (!tratamiento) return;
+    const tratamiento = tratamientos.find((item) => item.id === selectedCatalogId);
+    if ((!tratamiento && !manualConcept.trim()) || pendingSessionWrites) return;
     setSessionError(null);
-    setAdding(false);
-    setCatalogSearch('');
-    setSelectedCatalogId('');
     setPendingSessionWrites((count) => count + 1);
     try {
       const created = await onCreateSesionItem({
-        tratamiento_id: tratamiento.id,
-        titulo: tratamiento.nombre,
+        tratamiento_id: tratamiento?.id ?? null,
+        titulo: tratamiento?.nombre ?? manualConcept.trim(),
+        pieza_dental: dentalTarget?.pieza ? Number(dentalTarget.pieza) : null,
+        caras: dentalTarget?.caras || null,
         cita_id: currentVisit?.id ?? null,
         doctor_id: currentVisit?.doctor_id ?? doctorId ?? null,
         estado: 'en_curso',
@@ -377,6 +369,10 @@ export function SessionWorkspace({
       });
       const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
       setSelectedId(promoted.id);
+      setAdding(false);
+      setCatalogSearch('');
+      setSelectedCatalogId('');
+      setManualConcept('');
     } catch (error) {
       setSessionError(
         error instanceof Error ? error.message : 'No se pudo anadir el tratamiento a la sesion.',
@@ -559,24 +555,12 @@ export function SessionWorkspace({
         <section className="desk-panel clinical-session-board">
           {adding && (
             <div className="session-add-panel">
-              <input
-                value={catalogSearch}
-                onChange={(event) => setCatalogSearch(event.target.value)}
-                placeholder="Buscar tratamiento en catálogo"
-              />
-              <select
-                value={selectedCatalogId}
-                onChange={(event) => setSelectedCatalogId(event.target.value)}
-              >
-                <option value="">Seleccionar tratamiento...</option>
-                {filteredCatalog.map((tratamiento) => (
-                  <option key={tratamiento.id} value={tratamiento.id}>
-                    {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}
-                    {tratamiento.nombre}
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={addTreatmentFromCatalog} disabled={!filteredCatalog.length}>
+              <CatalogTreatmentSelector items={tratamientos} query={catalogSearch} selectedId={selectedCatalogId}
+                label="Planificar tratamiento" placeholder="Buscar tratamiento en catálogo" manualValue={manualConcept} disabled={pendingSessionWrites > 0}
+                onQueryChange={query => { setCatalogSearch(query); setSelectedCatalogId(''); setManualConcept(''); }}
+                onSelect={item => { setCatalogSearch(item.nombre); setSelectedCatalogId(item.id); setManualConcept(''); }}
+                onManual={text => { setCatalogSearch(text); setSelectedCatalogId(''); setManualConcept(text); }} />
+              <button type="button" onClick={addTreatmentFromCatalog} disabled={(!selectedCatalogId && !manualConcept) || pendingSessionWrites > 0}>
                 Añadir a sesión
               </button>
             </div>
@@ -685,33 +669,28 @@ export function SessionWorkspace({
                     onBlur={() => persistUpdate(selected, { titulo: selected.title.trim() || null })}
                   />
                 </label>
-                <label>
-                  Tratamiento catalogo
-                  <select
-                    value={selected.tratamientoId ?? ''}
-                    onChange={(event) => {
-                      const tratamiento = tratamientos.find((item) => item.id === event.target.value) ?? null;
-                      const nextTitle = tratamiento?.nombre ?? selected.title;
+                <CatalogTreatmentSelector items={tratamientos} label="Tratamiento catálogo" selectedId={selected.tratamientoId}
+                  query={bindingSearch?.id === selected.id ? bindingSearch.text : selected.tratamiento?.nombre ?? selected.title}
+                  manualValue={!selected.tratamientoId ? selected.title : ''} disabled={Boolean(selected.historialId)}
+                  onQueryChange={text => setBindingSearch({ id: selected.id, text })}
+                  onSelect={tratamiento => {
+                      const nextTitle = tratamiento.nombre;
                       updateLocal({
-                        tratamientoId: tratamiento?.id ?? null,
+                        tratamientoId: tratamiento.id,
                         tratamiento,
                         title: nextTitle,
                       });
+                      setBindingSearch(null);
                       void persistUpdate(selected, {
-                        tratamiento_id: tratamiento?.id ?? null,
+                        tratamiento_id: tratamiento.id,
                         titulo: nextTitle.trim() || null,
                       });
                     }}
-                  >
-                    <option value="">Sin catalogo asociado</option>
-                    {tratamientos.map((tratamiento) => (
-                      <option key={tratamiento.id} value={tratamiento.id}>
-                        {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}
-                        {tratamiento.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  onManual={text => {
+                    updateLocal({ tratamientoId: null, tratamiento: null, title: text });
+                    setBindingSearch(null);
+                    void persistUpdate(selected, { tratamiento_id: null, titulo: text });
+                  }} />
                 <label>
                   Pieza FDI
                   <input

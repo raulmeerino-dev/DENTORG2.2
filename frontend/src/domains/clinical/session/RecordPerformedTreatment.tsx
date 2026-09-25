@@ -11,7 +11,8 @@ import type {
 } from '../../../api/types';
 import { Dialog } from '../../../design-system/Dialog';
 import { clinicDate, clinicDateKey, clinicTime } from '../../../shared/time/clinicTime';
-import { normalizeSessionText, sessionVisit } from './sessionTreatments';
+import { sessionVisit } from './sessionTreatments';
+import { CatalogTreatmentSelector } from '../treatment-selection/TreatmentSelector';
 import './treatment-flow.css';
 
 export function RecordPerformedTreatment({
@@ -53,11 +54,6 @@ export function RecordPerformedTreatment({
   const itemId = useRef<string | null>(null);
   const saving = useRef(false);
   const treatment = tratamientos.find((item) => item.id === treatmentId);
-  const catalog = tratamientos.filter(
-    (item) =>
-      item.id === treatmentId ||
-      normalizeSessionText(`${item.codigo} ${item.nombre}`).includes(normalizeSessionText(search)),
-  );
   const sessions = citas.filter(
     (cita) =>
       clinicDateKey(cita.fecha_hora) === date &&
@@ -134,33 +130,12 @@ export function RecordPerformedTreatment({
           {paciente.nombre} {paciente.apellidos} · Registro clínico sin presupuesto previo
         </p>
         <fieldset disabled={busy} className="performed-fields">
-          <label className="wide">
-            Buscar en catálogo
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nombre o código del tratamiento"
-            />
-          </label>
-          <label className="wide">
-            Tratamiento
-            <select
-              required
-              value={treatmentId}
-              onChange={(event) => {
-                setTreatmentId(event.target.value);
-                setAmount(tratamientos.find((item) => item.id === event.target.value)?.precio ?? '');
-              }}
-            >
-              <option value="">Seleccionar tratamiento</option>
-              {catalog.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.codigo ? `${item.codigo} · ` : ''}
-                  {item.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="wide">
+            <CatalogTreatmentSelector items={tratamientos} query={search} selectedId={treatmentId} disabled={busy} showPrice
+              label="Tratamiento" placeholder="Nombre o código del tratamiento"
+              onQueryChange={query => { setSearch(query); setTreatmentId(''); }}
+              onSelect={item => { setTreatmentId(item.id); setSearch(item.nombre); setAmount(item.precio); }} />
+          </div>
           <label>
             Pieza FDI
             <input

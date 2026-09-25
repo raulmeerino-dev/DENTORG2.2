@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SurfaceKey, ToothData } from '../types/odontogram.types';
 import { quickTreatmentCatalog, type QuickTreatment } from '../data/treatmentCatalog';
-import { statusConfig } from '../data/statusConfig';
+import { TreatmentSelector } from '../../treatment-selection/TreatmentSelector';
+import type { TreatmentOption } from '../../treatment-selection/treatmentSearch';
 
 type QuickTreatmentModalProps = {
   tooth: ToothData;
@@ -24,11 +25,8 @@ const surfaceLabels: Partial<Record<SurfaceKey, string>> = {
   root: 'Raíz',
 };
 
-function normalize(value: string) {
-  return value
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+function describeQuickTreatment(item: QuickTreatment): TreatmentOption {
+  return { id: item.id, name: item.name, code: item.code, category: item.category, price: item.price, keywords: item.keywords };
 }
 
 function getContextLabel(surface?: SurfaceKey) {
@@ -48,16 +46,6 @@ export function QuickTreatmentModal({ tooth, surface, treatments = quickTreatmen
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
-  const filteredTreatments = useMemo(() => {
-    const normalizedQuery = normalize(query.trim());
-    if (!normalizedQuery) return treatments;
-
-    return treatments.filter((treatment) => {
-      const haystack = normalize([treatment.name, treatment.category, ...treatment.keywords].join(' '));
-      return haystack.includes(normalizedQuery);
-    });
-  }, [query, treatments]);
-
   return (
     <div className="od-modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section className="od-quick-modal" role="dialog" aria-modal="true" aria-labelledby="quick-treatment-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -72,33 +60,8 @@ export function QuickTreatmentModal({ tooth, surface, treatments = quickTreatmen
           </button>
         </div>
 
-        <label className="od-quick-search-label" htmlFor="quick-treatment-search">
-          Buscar tratamiento
-        </label>
-        <input
-          id="quick-treatment-search"
-          className="od-quick-search"
-          type="search"
-          autoFocus
-          value={query}
-          placeholder="Endodoncia, corona, obturación..."
-          onChange={(event) => setQuery(event.target.value)}
-        />
-
-        <div className="od-quick-results" role="listbox" aria-label="Resultados de tratamientos">
-          {filteredTreatments.map((treatment) => (
-            <button key={treatment.id} className="od-quick-result" type="button" onClick={() => onSelectTreatment(treatment)}>
-              <span className="od-quick-status-dot" style={{ background: statusConfig[treatment.status].color }} />
-              <span>
-                <strong>{treatment.name}</strong>
-                <small>{treatment.category}</small>
-              </span>
-              <em>{treatment.price ? `${treatment.price.toFixed(2)} €` : 'Sin precio'}</em>
-            </button>
-          ))}
-
-          {filteredTreatments.length === 0 ? <div className="od-quick-empty">No hay coincidencias en el catálogo demo.</div> : null}
-        </div>
+        <TreatmentSelector items={treatments} describe={describeQuickTreatment} query={query} onQueryChange={setQuery}
+          onSelect={onSelectTreatment} label="Buscar tratamiento" placeholder="Endodoncia, corona, obturación…" showPrice catalogInitiallyOpen autoFocus />
       </section>
     </div>
   );

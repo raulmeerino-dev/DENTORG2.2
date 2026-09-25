@@ -339,7 +339,8 @@ describe('ClinicalWorkspace sesion actual', () => {
     const { onFinalizar, onCreateSesionItem } = renderClinical(undefined, undefined, { presupuestos: [], trabajosPendientes: [] });
     await user.click(screen.getAllByRole('button', { name: 'Añadir tratamiento realizado' })[0]);
     const dialog = screen.getByRole('dialog', { name: 'Añadir tratamiento realizado' });
-    await user.selectOptions(within(dialog).getByLabelText('Tratamiento'), tratamiento.id);
+    await user.type(within(dialog).getByRole('combobox', { name: 'Tratamiento' }), 'corona');
+    await user.click(within(dialog).getByRole('option', { name: /Corona zirconio/ }));
     await user.type(within(dialog).getByLabelText('Pieza FDI'), '24');
     await user.type(within(dialog).getByLabelText('Superficies'), 'O');
     await user.clear(within(dialog).getByLabelText('Importe (€)'));
@@ -663,10 +664,26 @@ describe('Cierre de visita y guardados de sesión', () => {
     const onCreate = vi.fn(() => create.promise);
     renderClinical(undefined, undefined, { initialSesionItems: [buildSesionItem()], citas: [activeVisit], onCreateSesionItem: onCreate });
     await user.click(screen.getByRole('button', { name: /^Planificar tratamiento$/i }));
+    expect(screen.getByRole('button', { name: /^Añadir a sesión$/i })).toBeDisabled();
+    await user.type(screen.getByRole('combobox', { name: 'Planificar tratamiento' }), 'corona');
+    await user.keyboard('{ArrowDown}{Enter}');
     await user.click(screen.getByRole('button', { name: /^Añadir a sesión$/i }));
     expect(onCreate).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /^Finalizar visita$/i })).toBeDisabled();
     await act(async () => create.resolve(buildSesionItem({ id: 'new-treatment', estado: 'en_curso' })));
     await waitFor(() => expect(screen.getByRole('button', { name: /^Finalizar visita$/i })).toBeEnabled());
+  });
+
+  it('planifica un concepto manual sin crear un tratamiento del catálogo ni registrar un realizado', async () => {
+    const user = userEvent.setup();
+    const { onCreateSesionItem, onFinalizar } = renderClinical(undefined, undefined, { presupuestos: [], trabajosPendientes: [] });
+    await user.click(screen.getByRole('button', { name: /^Planificar tratamiento$/i }));
+    await user.type(screen.getByRole('combobox', { name: 'Planificar tratamiento' }), 'Control personalizado');
+    expect(screen.getByRole('button', { name: 'Añadir a sesión' })).toBeDisabled();
+    expect(onCreateSesionItem).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('option', { name: /como concepto manual/ }));
+    await user.click(screen.getByRole('button', { name: 'Añadir a sesión' }));
+    await waitFor(() => expect(onCreateSesionItem).toHaveBeenCalledWith(expect.objectContaining({ tratamiento_id: null, titulo: 'Control personalizado', origen: 'manual' })));
+    expect(onFinalizar).not.toHaveBeenCalled();
   });
 });

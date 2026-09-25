@@ -8,7 +8,7 @@ type FloatingPopoverProps = Omit<HTMLAttributes<HTMLDivElement>, 'onClose'> & {
   anchorRef?: RefObject<HTMLElement | null>;
   point?: { x: number; y: number };
   align?: 'start' | 'end';
-  width?: number;
+  width?: number | 'anchor';
   maxHeight?: number;
   onClose: () => void;
 };
@@ -33,8 +33,8 @@ export function FloatingPopover({ anchorRef, point, align = 'end', width = 280, 
       const rightEdge = leftEdge + (viewport?.width ?? window.innerWidth);
       const bottomEdge = topEdge + (viewport?.height ?? window.innerHeight);
       const availableWidth = Math.max(1, rightEdge - leftEdge - MARGIN * 2);
-      const panelWidth = Math.min(width, availableWidth);
       const rect = anchor?.getBoundingClientRect();
+      const panelWidth = Math.min(width === 'anchor' ? rect?.width ?? 280 : width, availableWidth);
       const top = rect?.top ?? y ?? topEdge + MARGIN;
       const bottom = rect?.bottom ?? y ?? top;
       const above = Math.max(0, top - topEdge - GAP - MARGIN);
