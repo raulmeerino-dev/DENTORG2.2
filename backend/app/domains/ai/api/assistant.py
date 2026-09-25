@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,8 +32,34 @@ from app.domains.ai.schemas.assistant import (
     DraftPatchInterpretRequest,
     DraftPatchInterpretResponse,
 )
+from app.domains.ai.schemas.copilot import CopilotConfirm, CopilotTurn
 
 router = APIRouter()
+
+
+@router.post("/turn")
+async def copilot_turn(
+    data: CopilotTurn,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+):
+    from app.domains.ai.application.copilot import run_turn
+
+    return await run_turn(data, db, current_user, request)
+
+
+@router.post("/sessions/{session_id}/confirm")
+async def copilot_confirmation(
+    session_id: UUID,
+    data: CopilotConfirm,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+):
+    from app.domains.ai.application.copilot import confirm_proposal
+
+    return await confirm_proposal(session_id, data, db, current_user, request)
 
 
 def _ensure_assistant_role(current_user: CurrentUser) -> None:

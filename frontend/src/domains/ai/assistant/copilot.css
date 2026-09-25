@@ -1,0 +1,34 @@
+.dc-copilot { width: min(640px, calc(100vw - 24px)); max-height: min(720px, calc(100dvh - 48px)); display: flex; flex-direction: column; background: var(--dc-surface, #fff); color: var(--dc-text, #172b3a); border: 1px solid var(--dc-border, #dbe2e8); border-radius: 10px; box-shadow: 0 16px 48px #10223430; overflow: hidden; }
+.dc-copilot-header { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 12px; border-bottom: 1px solid var(--dc-border, #dbe2e8); flex-shrink: 0; }
+.dc-copilot-header > span { font-size: 12px; color: var(--dc-muted, #607080); text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-copilot-header kbd { margin-left: auto; font-size: 10px; color: var(--dc-muted, #607080); white-space: nowrap; }
+.dc-copilot-header button { flex-shrink: 0; }
+.dc-copilot-log { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px; }
+.dc-copilot-entry { padding: 12px 0; border-bottom: 1px solid var(--dc-border, #dbe2e8); overflow-wrap: anywhere; }
+.dc-copilot-entry > small { font-size: 10px; font-weight: 650; color: var(--dc-muted, #607080); }
+.dc-copilot-entry > p { white-space: pre-wrap; font-size: 13px; line-height: 1.5; margin: 4px 0; }
+.dc-copilot-entry--user > p { color: var(--dc-muted, #607080); }
+.dc-copilot-entry nav ul { display: flex; flex-wrap: wrap; gap: 4px 12px; list-style: none; padding: 0; margin: 6px 0 0; }
+.dc-copilot-source { border: 0; background: transparent; padding: 3px 0; color: var(--dc-primary, #176d80); font-size: 12px; text-align: left; text-decoration: underline; }
+.dc-copilot-proposal { margin-top: 10px; padding: 10px 12px; border-left: 3px solid var(--dc-primary, #176d80); background: var(--dc-surface-soft, #f3f6f8); font-size: 12px; }
+.dc-copilot-proposal section + section { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--dc-border, #dbe2e8); }
+.dc-copilot-proposal dl { margin: 8px 0; }
+.dc-copilot-proposal dl > div { display: grid; grid-template-columns: minmax(90px, 28%) minmax(0, 1fr); gap: 8px; padding: 3px 0; }
+.dc-copilot-proposal dt { color: var(--dc-muted, #607080); }
+.dc-copilot-proposal dd { margin: 0; white-space: pre-wrap; }
+.dc-copilot-proposal footer { display: flex; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
+.dc-copilot-proposal footer .btn { height: auto; min-height: 32px; white-space: normal; text-align: left; }
+.dc-copilot-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 14px 2px; }
+.dc-copilot-suggestions button { border: 1px solid var(--dc-border, #dbe2e8); border-radius: 5px; background: var(--dc-surface-soft, #f3f6f8); padding: 6px 9px; font-size: 12px; color: inherit; }
+.dc-copilot-composer { display: flex; align-items: center; gap: 8px; padding: 12px; flex-shrink: 0; }
+.dc-copilot-composer textarea { flex: 1; min-width: 0; resize: none; padding: 8px 10px; border: 1px solid var(--dc-border, #dbe2e8); border-radius: 5px; background: var(--dc-surface, #fff); color: inherit; font: inherit; font-size: 13px; line-height: 1.4; }
+.dc-copilot .dc-copilot-send { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; flex-shrink: 0; }
+.dc-copilot-status, .dc-copilot-error { margin: 8px 14px 0; font-size: 12px; flex-shrink: 0; }
+.dc-copilot-error { color: var(--dc-danger, #b42318); display: flex; gap: 8px; align-items: center; }
+.dc-copilot-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 0 14px 10px; font-size: 10px; color: var(--dc-muted, #607080); flex-shrink: 0; }
+.dc-copilot-footer button { color: inherit; font: inherit; background: none; border: 0; padding: 3px; text-decoration: underline; }
+.dc-copilot button { cursor: pointer; transform: none; }
+.dc-copilot button:disabled { cursor: default; opacity: .55; }
+.dc-copilot button:focus-visible { outline: 2px solid var(--dc-primary, #176d80); outline-offset: 2px; }
+.dc-copilot button:hover:not(:disabled) { filter: brightness(.96); transform: none; }
+@media (max-width: 480px) { .dc-copilot-header kbd { display: none; } .dc-copilot-header > button { margin-left: auto; } }

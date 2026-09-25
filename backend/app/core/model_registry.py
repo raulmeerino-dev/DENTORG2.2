@@ -2,8 +2,10 @@
 Exporta todos los modelos para que Alembic los detecte en autogenerate.
 El orden de importación respeta las dependencias entre tablas.
 """
+
 from app.core.persistence.audit_log import AuditLog
 from app.core.persistence.backup import BackupRegistro
+from app.domains.ai.persistence.copilot import CopilotSession
 from app.domains.ai.persistence.dictado import DictadoClinico
 from app.domains.billing.persistence.entidad import Entidad
 from app.domains.billing.persistence.factura import (
@@ -67,6 +69,7 @@ from app.domains.treatment_plans.persistence.presupuesto import (
 )
 
 __all__ = [
+    "CopilotSession",
     "Doctor",
     "Clinica",
     "Proveedor",

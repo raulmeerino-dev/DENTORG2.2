@@ -1,901 +1,118 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { Bot, Mic } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { ArrowUp, Mic, Sparkles, X } from 'lucide-react';
+import { askCopilot, confirmCopilot, type CopilotRequest, type CopilotResult } from '../../../api/copilot';
+import { Dialog } from '../../../design-system/Dialog';
 import { useAuth } from '../../identity/session/AuthContext';
-import { getAssistantLLMHealth } from '../../../api/ai';
-import { getAssistantPatients } from './PatientAssistantAdapter';
-import { getAssistantProfessionals } from './ProfessionalAssistantAdapter';
-import { getAssistantTreatments } from './TreatmentAssistantAdapter';
-import { getActionDefinition } from './actionRegistry';
-import { executeAssistantAction, findAppointmentForIntent } from './actionExecutor';
-import { auditAssistantEvent } from './auditLogger';
-import { useAssistantContextProvider } from './assistantContext';
-import AssistantPanel from './AssistantPanel';
-import { applyDraftPatch } from './DraftPatch';
-import { cancelIntent, mergeIntentDraft } from './draftStore';
-import { FAST_COMMAND_CONFIDENCE_THRESHOLD, logAssistantRouteDebug, normalizeText, roundResponseMs, routeFastCommand } from './FastCommandRouter';
-import { interpretAssistantTurnWithLLM } from './LLMIntentInterpreter';
-import { resolveOperationalDraft } from './OperationalResolver';
-import { canRunAssistantAction, permissionLabel } from './permissionGuard';
-import { captureVoiceInput } from './voiceInputService';
-import type { AssistantBudgetLine, AssistantContextSnapshot, AssistantDraftEditableField, AssistantIntent, AssistantMessage, AssistantPatientOption, AssistantPhase, AssistantProfessionalOption, AssistantSessionMemory, AssistantSlot, AssistantTreatmentOption, DraftPatch } from './types';
-import './assistant.css';
+import { copilotContext } from './copilotContext';
+import { captureVoiceInput, voiceAvailable } from './voiceInputService';
+import './copilot.css';
 
-function messageId() {
-  return `assistant-message-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function newMessage(role: AssistantMessage['role'], text: string): AssistantMessage {
-  return {
-    id: messageId(),
-    role,
-    text,
-    createdAt: new Date().toISOString(),
-  };
-}
-
-function phaseFromIntent(intent: AssistantIntent): AssistantPhase {
-  if (intent.needsClarification) return 'needs_clarification';
-  if (intent.requiresConfirmation) return 'awaiting_confirmation';
-  return 'ready';
-}
-
-function dispatchPatientFastAction(action: 'new' | 'budgets' | 'documents' | 'upload_document') {
-  sessionStorage.setItem('dentcore_patient_action', action);
-  window.dispatchEvent(new CustomEvent('dentcore:patient-fast-action', { detail: { action } }));
-}
-
+type Entry = { id: string; role: 'user' | 'assistant'; result: CopilotResult };
 export default function AssistantFloatingButton() {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const location = useLocation();
+  const context = copilotContext(location.pathname, location.search);
+  return user && user.rol !== 'paciente' ? <Copilot key={`${user.id}:${user.clinica_id}:${context.patient_id || ''}`} /> : null;
+}
+function Copilot() {
+  const { user } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
-  const getContextSnapshot = useAssistantContextProvider();
+  const queries = useQueryClient();
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [open, setOpen] = useState(false);
+  const [input, setInput] = useState('');
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [error, setError] = useState('');
+  const [retry, setRetry] = useState<CopilotRequest | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  const voiceAbort = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const lock = useRef(false);
+  const context = copilotContext(location.pathname, location.search);
+  const clinical = ['admin', 'doctor', 'auxiliar'].includes(user?.rol || '');
+  const suggestions = context.patient_id
+    ? clinical ? ['Preparar próxima visita', 'Resumir historial', 'Buscar próxima cita'] : ['Consultar saldo', 'Buscar próxima cita']
+    : ['jornada', 'agenda'].includes(context.module) ? ['¿Qué me queda hoy?', 'Buscar un hueco', 'Buscar paciente']
+      : context.module === 'caja' ? ['Facturas pendientes', 'Pacientes con deuda superior a 500 €'] : ['Buscar paciente', 'Consultar registros'];
   useEffect(() => {
     const show = () => setOpen(true);
     const shortcut = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.code === 'Space') {
-        event.preventDefault(); setOpen(value => !value);
-      }
+      if ((event.ctrlKey || event.metaKey) && event.code === 'Space') { event.preventDefault(); setOpen(value => !value); }
     };
-    window.addEventListener('dentcore:open-assistant', show);
-    window.addEventListener('keydown', shortcut);
-    return () => { window.removeEventListener('dentcore:open-assistant', show); window.removeEventListener('keydown', shortcut); };
+    window.addEventListener('dentcore:open-assistant', show); window.addEventListener('keydown', shortcut);
+    return () => { window.removeEventListener('dentcore:open-assistant', show); window.removeEventListener('keydown', shortcut); abort.current?.abort(); voiceAbort.current?.abort(); };
   }, []);
-  const [phase, setPhase] = useState<AssistantPhase>('idle');
-  const [input, setInput] = useState('');
-  const [transcript, setTranscript] = useState('');
-  const [messages, setMessages] = useState<AssistantMessage[]>([]);
-  const [draft, setDraft] = useState<AssistantIntent | null>(null);
-  const [sessionMemory, setSessionMemory] = useState<AssistantSessionMemory>({});
-
-  const pacientesQuery = useQuery({ queryKey: ['assistant-patients'], queryFn: getAssistantPatients, enabled: open });
-  const profesionalesQuery = useQuery({ queryKey: ['assistant-professionals'], queryFn: getAssistantProfessionals, enabled: open });
-  const tratamientosQuery = useQuery({ queryKey: ['assistant-treatments'], queryFn: getAssistantTreatments, enabled: open });
-  const llmHealthQuery = useQuery({
-    queryKey: ['assistant-llm-health'],
-    queryFn: getAssistantLLMHealth,
-    enabled: open,
-    retry: false,
-    refetchInterval: open ? 30_000 : false,
-  });
-
-  useEffect(() => {
-    if (!import.meta.env.DEV) return;
-    if (llmHealthQuery.data?.mode === 'auto' && llmHealthQuery.data.activeProvider === 'openai') {
-      console.info('[DentCore Voice Assistant] fallback LLM externo activo', {
-        provider: 'openai',
-        model: llmHealthQuery.data.openai.model,
-      });
+  useEffect(() => { if (open) inputRef.current?.focus(); else voiceAbort.current?.abort(); }, [open]);
+  useEffect(() => { logRef.current?.scrollTo({ top: logRef.current.scrollHeight }); }, [entries, busy]);
+  function append(result: CopilotResult) {
+    setEntries(previous => [...previous, { id: crypto.randomUUID(), role: 'assistant', result }]);
+    if (result.navigation?.startsWith('/') && !result.navigation.startsWith('//')) { navigate(result.navigation); setOpen(false); }
+  }
+  async function send(text = input, previous?: CopilotRequest) {
+    if (lock.current || !text.trim()) return;
+    lock.current = true; setBusy(true); setError(''); setRetry(null);
+    const request = previous || { session_id: sessionId, request_id: crypto.randomUUID(), text: text.trim(), context };
+    if (!previous) {
+      setEntries(items => [...items.map(item => ({ ...item, result: { ...item.result, proposal: null } })), { id: request.request_id, role: 'user', result: { message: request.text, sources: [] } }]); setInput('');
     }
-  }, [llmHealthQuery.data]);
-
-  const appendMessage = useCallback((role: AssistantMessage['role'], text: string) => {
-    setMessages((current) => [...current, newMessage(role, text)]);
-  }, []);
-
-  const rememberIntent = useCallback((intent: AssistantIntent | null, question?: string | null) => {
-    setSessionMemory((current) => ({
-      ...current,
-      lastDraft: intent,
-      lastIntent: intent?.intent ?? current.lastIntent ?? null,
-      lastPatientId: intent?.fields.patientId ?? intent?.fields.patientOptions?.[0]?.id ?? current.lastPatientId ?? null,
-      lastAppointmentId: intent?.fields.appointmentId ?? current.lastAppointmentId ?? null,
-      lastSlots: intent?.fields.suggestedSlots ?? current.lastSlots,
-      lastQuestion: question ?? intent?.clarificationQuestion ?? current.lastQuestion ?? null,
-    }));
-  }, []);
-
-  const resolveDraft = useCallback(async (intent: AssistantIntent, context: AssistantContextSnapshot) => {
-    let workingIntent = intent;
-    let contextMessage: string | null = null;
-
-    if (intent.intent === 'cancel_appointment' && !intent.fields.appointmentId && (intent.fields.preferredTime || context.visibleAgendaDate)) {
-      try {
-        const { matches } = await findAppointmentForIntent(intent, context);
-        if (matches.length === 1) {
-          const match = matches[0];
-          workingIntent = mergeIntentDraft(intent, {
-            fields: {
-              appointmentId: match.id,
-              appointmentQuery: `${match.fecha_hora.slice(0, 16).replace('T', ' ')} ${match.paciente?.nombre ?? ''}`.trim(),
-            },
-          });
-          contextMessage = `He localizado la cita de ${match.fecha_hora.slice(11, 16)}. La dejo en borrador para confirmar.`;
-        } else if (matches.length > 1) {
-          contextMessage = 'Hay varias citas que encajan. Selecciona una en la agenda o dime paciente/profesional.';
-        }
-      } catch {
-        contextMessage = 'No he podido contrastar la cita visible ahora. Necesito que selecciones la cita o indiques mas datos.';
-      }
-    }
-
-    const resolved = await resolveOperationalDraft({
-      draft: workingIntent,
-      safeContext: context,
-      patients: pacientesQuery.data ?? [],
-      professionals: profesionalesQuery.data ?? [],
-      treatments: tratamientosQuery.data ?? [],
-    });
-
-    const extraMessage = [
-      contextMessage,
-      resolved.nextQuestion,
-      resolved.resolution.slotsResolution?.status === 'found' && !resolved.nextQuestion
-        ? resolved.resolution.slotsResolution.message
-        : null,
-      resolved.resolution.slotsResolution?.status === 'no_slots'
-        ? resolved.resolution.slotsResolution.message
-        : null,
-    ].filter(Boolean).join('\n') || null;
-
-    return { intent: resolved.draft, extraMessage };
-  }, [pacientesQuery.data, profesionalesQuery.data, tratamientosQuery.data]);
-
-  const applyPatchToDraft = useCallback(async (patch: DraftPatch, fallbackMessage: string) => {
-    if (!draft) return;
-    const context = getContextSnapshot();
-    const patched = applyDraftPatch(draft, patch, {
-      context,
-      patients: pacientesQuery.data ?? [],
-      professionals: profesionalesQuery.data ?? [],
-      treatments: tratamientosQuery.data ?? [],
-      sessionMemory,
-    });
-    const enriched = await resolveDraft(patched, context);
-    setDraft(enriched.intent);
-    setPhase(phaseFromIntent(enriched.intent));
-    const responseText = [
-      enriched.intent.clarificationQuestion ?? patch.spokenSummary ?? fallbackMessage,
-      enriched.extraMessage,
-    ].filter(Boolean).join('\n');
-    if (responseText) appendMessage('assistant', responseText);
-    rememberIntent(enriched.intent, responseText);
-  }, [
-    appendMessage,
-    draft,
-    getContextSnapshot,
-    pacientesQuery.data,
-    profesionalesQuery.data,
-    rememberIntent,
-    resolveDraft,
-    sessionMemory,
-    tratamientosQuery.data,
-  ]);
-
-  const executeIntent = useCallback(async (intent: AssistantIntent, confirmed: boolean) => {
-    const context = getContextSnapshot();
-    const action = getActionDefinition(intent.intent);
-    if (intent.confidence < 0.75 && action.riskLevel !== 'low') {
-      const message = 'No ejecuto acciones sensibles con baja confianza. Reformula la peticion o revisa el borrador manualmente.';
-      setPhase('needs_clarification');
-      appendMessage('assistant', message);
-      auditAssistantEvent(context, intent, {
-        status: 'needs_clarification',
-        confirmed,
-        originalText: intent.originalText,
-        result: message,
-      });
-      return;
-    }
-    const permissionCheck = canRunAssistantAction(context, action);
-    const confirmMissing = confirmed
-      && (intent.intent === 'create_budget_draft' || intent.intent === 'update_budget_draft')
-      && !context.permissions.some((permission) => permission === 'budget:confirm' || permission === 'create_budget')
-      ? ['budget:confirm' as const]
-      : [];
-    const missingPermissions = [...permissionCheck.missingPermissions, ...confirmMissing];
-    if (!permissionCheck.allowed || confirmMissing.length) {
-      const message = `No tienes permiso para ${missingPermissions.map(permissionLabel).join(', ')}.`;
-      setPhase('error');
-      appendMessage('assistant', message);
-      auditAssistantEvent(context, intent, {
-        status: 'error',
-        confirmed,
-        originalText: intent.originalText,
-        result: message,
-      });
-      return;
-    }
-
-    setPhase('executing');
-    auditAssistantEvent(context, intent, {
-      status: 'executing',
-      confirmed,
-      originalText: intent.originalText,
-    });
-
+    const controller = new AbortController(); abort.current = controller;
     try {
-      const result = await executeAssistantAction({
-        intent,
-        context,
-        professionals: profesionalesQuery.data ?? [],
-        queryClient,
-        navigate,
-      });
-      appendMessage('assistant', result.details?.length ? `${result.message}\n${result.details.join('\n')}` : result.message);
-      auditAssistantEvent(context, intent, {
-        status: result.ok ? 'completed' : 'error',
-        confirmed,
-        originalText: intent.originalText,
-        result: result.message,
-      });
-      setPhase(result.ok ? 'completed' : 'error');
-      setDraft(null);
-      rememberIntent(null, null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'No se pudo ejecutar la accion.';
-      appendMessage('assistant', message);
-      auditAssistantEvent(context, intent, {
-        status: 'error',
-        confirmed,
-        originalText: intent.originalText,
-        result: message,
-      });
-      setPhase('error');
-    }
-  }, [appendMessage, getContextSnapshot, navigate, profesionalesQuery.data, queryClient, rememberIntent]);
-
-  const executeFastCommand = useCallback(async (
-    match: NonNullable<ReturnType<typeof routeFastCommand>>,
-    context: AssistantContextSnapshot,
-    originalText: string,
-    startedAt: number,
-  ) => {
-    const fastAction = match.action;
-    const debugAction = fastAction.type;
-
-    if (fastAction.type === 'show_help') {
-      setPhase('completed');
-      appendMessage('assistant', match.responseText);
-      const responseMs = roundResponseMs(startedAt);
-      logAssistantRouteDebug({
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: debugAction,
-        confidence: match.confidence,
-        normalizedText: match.normalizedText,
-        matchedVerb: match.matchedVerb,
-        matchedDestination: match.matchedDestination,
-        providerUsed: 'local',
-        modelUsed: 'FastCommandRouter',
-        intentFinal: debugAction,
-      });
-      auditAssistantEvent(context, null, {
-        status: 'completed',
-        confirmed: false,
-        originalText,
-        result: match.responseText,
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: debugAction,
-      });
-      return;
-    }
-
-    if (fastAction.type === 'cancel_current_draft') {
-      const cancelled = cancelIntent(draft);
-      setDraft(null);
-      setPhase('cancelled');
-      appendMessage('assistant', match.responseText);
-      rememberIntent(null, null);
-      const responseMs = roundResponseMs(startedAt);
-      logAssistantRouteDebug({
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: debugAction,
-        confidence: match.confidence,
-        normalizedText: match.normalizedText,
-        matchedVerb: match.matchedVerb,
-        matchedDestination: match.matchedDestination,
-        providerUsed: 'local',
-        modelUsed: 'FastCommandRouter',
-        intentFinal: debugAction,
-      });
-      auditAssistantEvent(context, cancelled, {
-        status: 'cancelled',
-        confirmed: false,
-        originalText,
-        result: match.responseText,
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: debugAction,
-      });
-      return;
-    }
-
-    if (fastAction.type === 'confirm_current_draft') {
-      if (!draft) {
-        setPhase('needs_clarification');
-        const message = 'No hay ningun borrador activo para confirmar.';
-        appendMessage('assistant', message);
-        return;
-      }
-
-      const resolvedConfirm = await resolveDraft(draft, context);
-      const responseMs = roundResponseMs(startedAt);
-      logAssistantRouteDebug({
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: debugAction,
-        confidence: match.confidence,
-        normalizedText: match.normalizedText,
-        matchedVerb: match.matchedVerb,
-        matchedDestination: match.matchedDestination,
-        providerUsed: 'local',
-        modelUsed: 'FastCommandRouter',
-        intentFinal: resolvedConfirm.intent.intent,
-      });
-
-      if (resolvedConfirm.intent.needsClarification || resolvedConfirm.intent.operationalCanConfirm === false) {
-        setDraft(resolvedConfirm.intent);
-        setPhase(phaseFromIntent(resolvedConfirm.intent));
-        const message = resolvedConfirm.intent.clarificationQuestion
-          ?? resolvedConfirm.extraMessage
-          ?? 'No puedo confirmar todavia. Falta resolver el borrador.';
-        appendMessage('assistant', message);
-        rememberIntent(resolvedConfirm.intent, message);
-        auditAssistantEvent(context, resolvedConfirm.intent, {
-          status: resolvedConfirm.intent.status,
-          confirmed: false,
-          originalText,
-          result: message,
-          route: 'fast/local',
-          responseMs,
-          actionExecuted: `${debugAction}:needs_clarification`,
-        });
-        return;
-      }
-
-      setDraft(resolvedConfirm.intent);
-      appendMessage('assistant', match.responseText);
-      auditAssistantEvent(context, resolvedConfirm.intent, {
-        status: 'executing',
-        confirmed: true,
-        originalText,
-        result: match.responseText,
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: debugAction,
-      });
-      await executeIntent(resolvedConfirm.intent, true);
-      return;
-    }
-
-    if (fastAction.type === 'navigate') {
-      navigate(fastAction.targetPath);
-      setPhase('completed');
-      appendMessage('assistant', match.responseText);
-      const responseMs = roundResponseMs(startedAt);
-      logAssistantRouteDebug({
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: `${fastAction.type}:${fastAction.targetPath}`,
-        confidence: match.confidence,
-        normalizedText: match.normalizedText,
-        matchedVerb: match.matchedVerb,
-        matchedDestination: match.matchedDestination,
-        providerUsed: 'local',
-        modelUsed: 'FastCommandRouter',
-        intentFinal: fastAction.type,
-      });
-      auditAssistantEvent(context, null, {
-        status: 'completed',
-        confirmed: false,
-        originalText,
-        result: match.responseText,
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: `${fastAction.type}:${fastAction.targetPath}`,
-      });
-      return;
-    }
-
-    if (
-      fastAction.type === 'open_patient_draft'
-      || fastAction.type === 'open_patient_budgets'
-      || fastAction.type === 'open_patient_documents'
-    ) {
-      dispatchPatientFastAction(fastAction.patientAction);
-      navigate(fastAction.targetPath);
-      setPhase('completed');
-      appendMessage('assistant', match.responseText);
-      const responseMs = roundResponseMs(startedAt);
-      logAssistantRouteDebug({
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: `${fastAction.type}:${fastAction.patientAction}`,
-        confidence: match.confidence,
-        normalizedText: match.normalizedText,
-        matchedVerb: match.matchedVerb,
-        matchedDestination: match.matchedDestination,
-        providerUsed: 'local',
-        modelUsed: 'FastCommandRouter',
-        intentFinal: fastAction.type,
-      });
-      auditAssistantEvent(context, null, {
-        status: 'completed',
-        confirmed: false,
-        originalText,
-        result: match.responseText,
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: `${fastAction.type}:${fastAction.patientAction}`,
-      });
-      return;
-    }
-
-    const action = getActionDefinition(fastAction.intent.intent);
-    const permissionCheck = canRunAssistantAction(context, action);
-    if (!permissionCheck.allowed) {
-      const message = `No tienes permiso para ${permissionCheck.missingPermissions.map(permissionLabel).join(', ')}.`;
-      setPhase('error');
-      appendMessage('assistant', message);
-      const responseMs = roundResponseMs(startedAt);
-      logAssistantRouteDebug({
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: `${debugAction}:blocked_permission`,
-        confidence: match.confidence,
-        normalizedText: match.normalizedText,
-        matchedVerb: match.matchedVerb,
-        matchedDestination: match.matchedDestination,
-        providerUsed: 'local',
-        modelUsed: 'FastCommandRouter',
-        intentFinal: `${debugAction}:blocked_permission`,
-      });
-      auditAssistantEvent(context, fastAction.intent, {
-        status: 'error',
-        confirmed: false,
-        originalText,
-        result: message,
-        route: 'fast/local',
-        responseMs,
-        actionExecuted: `${debugAction}:blocked_permission`,
-      });
-      return;
-    }
-
-    const enriched = await resolveDraft(fastAction.intent, context);
-    setDraft(enriched.intent);
-    setPhase(phaseFromIntent(enriched.intent));
-    const responseText = [match.responseText, enriched.intent.clarificationQuestion ?? enriched.extraMessage].filter(Boolean).join('\n');
-    appendMessage('assistant', responseText);
-    rememberIntent(enriched.intent, responseText);
-    const responseMs = roundResponseMs(startedAt);
-    logAssistantRouteDebug({
-      route: 'fast/local',
-      responseMs,
-      actionExecuted: debugAction,
-      confidence: match.confidence,
-      normalizedText: match.normalizedText,
-      matchedVerb: match.matchedVerb,
-      matchedDestination: match.matchedDestination,
-      providerUsed: 'local',
-      modelUsed: 'FastCommandRouter',
-      intentFinal: enriched.intent.intent,
-    });
-    auditAssistantEvent(context, enriched.intent, {
-      status: enriched.intent.status,
-      confirmed: false,
-      originalText,
-      result: responseText,
-      route: 'fast/local',
-      responseMs,
-      actionExecuted: debugAction,
-    });
-  }, [appendMessage, draft, executeIntent, navigate, rememberIntent, resolveDraft]);
-
-  const processText = useCallback(async (rawText: string) => {
-    const text = rawText.trim();
-    if (!text) return;
-    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    setInput('');
-    setTranscript(text);
-    appendMessage('user', text);
-    setPhase('interpreting');
-
-    const context = getContextSnapshot();
-    const fastMatch = routeFastCommand({ text, context, currentDraft: draft });
-    if (fastMatch && fastMatch.confidence >= FAST_COMMAND_CONFIDENCE_THRESHOLD) {
-      await executeFastCommand(fastMatch, context, text, startedAt);
-      return;
-    }
-
-    const result = await interpretAssistantTurnWithLLM({
-      text,
-      context,
-      currentDraft: draft,
-      patients: pacientesQuery.data ?? [],
-      professionals: profesionalesQuery.data ?? [],
-      treatments: tratamientosQuery.data ?? [],
-      sessionMemory,
-    });
-    const llmResponseMs = roundResponseMs(startedAt);
-    const llmAction = result.kind === 'cancelled' ? 'cancel_current_draft' : result.intent.intent;
-    const debug = result.debug ?? {
-      route: 'mock' as const,
-      providerUsed: 'mock',
-      modelUsed: 'MockIntentInterpreter',
-      intentFinal: llmAction,
-    };
-    logAssistantRouteDebug({
-      route: debug.route,
-      responseMs: debug.responseMs ?? llmResponseMs,
-      actionExecuted: llmAction,
-      confidence: result.kind === 'cancelled' ? undefined : result.intent.confidence,
-      normalizedText: fastMatch?.normalizedText ?? normalizeText(text),
-      matchedVerb: fastMatch?.matchedVerb ?? null,
-      matchedDestination: fastMatch?.matchedDestination ?? null,
-      providerUsed: debug.providerUsed,
-      modelUsed: debug.modelUsed,
-      intentFinal: debug.intentFinal ?? llmAction,
-    });
-
-    if (result.kind === 'cancelled') {
-      setDraft(result.intent);
-      setPhase('cancelled');
-      appendMessage('assistant', result.responseText);
-      auditAssistantEvent(context, result.intent, {
-        status: 'cancelled',
-        confirmed: false,
-        originalText: text,
-        result: result.responseText,
-        route: debug.route,
-        responseMs: debug.responseMs ?? llmResponseMs,
-        actionExecuted: llmAction,
-      });
-      window.setTimeout(() => setDraft(null), 0);
-      rememberIntent(null, null);
-      return;
-    }
-
-    const action = getActionDefinition(result.intent.intent);
-    const permissionCheck = canRunAssistantAction(context, action);
-    if (!permissionCheck.allowed) {
-      const message = `No tienes permiso para ${permissionCheck.missingPermissions.map(permissionLabel).join(', ')}.`;
-      setPhase('error');
-      appendMessage('assistant', message);
-      auditAssistantEvent(context, result.intent, {
-        status: 'error',
-        confirmed: false,
-        originalText: text,
-        result: message,
-        route: debug.route,
-        responseMs: debug.responseMs ?? llmResponseMs,
-        actionExecuted: llmAction,
-      });
-      return;
-    }
-
-    if (result.kind === 'confirm') {
-      const resolvedConfirm = await resolveDraft(result.intent, context);
-      if (resolvedConfirm.intent.needsClarification || resolvedConfirm.intent.operationalCanConfirm === false) {
-        setDraft(resolvedConfirm.intent);
-        setPhase(phaseFromIntent(resolvedConfirm.intent));
-        const message = resolvedConfirm.intent.clarificationQuestion
-          ?? resolvedConfirm.extraMessage
-          ?? 'No puedo confirmar todavia. Falta resolver el borrador.';
-        appendMessage('assistant', message);
-        rememberIntent(resolvedConfirm.intent, message);
-        return;
-      }
-      appendMessage('assistant', result.responseText);
-      await executeIntent(resolvedConfirm.intent, true);
-      return;
-    }
-
-    const enriched = await resolveDraft(result.intent, context);
-
-    if (enriched.intent.confidence < 0.75 && !enriched.intent.requiresConfirmation) {
-      setDraft(enriched.intent);
-      setPhase('needs_clarification');
-      const message = enriched.intent.intent === 'unknown'
-        ? 'No lo tengo claro. Puedes pedirme una accion concreta sobre paciente o agenda.'
-        : `No estoy seguro. Confirmame si quieres: ${enriched.intent.summary}.`;
-      appendMessage('assistant', message);
-      rememberIntent(enriched.intent, message);
-      return;
-    }
-
-    if (!enriched.intent.needsClarification
-      && !enriched.intent.requiresConfirmation
-      && enriched.intent.intent === 'find_available_slots'
-      && enriched.intent.fields.suggestedSlots?.length) {
-      setDraft(enriched.intent);
-      setPhase('ready');
-      const message = [result.responseText, enriched.extraMessage ?? 'Huecos disponibles. Puedes elegir uno.'].filter(Boolean).join('\n');
-      appendMessage('assistant', message);
-      rememberIntent(enriched.intent, message);
-      return;
-    }
-
-    if (!enriched.intent.needsClarification && !enriched.intent.requiresConfirmation) {
-      rememberIntent(enriched.intent, null);
-      await executeIntent(enriched.intent, false);
-      return;
-    }
-
-    setDraft(enriched.intent);
-    setPhase(phaseFromIntent(enriched.intent));
-    const responseText = [result.responseText, enriched.extraMessage].filter(Boolean).join('\n');
-    appendMessage('assistant', responseText);
-    rememberIntent(enriched.intent, responseText);
-  }, [
-    appendMessage,
-    draft,
-    executeIntent,
-    executeFastCommand,
-    getContextSnapshot,
-    pacientesQuery.data,
-    profesionalesQuery.data,
-    rememberIntent,
-    resolveDraft,
-    sessionMemory,
-    tratamientosQuery.data,
-  ]);
-
-  const confirmDraft = useCallback(() => {
-    if (!draft) return;
-    if (draft.needsClarification || draft.operationalCanConfirm === false) {
-      appendMessage('assistant', draft.clarificationQuestion ?? draft.operationalNextQuestion ?? 'No puedo confirmar todavia. Faltan datos del borrador.');
-      return;
-    }
-    void executeIntent(draft, true);
-  }, [appendMessage, draft, executeIntent]);
-
-  const cancelDraft = useCallback(() => {
-    const cancelled = cancelIntent(draft);
-    setDraft(null);
-    setPhase('cancelled');
-    appendMessage('assistant', cancelled ? 'Borrador cancelado. No se ha guardado nada.' : 'No habia ningun borrador activo.');
-    rememberIntent(null, null);
-  }, [appendMessage, draft, rememberIntent]);
-
-  const selectPatientOption = useCallback((option: AssistantPatientOption) => {
-    if (!draft) return;
-    void applyPatchToDraft({
-      action: 'select_option',
-      confidence: 1,
-      updates: { patientId: option.id },
-      spokenSummary: `Paciente actualizado: ${option.displayName}.`,
-    }, 'Paciente actualizado.');
-  }, [applyPatchToDraft, draft]);
-
-  const selectProfessionalOption = useCallback((option: AssistantProfessionalOption) => {
-    if (!draft) return;
-    void applyPatchToDraft({
-      action: 'select_option',
-      confidence: 1,
-      updates: { professionalId: option.id },
-      spokenSummary: `Profesional actualizado: ${option.displayName}.`,
-    }, 'Profesional actualizado.');
-  }, [applyPatchToDraft, draft]);
-
-  const selectTreatmentOption = useCallback((option: AssistantTreatmentOption) => {
-    if (!draft) return;
-    void applyPatchToDraft({
-      action: 'select_option',
-      confidence: 1,
-      updates: { treatmentType: option.displayName },
-      spokenSummary: `Tratamiento actualizado: ${option.displayName}.`,
-    }, 'Tratamiento actualizado.');
-  }, [applyPatchToDraft, draft]);
-
-  const selectSlot = useCallback((slot: AssistantSlot) => {
-    if (!draft) return;
-    const selectedSlotIndex = draft.fields.suggestedSlots?.findIndex((candidate) => candidate === slot || (candidate.fechaHora && candidate.fechaHora === slot.fechaHora));
-    void applyPatchToDraft({
-      action: 'select_option',
-      confidence: 1,
-      updates: { selectedSlotIndex: selectedSlotIndex != null && selectedSlotIndex >= 0 ? selectedSlotIndex : null },
-      spokenSummary: `Hueco seleccionado: ${slot.label ?? slot.fechaHora}.`,
-    }, 'Hueco seleccionado.');
-  }, [applyPatchToDraft, draft]);
-
-  const editDraftField = useCallback((field: AssistantDraftEditableField, value: string) => {
-    if (!draft) return;
-    const trimmed = value.trim();
-    const patch: DraftPatch = {
-      action: trimmed ? 'update_fields' : 'clear_fields',
-      confidence: 1,
-      updates: {},
-      clearFields: trimmed ? [] : [field],
-      spokenSummary: 'Borrador actualizado.',
-    };
-
-    if (trimmed) {
-      if (field === 'patient') patch.updates = { patientQuery: trimmed };
-      if (field === 'professional') patch.updates = { professionalQuery: trimmed };
-      if (field === 'treatment') patch.updates = { treatmentType: trimmed };
-      if (field === 'date') {
-        patch.updates = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
-          ? { preferredDate: trimmed }
-          : { dateRange: trimmed };
-      }
-      if (field === 'time') patch.updates = { preferredTime: trimmed };
-      if (field === 'duration') {
-        const durationMinutes = Number(trimmed);
-        patch.updates = { durationMinutes: Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : null };
-      }
-      if (field === 'notes') {
-        patch.updates = draft.intent === 'create_clinical_note_draft' ? { noteText: trimmed } : { taskText: trimmed };
+      const result = await askCopilot(request, controller.signal);
+      append(result);
+      if (result.unavailable) {
+        setError('Puedes volver a intentarlo cuando el motor esté disponible.');
+        setRetry({ ...request, request_id: crypto.randomUUID() });
       }
     }
-
-    void applyPatchToDraft(patch, 'Borrador actualizado.');
-  }, [applyPatchToDraft, draft]);
-
-  const updateBudgetLines = useCallback((lines: AssistantBudgetLine[], message = 'Presupuesto actualizado.') => {
-    if (!draft) return;
-    void applyPatchToDraft({
-      action: 'update_fields',
-      confidence: 1,
-      updates: { budgetLines: lines },
-      clearFields: [],
-      spokenSummary: message,
-    }, message);
-  }, [applyPatchToDraft, draft]);
-
-  const changeBudgetLine = useCallback((index: number, patch: Partial<AssistantBudgetLine>) => {
-    const lines = [...(draft?.fields.budgetLines ?? [])];
-    if (!lines[index]) return;
-    lines[index] = { ...lines[index], ...patch };
-    updateBudgetLines(lines);
-  }, [draft, updateBudgetLines]);
-
-  const addBudgetLine = useCallback(() => {
-    const lines = [
-      ...(draft?.fields.budgetLines ?? []),
-      { treatmentQuery: '', tooth: null, quantity: 1, unitPrice: null, discount: 0, total: null },
-    ];
-    updateBudgetLines(lines, 'Anado una linea al presupuesto.');
-  }, [draft, updateBudgetLines]);
-
-  const removeBudgetLine = useCallback((index?: number) => {
-    const lines = [...(draft?.fields.budgetLines ?? [])];
-    if (!lines.length) return;
-    const targetIndex = index ?? lines.length - 1;
-    lines.splice(targetIndex, 1);
-    updateBudgetLines(lines, 'Quito la linea del presupuesto.');
-  }, [draft, updateBudgetLines]);
-
-  const selectBudgetTreatmentOption = useCallback((index: number, option: AssistantTreatmentOption) => {
-    const lines = [...(draft?.fields.budgetLines ?? [])];
-    if (!lines[index]) return;
-    lines[index] = {
-      ...lines[index],
-      treatmentId: option.id,
-      treatmentName: option.displayName,
-      treatmentQuery: option.displayName,
-      treatmentOptions: [],
-      unitPrice: option.unitPrice ?? lines[index].unitPrice ?? null,
-    };
-    updateBudgetLines(lines, `Tratamiento actualizado: ${option.displayName}.`);
-  }, [draft, updateBudgetLines]);
-
-  const findSlotsForDraft = useCallback(() => {
-    if (!draft) return;
-    void (async () => {
-      const context = getContextSnapshot();
-      const base = draft.fields.dateRange || draft.fields.preferredDate || draft.fields.datePreference
-        ? draft
-        : applyDraftPatch(draft, {
-            action: 'update_fields',
-            confidence: 1,
-            updates: { dateRange: 'next_available' },
-            spokenSummary: 'Busco los proximos huecos disponibles.',
-          }, {
-            context,
-            patients: pacientesQuery.data ?? [],
-            professionals: profesionalesQuery.data ?? [],
-            treatments: tratamientosQuery.data ?? [],
-            sessionMemory,
-          });
-      setPhase('interpreting');
-      const enriched = await resolveDraft(base, context);
-      setDraft(enriched.intent);
-      setPhase(phaseFromIntent(enriched.intent));
-      const message = enriched.extraMessage
-        ?? (enriched.intent.fields.suggestedSlots?.length
-          ? 'Huecos actualizados.'
-          : 'No he encontrado huecos con esos datos. Puedes cambiar profesional, fecha u hora.');
-      appendMessage('assistant', message);
-      rememberIntent(enriched.intent, message);
-    })();
-  }, [
-    appendMessage,
-    draft,
-    getContextSnapshot,
-    pacientesQuery.data,
-    profesionalesQuery.data,
-    rememberIntent,
-    resolveDraft,
-    sessionMemory,
-    tratamientosQuery.data,
-  ]);
-
-  const promptDraftChange = useCallback((value: string) => {
-    setInput(value);
-  }, []);
-
-  const handleVoice = useCallback(async () => {
-    setPhase('listening');
-    const voice = await captureVoiceInput(input);
-    setPhase('transcribing');
-    setTranscript(voice.transcript);
-    await processText(voice.transcript);
-  }, [input, processText]);
-
-  if (!user || user.rol === 'paciente') return null;
-
-  const context = getContextSnapshot();
-  const loadingData = pacientesQuery.isFetching || profesionalesQuery.isFetching || tratamientosQuery.isFetching;
-
-  return (
-    <div className="assistant-widget">
-      {open && (
-        <AssistantPanel
-          phase={phase}
-          context={context}
-          messages={messages}
-          transcript={transcript}
-          draft={draft}
-          input={input}
-          llmHealth={llmHealthQuery.data ?? null}
-          loadingData={loadingData}
-          onInputChange={setInput}
-          onSubmit={(value) => void processText(value)}
-          onVoice={() => void handleVoice()}
-          onConfirmDraft={confirmDraft}
-          onCancelDraft={cancelDraft}
-          onSelectPatientOption={selectPatientOption}
-          onSelectProfessionalOption={selectProfessionalOption}
-          onSelectTreatmentOption={selectTreatmentOption}
-          onSelectSlot={selectSlot}
-          onEditDraftField={editDraftField}
-          onBudgetLineChange={changeBudgetLine}
-          onAddBudgetLine={addBudgetLine}
-          onRemoveBudgetLine={removeBudgetLine}
-          onSelectBudgetTreatmentOption={selectBudgetTreatmentOption}
-          onFindSlots={findSlotsForDraft}
-          onDraftPrompt={promptDraftChange}
-          onClose={() => setOpen(false)}
-        />
-      )}
-      <button
-        type="button"
-        className={`assistant-fab ${open ? 'open' : ''}`}
-        aria-label={open ? 'Cerrar asistente' : 'Abrir asistente'}
-        title={open ? 'Cerrar asistente' : 'Abrir asistente'}
-        onClick={() => {
-          setOpen((value) => !value);
-          setPhase((value) => (value === 'completed' || value === 'cancelled' ? 'idle' : value));
-        }}
-      >
-        {phase === 'listening' ? <Mic size={20} strokeWidth={2.2} /> : <Bot size={21} strokeWidth={2.1} />}
-      </button>
-    </div>
-  );
+    catch { if (!controller.signal.aborted) { setError('No se ha podido obtener respuesta. Puedes reintentar la misma petición.'); setRetry(request); } }
+    finally { lock.current = false; setBusy(false); inputRef.current?.focus(); }
+  }
+  async function decide(entry: Entry, decision: 'confirm' | 'cancel') {
+    const proposal = entry.result.proposal;
+    if (!proposal || lock.current) return;
+    lock.current = true; setBusy(true); setError('');
+    try {
+      const result = await confirmCopilot(sessionId, proposal.id, decision);
+      setEntries(items => items.map(item => item.id === entry.id ? { ...item, result: { ...item.result, proposal: null } } : item));
+      append(result); if (result.saved) await queries.invalidateQueries();
+    } catch { setError('No se pudo verificar el resultado. Reintenta la misma confirmación: no duplicará el cambio.'); }
+    finally { lock.current = false; setBusy(false); }
+  }
+  async function dictate() {
+    if (listening) { voiceAbort.current?.abort(); return; }
+    const controller = new AbortController(); voiceAbort.current = controller;
+    setListening(true); setError('');
+    try { setInput(await captureVoiceInput(controller.signal)); inputRef.current?.focus(); }
+    catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : 'No se pudo transcribir.'); }
+    finally { setListening(false); }
+  }
+  if (!open) return null;
+  return <Dialog label="Asistente DentCore" onClose={() => setOpen(false)} className="dc-copilot">
+    <header className="dc-copilot-header"><Sparkles size={17} /><strong>DentCore</strong><span>{context.patient_id ? 'Paciente activo' : context.module === 'otro' ? 'Asistente' : context.module}</span><kbd>Ctrl / ⌘ Espacio</kbd><button type="button" className="btn-icon" aria-label="Cerrar asistente" onClick={() => setOpen(false)}><X size={18} /></button></header>
+    {entries.length > 0 && <div ref={logRef} className="dc-copilot-log" role="log" aria-label="Conversación">
+      {entries.map(entry => <article key={entry.id} className={`dc-copilot-entry dc-copilot-entry--${entry.role}`}>
+        <small>{entry.role === 'user' ? 'Tú' : 'DentCore'}</small><p>{entry.result.message}</p>
+        {entry.result.sources.length > 0 && <nav aria-label="Fuentes"><ul>{entry.result.sources.map(source => <li key={source.path}><button type="button" className="dc-copilot-source" onClick={() => { if (source.path.startsWith('/') && !source.path.startsWith('//')) { navigate(source.path); setOpen(false); } }}>{source.label}</button></li>)}</ul></nav>}
+        {entry.result.proposal && <div className="dc-copilot-proposal">
+          {entry.result.proposal.steps.map((step, index) => <section key={index}><strong>{step.title}</strong><dl>{step.fields.map((field, i) => <div key={i}><dt>{field.label}</dt><dd>{field.value}</dd></div>)}</dl></section>)}
+          <footer><button type="button" className="btn btn-primary" disabled={busy} onClick={() => void decide(entry, 'confirm')}>{entry.result.proposal.label}</button><button type="button" className="btn btn-secondary" disabled={busy} onClick={() => void decide(entry, 'cancel')}>Cancelar</button></footer>
+        </div>}
+      </article>)}
+    </div>}
+    {busy && <p className="dc-copilot-status" role="status">Consultando y comprobando…</p>}
+    {error && <div className="dc-copilot-error" role="alert">{error}{retry && <button type="button" className="btn btn-secondary" onClick={() => void send(retry.text, retry)} disabled={busy}>Reintentar</button>}</div>}
+    {!entries.length && <div className="dc-copilot-suggestions">{suggestions.map(text => <button type="button" key={text} onClick={() => void send(text)}>{text}</button>)}</div>}
+    <form className="dc-copilot-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
+      <textarea ref={inputRef} rows={2} maxLength={4000} aria-label="Petición a DentCore" placeholder="¿Qué necesitas hacer?" value={input} disabled={busy || listening} onChange={event => setInput(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }} />
+      {voiceAvailable() && <button type="button" className="btn-icon" aria-label={listening ? 'Detener dictado' : 'Dictar petición'} aria-pressed={listening} disabled={busy} title="Dictado del navegador · revisa el texto antes de enviarlo" onClick={() => void dictate()}><Mic size={18} /></button>}
+      <button type="submit" className="btn btn-primary dc-copilot-send" aria-label="Enviar petición" disabled={busy || listening || !input.trim()}><ArrowUp size={18} /></button>
+    </form>
+    <footer className="dc-copilot-footer"><span>{listening ? 'Escuchando…' : 'Los cambios se revisan antes de guardar.'}</span>{entries.length > 0 && <button type="button" disabled={busy} onClick={() => { setEntries([]); setError(''); setRetry(null); setSessionId(crypto.randomUUID()); inputRef.current?.focus(); }}>Nueva conversación</button>}</footer>
+  </Dialog>;
 }

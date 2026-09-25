@@ -1,81 +1,38 @@
-type SpeechRecognitionResultLike = {
-  transcript: string;
-  confidence: number;
+type Recognition = {
+  lang: string; interimResults: boolean; maxAlternatives: number;
+  start: () => void; abort: () => void;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: (() => void) | null; onend: (() => void) | null;
 };
-
-type SpeechRecognitionLike = {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: { results: ArrayLike<ArrayLike<SpeechRecognitionResultLike>> }) => void) | null;
-  onerror: (() => void) | null;
-  onend: (() => void) | null;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
-
-export type AssistantTranscriptionResult = {
-  transcript: string;
-  confidence: number;
-  provider: 'web-speech' | 'mock';
-};
-
-export interface AssistantTranscriptionProvider {
-  transcribe(fallbackText: string): Promise<AssistantTranscriptionResult>;
+type RecognitionWindow = Window & { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
+export function voiceAvailable() {
+  const host = window as RecognitionWindow;
+  return Boolean(host.SpeechRecognition || host.webkitSpeechRecognition);
 }
-
-function getSpeechRecognition() {
-  const speechWindow = window as Window & {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  };
-  return speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition ?? null;
-}
-
-export class WebSpeechTranscriptionProvider implements AssistantTranscriptionProvider {
-  async transcribe(fallbackText: string): Promise<AssistantTranscriptionResult> {
-    const Recognition = getSpeechRecognition();
-    if (!Recognition) {
-      await new Promise((resolve) => window.setTimeout(resolve, 450));
-      return {
-        transcript: fallbackText.trim() || 'Abre la agenda de hoy',
-        confidence: fallbackText.trim() ? 0.88 : 0.62,
-        provider: 'mock',
-      };
-    }
-
-    return new Promise<AssistantTranscriptionResult>((resolve) => {
-      const recognition = new Recognition();
-      let settled = false;
-      recognition.lang = 'es-ES';
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognition.onresult = (event) => {
-        const result = event.results[0]?.[0];
-        settled = true;
-        recognition.stop();
-        resolve({
-          transcript: result?.transcript ?? fallbackText,
-          confidence: result?.confidence ?? 0.7,
-          provider: 'web-speech',
-        });
-      };
-      recognition.onerror = () => {
-        settled = true;
-        resolve({ transcript: fallbackText, confidence: 0.45, provider: 'web-speech' });
-      };
-      recognition.onend = () => {
-        if (!settled) resolve({ transcript: fallbackText, confidence: 0.45, provider: 'web-speech' });
-      };
-      recognition.start();
-    });
-  }
-}
-
-const defaultProvider = new WebSpeechTranscriptionProvider();
-
-export async function captureVoiceInput(fallbackText: string) {
-  return defaultProvider.transcribe(fallbackText);
+/** Voice only transcribes: no fake fallback, commands or mutations. */
+export function captureVoiceInput(signal: AbortSignal): Promise<string> {
+  const host = window as RecognitionWindow;
+  const Constructor = host.SpeechRecognition || host.webkitSpeechRecognition;
+  if (!Constructor) return Promise.reject(new Error('Este navegador no dispone de dictado. Puedes escribir la petición.'));
+  return new Promise((resolve, reject) => {
+    const recognition = new Constructor();
+    let finished = false;
+    const finish = (text?: string) => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      signal.removeEventListener('abort', cancel);
+      recognition.abort();
+      if (text?.trim()) resolve(text.trim());
+      else reject(new Error('No se pudo transcribir. Comprueba el micrófono o escribe la petición.'));
+    };
+    const cancel = () => finish();
+    const timer = window.setTimeout(cancel, 30_000);
+    recognition.lang = 'es-ES'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.onresult = event => finish(event.results[0]?.[0]?.transcript);
+    recognition.onerror = cancel; recognition.onend = cancel;
+    signal.addEventListener('abort', cancel, { once: true });
+    if (signal.aborted) cancel();
+    else { try { recognition.start(); } catch { cancel(); } }
+  });
 }
