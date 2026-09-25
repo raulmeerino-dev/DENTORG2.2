@@ -446,10 +446,10 @@ describe('PacientesPage structure', () => {
     await waitFor(() => expect(createPresupuestoMock).toHaveBeenCalledWith('pac-1', 'doc-1'));
     expect(await screen.findByRole('region', { name: /^Presupuestos$/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Presupuesto #2/i)).toBeInTheDocument());
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-2');
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-2'));
     await user.click(screen.getByRole('button', { name: /^#1\s*Presentado/i }));
     expect(await screen.findByText(/Presupuesto #1/i)).toBeInTheDocument();
-    expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-1');
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-1'));
   });
 
   it('shows a closed budget warning when the active budget is accepted', async () => {
