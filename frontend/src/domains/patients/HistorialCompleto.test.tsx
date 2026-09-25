@@ -1,8 +1,8 @@
 import { QueryClient,QueryClientProvider } from '@tanstack/react-query';
-import { render,screen } from '@testing-library/react';
+import { render,screen,within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe,expect,it,vi } from 'vitest';
-import type { ApiPaciente,Cobro,DocumentoPaciente,Factura,HistorialClinico,NotaDental,PagoAnticipadoPaciente,Presupuesto,RecetaClinica,TrabajoLaboratorio } from '../../api/types';
+import type { ApiPaciente,Cita,Consentimiento,Cobro,DocumentoPaciente,Factura,HistorialClinico,NotaDental,PagoAnticipadoPaciente,Presupuesto } from '../../api/types';
 import { HistorialCompletoPanel } from './HistorialCompleto';
 
 const paciente: ApiPaciente = {
@@ -56,74 +56,6 @@ const anticipo: PagoAnticipadoPaciente = {
   anulado_at: null,
   anulado_por_id: null,
   motivo_anulacion: null,
-};
-
-const receta: RecetaClinica = {
-  id: 'rec-1',
-  paciente_id: paciente.id,
-  doctor_id: 'doc-1',
-  clinica_id: null,
-  plantilla_id: null,
-  medicamento: 'Ibuprofeno 600',
-  principio_activo: null,
-  forma_farmaceutica: null,
-  via_administracion: null,
-  unidades: null,
-  duracion: null,
-  posologia: '1 cada 8h',
-  pauta: null,
-  diagnostico: null,
-  instrucciones_paciente: null,
-  instrucciones_farmacia: null,
-  prescriptor_nombre: null,
-  prescriptor_num_colegiado: null,
-  prescriptor_colegio: null,
-  prescriptor_provincia: null,
-  prescriptor_especialidad: null,
-  prescriptor_nif: null,
-  fecha_prescripcion: '2026-04-05',
-  fecha_dispensacion: null,
-  estado: 'emitida_local',
-  provider_mode: 'disabled',
-  external_id: null,
-  provider_status: null,
-  provider_error: null,
-  verification_code: null,
-  pdf_documento_id: null,
-  pdf_path: null,
-  pdf_hash_sha256: null,
-  firma_data_url: null,
-  pdf_generado_at: null,
-  emitida_at: null,
-  enviada_proveedor_at: null,
-  certificada_at: null,
-  rechazada_at: null,
-  anulada_at: null,
-  dispensada_at: null,
-  certificada_real: false,
-  created_at: '2026-04-05T10:00:00',
-};
-
-const trabajoLab: TrabajoLaboratorio = {
-  id: 'lab-1',
-  paciente_id: paciente.id,
-  doctor_id: 'doc-1',
-  laboratorio_id: 'l-1',
-  historial_id: null,
-  descripcion: 'Corona zirconio',
-  pieza_dental: 16,
-  color: null,
-  observaciones: null,
-  fecha_salida: '2026-04-03',
-  fecha_entrega_prevista: '2026-04-15',
-  fecha_recepcion: null,
-  fecha_entrega_paciente: null,
-  estado: 'enviado',
-  precio: null,
-  numero_orden: 5,
-  paciente: null,
-  doctor: null,
-  laboratorio: null,
 };
 
 const historialPieza: HistorialClinico = {
@@ -206,6 +138,7 @@ function renderHistorial(overrides: Partial<Parameters<typeof HistorialCompletoP
     <QueryClientProvider client={queryClient}>
       <HistorialCompletoPanel
         paciente={paciente}
+        canManageBilling={true}
         historial={[]}
         citas={[]}
         presupuestos={[]}
@@ -213,99 +146,159 @@ function renderHistorial(overrides: Partial<Parameters<typeof HistorialCompletoP
         anticipos={[anticipo]}
         documentos={[]}
         consentimientos={[]}
-        recetas={[receta]}
-        laboratorio={[trabajoLab]}
         notasDentales={[]}
         onOpenDocumento={vi.fn()}
         onOpenConsentimiento={vi.fn()}
         onOpenFactura={vi.fn()}
-        onOpenReceta={vi.fn()}
         {...overrides}
       />
     </QueryClientProvider>,
   );
 }
 
-describe('HistorialCompletoPanel filtros', () => {
-  it('muestra el filtro Cobros, Recetas y Laboratorio', () => {
-    renderHistorial();
-    expect(screen.getByRole('button', { name: 'Cobros' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Recetas' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Laboratorio' })).toBeInTheDocument();
+describe('Historial general tabular', () => {
+  it('muestra una fila por registro sin repetir eventos de odontograma', () => {
+    renderHistorial({ historial: [historialPieza], notasDentales: [notaPieza] });
+    const table = screen.getByRole('table', { name: 'Cronología del paciente' });
+    expect(within(table).getAllByRole('row')).toHaveLength(5); // cabecera + tratamiento, factura, cobro y anticipo
+    expect(screen.queryByRole('button', { name: 'Odontograma' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Conductos permeables')).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Profesional' })).toBeInTheDocument();
   });
-
-  it('filtro Cobros muestra cobros + anticipos y oculta facturas', async () => {
-    const user = userEvent.setup();
+  it('filtra cobros y anticipos sin inventar saldo por movimiento', async () => {
     renderHistorial();
-    await user.click(screen.getByRole('button', { name: 'Cobros' }));
-    expect(screen.getByText('A/100')).toBeInTheDocument(); // titulo del cobro = serie/numero
-    expect(screen.getByText('Senial implante')).toBeInTheDocument();
-    expect(screen.queryByText('Factura')).toBeNull();
-  });
-
-  it('filtro Facturacion muestra solo facturas (no cobros)', async () => {
-    const user = userEvent.setup();
-    renderHistorial();
-    await user.click(screen.getByRole('button', { name: 'Facturación' }));
-    expect(screen.getByText('Factura')).toBeInTheDocument();
-    expect(screen.queryByText('Cobro')).toBeNull();
-    expect(screen.queryByText('Anticipo')).toBeNull();
-  });
-
-  it('filtro Recetas muestra eventos de recetas', async () => {
-    const user = userEvent.setup();
-    renderHistorial();
-    await user.click(screen.getByRole('button', { name: 'Recetas' }));
-    expect(screen.getByText('Ibuprofeno 600')).toBeInTheDocument();
-    expect(screen.queryByText('Corona zirconio')).toBeNull();
-  });
-
-  it('filtro Laboratorio muestra trabajos con numero de orden', async () => {
-    const user = userEvent.setup();
-    renderHistorial();
-    await user.click(screen.getByRole('button', { name: 'Laboratorio' }));
-    expect(screen.getByText('Corona zirconio')).toBeInTheDocument();
-    expect(screen.getByText(/Nº 5/)).toBeInTheDocument();
-  });
-
-  it('filtro Todo incluye cobros, recetas y laboratorio', () => {
-    renderHistorial();
-    // Por defecto el filtro es 'todo'
-    expect(screen.getByText('Ibuprofeno 600')).toBeInTheDocument();
-    expect(screen.getByText('Corona zirconio')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cobros' }));
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent('120,00');
+    expect(rows[0].lastElementChild).toHaveTextContent('—');
     expect(screen.getByText('Senial implante')).toBeInTheDocument();
   });
-
-  it('cobro anulado muestra etiqueta Cobro anulado', async () => {
-    const user = userEvent.setup();
-    const facturaAnulada: Factura = {
-      ...factura,
-      cobros: [{
-        ...cobro,
-        anulado_at: '2026-04-13T08:00:00',
-        motivo_anulacion: 'Error de importe',
-      }],
-    };
-    renderHistorial({ facturas: [facturaAnulada], anticipos: [] });
-    await user.click(screen.getByRole('button', { name: 'Cobros' }));
-    expect(screen.getByText('Cobro anulado')).toBeInTheDocument();
+  it('muestra el cobrado y saldo de factura reales, sin repartirlos entre tratamientos', async () => {
+    renderHistorial({ historial: [{ ...historialPieza, factura_id: factura.id }] });
+    const treatment = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }).closest('tr')!;
+    expect(treatment).toHaveTextContent('150,00');
+    expect(treatment).not.toHaveTextContent('120,00');
+    expect(treatment).not.toHaveTextContent('80,00');
+    await userEvent.click(screen.getByRole('button', { name: 'Facturación' }));
+    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent('200,00120,0080,00');
+  });
+  it('conserva importes y motivo del cobro anulado con efectivo cero', async () => {
+    renderHistorial({ facturas: [{ ...factura, cobros: [{ ...cobro, anulado_at: '2026-04-13T08:00:00Z', motivo_anulacion: 'Error de importe' }] }], anticipos: [] });
+    await userEvent.click(screen.getByRole('button', { name: 'Cobros' }));
+    const row = within(screen.getByRole('table')).getAllByRole('row')[1];
+    expect(row).toHaveTextContent('Anulado');
+    expect(row).toHaveTextContent('120,000,00');
+    await userEvent.click(within(row).getByRole('button', { name: /Ver detalle/ }));
+    expect(screen.getByRole('region', { name: 'Detalle de cobro' })).toHaveTextContent('Error de importe');
+  });
+  it('busca por notas, pieza, profesional y factura sin exigir tildes', async () => {
+    renderHistorial({ historial: [{ ...historialPieza, factura_id: factura.id }], documentos: [documentoPieza] });
+    const input = screen.getByRole('searchbox', { name: 'Buscar en el historial' });
+    await userEvent.type(input, 'conductos pieza 16 ruiz a/100');
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText('Endodoncia')).toBeInTheDocument();
+    await userEvent.clear(input); await userEvent.type(input, 'rx-pieza');
+    expect(screen.queryByText('rx-pieza-16.pdf')).not.toBeInTheDocument();
+    expect(screen.queryByText('Endodoncia')).not.toBeInTheDocument();
+  });
+  it('abre el detalle con teclado y conserva documentos vinculados', async () => {
+    const openDocument = vi.fn();
+    renderHistorial({ historial: [historialPieza], documentos: [documentoPieza], notasDentales: [notaPieza], onOpenDocumento: openDocument });
+    const expand = screen.getByRole('button', { name: /Ver detalle: Tratamiento/ });
+    expand.focus(); await userEvent.keyboard('{Enter}');
+    expect(expand).toHaveAttribute('aria-expanded', 'true');
+    const detail = screen.getByRole('region', { name: 'Detalle de tratamiento' });
+    expect(detail).toHaveTextContent('Conductos permeables');
+    expect(detail).toHaveTextContent('Caries profunda');
+    await userEvent.click(within(detail).getByRole('button', { name: 'Documento · rx-pieza-16.pdf' }));
+    expect(openDocument).toHaveBeenCalledWith(documentoPieza);
+    await userEvent.click(expand);
+    expect(screen.queryByRole('region', { name: 'Detalle de tratamiento' })).not.toBeInTheDocument();
+  });
+  it('abre el presupuesto real desde el detalle', async () => {
+    const open = vi.fn();
+    renderHistorial({ historial: [{ ...historialPieza, presupuesto_linea_id: 'linea-16' }], presupuestos: [presupuestoPieza], onOpenPresupuesto: open });
+    await userEvent.click(screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir presupuesto #12' }));
+    expect(open).toHaveBeenCalledWith(presupuestoPieza);
+  });
+  it('muestra una nota vinculada completa sin duplicarla en su propio detalle', async () => {
+    renderHistorial({ historial: [historialPieza], notasDentales: [{ ...notaPieza, historial_id: historialPieza.id }] });
+    await userEvent.click(screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }));
+    const detail = screen.getByRole('region', { name: 'Detalle de tratamiento' });
+    expect(detail.textContent?.split(notaPieza.texto)).toHaveLength(2);
+  });
+  it('excluye planificación, documentación y cambios internos de la tabla y sus filtros', () => {
+    renderHistorial({ presupuestos: [presupuestoPieza], documentos: [documentoPieza], consentimientos: [{ id: 'cons-1', tipo: 'Consentimiento firmado', estado: 'firmado', fecha_firma: '2026-04-18' } as Consentimiento],
+      notasDentales: [notaPieza], historial: [{ ...historialPieza, estado: 'pendiente' }] });
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(4);
+    for (const name of ['Documentos', 'Consentimientos', 'Presupuestos', 'Odontograma', 'Citas']) expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+    expect(screen.queryByText('Ibuprofeno 600')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Otros tipos de evento' })).not.toBeInTheDocument();
+  });
+  it('no expone columnas, movimientos, importes ni referencias económicas sin permiso', async () => {
+    renderHistorial({ canManageBilling: false, initialFilter: 'facturacion', historial: [{ ...historialPieza, factura_id: factura.id }], presupuestos: [presupuestoPieza] });
+    expect(screen.queryByRole('columnheader', { name: 'Factura' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Importe' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cobros' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Ver detalle: Tratamiento/ }));
+    expect(screen.queryByText('150,00')).not.toBeInTheDocument();
+    expect(screen.queryByText('A/100')).not.toBeInTheDocument();
+    await userEvent.type(screen.getByRole('searchbox'), 'a/100');
+    expect(screen.getByText('No hay actos clínicos o movimientos económicos que coincidan con estos filtros.')).toBeInTheDocument();
+  });
+  it('permite invertir el orden cronológico', async () => {
+    renderHistorial();
+    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent('12-04-26');
+    await userEvent.click(screen.getByRole('button', { name: 'Ordenar de más antiguo a más reciente' }));
+    expect(within(screen.getByRole('table')).getAllByRole('row')[1]).toHaveTextContent('08-04-26');
+  });
+  it('filtra por pieza sin abrir un odontograma general', async () => {
+    renderHistorial({ historial: [historialPieza], documentos: [documentoPieza] });
+    await userEvent.click(screen.getByRole('button', { name: 'Filtros' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Pieza' }), '16');
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2); // solo el tratamiento realizado
+    expect(screen.queryByLabelText('Odontograma interactivo')).not.toBeInTheDocument();
+  });
+  it('pagina historias extensas y busca también fuera de la página visible', async () => {
+    renderHistorial({ historial: Array.from({ length: 120 }, (_, i) => ({ ...historialPieza, id: `hist-${i}`, procedimiento: `Tratamiento ${i}`, observaciones: `Observación ${i}` })) });
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(51);
+    await userEvent.click(screen.getByRole('button', { name: 'Siguiente' }));
+    expect(screen.getByText('51–100 de 123 · Importes en €')).toBeInTheDocument();
+    await userEvent.type(screen.getByRole('searchbox'), 'Tratamiento 119');
+    expect(screen.getByText('Tratamiento 119')).toBeInTheDocument();
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(2);
+  });
+  it('solo incluye visitas con actos o notas clínicas, nunca citas futuras, canceladas ni administrativas', async () => {
+    const base = { id: 'visit-1', paciente_id: paciente.id, fecha_hora: '2024-01-01T10:00:00Z', doctor_id: 'doc-1', motivo: 'Revisión clínica', duracion_min: 30, estado: 'atendida' } as Cita;
+    renderHistorial({ citas: [base, { ...base, id: 'administrativa', motivo: 'Entrega de justificante', observaciones: 'Recoger copia' }, { ...base, id: 'futura', fecha_hora: '2099-01-01T10:00:00Z' }, { ...base, id: 'cancelada', estado: 'cancelada' }, { ...base, id: 'nota', motivo: 'Control clínico' }],
+      historial: ['visit-1', 'futura', 'cancelada'].map((id) => ({ ...historialPieza, id: `t-${id}`, cita_id: id })),
+      notasDentales: [{ ...notaPieza, cita_id: 'nota', origen: 'manual' }] });
+    await userEvent.click(screen.getByRole('button', { name: 'Visitas clínicas' }));
+    const rows = within(screen.getByRole('table')).getAllByRole('row');
+    expect(rows).toHaveLength(3);
+    expect(screen.queryByText('Entrega de justificante')).not.toBeInTheDocument();
+    expect(screen.getByText('Control clínico')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Ver detalle: Visita clínica · Control/ }));
+    expect(screen.getByRole('region', { name: 'Detalle de visita clínica' })).toHaveTextContent(notaPieza.texto);
+  });
+  it('distingue rectificación, cobro anulado y factura anulada sin crear deuda ficticia', async () => {
+    renderHistorial({ facturas: [{ ...factura, es_rectificativa: true, factura_rectificada_id: 'original', total: '-20', pendiente: '-20', total_cobrado: '0', cobros: [] }, { ...factura, id: 'void', numero: 101, estado: 'anulada', cobros: [] }, { ...factura, id: 'draft', estado: 'borrador', numero: 102, cobros: [] }] });
+    await userEvent.click(screen.getByRole('button', { name: 'Facturación' }));
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(rows.some(row => row.textContent?.includes('Rectificativa'))).toBe(true);
+    const annulled = rows.find(row => row.textContent?.includes('Anulada'))!;
+    expect(annulled.lastElementChild).toHaveTextContent('0,00');
+  });
+  it.each([['80', 'Deuda actual'], ['0', 'Saldo actual'], ['-40', 'A favor']])('muestra saldo contable %s con etiqueta %s sin depender de filtros', async (pending, label) => {
+    renderHistorial({ saldo: { paciente_id: paciente.id, total_facturado: '200', total_cobrado: String(200 - Number(pending)), pendiente: pending, facturas_pendientes: 1 } });
+    const summary = screen.getByLabelText('Saldo actual del paciente');
+    expect(summary).toHaveTextContent(label);
+    await userEvent.type(screen.getByRole('searchbox'), 'sin coincidencias');
+    expect(summary).toHaveTextContent(label);
+    expect(summary).toHaveTextContent('200,00');
   });
 
-  it('muestra registros por pieza solo cuando se solicita, sin odontograma general', async () => {
-    renderHistorial({
-      historial: [historialPieza],
-      presupuestos: [presupuestoPieza],
-      documentos: [documentoPieza],
-      notasDentales: [notaPieza],
-    });
-
-    expect(screen.queryByLabelText('Historial de pieza 16')).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Odontograma' }));
-    expect(screen.getAllByRole('button', { name: '16' }).length).toBeGreaterThan(0);
-    expect(screen.getByLabelText('Historial de pieza 16')).toBeInTheDocument();
-    expect(screen.getAllByText('Endodoncia').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Corona zirconio').length).toBeGreaterThan(0);
-    expect(screen.getByText('Control radiografico en 6 meses')).toBeInTheDocument();
-    expect(screen.getAllByText('RX pieza 16').length).toBeGreaterThan(0);
-  });
 });

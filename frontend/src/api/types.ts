@@ -276,6 +276,8 @@ export interface Factura {
   total_cobrado: string;
   pendiente: string;
   tiene_receta_electronica?: boolean;
+  es_rectificativa?: boolean;
+  factura_rectificada_id?: string | null;
 }
 
 export interface SaldoPaciente {

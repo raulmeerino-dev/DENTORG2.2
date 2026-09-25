@@ -40,9 +40,9 @@ function createTrabajo(id: string, linea: PresupuestoLinea): TrabajoPendiente {
 }
 
 describe('TrabajoPendientePanel', () => {
-  it('dirige al presupuesto cuando hay lineas aceptadas que aun no se han preparado', async () => {
+  it('permite citar líneas aceptadas sin preparación manual', async () => {
     const user = userEvent.setup();
-    const onOpenPresupuestos = vi.fn();
+    const onDarCita = vi.fn();
     const linea = createLinea('linea-legacy', 24);
     linea.pasado_trabajo_pendiente = false;
     const presupuestoLegacy: Presupuesto = {
@@ -64,17 +64,16 @@ describe('TrabajoPendientePanel', () => {
         trabajosPendientes={[]}
         presupuestos={[presupuestoLegacy]}
         citas={[]}
-        onDarCita={vi.fn()}
+        onDarCita={onDarCita}
         onContextLinea={vi.fn()}
-        onOpenPresupuestos={onOpenPresupuestos}
+        onOpenPresupuestos={vi.fn()}
       />,
     );
 
-    expect(screen.getByText('1 tratamiento aceptado pendiente de preparar')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('pending-odontogram')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Revisar presupuesto/i }));
-    expect(onOpenPresupuestos).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.queryByText(/preparar/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Dar cita' }));
+    expect(onDarCita).toHaveBeenCalledWith(linea);
   });
 
   it('asocia citas solo mediante el id exacto de la linea de presupuesto', () => {

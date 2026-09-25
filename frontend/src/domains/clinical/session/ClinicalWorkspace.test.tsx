@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { act,render as renderView,screen,waitFor } from '@testing-library/react';
+import { act,render as renderView,screen,waitFor,within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe,expect,it,vi } from 'vitest';
 import type { ApiPaciente,Cita,Consentimiento,DocumentoPaciente,HistorialClinico,NotaDental,NotaDentalCreateInput,Presupuesto,RecetaClinica,SesionClinicaItem,SesionClinicaItemCreateInput,SesionClinicaItemUpdateInput,TrabajoLaboratorio,TrabajoPendiente,TratamientoCatalogo } from '../../../api/types';
@@ -193,6 +193,7 @@ function renderClinical(
       laboratorio={[]}
       saldoPendiente={0}
       doctorId="doc-1"
+      doctores={[{ id: 'doc-1', nombre: 'Dra. Ruiz', activo: true, color_agenda: null }]}
       tratamientos={[tratamiento]}
       savingPrimeraVisita={false}
       onSavePrimeraVisita={vi.fn()}
@@ -281,6 +282,7 @@ function renderVisits(overrides: Partial<{
       laboratorio={overrides.laboratorio ?? []}
       saldoPendiente={0}
       doctorId="doc-1"
+      doctores={[{ id: 'doc-1', nombre: 'Dra. Ruiz', activo: true, color_agenda: null }]}
       tratamientos={[tratamiento]}
       savingPrimeraVisita={false}
       onSavePrimeraVisita={vi.fn()}
@@ -308,8 +310,7 @@ function renderVisits(overrides: Partial<{
 }
 
 describe('ClinicalWorkspace sesion actual', () => {
-  it('explica y abre el paso de presupuesto cuando el trabajo aceptado aun no esta preparado', async () => {
-    const user = userEvent.setup();
+  it('muestra los aceptados antiguos sin preparación manual', async () => {
     const legacyBudget: Presupuesto = {
       ...presupuesto,
       lineas: [{ ...presupuesto.lineas[0], pasado_trabajo_pendiente: false }],
@@ -319,19 +320,35 @@ describe('ClinicalWorkspace sesion actual', () => {
       trabajosPendientes: [],
     });
 
-    expect(screen.getByText('1 tratamiento aceptado por preparar')).toBeInTheDocument();
-    expect(screen.queryByText(/Selecciona o añade un tratamiento/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Preparar desde presupuesto/i }));
-    expect(onOpenPresupuestos).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('list', { name: 'Tratamientos de la sesión' })).toHaveTextContent('Corona zirconio');
+    expect(screen.queryByText(/por preparar/i)).not.toBeInTheDocument();
+    expect(onOpenPresupuestos).not.toHaveBeenCalled();
   });
 
-  it('abre el catalogo desde el estado vacio cuando no existe trabajo aceptado', async () => {
+  it('abre el registro directo desde una sesión vacía', async () => {
     const user = userEvent.setup();
     renderClinical(undefined, undefined, { presupuestos: [], trabajosPendientes: [] });
 
     expect(screen.getByText('Sesión sin tratamientos')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /Añadir tratamiento/i }));
-    expect(screen.getByPlaceholderText('Buscar tratamiento en catálogo')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: /Añadir tratamiento realizado/i })[0]);
+    expect(screen.getByRole('dialog', { name: 'Añadir tratamiento realizado' })).toBeInTheDocument();
+  });
+
+  it('registra un realizado manual sin presupuesto y conserva el profesional contextual', async () => {
+    const user = userEvent.setup();
+    const { onFinalizar, onCreateSesionItem } = renderClinical(undefined, undefined, { presupuestos: [], trabajosPendientes: [] });
+    await user.click(screen.getAllByRole('button', { name: 'Añadir tratamiento realizado' })[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Añadir tratamiento realizado' });
+    await user.selectOptions(within(dialog).getByLabelText('Tratamiento'), tratamiento.id);
+    await user.type(within(dialog).getByLabelText('Pieza FDI'), '24');
+    await user.type(within(dialog).getByLabelText('Superficies'), 'O');
+    await user.clear(within(dialog).getByLabelText('Importe (€)'));
+    await user.type(within(dialog).getByLabelText('Importe (€)'), '0');
+    await user.click(within(dialog).getByRole('button', { name: 'Guardar tratamiento realizado' }));
+    await waitFor(() => expect(onFinalizar).toHaveBeenCalledTimes(1));
+    expect(onCreateSesionItem).toHaveBeenCalledWith(expect.objectContaining({ doctor_id: 'doc-1', origen: 'manual' }));
+    expect(onFinalizar).toHaveBeenCalledWith(expect.objectContaining({ paciente_id: paciente.id, doctor_id: 'doc-1', pieza_dental: 24, caras: 'O', importe: 0, origen: 'manual' }));
+    expect(onFinalizar).not.toHaveBeenCalledWith(expect.objectContaining({ presupuesto_linea_id: expect.any(String) }));
   });
 
   it('muestra solo las secciones clinicas principales sin Notas / docs', () => {
@@ -645,7 +662,7 @@ describe('Cierre de visita y guardados de sesión', () => {
     const create = deferred<SesionClinicaItem>();
     const onCreate = vi.fn(() => create.promise);
     renderClinical(undefined, undefined, { initialSesionItems: [buildSesionItem()], citas: [activeVisit], onCreateSesionItem: onCreate });
-    await user.click(screen.getByRole('button', { name: /^Añadir$/i }));
+    await user.click(screen.getByRole('button', { name: /^Planificar tratamiento$/i }));
     await user.click(screen.getByRole('button', { name: /^Añadir a sesión$/i }));
     expect(onCreate).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: /^Finalizar visita$/i })).toBeDisabled();

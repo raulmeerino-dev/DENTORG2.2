@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import TokenData, ensure_clinic_access
 from app.domains.clinical.application.patient_context import (
     current_user_doctor_id,
+    validate_history_links,
 )
 from app.domains.clinical.domain.dental_surfaces import normalize_caras, surfaces_from_caras
 from app.domains.clinical.persistence.historial import HistorialClinico
@@ -91,19 +92,33 @@ SESION_CLINICA_LOAD_OPTIONS = (
 
 async def _lock_session_patient(db: AsyncSession, paciente_id: UUID) -> Paciente | None:
     return await db.scalar(
-        select(Paciente).where(Paciente.id == paciente_id).with_for_update()
+        select(Paciente)
+        .where(Paciente.id == paciente_id)
+        .with_for_update()
         .execution_options(populate_existing=True)
     )
 
 
-async def _ensure_open_session_appointment(db: AsyncSession, cita_id: UUID | None, paciente_id: UUID) -> None:
+async def _ensure_open_session_appointment(
+    db: AsyncSession, cita_id: UUID | None, paciente_id: UUID
+) -> None:
     if not cita_id:
         return
-    cita = await db.scalar(select(Cita).where(Cita.id == cita_id).execution_options(populate_existing=True))
+    cita = await db.scalar(
+        select(Cita).where(Cita.id == cita_id).execution_options(populate_existing=True)
+    )
     if not cita or cita.paciente_id != paciente_id:
         raise HTTPException(status_code=404, detail="Cita no encontrada para el paciente")
-    if cita.finalizada_at or cita.estado in {"atendida", "anulada", "falta", "cancelled_by_patient"}:
-        raise HTTPException(status_code=409, detail="La visita ya está cerrada; no admite nuevos tratamientos en curso.")
+    if cita.finalizada_at or cita.estado in {
+        "atendida",
+        "anulada",
+        "falta",
+        "cancelled_by_patient",
+    }:
+        raise HTTPException(
+            status_code=409,
+            detail="La visita ya está cerrada; no admite nuevos tratamientos en curso.",
+        )
 
 
 async def _get_sesion_item_or_404(
@@ -226,7 +241,9 @@ async def actualizar_sesion_item(
 
     cambios = data.model_dump(exclude_unset=True)
     if (data.estado or item.estado) == "en_curso":
-        await _ensure_open_session_appointment(db, cambios.get("cita_id", item.cita_id), paciente_id)
+        await _ensure_open_session_appointment(
+            db, cambios.get("cita_id", item.cita_id), paciente_id
+        )
     if "caras" in cambios:
         cambios["caras"] = normalize_caras(cambios["caras"])
     if cambios.get("estado") == "realizado":
@@ -278,6 +295,34 @@ async def finalizar_tratamiento_sesion(
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)
+
+    # Completion retries must never duplicate a manual clinical act. The patient
+    # lock serializes concurrent requests, including ones without a budget line.
+    sesion_item: SesionClinicaItem | None = None
+    if data.sesion_item_id:
+        sesion_item = await db.get(SesionClinicaItem, data.sesion_item_id)
+        if not sesion_item or sesion_item.paciente_id != data.paciente_id:
+            raise HTTPException(
+                status_code=404, detail="Item de sesion no encontrado para el paciente"
+            )
+        if sesion_item.historial_id:
+            result = await db.execute(
+                select(HistorialClinico)
+                .options(
+                    selectinload(HistorialClinico.tratamiento),
+                    selectinload(HistorialClinico.doctor),
+                )
+                .where(
+                    HistorialClinico.id == sesion_item.historial_id,
+                    HistorialClinico.paciente_id == data.paciente_id,
+                )
+            )
+            existing = result.scalar_one_or_none()
+            if not existing:
+                raise HTTPException(
+                    status_code=409, detail="No se pudo recuperar el acto ya realizado"
+                )
+            return HistorialResponse.model_validate(existing)
 
     tratamiento = await db.get(TratamientoCatalogo, data.tratamiento_id)
     if not tratamiento:
@@ -343,11 +388,32 @@ async def finalizar_tratamiento_sesion(
             )
             historial = existing_result.scalar_one_or_none()
 
+    if historial and historial.estado == "realizado":
+        result = await db.execute(
+            select(HistorialClinico)
+            .options(
+                selectinload(HistorialClinico.tratamiento), selectinload(HistorialClinico.doctor)
+            )
+            .where(HistorialClinico.id == historial.id)
+        )
+        return HistorialResponse.model_validate(result.scalar_one())
+
     doctor_id = doctor_id or await current_user_doctor_id(db, current_user)
     if not doctor_id:
         raise HTTPException(
             status_code=400, detail="No se pudo determinar el doctor del tratamiento"
         )
+
+    await validate_history_links(
+        db,
+        paciente=paciente,
+        current_user=current_user,
+        tratamiento_id=data.tratamiento_id,
+        doctor_id=doctor_id,
+        gabinete_id=gabinete_id,
+        presupuesto_linea_id=data.presupuesto_linea_id,
+        cita_id=data.cita_id,
+    )
 
     pieza_dental = (
         data.pieza_dental
@@ -363,7 +429,11 @@ async def finalizar_tratamiento_sesion(
     importe = (
         data.importe
         if data.importe is not None
-        else (linea.precio_unitario if linea else tratamiento.precio)
+        else (
+            linea.precio_unitario * (1 - linea.descuento_porcentaje / 100)
+            if linea
+            else tratamiento.precio
+        )
     )
     fecha = data.fecha or date_type.today()
     origen = data.origen or ("presupuesto_linea" if linea else "cita" if cita else "manual")
@@ -409,14 +479,6 @@ async def finalizar_tratamiento_sesion(
         trabajo.pieza_dental = pieza_dental
         trabajo.caras = caras
 
-    sesion_item: SesionClinicaItem | None = None
-    if data.sesion_item_id:
-        sesion_item = await db.get(SesionClinicaItem, data.sesion_item_id)
-        if not sesion_item or sesion_item.paciente_id != data.paciente_id:
-            raise HTTPException(
-                status_code=404,
-                detail="Item de sesion no encontrado para el paciente",
-            )
     if sesion_item:
         sesion_item.estado = "realizado"
         sesion_item.historial_id = historial.id

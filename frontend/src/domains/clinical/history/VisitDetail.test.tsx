@@ -6,7 +6,7 @@ import { VisitDetail } from './VisitDetail';
 const cita = { id: 'visit-a', fecha_hora: '2026-09-24T10:00:00Z', motivo: 'Revisión', estado: 'atendida', doctor: { nombre: 'Dra. Ana' } } as Cita;
 const treatment = { id: 't1', cita_id: 'visit-a', fecha: '2026-09-24', pieza_dental: 16, caras: 'O', procedimiento: 'Obturación', estado: 'realizado' } as HistorialClinico;
 function show(historial: HistorialClinico[]) {
-  return render(<VisitDetail cita={cita} historial={historial} notas={[]} documentos={[]} consentimientos={[]} recetas={[]} onClose={vi.fn()} onOpenDocumento={vi.fn()} onOpenConsentimiento={vi.fn()} />);
+  return render(<VisitDetail cita={cita} historial={historial} notas={[]} documentos={[]} consentimientos={[]} onClose={vi.fn()} onOpenDocumento={vi.fn()} onOpenConsentimiento={vi.fn()} />);
 }
 describe('VisitDetail', () => {
   it('muestra piezas sólo a partir de registros vinculados a la cita', () => {
@@ -20,10 +20,9 @@ describe('VisitDetail', () => {
     expect(screen.queryByRole('region', { name: 'Información odontológica de la visita' })).not.toBeInTheDocument();
     expect(screen.queryByText('Obturación')).not.toBeInTheDocument();
   });
-  it('identifica explícitamente los registros sin vínculo que coinciden en fecha', () => {
+  it('no atribuye tratamientos a una visita por coincidencia de fecha', () => {
     show([{ ...treatment, cita_id: null }]);
-    expect(screen.getByText('Obturación')).toBeInTheDocument();
-    expect(screen.getByText('Coincidencia de fecha; no implica vinculación con esta visita.')).toBeInTheDocument();
+    expect(screen.queryByText('Obturación')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Información odontológica de la visita' })).not.toBeInTheDocument();
   });
 });

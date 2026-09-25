@@ -125,7 +125,7 @@ export function odontogramChangeToBackendPatch(change: OdontogramChange): Backen
       piezaFdi,
       superficie,
       condicion: toBackendStatus(change.status),
-      tratamiento_planificado_id: change.treatment.id,
+      tratamiento_planificado_id: change.treatment.catalogId ?? change.treatment.id,
     };
   }
 

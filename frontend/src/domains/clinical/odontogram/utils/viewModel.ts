@@ -54,16 +54,17 @@ function treatmentFromContext(
   mode: OdontogramaToolMode,
 ): Treatment | null {
   if (!surface.tratamiento_id && !surface.presupuesto_linea_id && !surface.historial_id) return null;
+  const completed = mode === 'realizado' || mode === 'historial' || (Boolean(surface.historial_id) && surface.diagnostico === 'tratamiento_realizado');
   return {
     id: surface.historial_id ?? surface.presupuesto_linea_id ?? surface.tratamiento_id ?? `${toothNumber}-${surfaceKey}`,
-    name: surface.label ?? 'Tratamiento',
-    status: mode === 'realizado' ? 'completed' : mode === 'pendiente' ? 'pending' : 'planned',
+    name: surface.label ?? (completed ? 'Tratamiento realizado' : 'Tratamiento'),
+    status: completed ? 'completed' : mode === 'pendiente' ? 'pending' : 'planned',
     targetScope: 'surface',
     surface: surfaceKey,
     toothNumbers: [toothNumber],
     price: surface.amount ? Number(surface.amount) : undefined,
-    completedAt: mode === 'realizado' ? surface.fecha ?? undefined : undefined,
-    createdAt: mode !== 'realizado' ? surface.fecha ?? undefined : undefined,
+    completedAt: completed ? surface.fecha ?? undefined : undefined,
+    createdAt: !completed ? surface.fecha ?? undefined : undefined,
   };
 }
 

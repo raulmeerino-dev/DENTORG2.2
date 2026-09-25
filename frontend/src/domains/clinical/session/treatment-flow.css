@@ -1,0 +1,11 @@
+.dc-performed-dialog { width: min(620px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; background: var(--dc-surface); border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); color: var(--dc-text); }
+.performed-context { margin: 0; padding: 10px 16px; color: var(--dc-muted); border-bottom: 1px solid var(--dc-border); }
+.performed-fields { border: 0; margin: 0; padding: 12px 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+.performed-fields label { display: grid; gap: 4px; min-width: 0; }
+.performed-fields .wide { grid-column: 1 / -1; }
+.performed-fields :is(input, select, textarea) { width: 100%; min-width: 0; }
+.performed-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--dc-border); }
+.performed-footer small { color: var(--dc-muted); flex: 1 1 180px; }
+.dc-session-stack > .session-board-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 10px 12px; border-bottom: 1px solid var(--dc-border); }
+.dc-session-stack > .session-board-head .session-board-actions { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.session-dental-target { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 12px; border-top: 1px solid var(--dc-border); }

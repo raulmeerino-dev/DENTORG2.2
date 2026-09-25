@@ -33,6 +33,8 @@ export type TreatmentTargetScope = 'tooth' | 'surface' | 'root' | 'sector' | 'ar
 
 export type Treatment = {
   id: string;
+  catalogId?: string;
+  budgetLineId?: string;
   name: string;
   status: 'planned' | 'pending' | 'in_progress' | 'completed' | 'cancelled';
   targetScope?: TreatmentTargetScope;

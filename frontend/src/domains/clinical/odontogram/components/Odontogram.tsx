@@ -242,6 +242,7 @@ export function Odontogram({
     const targetSurface = resolveTreatmentSurface(targetTooth, treatment, quickTreatmentTarget.surface);
     const plannedTreatment: Treatment = {
       id: `${treatment.id}-${targetTooth.number}-${Date.now()}`,
+      catalogId: treatment.id,
       name: treatment.name,
       status: 'planned',
       targetScope: treatment.targetScope ?? (targetSurface ? 'surface' : 'tooth'),

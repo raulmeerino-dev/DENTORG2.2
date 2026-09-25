@@ -1,42 +1,66 @@
-import { ArrowRight,CheckCircle2,ClipboardCheck,Clock3,FileText,FlaskConical,NotebookPen,Pill,Plus,Trash2 } from 'lucide-react';
-import { useEffect,useMemo,useRef,useState } from 'react';
+import { RecordPerformedTreatment } from './RecordPerformedTreatment';
+import { clinicDateKey } from '../../../shared/time/clinicTime';
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  FlaskConical,
+  NotebookPen,
+  Pill,
+  Plus,
+  Trash2,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDate } from '../../../shared/format';
 import type {
-ApiPaciente,
-Cita,
-Consentimiento,
-DocumentoPaciente,
-HistorialClinico,
-NotaDental,
-NotaDentalCreateInput,
-Presupuesto,
-PresupuestoLinea,
-RecetaClinica,
-SesionClinicaItem,
-SesionClinicaItemCreateInput,
-SesionClinicaItemUpdateInput,
-SesionTratamientoRealizadoInput,
-TrabajoLaboratorio,
-TrabajoPendiente,
-TratamientoCatalogo,
-UserRole,
+  ApiPaciente,
+  Cita,
+  Consentimiento,
+  DocumentoPaciente,
+  Doctor,
+  HistorialClinico,
+  NotaDental,
+  NotaDentalCreateInput,
+  Presupuesto,
+  PresupuestoLinea,
+  RecetaClinica,
+  SesionClinicaItem,
+  SesionClinicaItemCreateInput,
+  SesionClinicaItemUpdateInput,
+  SesionTratamientoRealizadoInput,
+  TrabajoLaboratorio,
+  TrabajoPendiente,
+  TratamientoCatalogo,
+  UserRole,
 } from '../../../api/types';
 import { ClinicalDictationButton } from '../../ai/clinical-dictation/ClinicalDictation';
 import { useSessionDraft } from '../../identity/session/sessionDrafts';
 import { TreatmentBadge } from '../components/TreatmentBadge';
 import type { ToothSelection } from '../odontogram';
-import { PatientOdontogramFlow,mapSurfaceToCaras } from '../odontogram';
+import { PatientOdontogramFlow, mapSurfaceToCaras } from '../odontogram';
 import { PatientExitChecklistPanel } from './PatientExitChecklistPanel';
 import FinishVisitAction from './FinishVisitAction';
-import { getTime,isToday,recentClinicalHistory } from './clinicalHistory';
+import { getTime, isToday, recentClinicalHistory } from './clinicalHistory';
 import type { PatientExitActionTarget } from './patientExitChecklist';
 import { buildPatientExitChecklist } from './patientExitChecklist';
-import type { SessionTreatment,SessionTreatmentStatus } from './sessionTreatments';
-import { SESSION_STATUS_LABELS,buildCreatePayload,buildSessionTreatments,normalizeSessionText,sessionTreatmentFromSesionItem } from './sessionTreatments';
+import type { SessionTreatment, SessionTreatmentStatus } from './sessionTreatments';
+import {
+  sessionVisit,
+  SESSION_STATUS_LABELS,
+  buildCreatePayload,
+  buildSessionTreatments,
+  normalizeSessionText,
+  sessionTreatmentFromSesionItem,
+} from './sessionTreatments';
 
 const SESSION_FIELD_NAMES: Partial<Record<keyof SessionTreatment, keyof SesionClinicaItemUpdateInput>> = {
-  title: 'titulo', tratamientoId: 'tratamiento_id', piezaDental: 'pieza_dental',
-  caras: 'caras', observaciones: 'observaciones', status: 'estado',
+  title: 'titulo',
+  tratamientoId: 'tratamiento_id',
+  piezaDental: 'pieza_dental',
+  caras: 'caras',
+  observaciones: 'observaciones',
+  status: 'estado',
 };
 
 export function SessionWorkspace({
@@ -53,6 +77,7 @@ export function SessionWorkspace({
   tratamientos,
   notasDentales,
   doctorId,
+  doctores = [],
   userRole,
   sesionItems,
   sesionItemsLoading,
@@ -65,7 +90,6 @@ export function SessionWorkspace({
   onCrearPedidoLab,
   onCrearPedidoLabForLine,
   onOpenDocumentos,
-  onOpenPresupuestos,
   onOpenHistorial,
   onDictarNotaSesion,
   canDictarNota = false,
@@ -87,6 +111,7 @@ export function SessionWorkspace({
   tratamientos: TratamientoCatalogo[];
   notasDentales: NotaDental[];
   doctorId?: string | null;
+  doctores?: Doctor[];
   userRole?: UserRole | null;
   sesionItems: SesionClinicaItem[];
   sesionItemsLoading: boolean;
@@ -108,19 +133,27 @@ export function SessionWorkspace({
   onFinalizarTratamientoSesion: (data: SesionTratamientoRealizadoInput) => Promise<HistorialClinico>;
   onCreateNotaDental: (data: NotaDentalCreateInput) => Promise<NotaDental>;
 }) {
-  const previstosHoy = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
+  const previstosHoy = citas.filter(
+    (cita) =>
+      isToday(cita.fecha_hora) &&
+      !['anulada', 'cancelada', 'no_presentado', 'falta', 'cancelled_by_patient'].includes(cita.estado),
+  );
   const recientes = recentClinicalHistory(historial);
   const [sessionStartedAt] = useState(() => new Date().toISOString());
   const proximaCita = useMemo(() => {
     const now = Date.parse(sessionStartedAt);
-    return citas
-      .filter((cita) => {
-        const timestamp = Date.parse(cita.fecha_hora);
-        return Number.isFinite(timestamp)
-          && timestamp >= now
-          && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado);
-      })
-      .sort((a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora))[0] ?? null;
+    return (
+      citas
+        .filter((cita) => {
+          const timestamp = Date.parse(cita.fecha_hora);
+          return (
+            Number.isFinite(timestamp) &&
+            timestamp >= now &&
+            !['anulada', 'cancelada', 'no_presentado', 'falta', 'cancelled_by_patient'].includes(cita.estado)
+          );
+        })
+        .sort((a, b) => Date.parse(a.fecha_hora) - Date.parse(b.fecha_hora))[0] ?? null
+    );
   }, [citas, sessionStartedAt]);
   const baseSessionItems = useMemo(
     () => buildSessionTreatments(citas, presupuestos, trabajosPendientes, sesionItems),
@@ -129,6 +162,10 @@ export function SessionWorkspace({
   const [draftItems, setDraftItems] = useState<SessionTreatment[]>(baseSessionItems);
   const [selectedId, setSelectedId] = useState<string | null>(baseSessionItems[0]?.id ?? null);
   const [adding, setAdding] = useState(false);
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [dentalTarget, setDentalTarget] = useState<{ pieza: string; caras: string } | null>(null);
+  const canRecord = ['admin', 'doctor', 'auxiliar'].includes(userRole ?? '');
+  const currentVisit = sessionVisit(citas, doctorId);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCatalogId, setSelectedCatalogId] = useState('');
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -149,48 +186,68 @@ export function SessionWorkspace({
   }
 
   function localIds(item: SessionTreatment) {
-    return [item.id, ...[...materializedAlias.current].filter(([, promoted]) => promoted.id === item.id).map(([draftId]) => draftId)];
+    return [
+      item.id,
+      ...[...materializedAlias.current]
+        .filter(([, promoted]) => promoted.id === item.id)
+        .map(([draftId]) => draftId),
+    ];
   }
   const selected = draftItems.find((item) => item.id === selectedId) ?? draftItems[0] ?? null;
-  const filteredCatalog = tratamientos.filter((tratamiento) => {
-    const q = normalizeSessionText(catalogSearch);
-    if (!q) return true;
-    return normalizeSessionText(`${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`).includes(q);
-  }).slice(0, 80);
-  const acceptedUnpreparedLines = useMemo(() => presupuestos.flatMap((presupuesto) => (
-    presupuesto.lineas.filter((linea) => linea.aceptado && !linea.pasado_trabajo_pendiente)
-  )), [presupuestos]);
+  const filteredCatalog = tratamientos
+    .filter((tratamiento) => {
+      const q = normalizeSessionText(catalogSearch);
+      if (!q) return true;
+      return normalizeSessionText(
+        `${tratamiento.codigo ?? ''} ${tratamiento.nombre} ${tratamiento.familia?.nombre ?? ''}`,
+      ).includes(q);
+    })
+    .slice(0, 80);
   const selectedPieceNumber = selected?.piezaDental ? Number(selected.piezaDental) : null;
   const selectedPieceNotes = selectedPieceNumber
     ? notasDentales.filter((nota) => nota.pieza_dental === selectedPieceNumber).slice(0, 3)
     : [];
-  const exitChecklist = useMemo(() => buildPatientExitChecklist({
-    paciente,
-    citas,
-    historial,
-    presupuestos,
-    consentimientos,
-    recetas,
-    laboratorio,
-    documentos,
-    saldoPendiente,
-  }), [citas, consentimientos, documentos, historial, laboratorio, paciente, presupuestos, recetas, saldoPendiente]);
+  const exitChecklist = useMemo(
+    () =>
+      buildPatientExitChecklist({
+        paciente,
+        citas,
+        historial,
+        presupuestos,
+        consentimientos,
+        recetas,
+        laboratorio,
+        documentos,
+        saldoPendiente,
+      }),
+    [
+      citas,
+      consentimientos,
+      documentos,
+      historial,
+      laboratorio,
+      paciente,
+      presupuestos,
+      recetas,
+      saldoPendiente,
+    ],
+  );
 
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setDraftItems(current => {
-        const merged = baseSessionItems.map(incoming => {
+      setDraftItems((current) => {
+        const merged = baseSessionItems.map((incoming) => {
           // A refetch may still contain the pre-materialization draft while
           // its newly created session item is already known locally.
           const item = materializedAlias.current.get(incoming.id) ?? incoming;
           const ids = localIds(item);
-          const local = current.find(row => ids.includes(row.id));
+          const local = current.find((row) => ids.includes(row.id));
           if (!local) return item;
           const next = { ...item };
           for (const [field, apiField] of Object.entries(SESSION_FIELD_NAMES)) {
-            if (ids.some(id => dirtyFieldsRef.current.has(`${id}:${apiField}`))) {
+            if (ids.some((id) => dirtyFieldsRef.current.has(`${id}:${apiField}`))) {
               Object.assign(next, { [field]: local[field as keyof SessionTreatment] });
               if (field === 'tratamientoId') next.tratamiento = local.tratamiento;
             }
@@ -199,8 +256,10 @@ export function SessionWorkspace({
         });
         for (const local of current) {
           const ids = localIds(local);
-          const hasDraft = [...dirtyFieldsRef.current].some(key => ids.some(id => key.startsWith(`${id}:`)));
-          if (hasDraft && !merged.some(row => ids.includes(row.id))) merged.push(local);
+          const hasDraft = [...dirtyFieldsRef.current].some((key) =>
+            ids.some((id) => key.startsWith(`${id}:`)),
+          );
+          if (hasDraft && !merged.some((row) => ids.includes(row.id))) merged.push(local);
         }
         return merged;
       });
@@ -216,13 +275,15 @@ export function SessionWorkspace({
 
   function updateLocal(patch: Partial<SessionTreatment>) {
     if (!selected) return;
-    const fields = Object.keys(patch).flatMap(field => {
+    const fields = Object.keys(patch).flatMap((field) => {
       const apiField = SESSION_FIELD_NAMES[field as keyof SessionTreatment];
       return apiField ? [`${selected.id}:${apiField}`] : [];
     });
     for (const field of fields) fieldVersions.current.set(field, (fieldVersions.current.get(field) ?? 0) + 1);
-    updateDirtyFields(current => new Set([...current, ...fields]));
-    setDraftItems((current) => current.map((item) => item.id === selected.id ? { ...item, ...patch } : item));
+    updateDirtyFields((current) => new Set([...current, ...fields]));
+    setDraftItems((current) =>
+      current.map((item) => (item.id === selected.id ? { ...item, ...patch } : item)),
+    );
   }
 
   async function ensurePersistedItem(item: SessionTreatment): Promise<SessionTreatment | null> {
@@ -236,7 +297,11 @@ export function SessionWorkspace({
         const created = await onCreateSesionItem(buildCreatePayload(item));
         const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
         materializedAlias.current.set(item.id, promoted);
-        setDraftItems((current) => current.map((row) => row.id === item.id ? { ...row, id: promoted.id, sesionItemId: promoted.sesionItemId } : row));
+        setDraftItems((current) =>
+          current.map((row) =>
+            row.id === item.id ? { ...row, id: promoted.id, sesionItemId: promoted.sesionItemId } : row,
+          ),
+        );
         setSelectedId((current) => (current === item.id ? promoted.id : current));
         return promoted;
       } finally {
@@ -249,30 +314,32 @@ export function SessionWorkspace({
 
   async function persistUpdate(item: SessionTreatment, cambios: SesionClinicaItemUpdateInput) {
     if (Object.keys(cambios).length === 0) return;
-    const submittedFields = Object.keys(cambios).map(field => {
+    const submittedFields = Object.keys(cambios).map((field) => {
       const key = `${item.id}:${field}`;
       return { key, version: fieldVersions.current.get(key) ?? 0 };
     });
-    setPendingSessionWrites(count => count + 1);
+    setPendingSessionWrites((count) => count + 1);
     try {
       const persisted = await ensurePersistedItem(item);
       if (!persisted?.sesionItemId) return;
       const updated = await onUpdateSesionItem(persisted.sesionItemId, cambios);
       const refreshed = sessionTreatmentFromSesionItem(updated, presupuestos);
-      setDraftItems((current) => current.map((row) => {
-        if (row.id !== persisted.id) return row;
-        const next = { ...row };
-        for (const [field, apiField] of Object.entries(SESSION_FIELD_NAMES)) {
-          const submitted = submittedFields.find(entry => entry.key === `${item.id}:${apiField}`);
-          if (submitted && (fieldVersions.current.get(submitted.key) ?? 0) === submitted.version) {
-            Object.assign(next, { [field]: refreshed[field as keyof SessionTreatment] });
-            if (field === 'tratamientoId') next.tratamiento = refreshed.tratamiento;
+      setDraftItems((current) =>
+        current.map((row) => {
+          if (row.id !== persisted.id) return row;
+          const next = { ...row };
+          for (const [field, apiField] of Object.entries(SESSION_FIELD_NAMES)) {
+            const submitted = submittedFields.find((entry) => entry.key === `${item.id}:${apiField}`);
+            if (submitted && (fieldVersions.current.get(submitted.key) ?? 0) === submitted.version) {
+              Object.assign(next, { [field]: refreshed[field as keyof SessionTreatment] });
+              if (field === 'tratamientoId') next.tratamiento = refreshed.tratamiento;
+            }
           }
-        }
-        // Preserve edits to other fields and newer keystrokes while this save was in flight.
-        return next;
-      }));
-      updateDirtyFields(current => {
+          // Preserve edits to other fields and newer keystrokes while this save was in flight.
+          return next;
+        }),
+      );
+      updateDirtyFields((current) => {
         const next = new Set(current);
         for (const { key, version } of submittedFields) {
           if ((fieldVersions.current.get(key) ?? 0) === version) next.delete(key);
@@ -282,7 +349,7 @@ export function SessionWorkspace({
     } catch (error) {
       setSessionError(error instanceof Error ? error.message : 'No se pudo guardar el cambio en la sesion.');
     } finally {
-      setPendingSessionWrites(count => count - 1);
+      setPendingSessionWrites((count) => count - 1);
     }
   }
 
@@ -298,20 +365,24 @@ export function SessionWorkspace({
     setAdding(false);
     setCatalogSearch('');
     setSelectedCatalogId('');
-    setPendingSessionWrites(count => count + 1);
+    setPendingSessionWrites((count) => count + 1);
     try {
       const created = await onCreateSesionItem({
         tratamiento_id: tratamiento.id,
         titulo: tratamiento.nombre,
+        cita_id: currentVisit?.id ?? null,
+        doctor_id: currentVisit?.doctor_id ?? doctorId ?? null,
         estado: 'en_curso',
         origen: 'manual',
       });
       const promoted = sessionTreatmentFromSesionItem(created, presupuestos);
       setSelectedId(promoted.id);
     } catch (error) {
-      setSessionError(error instanceof Error ? error.message : 'No se pudo anadir el tratamiento a la sesion.');
+      setSessionError(
+        error instanceof Error ? error.message : 'No se pudo anadir el tratamiento a la sesion.',
+      );
     } finally {
-      setPendingSessionWrites(count => count - 1);
+      setPendingSessionWrites((count) => count - 1);
     }
   }
 
@@ -324,13 +395,19 @@ export function SessionWorkspace({
         setSelectedId(next[0]?.id ?? null);
         return next;
       });
-      updateDirtyFields(current => new Set([...current].filter(key => !localIds(selected).some(id => key.startsWith(`${id}:`)))));
+      updateDirtyFields(
+        (current) =>
+          new Set([...current].filter((key) => !localIds(selected).some((id) => key.startsWith(`${id}:`)))),
+      );
       return;
     }
     try {
       setSavingId(selected.id);
       await onDeleteSesionItem(selected.sesionItemId);
-      updateDirtyFields(current => new Set([...current].filter(key => !localIds(selected).some(id => key.startsWith(`${id}:`)))));
+      updateDirtyFields(
+        (current) =>
+          new Set([...current].filter((key) => !localIds(selected).some((id) => key.startsWith(`${id}:`)))),
+      );
       setSelectedId(null);
     } catch (error) {
       setSessionError(error instanceof Error ? error.message : 'No se pudo eliminar el item de la sesion.');
@@ -343,9 +420,12 @@ export function SessionWorkspace({
     if (!selected) return;
     const cara = mapSurfaceToCaras(selection.surface);
     const piezaDental = selection.toothNumber.replace(/[^\d]/g, '').slice(0, 2);
-    const caras = cara ?? selected.caras;
+    const caras = cara ?? dentalTarget?.caras ?? selected.caras;
     updateLocal({ piezaDental, caras });
-    void persistUpdate(selected, { pieza_dental: piezaDental ? Number(piezaDental) : null, caras: caras || null });
+    void persistUpdate(selected, {
+      pieza_dental: piezaDental ? Number(piezaDental) : null,
+      caras: caras || null,
+    });
   }
 
   async function finishSelectedTreatment() {
@@ -362,7 +442,10 @@ export function SessionWorkspace({
       const historialCreado = await onFinalizarTratamientoSesion({
         paciente_id: paciente.id,
         tratamiento_id: persisted.tratamientoId!,
-        doctor_id: doctorId ?? null,
+        doctor_id: citas.find((cita) => cita.id === persisted.citaId)?.doctor_id ?? doctorId ?? null,
+        fecha: persisted.citaId
+          ? clinicDateKey(citas.find((cita) => cita.id === persisted.citaId)?.fecha_hora) || null
+          : null,
         gabinete_id: null,
         cita_id: persisted.citaId ?? null,
         presupuesto_linea_id: persisted.linea?.id ?? null,
@@ -374,14 +457,22 @@ export function SessionWorkspace({
         origen: persisted.source === 'pendiente' ? 'presupuesto_linea' : persisted.source,
         importe: persisted.linea?.importe_neto ?? persisted.linea?.precio_unitario ?? null,
       });
-      setDraftItems((current) => current.map((item) => item.id === persisted.id ? {
-        ...item,
-        status: 'realizado' as SessionTreatmentStatus,
-        historialId: historialCreado.id,
-        sourceLabel: item.source === 'manual' ? 'Historial' : item.sourceLabel,
-      } : item));
+      setDraftItems((current) =>
+        current.map((item) =>
+          item.id === persisted.id
+            ? {
+                ...item,
+                status: 'realizado' as SessionTreatmentStatus,
+                historialId: historialCreado.id,
+                sourceLabel: item.source === 'manual' ? 'Historial' : item.sourceLabel,
+              }
+            : item,
+        ),
+      );
     } catch (error) {
-      setSessionError(error instanceof Error ? error.message : 'No se pudo guardar el tratamiento en historial.');
+      setSessionError(
+        error instanceof Error ? error.message : 'No se pudo guardar el tratamiento en historial.',
+      );
     } finally {
       setSavingId(null);
     }
@@ -420,242 +511,341 @@ export function SessionWorkspace({
 
   return (
     <div className="dc-session-stack">
+      <div className="session-board-head">
+        <div>
+          <span>Sesión actual</span>
+          <strong>{draftItems.length} tratamientos</strong>
+        </div>
+        <div className="session-board-actions">
+          <FinishVisitAction
+            citas={citas}
+            role={userRole}
+            doctorId={doctorId}
+            hasUnsaved={Boolean(
+              recordOpen ||
+              quickNote.trim() ||
+              savingId ||
+              savingNote ||
+              pendingSessionWrites ||
+              dirtyFields.size,
+            )}
+          />
+          <ClinicalDictationButton
+            label="Dictar nota de sesión"
+            onClick={onDictarNotaSesion}
+            disabled={!paciente || !canDictarNota}
+            compact
+          />
+          {canRecord && (
+            <button
+              type="button"
+              className="primary-action"
+              onClick={() => {
+                setDentalTarget(null);
+                setRecordOpen(true);
+              }}
+              disabled={!paciente}
+            >
+              <Plus size={14} aria-hidden="true" /> Añadir tratamiento realizado
+            </button>
+          )}
+          <button type="button" onClick={() => setAdding((open) => !open)} disabled={!paciente || !canRecord}>
+            <Plus size={14} aria-hidden="true" /> Planificar tratamiento
+          </button>
+        </div>
+      </div>
+
       <div className={`dc-session-workbench ${selected ? '' : 'is-empty'}`.trim()}>
         <section className="desk-panel clinical-session-board">
-        <div className="session-board-head">
-          <div>
-            <span>Sesión actual</span>
-            <strong>{draftItems.length} tratamientos</strong>
-          </div>
-          <div className="session-board-actions">
-            <FinishVisitAction citas={citas} role={userRole} doctorId={doctorId} hasUnsaved={Boolean(quickNote.trim() || savingId || savingNote || pendingSessionWrites || dirtyFields.size)} />
-            <ClinicalDictationButton label="Dictar nota de sesión" onClick={onDictarNotaSesion} disabled={!paciente || !canDictarNota} compact />
-            <button type="button" className="primary-action" onClick={() => setAdding((open) => !open)} disabled={!paciente}>
-              <Plus size={14} aria-hidden="true" /> Añadir
-            </button>
-          </div>
-        </div>
-        {adding && (
-          <div className="session-add-panel">
-            <input
-              value={catalogSearch}
-              onChange={(event) => setCatalogSearch(event.target.value)}
-              placeholder="Buscar tratamiento en catálogo"
-            />
-            <select value={selectedCatalogId} onChange={(event) => setSelectedCatalogId(event.target.value)}>
-              <option value="">Seleccionar tratamiento...</option>
-              {filteredCatalog.map((tratamiento) => (
-                <option key={tratamiento.id} value={tratamiento.id}>
-                  {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}{tratamiento.nombre}
-                </option>
-              ))}
-            </select>
-            <button type="button" onClick={addTreatmentFromCatalog} disabled={!filteredCatalog.length}>Añadir a sesión</button>
-          </div>
-        )}
-        {sesionItemsError && (
-          <p className="session-save-error" role="alert">{sesionItemsError}</p>
-        )}
-        <div className="session-treatment-list" role="list" aria-label="Tratamientos de la sesión">
-          {sesionItemsLoading && !draftItems.length && (
-            <div className="session-empty-state"><span>Cargando sesión del paciente...</span></div>
-          )}
-          {draftItems.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`session-treatment-row ${selected?.id === item.id ? 'active' : ''} session-status-${item.status}`}
-              onClick={() => setSelectedId(item.id)}
-            >
-              <span className={`session-treatment-source source-${item.source}`}>
-                {item.source === 'pendiente' ? 'Ppto.' : item.source === 'cita' ? 'Cita' : 'Manual'}
-              </span>
-              <span className="session-treatment-copy">
-                <strong>{item.title}</strong>
-                <em>{item.piezaDental ? `Pieza ${item.piezaDental}${item.caras ? ` - ${item.caras}` : ''}` : 'Sin pieza'}</em>
-                <span className="session-treatment-origin">{item.sourceLabel}</span>
-              </span>
-              <small>{item.historialId ? 'En historial' : SESSION_STATUS_LABELS[item.status]}</small>
-            </button>
-          ))}
-          {!sesionItemsLoading && !draftItems.length && (
-            <div className={`session-empty-state ${acceptedUnpreparedLines.length ? 'is-actionable' : ''}`}>
-              <span className="session-empty-icon" aria-hidden="true">
-                {acceptedUnpreparedLines.length ? <ClipboardCheck size={22} /> : <Plus size={22} />}
-              </span>
-              <div>
-                <strong>
-                  {acceptedUnpreparedLines.length
-                    ? `${acceptedUnpreparedLines.length} ${acceptedUnpreparedLines.length === 1 ? 'tratamiento aceptado' : 'tratamientos aceptados'} por preparar`
-                    : 'Sesión sin tratamientos'}
-                </strong>
-                <span>
-                  {acceptedUnpreparedLines.length
-                    ? 'Pásalos a trabajo pendiente antes de utilizarlos en esta sesión.'
-                    : 'Añade únicamente los tratamientos que vas a realizar hoy.'}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="session-empty-action"
-                onClick={acceptedUnpreparedLines.length ? onOpenPresupuestos : () => setAdding(true)}
+          {adding && (
+            <div className="session-add-panel">
+              <input
+                value={catalogSearch}
+                onChange={(event) => setCatalogSearch(event.target.value)}
+                placeholder="Buscar tratamiento en catálogo"
+              />
+              <select
+                value={selectedCatalogId}
+                onChange={(event) => setSelectedCatalogId(event.target.value)}
               >
-                {acceptedUnpreparedLines.length ? 'Preparar desde presupuesto' : 'Añadir tratamiento'}
-                <ArrowRight size={15} aria-hidden="true" />
+                <option value="">Seleccionar tratamiento...</option>
+                {filteredCatalog.map((tratamiento) => (
+                  <option key={tratamiento.id} value={tratamiento.id}>
+                    {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}
+                    {tratamiento.nombre}
+                  </option>
+                ))}
+              </select>
+              <button type="button" onClick={addTreatmentFromCatalog} disabled={!filteredCatalog.length}>
+                Añadir a sesión
               </button>
             </div>
           )}
-        </div>
+          {sesionItemsError && (
+            <p className="session-save-error" role="alert">
+              {sesionItemsError}
+            </p>
+          )}
+          <div className="session-treatment-list" role="list" aria-label="Tratamientos de la sesión">
+            {sesionItemsLoading && !draftItems.length && (
+              <div className="session-empty-state">
+                <span>Cargando sesión del paciente...</span>
+              </div>
+            )}
+            {draftItems.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`session-treatment-row ${selected?.id === item.id ? 'active' : ''} session-status-${item.status}`}
+                onClick={() => setSelectedId(item.id)}
+              >
+                <span className={`session-treatment-source source-${item.source}`}>
+                  {item.source === 'pendiente' ? 'Ppto.' : item.source === 'cita' ? 'Cita' : 'Manual'}
+                </span>
+                <span className="session-treatment-copy">
+                  <strong>{item.title}</strong>
+                  <em>
+                    {item.piezaDental
+                      ? `Pieza ${item.piezaDental}${item.caras ? ` - ${item.caras}` : ''}`
+                      : 'Sin pieza'}
+                  </em>
+                  <span className="session-treatment-origin">{item.sourceLabel}</span>
+                </span>
+                <small>{item.historialId ? 'En historial' : SESSION_STATUS_LABELS[item.status]}</small>
+              </button>
+            ))}
+            {!sesionItemsLoading && !draftItems.length && (
+              <div className="session-empty-state">
+                <span className="session-empty-icon" aria-hidden="true">
+                  <Plus size={22} />
+                </span>
+                <div>
+                  <strong>Sesión sin tratamientos</strong>
+                  <span>Registra un realizado o planifica el trabajo de hoy.</span>
+                </div>
+                {canRecord && (
+                  <button type="button" className="session-empty-action" onClick={() => setRecordOpen(true)}>
+                    Añadir tratamiento realizado
+                    <ArrowRight size={15} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </section>
         {selected && (
           <section className="desk-panel clinical-session-detail">
             <>
-            <div className="session-detail-head">
-              <div className="session-detail-title">
-                <span className={`session-treatment-source source-${selected.source}`}>
-                  {selected.source === 'pendiente' ? 'Presupuesto' : selected.source === 'cita' ? 'Cita' : 'Manual'}
-                </span>
-                <strong>{selected.title}</strong>
-                <small>{selected.piezaDental ? `Pieza ${selected.piezaDental}${selected.caras ? ` - ${selected.caras}` : ''}` : 'Sin pieza asignada'} - {selected.sourceLabel}</small>
-                {selected.tratamiento && <TreatmentBadge tratamiento={selected.tratamiento} />}
-              </div>
-              <select
-                value={selected.status}
-                onChange={(event) => {
-                  const value = event.target.value as SessionTreatmentStatus;
-                  if (value === 'realizado') return;
-                  updateLocal({ status: value });
-                  void persistUpdate(selected, { estado: value });
-                }}
-                aria-label="Estado del tratamiento en sesion"
-                disabled={Boolean(selected.historialId)}
-              >
-                {Object.entries(SESSION_STATUS_LABELS).map(([value, label]) => (
-                  <option key={value} value={value} disabled={value === 'realizado' && !selected.historialId}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="session-detail-grid">
-              <label>Nombre en sesion
-                <input
-                  value={selected.title}
-                  onChange={(event) => updateLocal({ title: event.target.value })}
-                  onBlur={() => persistUpdate(selected, { titulo: selected.title.trim() || null })}
-                />
-              </label>
-              <label>Tratamiento catalogo
+              <div className="session-detail-head">
+                <div className="session-detail-title">
+                  <span className={`session-treatment-source source-${selected.source}`}>
+                    {selected.source === 'pendiente'
+                      ? 'Presupuesto'
+                      : selected.source === 'cita'
+                        ? 'Cita'
+                        : 'Manual'}
+                  </span>
+                  <strong>{selected.title}</strong>
+                  <small>
+                    {selected.piezaDental
+                      ? `Pieza ${selected.piezaDental}${selected.caras ? ` - ${selected.caras}` : ''}`
+                      : 'Sin pieza asignada'}{' '}
+                    - {selected.sourceLabel}
+                  </small>
+                  {selected.tratamiento && <TreatmentBadge tratamiento={selected.tratamiento} />}
+                </div>
                 <select
-                  value={selected.tratamientoId ?? ''}
+                  value={selected.status}
                   onChange={(event) => {
-                    const tratamiento = tratamientos.find((item) => item.id === event.target.value) ?? null;
-                    const nextTitle = tratamiento?.nombre ?? selected.title;
-                    updateLocal({
-                      tratamientoId: tratamiento?.id ?? null,
-                      tratamiento,
-                      title: nextTitle,
-                    });
-                    void persistUpdate(selected, {
-                      tratamiento_id: tratamiento?.id ?? null,
-                      titulo: nextTitle.trim() || null,
-                    });
+                    const value = event.target.value as SessionTreatmentStatus;
+                    if (value === 'realizado') return;
+                    updateLocal({ status: value });
+                    void persistUpdate(selected, { estado: value });
                   }}
+                  aria-label="Estado del tratamiento en sesion"
+                  disabled={Boolean(selected.historialId)}
                 >
-                  <option value="">Sin catalogo asociado</option>
-                  {tratamientos.map((tratamiento) => (
-                    <option key={tratamiento.id} value={tratamiento.id}>
-                      {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}{tratamiento.nombre}
+                  {Object.entries(SESSION_STATUS_LABELS).map(([value, label]) => (
+                    <option
+                      key={value}
+                      value={value}
+                      disabled={value === 'realizado' && !selected.historialId}
+                    >
+                      {label}
                     </option>
                   ))}
                 </select>
-              </label>
-              <label>Pieza FDI
-                <input
-                  inputMode="numeric"
-                  value={selected.piezaDental}
-                  onChange={(event) => updateLocal({ piezaDental: event.target.value.replace(/[^\d]/g, '').slice(0, 2) })}
-                  onBlur={() => persistUpdate(selected, { pieza_dental: pieceToUpdate(selected.piezaDental) })}
-                  placeholder="24"
-                />
-              </label>
-              <label>Caras
-                <input
-                  value={selected.caras}
-                  onChange={(event) => updateLocal({ caras: event.target.value.toUpperCase().replace(/[^MODVLP]/g, '').slice(0, 6) })}
-                  onBlur={() => persistUpdate(selected, { caras: selected.caras || null })}
-                  placeholder="MOD"
-                />
-              </label>
-              <label className="wide">Observacion clinica del tratamiento
-                <textarea
-                  value={selected.observaciones}
-                  onChange={(event) => updateLocal({ observaciones: event.target.value })}
-                  onBlur={() => persistUpdate(selected, { observaciones: selected.observaciones.trim() || null })}
-                  placeholder="Material, anestesia, evolucion, incidencias, indicaciones..."
-                />
-              </label>
-              <div className="wide session-tooth-note">
-                <label>Nota rapida de pieza
-                  <textarea
-                    value={quickNote}
-                    onChange={(event) => setQuickNote(event.target.value)}
-                    placeholder={selectedPieceNumber ? `Nota para pieza ${selectedPieceNumber}${selected.caras ? ` - ${selected.caras}` : ''}` : 'Seleccione una pieza antes de guardar nota'}
-                    disabled={!selectedPieceNumber}
+              </div>
+              <div className="session-detail-grid">
+                <label>
+                  Nombre en sesion
+                  <input
+                    value={selected.title}
+                    onChange={(event) => updateLocal({ title: event.target.value })}
+                    onBlur={() => persistUpdate(selected, { titulo: selected.title.trim() || null })}
                   />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => void saveQuickDentalNote()}
-                  disabled={!selectedPieceNumber || !quickNote.trim() || savingNote}
-                >
-                  {savingNote ? 'Guardando nota...' : 'Guardar nota de pieza'}
-                </button>
-                {selectedPieceNotes.length > 0 && (
-                  <div className="session-tooth-note-history">
-                    {selectedPieceNotes.map((nota) => (
-                      <span key={nota.id}>{formatDate(nota.fecha)}: {nota.texto}</span>
+                <label>
+                  Tratamiento catalogo
+                  <select
+                    value={selected.tratamientoId ?? ''}
+                    onChange={(event) => {
+                      const tratamiento = tratamientos.find((item) => item.id === event.target.value) ?? null;
+                      const nextTitle = tratamiento?.nombre ?? selected.title;
+                      updateLocal({
+                        tratamientoId: tratamiento?.id ?? null,
+                        tratamiento,
+                        title: nextTitle,
+                      });
+                      void persistUpdate(selected, {
+                        tratamiento_id: tratamiento?.id ?? null,
+                        titulo: nextTitle.trim() || null,
+                      });
+                    }}
+                  >
+                    <option value="">Sin catalogo asociado</option>
+                    {tratamientos.map((tratamiento) => (
+                      <option key={tratamiento.id} value={tratamiento.id}>
+                        {tratamiento.codigo ? `${tratamiento.codigo} - ` : ''}
+                        {tratamiento.nombre}
+                      </option>
                     ))}
-                  </div>
-                )}
+                  </select>
+                </label>
+                <label>
+                  Pieza FDI
+                  <input
+                    inputMode="numeric"
+                    value={selected.piezaDental}
+                    onChange={(event) =>
+                      updateLocal({ piezaDental: event.target.value.replace(/[^\d]/g, '').slice(0, 2) })
+                    }
+                    onBlur={() =>
+                      persistUpdate(selected, { pieza_dental: pieceToUpdate(selected.piezaDental) })
+                    }
+                    placeholder="24"
+                  />
+                </label>
+                <label>
+                  Caras
+                  <input
+                    value={selected.caras}
+                    onChange={(event) =>
+                      updateLocal({
+                        caras: event.target.value
+                          .toUpperCase()
+                          .replace(/[^MODVLP]/g, '')
+                          .slice(0, 6),
+                      })
+                    }
+                    onBlur={() => persistUpdate(selected, { caras: selected.caras || null })}
+                    placeholder="MOD"
+                  />
+                </label>
+                <label className="wide">
+                  Observacion clinica del tratamiento
+                  <textarea
+                    value={selected.observaciones}
+                    onChange={(event) => updateLocal({ observaciones: event.target.value })}
+                    onBlur={() =>
+                      persistUpdate(selected, { observaciones: selected.observaciones.trim() || null })
+                    }
+                    placeholder="Material, anestesia, evolucion, incidencias, indicaciones..."
+                  />
+                </label>
+                <div className="wide session-tooth-note">
+                  <label>
+                    Nota rapida de pieza
+                    <textarea
+                      value={quickNote}
+                      onChange={(event) => setQuickNote(event.target.value)}
+                      placeholder={
+                        selectedPieceNumber
+                          ? `Nota para pieza ${selectedPieceNumber}${selected.caras ? ` - ${selected.caras}` : ''}`
+                          : 'Seleccione una pieza antes de guardar nota'
+                      }
+                      disabled={!selectedPieceNumber}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void saveQuickDentalNote()}
+                    disabled={!selectedPieceNumber || !quickNote.trim() || savingNote}
+                  >
+                    {savingNote ? 'Guardando nota...' : 'Guardar nota de pieza'}
+                  </button>
+                  {selectedPieceNotes.length > 0 && (
+                    <div className="session-tooth-note-history">
+                      {selectedPieceNotes.map((nota) => (
+                        <span key={nota.id}>
+                          {formatDate(nota.fecha)}: {nota.texto}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="session-treatment-actions">
-              <button type="button" onClick={finishSelectedTreatment} disabled={savingId === selected.id || Boolean(selected.historialId) || !selected.tratamientoId}>
-                <CheckCircle2 size={14} aria-hidden="true" /> {selected.historialId ? 'Guardado en historial' : savingId === selected.id ? 'Guardando...' : 'Finalizar como realizado'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  updateLocal({ status: 'pospuesto' });
-                  void persistUpdate(selected, { estado: 'pospuesto' });
-                }}
-                disabled={Boolean(selected.historialId) || savingId === selected.id}
-              >
-                <Clock3 size={14} aria-hidden="true" /> Posponer
-              </button>
-              <button
-                type="button"
-                onClick={() => void removeSelected()}
-                disabled={Boolean(selected.historialId) || savingId === selected.id}
-              >
-                <Trash2 size={14} aria-hidden="true" /> Eliminar de sesion
-              </button>
-            </div>
-            {sessionError && <p className="session-save-error" role="alert">{sessionError}</p>}
-            <details className="session-secondary-actions">
-              <summary>Mas acciones del tratamiento</summary>
-              <div>
-                <button type="button" onClick={onCrearReceta} disabled={!paciente}><Pill size={14} aria-hidden="true" /> Receta</button>
-                <button type="button" onClick={onOpenConsentimiento} disabled={!paciente}><FileText size={14} aria-hidden="true" /> Consentimiento</button>
+              <div className="session-treatment-actions">
                 <button
                   type="button"
-                  onClick={() => selected.linea ? onCrearPedidoLabForLine(selected.linea) : onCrearPedidoLab()}
-                  disabled={!paciente}
+                  onClick={finishSelectedTreatment}
+                  disabled={
+                    savingId === selected.id || Boolean(selected.historialId) || !selected.tratamientoId
+                  }
                 >
-                  <FlaskConical size={14} aria-hidden="true" /> Laboratorio
+                  <CheckCircle2 size={14} aria-hidden="true" />{' '}
+                  {selected.historialId
+                    ? 'Guardado en historial'
+                    : savingId === selected.id
+                      ? 'Guardando...'
+                      : 'Finalizar como realizado'}
                 </button>
-                <button type="button" onClick={onOpenDocumentos} disabled={!paciente}><NotebookPen size={14} aria-hidden="true" /> Documentos / fotos</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateLocal({ status: 'pospuesto' });
+                    void persistUpdate(selected, { estado: 'pospuesto' });
+                  }}
+                  disabled={Boolean(selected.historialId) || savingId === selected.id}
+                >
+                  <Clock3 size={14} aria-hidden="true" /> Posponer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void removeSelected()}
+                  disabled={Boolean(selected.historialId) || savingId === selected.id}
+                >
+                  <Trash2 size={14} aria-hidden="true" /> Eliminar de sesion
+                </button>
               </div>
-            </details>
+              {sessionError && (
+                <p className="session-save-error" role="alert">
+                  {sessionError}
+                </p>
+              )}
+              <details className="session-secondary-actions">
+                <summary>Mas acciones del tratamiento</summary>
+                <div>
+                  <button type="button" onClick={onCrearReceta} disabled={!paciente}>
+                    <Pill size={14} aria-hidden="true" /> Receta
+                  </button>
+                  <button type="button" onClick={onOpenConsentimiento} disabled={!paciente}>
+                    <FileText size={14} aria-hidden="true" /> Consentimiento
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      selected.linea ? onCrearPedidoLabForLine(selected.linea) : onCrearPedidoLab()
+                    }
+                    disabled={!paciente}
+                  >
+                    <FlaskConical size={14} aria-hidden="true" /> Laboratorio
+                  </button>
+                  <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>
+                    <NotebookPen size={14} aria-hidden="true" /> Documentos / fotos
+                  </button>
+                </div>
+              </details>
             </>
           </section>
         )}
@@ -670,8 +860,12 @@ export function SessionWorkspace({
             <span>Proxima cita</span>
             {proximaCita ? (
               <>
-                <strong>{formatDate(proximaCita.fecha_hora)} {getTime(proximaCita.fecha_hora)}</strong>
-                <small>{proximaCita.motivo || 'Cita sin motivo'} - {proximaCita.estado}</small>
+                <strong>
+                  {formatDate(proximaCita.fecha_hora)} {getTime(proximaCita.fecha_hora)}
+                </strong>
+                <small>
+                  {proximaCita.motivo || 'Cita sin motivo'} - {proximaCita.estado}
+                </small>
               </>
             ) : (
               <>
@@ -680,7 +874,9 @@ export function SessionWorkspace({
               </>
             )}
             {onSchedulePatient && (
-              <button type="button" onClick={onSchedulePatient}>Abrir agenda</button>
+              <button type="button" onClick={onSchedulePatient}>
+                Abrir agenda
+              </button>
             )}
           </section>
           <section className="session-context-card">
@@ -689,13 +885,19 @@ export function SessionWorkspace({
               {recientes.slice(0, 2).map((entrada) => (
                 <article key={entrada.id}>
                   <time>{formatDate(entrada.fecha)}</time>
-                  <strong>{entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}</strong>
-                  <small>Pieza {entrada.pieza_dental ?? '-'} - {entrada.estado}</small>
+                  <strong>
+                    {entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental'}
+                  </strong>
+                  <small>
+                    Pieza {entrada.pieza_dental ?? '-'} - {entrada.estado}
+                  </small>
                 </article>
               ))}
               {!recientes.length && <p>Sin historial clinico reciente.</p>}
             </div>
-            <button type="button" onClick={onOpenHistorial}>Abrir historial</button>
+            <button type="button" onClick={onOpenHistorial}>
+              Abrir historial
+            </button>
           </section>
           <details className="session-context-details">
             <summary>Informacion secundaria</summary>
@@ -719,12 +921,48 @@ export function SessionWorkspace({
           paciente={paciente}
           mode="current"
           title="Odontograma clinico de trabajo"
-          subtitle="Selecciona una pieza o superficie para aplicarla al tratamiento activo de la sesion."
+          subtitle="Selecciona pieza o superficie y elige qué acción realizar. La selección no registra tratamientos."
           enableQuickTreatments={false}
           userRole={userRole}
-          onSelectDentalTarget={applyDentalTarget}
+          onSelectDentalTarget={(selection) =>
+            setDentalTarget({
+              pieza: selection.toothNumber,
+              caras: mapSurfaceToCaras(selection.surface) ?? '',
+            })
+          }
         />
+        {dentalTarget && (
+          <div className="session-dental-target">
+            <strong>
+              Pieza {dentalTarget.pieza}
+              {dentalTarget.caras ? ` · ${dentalTarget.caras}` : ''}
+            </strong>
+            {canRecord && (
+              <button onClick={() => setRecordOpen(true)}>Añadir tratamiento realizado en esta pieza</button>
+            )}
+            {selected && !selected.historialId && canRecord && (
+              <button
+                onClick={() => applyDentalTarget({ toothNumber: dentalTarget.pieza, surface: undefined })}
+              >
+                Aplicar al tratamiento seleccionado
+              </button>
+            )}
+          </div>
+        )}
       </details>
+      {recordOpen && paciente && canRecord && (
+        <RecordPerformedTreatment
+          paciente={paciente}
+          citas={citas}
+          doctores={doctores}
+          doctorId={doctorId}
+          tratamientos={tratamientos}
+          target={dentalTarget}
+          onCreateItem={onCreateSesionItem}
+          onSave={onFinalizarTratamientoSesion}
+          onClose={() => setRecordOpen(false)}
+        />
+      )}
     </div>
   );
 }

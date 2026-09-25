@@ -1,4 +1,5 @@
 """Application use cases: tenant checks, orchestration and existing transactions."""
+
 import base64
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -94,7 +95,9 @@ def _detalle_factura_evento(factura: Factura) -> dict:
         "num_registro": factura.num_registro,
         "estado_verifactu": factura.estado_verifactu,
         "es_rectificativa": factura.es_rectificativa,
-        "factura_rectificada_id": str(factura.factura_rectificada_id) if factura.factura_rectificada_id else None,
+        "factura_rectificada_id": str(factura.factura_rectificada_id)
+        if factura.factura_rectificada_id
+        else None,
     }
 
 
@@ -143,7 +146,17 @@ async def crear_forma_pago(data: FormaPagoCreate, db: AsyncSession) -> FormaPago
     return FormaPagoResponse.model_validate(forma_pago)
 
 
-async def listar_facturas(db: AsyncSession, current_user: TokenData, paciente_id: UUID | None, estado: str | None, fecha_desde: str | None, fecha_hasta: str | None, serie: str | None, limit: int, offset: int) -> list[FacturaResponse]:
+async def listar_facturas(
+    db: AsyncSession,
+    current_user: TokenData,
+    paciente_id: UUID | None,
+    estado: str | None,
+    fecha_desde: str | None,
+    fecha_hasta: str | None,
+    serie: str | None,
+    limit: int,
+    offset: int,
+) -> list[FacturaResponse]:
     stmt = (
         select(Factura)
         .options(*_LOAD_FACTURA)
@@ -167,7 +180,9 @@ async def listar_facturas(db: AsyncSession, current_user: TokenData, paciente_id
     return [FacturaResponse.model_validate(f) for f in result.scalars().all()]
 
 
-async def crear_factura(data: FacturaCreate, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def crear_factura(
+    data: FacturaCreate, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     paciente = await db.get(Paciente, data.paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -243,15 +258,19 @@ async def crear_factura(data: FacturaCreate, db: AsyncSession, current_user: Tok
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura.id))
 
 
-async def historial_sin_facturar(paciente_id: UUID, db: AsyncSession, current_user: TokenData) -> list[HistorialSinFacturarResponse]:
+async def historial_sin_facturar(
+    paciente_id: UUID, db: AsyncSession, current_user: TokenData
+) -> list[HistorialSinFacturarResponse]:
     paciente = await db.get(Paciente, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
     ensure_clinic_access(current_user, paciente.clinica_id)
 
-    facturados_sq = select(FacturaLinea.historial_id).where(
-        FacturaLinea.historial_id.is_not(None)
-    ).scalar_subquery()
+    facturados_sq = (
+        select(FacturaLinea.historial_id)
+        .where(FacturaLinea.historial_id.is_not(None))
+        .scalar_subquery()
+    )
 
     stmt = (
         select(HistorialClinico)
@@ -262,6 +281,8 @@ async def historial_sin_facturar(paciente_id: UUID, db: AsyncSession, current_us
         .where(
             HistorialClinico.paciente_id == paciente_id,
             HistorialClinico.id.not_in(facturados_sq),
+            HistorialClinico.estado == "realizado",
+            HistorialClinico.tratamiento_id.is_not(None),
         )
         .order_by(HistorialClinico.fecha.desc())
     )
@@ -277,7 +298,7 @@ async def historial_sin_facturar(paciente_id: UUID, db: AsyncSession, current_us
             observaciones=h.observaciones,
             tratamiento_id=h.tratamiento_id,
             tratamiento_nombre=h.tratamiento.nombre,
-            tratamiento_precio=h.tratamiento.precio,
+            tratamiento_precio=h.importe if h.importe is not None else h.tratamiento.precio,
             tratamiento_iva=h.tratamiento.iva_porcentaje,
             doctor_id=h.doctor_id,
             doctor_nombre=h.doctor.nombre,
@@ -286,13 +307,17 @@ async def historial_sin_facturar(paciente_id: UUID, db: AsyncSession, current_us
     ]
 
 
-async def obtener_factura(factura_id: UUID, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def obtener_factura(
+    factura_id: UUID, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
     ensure_clinic_access(current_user, factura.clinica_id)
     return FacturaResponse.model_validate(factura)
 
 
-async def emitir_factura(factura_id: UUID, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def emitir_factura(
+    factura_id: UUID, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
     ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
@@ -336,7 +361,9 @@ async def generar_receta(factura_id: UUID, db: AsyncSession, current_user: Token
             paciente_nombre=paciente_nombre,
             factura_codigo=f"{factura.serie}-{factura.numero}",
             fecha=factura.fecha,
-            lineas=[{"concepto": linea.concepto, "cantidad": linea.cantidad} for linea in factura.lineas],
+            lineas=[
+                {"concepto": linea.concepto, "cantidad": linea.cantidad} for linea in factura.lineas
+            ],
             usuario=current_user.username,
         )
         contenido = base64.b64encode(pdf_bytes).decode("ascii")
@@ -353,7 +380,9 @@ async def generar_receta(factura_id: UUID, db: AsyncSession, current_user: Token
     )
 
 
-async def actualizar_factura(factura_id: UUID, data: FacturaUpdate, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def actualizar_factura(
+    factura_id: UUID, data: FacturaUpdate, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
     ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
@@ -419,7 +448,9 @@ async def anular_factura(factura_id: UUID, db: AsyncSession, current_user: Token
     await _anular_factura_emitida(factura_id, db, current_user)
 
 
-async def rectificar_factura(factura_id: UUID, data: FacturaRectificativaCreate, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def rectificar_factura(
+    factura_id: UUID, data: FacturaRectificativaCreate, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     original = await _get_factura_or_404(db, factura_id)
     if not original.huella:
         raise HTTPException(
@@ -443,7 +474,9 @@ async def rectificar_factura(factura_id: UUID, data: FacturaRectificativaCreate,
     nota_rectificacion = (
         f"Rectificativa de {original.serie}-{original.numero}. Motivo: {data.motivo}"
     )
-    observaciones = f"{observaciones}\n{nota_rectificacion}".strip() if observaciones else nota_rectificacion
+    observaciones = (
+        f"{observaciones}\n{nota_rectificacion}".strip() if observaciones else nota_rectificacion
+    )
 
     factura_rectificativa = Factura(
         paciente_id=original.paciente_id,
@@ -457,7 +490,9 @@ async def rectificar_factura(factura_id: UUID, data: FacturaRectificativaCreate,
         iva_total=iva_total,
         total=total,
         estado="emitida",
-        forma_pago_id=data.forma_pago_id if data.forma_pago_id is not None else original.forma_pago_id,
+        forma_pago_id=data.forma_pago_id
+        if data.forma_pago_id is not None
+        else original.forma_pago_id,
         observaciones=observaciones,
         es_rectificativa=True,
         factura_rectificada_id=original.id,
@@ -531,11 +566,15 @@ async def rectificar_factura(factura_id: UUID, data: FacturaRectificativaCreate,
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_rectificativa.id))
 
 
-async def anadir_linea(factura_id: UUID, data: FacturaLineaCreate, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def anadir_linea(
+    factura_id: UUID, data: FacturaLineaCreate, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
     ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
-        raise HTTPException(status_code=400, detail="No se pueden anadir lineas a una factura anulada")
+        raise HTTPException(
+            status_code=400, detail="No se pueden anadir lineas a una factura anulada"
+        )
     if factura.huella:
         await _registrar_intento_bloqueado(
             db,
@@ -568,11 +607,15 @@ async def anadir_linea(factura_id: UUID, data: FacturaLineaCreate, db: AsyncSess
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_id))
 
 
-async def eliminar_linea(factura_id: UUID, linea_id: UUID, db: AsyncSession, current_user: TokenData) -> None:
+async def eliminar_linea(
+    factura_id: UUID, linea_id: UUID, db: AsyncSession, current_user: TokenData
+) -> None:
     factura = await _get_factura_or_404(db, factura_id)
     ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
-        raise HTTPException(status_code=400, detail="No se pueden eliminar lineas de una factura anulada")
+        raise HTTPException(
+            status_code=400, detail="No se pueden eliminar lineas de una factura anulada"
+        )
     if factura.huella:
         await _registrar_intento_bloqueado(
             db,
@@ -605,7 +648,9 @@ async def eliminar_linea(factura_id: UUID, linea_id: UUID, db: AsyncSession, cur
     await db.commit()
 
 
-async def registrar_cobro(factura_id: UUID, data: CobroCreate, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def registrar_cobro(
+    factura_id: UUID, data: CobroCreate, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     factura = await _get_factura_or_404(db, factura_id)
     ensure_clinic_access(current_user, factura.clinica_id)
     if factura.estado == "anulada":
@@ -623,9 +668,13 @@ async def registrar_cobro(factura_id: UUID, data: CobroCreate, db: AsyncSession,
     total_cobrado_actual = sum(c.importe for c in factura.cobros if c.anulado_at is None)
     pendiente = factura.total - total_cobrado_actual
     if pendiente <= 0:
-        raise HTTPException(status_code=409, detail="La factura no tiene importe pendiente de cobro")
+        raise HTTPException(
+            status_code=409, detail="La factura no tiene importe pendiente de cobro"
+        )
     if data.importe > pendiente:
-        raise HTTPException(status_code=409, detail="El cobro supera el importe pendiente de la factura")
+        raise HTTPException(
+            status_code=409, detail="El cobro supera el importe pendiente de la factura"
+        )
 
     cobro = Cobro(
         factura_id=factura_id,
@@ -656,7 +705,9 @@ async def registrar_cobro(factura_id: UUID, data: CobroCreate, db: AsyncSession,
     return FacturaResponse.model_validate(await _get_factura_or_404(db, factura_id))
 
 
-async def registrar_pago(factura_id: UUID, data: CobroCreate, db: AsyncSession, current_user: TokenData) -> FacturaResponse:
+async def registrar_pago(
+    factura_id: UUID, data: CobroCreate, db: AsyncSession, current_user: TokenData
+) -> FacturaResponse:
     return await registrar_cobro(factura_id, data, db, current_user)
 
 
@@ -667,7 +718,9 @@ async def _anular_cobro_emitido(
     db: AsyncSession,
     current_user: TokenData,
 ) -> None:
-    result = await db.execute(select(Cobro).where(Cobro.id == cobro_id, Cobro.factura_id == factura_id))
+    result = await db.execute(
+        select(Cobro).where(Cobro.id == cobro_id, Cobro.factura_id == factura_id)
+    )
     cobro = result.scalar_one_or_none()
     if not cobro:
         raise HTTPException(status_code=404, detail="Cobro no encontrado")
@@ -700,11 +753,19 @@ async def _anular_cobro_emitido(
     await db.commit()
 
 
-async def anular_cobro_post(factura_id: UUID, cobro_id: UUID, data: CobroAnulacionCreate, db: AsyncSession, current_user: TokenData) -> None:
+async def anular_cobro_post(
+    factura_id: UUID,
+    cobro_id: UUID,
+    data: CobroAnulacionCreate,
+    db: AsyncSession,
+    current_user: TokenData,
+) -> None:
     await _anular_cobro_emitido(factura_id, cobro_id, data, db, current_user)
 
 
-async def anular_cobro(factura_id: UUID, cobro_id: UUID, db: AsyncSession, current_user: TokenData) -> None:
+async def anular_cobro(
+    factura_id: UUID, cobro_id: UUID, db: AsyncSession, current_user: TokenData
+) -> None:
     await _anular_cobro_emitido(
         factura_id,
         cobro_id,

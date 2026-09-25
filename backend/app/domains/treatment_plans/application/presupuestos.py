@@ -1,4 +1,5 @@
 """Application use cases: tenant checks, orchestration and existing transactions."""
+
 from datetime import date as date_type
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.audit_log import write_audit_log
 from app.core.permissions import (
     TokenData,
     ensure_clinic_access,
@@ -49,25 +51,9 @@ TRABAJO_PENDIENTE_LOAD = [
 ]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def _budget_line_identity(data: PresupuestoLineaCreate | dict) -> tuple[UUID, int | None, str | None]:
+def _budget_line_identity(
+    data: PresupuestoLineaCreate | dict,
+) -> tuple[UUID, int | None, str | None]:
     payload = data.model_dump() if isinstance(data, PresupuestoLineaCreate) else data
     return (
         payload["tratamiento_id"],
@@ -108,83 +94,6 @@ async def _ensure_no_duplicate_budget_line(
         )
 
 
-
-
-
-
-async def _find_linked_budget_line_for_surfaces(
-    db: AsyncSession,
-    *,
-    paciente_id: UUID,
-    pieza_dental: int | None,
-    caras: str | None,
-) -> PresupuestoLinea | None:
-    if not pieza_dental:
-        return None
-    odontograma = await active_odontograma_for_patient(db, paciente_id)
-    if not odontograma:
-        return None
-    linked_ids: list[UUID] = []
-    for piece in odontograma.piezas:
-        if piece.pieza_fdi != pieza_dental:
-            continue
-        surface_names = set(surfaces_from_caras(caras))
-        for surface in piece.superficies:
-            if surface.superficie in surface_names and surface.presupuesto_linea_id:
-                linked_ids.append(surface.presupuesto_linea_id)
-    if not linked_ids:
-        return None
-    result = await db.execute(
-        select(PresupuestoLinea)
-        .options(selectinload(PresupuestoLinea.tratamiento))
-        .where(PresupuestoLinea.id.in_(linked_ids))
-        .limit(1)
-    )
-    return result.scalar_one_or_none()
-
-
-async def _link_budget_line_to_odontograma(
-    db: AsyncSession,
-    *,
-    presupuesto: Presupuesto,
-    linea: PresupuestoLinea,
-    user: TokenData,
-) -> None:
-    if not linea.pieza_dental:
-        return
-    odontograma = await active_odontograma_for_patient(db, presupuesto.paciente_id)
-    if not odontograma:
-        return
-    for surface_name in surfaces_from_caras(linea.caras):
-        surface = await get_or_create_odontograma_surface(db, odontograma, linea.pieza_dental, surface_name)
-        old_values = {
-            "condicion": surface.condicion,
-            "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
-            "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
-        }
-        if surface.presupuesto_linea_id and surface.presupuesto_linea_id != linea.id:
-            raise HTTPException(
-                status_code=409,
-                detail="La superficie ya esta vinculada a otra linea de presupuesto.",
-            )
-        surface.condicion = "tratamiento_presupuestado"
-        surface.tratamiento_planificado_id = linea.tratamiento_id
-        surface.presupuesto_linea_id = linea.id
-        db.add(OdontogramaEvento(
-            odontograma_id=odontograma.id,
-            pieza_fdi=linea.pieza_dental,
-            superficie=surface_name,
-            accion="vincular_linea_presupuesto",
-            old_values=old_values,
-            new_values={
-                "tratamiento_id": str(linea.tratamiento_id),
-                "presupuesto_linea_id": str(linea.id),
-                "condicion": surface.condicion,
-            },
-            usuario_id=user.user_id,
-        ))
-
-
 async def _mark_budget_line_as_pending_state(
     db: AsyncSession,
     *,
@@ -199,11 +108,17 @@ async def _mark_budget_line_as_pending_state(
     if not odontograma:
         return
     for surface_name in surfaces_from_caras(linea.caras):
-        surface = await get_or_create_odontograma_surface(db, odontograma, linea.pieza_dental, surface_name)
+        surface = await get_or_create_odontograma_surface(
+            db, odontograma, linea.pieza_dental, surface_name
+        )
         old_values = {
             "condicion": surface.condicion,
-            "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
-            "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
+            "tratamiento_planificado_id": str(surface.tratamiento_planificado_id)
+            if surface.tratamiento_planificado_id
+            else None,
+            "presupuesto_linea_id": str(surface.presupuesto_linea_id)
+            if surface.presupuesto_linea_id
+            else None,
         }
         if surface.presupuesto_linea_id and surface.presupuesto_linea_id != linea.id:
             raise HTTPException(
@@ -213,19 +128,21 @@ async def _mark_budget_line_as_pending_state(
         surface.condicion = state
         surface.tratamiento_planificado_id = linea.tratamiento_id
         surface.presupuesto_linea_id = linea.id
-        db.add(OdontogramaEvento(
-            odontograma_id=odontograma.id,
-            pieza_fdi=linea.pieza_dental,
-            superficie=surface_name,
-            accion="actualizar_estado_trabajo_presupuesto",
-            old_values=old_values,
-            new_values={
-                "tratamiento_id": str(linea.tratamiento_id),
-                "presupuesto_linea_id": str(linea.id),
-                "condicion": state,
-            },
-            usuario_id=user.user_id,
-        ))
+        db.add(
+            OdontogramaEvento(
+                odontograma_id=odontograma.id,
+                pieza_fdi=linea.pieza_dental,
+                superficie=surface_name,
+                accion="actualizar_estado_trabajo_presupuesto",
+                old_values=old_values,
+                new_values={
+                    "tratamiento_id": str(linea.tratamiento_id),
+                    "presupuesto_linea_id": str(linea.id),
+                    "condicion": state,
+                },
+                usuario_id=user.user_id,
+            )
+        )
 
 
 async def _unlink_budget_line_from_odontograma(
@@ -247,23 +164,31 @@ async def _unlink_budget_line_from_odontograma(
             if surface.presupuesto_linea_id != linea.id:
                 continue
             old_values = {
-                "tratamiento_planificado_id": str(surface.tratamiento_planificado_id) if surface.tratamiento_planificado_id else None,
+                "tratamiento_planificado_id": str(surface.tratamiento_planificado_id)
+                if surface.tratamiento_planificado_id
+                else None,
                 "presupuesto_linea_id": str(surface.presupuesto_linea_id),
             }
             if surface.tratamiento_planificado_id == linea.tratamiento_id:
                 surface.tratamiento_planificado_id = None
-            if surface.condicion in {"tratamiento_presupuestado", "tratamiento_aceptado", "tratamiento_pendiente"}:
+            if surface.condicion in {
+                "tratamiento_presupuestado",
+                "tratamiento_aceptado",
+                "tratamiento_pendiente",
+            }:
                 surface.condicion = "sano"
             surface.presupuesto_linea_id = None
-            db.add(OdontogramaEvento(
-                odontograma_id=odontograma.id,
-                pieza_fdi=linea.pieza_dental,
-                superficie=surface.superficie,
-                accion="desvincular_linea_presupuesto",
-                old_values=old_values,
-                new_values={"presupuesto_linea_id": None},
-                usuario_id=user.user_id,
-            ))
+            db.add(
+                OdontogramaEvento(
+                    odontograma_id=odontograma.id,
+                    pieza_fdi=linea.pieza_dental,
+                    superficie=surface.superficie,
+                    accion="desvincular_linea_presupuesto",
+                    old_values=old_values,
+                    new_values={"presupuesto_linea_id": None},
+                    usuario_id=user.user_id,
+                )
+            )
 
 
 async def _mark_odontograma_surface_realized(
@@ -278,29 +203,37 @@ async def _mark_odontograma_surface_realized(
     if not odontograma:
         return
     for surface_name in surfaces_from_caras(trabajo.caras):
-        surface = await get_or_create_odontograma_surface(db, odontograma, trabajo.pieza_dental, surface_name)
+        surface = await get_or_create_odontograma_surface(
+            db, odontograma, trabajo.pieza_dental, surface_name
+        )
         old_values = {
             "condicion": surface.condicion,
-            "tratamiento_realizado_id": str(surface.tratamiento_realizado_id) if surface.tratamiento_realizado_id else None,
-            "presupuesto_linea_id": str(surface.presupuesto_linea_id) if surface.presupuesto_linea_id else None,
+            "tratamiento_realizado_id": str(surface.tratamiento_realizado_id)
+            if surface.tratamiento_realizado_id
+            else None,
+            "presupuesto_linea_id": str(surface.presupuesto_linea_id)
+            if surface.presupuesto_linea_id
+            else None,
         }
         surface.condicion = "tratamiento_realizado"
         surface.presupuesto_linea_id = trabajo.presupuesto_linea_id
         if trabajo.historial_id:
             surface.tratamiento_realizado_id = trabajo.historial_id
-        db.add(OdontogramaEvento(
-            odontograma_id=odontograma.id,
-            pieza_fdi=trabajo.pieza_dental,
-            superficie=surface_name,
-            accion="marcar_tratamiento_realizado",
-            old_values=old_values,
-            new_values={
-                "trabajo_pendiente_id": str(trabajo.id),
-                "presupuesto_linea_id": str(trabajo.presupuesto_linea_id),
-                "historial_id": str(trabajo.historial_id) if trabajo.historial_id else None,
-            },
-            usuario_id=user.user_id,
-        ))
+        db.add(
+            OdontogramaEvento(
+                odontograma_id=odontograma.id,
+                pieza_fdi=trabajo.pieza_dental,
+                superficie=surface_name,
+                accion="marcar_tratamiento_realizado",
+                old_values=old_values,
+                new_values={
+                    "trabajo_pendiente_id": str(trabajo.id),
+                    "presupuesto_linea_id": str(trabajo.presupuesto_linea_id),
+                    "historial_id": str(trabajo.historial_id) if trabajo.historial_id else None,
+                },
+                usuario_id=user.user_id,
+            )
+        )
 
 
 async def _ensure_historial_for_trabajo_pendiente(
@@ -341,8 +274,19 @@ async def _ensure_historial_for_trabajo_pendiente(
     trabajo.historial_id = entrada.id
 
 
-async def listar_presupuestos(db: AsyncSession, current_user: TokenData, paciente_id: UUID | None, estado: str | None, desde: date_type | None, hasta: date_type | None) -> list[PresupuestoResponse]:
-    stmt = select(Presupuesto).options(*PRESUPUESTO_LOAD).order_by(Presupuesto.fecha.desc(), Presupuesto.numero.desc())
+async def listar_presupuestos(
+    db: AsyncSession,
+    current_user: TokenData,
+    paciente_id: UUID | None,
+    estado: str | None,
+    desde: date_type | None,
+    hasta: date_type | None,
+) -> list[PresupuestoResponse]:
+    stmt = (
+        select(Presupuesto)
+        .options(*PRESUPUESTO_LOAD)
+        .order_by(Presupuesto.fecha.desc(), Presupuesto.numero.desc())
+    )
     stmt = scope_select_by_clinic(stmt, Presupuesto, current_user)
     if paciente_id:
         stmt = stmt.where(Presupuesto.paciente_id == paciente_id)
@@ -357,7 +301,9 @@ async def listar_presupuestos(db: AsyncSession, current_user: TokenData, pacient
     return [PresupuestoResponse.model_validate(p) for p in result.scalars().all()]
 
 
-async def crear_presupuesto(data: PresupuestoCreate, db: AsyncSession, current_user: TokenData) -> PresupuestoResponse:
+async def crear_presupuesto(
+    data: PresupuestoCreate, db: AsyncSession, current_user: TokenData
+) -> PresupuestoResponse:
     paciente = await db.get(Paciente, data.paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -393,27 +339,39 @@ async def crear_presupuesto(data: PresupuestoCreate, db: AsyncSession, current_u
     return PresupuestoResponse.model_validate(await get_presupuesto_or_404(db, presupuesto.id))
 
 
-async def obtener_presupuesto(presupuesto_id: UUID, db: AsyncSession, current_user: TokenData) -> PresupuestoResponse:
+async def obtener_presupuesto(
+    presupuesto_id: UUID, db: AsyncSession, current_user: TokenData
+) -> PresupuestoResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     return PresupuestoResponse.model_validate(presupuesto)
 
 
-async def obtener_odontograma_plan(presupuesto_id: UUID, db: AsyncSession, current_user: TokenData) -> OdontogramaPlanResponse:
+async def obtener_odontograma_plan(
+    presupuesto_id: UUID, db: AsyncSession, current_user: TokenData
+) -> OdontogramaPlanResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
-    return OdontogramaPlanResponse(presupuesto_id=presupuesto.id, odontograma=presupuesto.odontograma or {})
+    return OdontogramaPlanResponse(
+        presupuesto_id=presupuesto.id, odontograma=presupuesto.odontograma or {}
+    )
 
 
-async def guardar_odontograma_plan(presupuesto_id: UUID, data: OdontogramaPlanUpdate, db: AsyncSession, current_user: TokenData) -> OdontogramaPlanResponse:
+async def guardar_odontograma_plan(
+    presupuesto_id: UUID, data: OdontogramaPlanUpdate, db: AsyncSession, current_user: TokenData
+) -> OdontogramaPlanResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     presupuesto.odontograma = data.odontograma
     await db.commit()
-    return OdontogramaPlanResponse(presupuesto_id=presupuesto.id, odontograma=presupuesto.odontograma or {})
+    return OdontogramaPlanResponse(
+        presupuesto_id=presupuesto.id, odontograma=presupuesto.odontograma or {}
+    )
 
 
-async def actualizar_presupuesto(presupuesto_id: UUID, data: PresupuestoUpdate, db: AsyncSession, current_user: TokenData) -> PresupuestoResponse:
+async def actualizar_presupuesto(
+    presupuesto_id: UUID, data: PresupuestoUpdate, db: AsyncSession, current_user: TokenData
+) -> PresupuestoResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     for field, value in data.model_dump(exclude_none=True).items():
@@ -422,15 +380,23 @@ async def actualizar_presupuesto(presupuesto_id: UUID, data: PresupuestoUpdate, 
     return PresupuestoResponse.model_validate(await get_presupuesto_or_404(db, presupuesto_id))
 
 
-async def presentar_presupuesto(presupuesto_id: UUID, db: AsyncSession, current_user: TokenData) -> PresupuestoResponse:
+async def presentar_presupuesto(
+    presupuesto_id: UUID, db: AsyncSession, current_user: TokenData
+) -> PresupuestoResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
+    if presupuesto.estado == "facturado" or any(
+        linea.aceptado or linea.pasado_trabajo_pendiente for linea in presupuesto.lineas
+    ):
+        raise HTTPException(status_code=409, detail="El presupuesto ya tiene trabajo aceptado")
     presupuesto.estado = "presentado"
     await db.commit()
     return PresupuestoResponse.model_validate(await get_presupuesto_or_404(db, presupuesto_id))
 
 
-async def aceptar_presupuesto(presupuesto_id: UUID, data: PresupuestoAceptarCreate, db: AsyncSession, current_user: TokenData) -> PresupuestoResponse:
+async def aceptar_presupuesto(
+    presupuesto_id: UUID, data: PresupuestoAceptarCreate, db: AsyncSession, current_user: TokenData
+) -> PresupuestoResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     selected_ids = set(data.linea_ids or [linea.id for linea in presupuesto.lineas])
@@ -442,14 +408,18 @@ async def aceptar_presupuesto(presupuesto_id: UUID, data: PresupuestoAceptarCrea
 
     if data.pasar_a_trabajo_pendiente:
         for linea in aceptadas:
+            if linea.pasado_trabajo_pendiente:
+                continue
             if not linea.pasado_trabajo_pendiente:
-                db.add(TrabajoPendiente(
-                    paciente_id=presupuesto.paciente_id,
-                    presupuesto_linea_id=linea.id,
-                    tratamiento_id=linea.tratamiento_id,
-                    pieza_dental=linea.pieza_dental,
-                    caras=linea.caras,
-                ))
+                db.add(
+                    TrabajoPendiente(
+                        paciente_id=presupuesto.paciente_id,
+                        presupuesto_linea_id=linea.id,
+                        tratamiento_id=linea.tratamiento_id,
+                        pieza_dental=linea.pieza_dental,
+                        caras=linea.caras,
+                    )
+                )
                 linea.pasado_trabajo_pendiente = True
             await _mark_budget_line_as_pending_state(
                 db,
@@ -471,16 +441,23 @@ async def aceptar_presupuesto(presupuesto_id: UUID, data: PresupuestoAceptarCrea
     return PresupuestoResponse.model_validate(await get_presupuesto_or_404(db, presupuesto_id))
 
 
-async def rechazar_presupuesto(presupuesto_id: UUID, data: PresupuestoRechazarCreate, db: AsyncSession, current_user: TokenData) -> PresupuestoResponse:
+async def rechazar_presupuesto(
+    presupuesto_id: UUID, data: PresupuestoRechazarCreate, db: AsyncSession, current_user: TokenData
+) -> PresupuestoResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
+    if presupuesto.estado == "facturado" or any(
+        linea.aceptado or linea.pasado_trabajo_pendiente for linea in presupuesto.lineas
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede rechazar todo el presupuesto cuando contiene trabajo aceptado. Conserva el original y crea una alternativa para una nueva propuesta.",
+        )
     presupuesto.estado = "rechazado"
     if data.motivo:
         presupuesto.pie_pagina = f"{presupuesto.pie_pagina or ''}\nRechazado: {data.motivo}".strip()
     await db.commit()
     return PresupuestoResponse.model_validate(await get_presupuesto_or_404(db, presupuesto_id))
-
-
 
 
 async def eliminar_presupuesto(presupuesto_id: UUID, db: AsyncSession) -> None:
@@ -489,7 +466,20 @@ async def eliminar_presupuesto(presupuesto_id: UUID, db: AsyncSession) -> None:
     await db.commit()
 
 
-async def anadir_linea(presupuesto_id: UUID, data: PresupuestoLineaCreate, db: AsyncSession, current_user: TokenData) -> PresupuestoLineaResponse:
+def _line_audit_values(linea: PresupuestoLinea) -> dict:
+    return {
+        "presupuesto_id": str(linea.presupuesto_id),
+        "tratamiento_id": str(linea.tratamiento_id),
+        "pieza_dental": linea.pieza_dental,
+        "caras": linea.caras,
+        "precio_unitario": str(linea.precio_unitario),
+        "descuento_porcentaje": str(linea.descuento_porcentaje),
+    }
+
+
+async def anadir_linea(
+    presupuesto_id: UUID, data: PresupuestoLineaCreate, db: AsyncSession, current_user: TokenData
+) -> PresupuestoLineaResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     payload = data.model_dump()
@@ -501,22 +491,18 @@ async def anadir_linea(presupuesto_id: UUID, data: PresupuestoLineaCreate, db: A
         pieza_dental=payload.get("pieza_dental"),
         caras=payload.get("caras"),
     )
-    linked_line = await _find_linked_budget_line_for_surfaces(
-        db,
-        paciente_id=presupuesto.paciente_id,
-        pieza_dental=payload.get("pieza_dental"),
-        caras=payload.get("caras"),
-    )
-    if linked_line:
-        raise HTTPException(
-            status_code=409,
-            detail="La superficie ya tiene una linea de presupuesto vinculada.",
-        )
-
     linea = PresupuestoLinea(presupuesto_id=presupuesto_id, **payload)
     db.add(linea)
     await db.flush()
-    await _link_budget_line_to_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="presupuesto.linea.creada",
+        entity_type="presupuesto_linea",
+        entity_id=linea.id,
+        clinica_id=presupuesto.clinica_id,
+        new_values=_line_audit_values(linea),
+    )
     await db.commit()
     result = await db.execute(
         select(PresupuestoLinea)
@@ -526,17 +512,30 @@ async def anadir_linea(presupuesto_id: UUID, data: PresupuestoLineaCreate, db: A
     return PresupuestoLineaResponse.model_validate(result.scalar_one())
 
 
-async def actualizar_linea(presupuesto_id: UUID, linea_id: UUID, data: PresupuestoLineaUpdate, db: AsyncSession, current_user: TokenData) -> PresupuestoLineaResponse:
+async def actualizar_linea(
+    presupuesto_id: UUID,
+    linea_id: UUID,
+    data: PresupuestoLineaUpdate,
+    db: AsyncSession,
+    current_user: TokenData,
+) -> PresupuestoLineaResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     result = await db.execute(
         select(PresupuestoLinea)
         .options(selectinload(PresupuestoLinea.tratamiento))
-        .where(and_(PresupuestoLinea.id == linea_id, PresupuestoLinea.presupuesto_id == presupuesto_id))
+        .where(
+            and_(PresupuestoLinea.id == linea_id, PresupuestoLinea.presupuesto_id == presupuesto_id)
+        )
     )
     linea = result.scalar_one_or_none()
     if not linea:
         raise HTTPException(status_code=404, detail="Linea no encontrada")
+    if linea.aceptado or linea.pasado_trabajo_pendiente:
+        raise HTTPException(
+            status_code=409, detail="Una línea aceptada no puede editarse como propuesta"
+        )
+    previous_values = _line_audit_values(linea)
     old_pieza = linea.pieza_dental
     old_caras = linea.caras
     old_tratamiento_id = linea.tratamiento_id
@@ -564,8 +563,19 @@ async def actualizar_linea(presupuesto_id: UUID, linea_id: UUID, data: Presupues
             descuento_porcentaje=linea.descuento_porcentaje,
         )
         old_linea.id = linea.id
-        await _unlink_budget_line_from_odontograma(db, presupuesto=presupuesto, linea=old_linea, user=current_user)
-    await _link_budget_line_to_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
+        await _unlink_budget_line_from_odontograma(
+            db, presupuesto=presupuesto, linea=old_linea, user=current_user
+        )
+    await write_audit_log(
+        db,
+        user=current_user,
+        action="presupuesto.linea.actualizada",
+        entity_type="presupuesto_linea",
+        entity_id=linea.id,
+        clinica_id=presupuesto.clinica_id,
+        old_values=previous_values,
+        new_values=_line_audit_values(linea),
+    )
     await db.commit()
     result2 = await db.execute(
         select(PresupuestoLinea)
@@ -575,21 +585,33 @@ async def actualizar_linea(presupuesto_id: UUID, linea_id: UUID, data: Presupues
     return PresupuestoLineaResponse.model_validate(result2.scalar_one())
 
 
-async def eliminar_linea(presupuesto_id: UUID, linea_id: UUID, db: AsyncSession, current_user: TokenData) -> None:
+async def eliminar_linea(
+    presupuesto_id: UUID, linea_id: UUID, db: AsyncSession, current_user: TokenData
+) -> None:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     result = await db.execute(
-        select(PresupuestoLinea).where(and_(PresupuestoLinea.id == linea_id, PresupuestoLinea.presupuesto_id == presupuesto_id))
+        select(PresupuestoLinea).where(
+            and_(PresupuestoLinea.id == linea_id, PresupuestoLinea.presupuesto_id == presupuesto_id)
+        )
     )
     linea = result.scalar_one_or_none()
     if not linea:
         raise HTTPException(status_code=404, detail="Linea no encontrada")
-    await _unlink_budget_line_from_odontograma(db, presupuesto=presupuesto, linea=linea, user=current_user)
+    if linea.aceptado or linea.pasado_trabajo_pendiente:
+        raise HTTPException(
+            status_code=409, detail="Una línea aceptada no puede eliminarse como propuesta"
+        )
+    await _unlink_budget_line_from_odontograma(
+        db, presupuesto=presupuesto, linea=linea, user=current_user
+    )
     await db.delete(linea)
     await db.commit()
 
 
-async def pasar_a_trabajo_pendiente(presupuesto_id: UUID, db: AsyncSession, current_user: TokenData) -> list[TrabajoPendienteResponse]:
+async def pasar_a_trabajo_pendiente(
+    presupuesto_id: UUID, db: AsyncSession, current_user: TokenData
+) -> list[TrabajoPendienteResponse]:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
     creadas: list[TrabajoPendiente] = []
@@ -626,7 +648,9 @@ async def pasar_a_trabajo_pendiente(presupuesto_id: UUID, db: AsyncSession, curr
     return resultado
 
 
-async def trabajo_pendiente_paciente(paciente_id: UUID, db: AsyncSession, current_user: TokenData, solo_pendiente: bool) -> list[TrabajoPendienteResponse]:
+async def trabajo_pendiente_paciente(
+    paciente_id: UUID, db: AsyncSession, current_user: TokenData, solo_pendiente: bool
+) -> list[TrabajoPendienteResponse]:
     paciente = await db.get(Paciente, paciente_id)
     if not paciente:
         raise HTTPException(status_code=404, detail="Paciente no encontrado")
@@ -643,7 +667,9 @@ async def trabajo_pendiente_paciente(paciente_id: UUID, db: AsyncSession, curren
     return [TrabajoPendienteResponse.model_validate(tp) for tp in result.scalars().all()]
 
 
-async def marcar_realizado(tp_id: UUID, db: AsyncSession, current_user: TokenData) -> TrabajoPendienteResponse:
+async def marcar_realizado(
+    tp_id: UUID, db: AsyncSession, current_user: TokenData
+) -> TrabajoPendienteResponse:
     result = await db.execute(
         select(TrabajoPendiente)
         .options(*TRABAJO_PENDIENTE_LOAD)

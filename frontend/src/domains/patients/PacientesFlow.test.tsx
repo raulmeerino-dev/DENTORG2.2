@@ -391,7 +391,7 @@ describe('Flujo integración cross-módulo', () => {
     renderPage();
 
     await user.click((await screen.findAllByRole('button', { name: /^Historial$/i }))[0]);
-    await screen.findByText(/Historial completo/i);
+    await screen.findByRole('table', { name: 'Cronología del paciente' });
     await user.click(screen.getByRole('button', { name: 'Cobros' }));
     // El timeline filtrado debe incluir cobros (titulo = serie/numero) y anticipos
     expect(screen.getAllByText(/A\/100/).length).toBeGreaterThan(0);

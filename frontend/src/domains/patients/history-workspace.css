@@ -1,20 +1,98 @@
-/* Patient body owns vertical scrolling; chronology and detail flow naturally. */
+/* The patient workspace owns vertical scroll; the index has no nested scroller. */
 .dc-patient-body > .history-complete-workspace { height: auto; overflow: visible !important; }
-.history-complete-workspace .complete-history-panel { height: auto; overflow: visible; display: block; padding: 0; }
-.history-complete-workspace .complete-history-head { border-radius: 0; box-shadow: none; background: var(--dc-surface); color: var(--dc-text); padding: 8px 16px; }
-.complete-history-head h2 { font-size: 14px; margin: 0; color: var(--dc-text); }
-.dc-history-timeline { min-width: 0; }
-.dc-history-event { display: grid; grid-template-columns: 86px 112px minmax(0, 1fr) auto; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--dc-border); align-items: start; }
-.dc-history-event-actions { grid-column: 4; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; white-space: nowrap; }
-.dc-history-event time, .dc-history-type { color: var(--dc-muted); font-size: 12px; }
-.dc-history-event details { min-width: 0; }
-.dc-history-event summary { cursor: pointer; overflow-wrap: anywhere; }
-.dc-history-event summary strong { font-weight: 600; }
-.dc-history-event summary > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; }
-.dc-history-event summary small { display: block; color: var(--dc-muted); margin-top: 4px; }
-.dc-history-event-detail { padding: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.dc-history-pieces { padding: 16px; }
-.dc-history-pieces h2 { font-size: 14px; }
+.patient-history { min-width: 0; width: 100%; container-type: inline-size; background: var(--dc-surface); color: var(--dc-text); }
+.patient-history .patient-history-toolbar { padding: 6px 10px; min-height: 42px; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--dc-border); }
+.patient-history-toolbar .dc-toolbar-search { flex: 1 1 230px; max-width: 380px; }
+.patient-history-count { color: var(--dc-muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.patient-history-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 5px 10px; border-bottom: 1px solid var(--dc-border); }
+.patient-history-filters button, .patient-history-filters select { color: var(--dc-muted); background: transparent; border: 1px solid transparent; border-radius: var(--dc-radius-sm); min-height: 27px; padding: 3px 8px; font: inherit; font-size: 11px; cursor: pointer; }
+.patient-history-filters select { max-width: 145px; border-color: var(--dc-border); background: var(--dc-surface); }
+.patient-history-filters button[aria-pressed="true"] { color: var(--dc-primary); background: var(--dc-primary-soft); font-weight: 650; }
+.patient-history-filters button:hover { background: var(--dc-surface-hover); }
+.patient-history-filters .patient-history-clear { margin-left: auto; text-decoration: underline; }
+.patient-history-focus { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--dc-primary-soft); padding: 6px 12px; font-size: 12px; }
+.patient-history-focus span { min-width: 0; overflow-wrap: anywhere; }
+.patient-history-focus button { flex-shrink: 0; }
+.patient-history-notice { padding: 8px 12px; margin: 0; font-size: 12px; }
+.patient-history-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.patient-history-table .ph-expand { width: 28px; }
+.patient-history-table .ph-date { width: 84px; }
+.patient-history-table .ph-type { width: 105px; }
+.patient-history-table .ph-piece { width: 47px; }
+.patient-history-table .ph-professional { width: 126px; }
+.patient-history-table .ph-state { width: 114px; }
+.patient-history-table .ph-invoice { width: 82px; }
+.patient-history-table .ph-money, .patient-history-table .ph-paid, .patient-history-table .ph-balance { width: 78px; }
+.patient-history-table th { height: 30px; padding: 4px 7px; text-align: left; background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border-strong); color: var(--dc-muted); font-size: 11px; font-weight: 600; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+.patient-history-row > td { height: 33px; padding: 3px 7px; border-bottom: 1px solid var(--dc-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.patient-history-row > td:first-child { padding: 2px; overflow: visible; }
+.patient-history-row { cursor: pointer; }
+.patient-history-row:hover > td { background: var(--dc-surface-hover); }
+.patient-history-row.is-expanded > td { background: var(--dc-primary-soft); }
+.patient-history-row .dc-status-chip { display: inline-block; max-width: 100%; min-height: 0; font-size: 10px; line-height: 17px; padding: 1px 5px; border-radius: 4px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; }
+.patient-history-table .ph-numeric { text-align: right; font-variant-numeric: tabular-nums; }
+.patient-history-row .has-debt { color: var(--dc-danger); font-weight: 600; }
+.patient-history-account { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); font-size: 11px; }
+.patient-history-account > div { display: flex; align-items: baseline; gap: 7px; }
+.patient-history-account dt { color: var(--dc-muted); }
+.patient-history-account dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
+.patient-history-account .has-debt dd { color: var(--dc-danger); }
+.patient-history-account .has-credit dd { color: var(--dc-primary); }
+.patient-history-account .is-settled dd { color: var(--dc-success); }
+.patient-history-payments { padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--dc-border); }
+.patient-history-payments p, .patient-history-billing-status { margin: 6px 0; }
+.patient-history .patient-history-expand, .patient-history .patient-history-note { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 25px; min-height: 25px; padding: 0; border: 0; background: transparent; color: var(--dc-muted); border-radius: 3px; cursor: pointer; }
+.patient-history-expand:hover, .patient-history-note:hover { color: var(--dc-primary); background: var(--dc-primary-soft); }
+.patient-history-concept { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.patient-history-concept > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patient-history-note { width: 21px; height: 22px; margin-left: auto; }
+.patient-history .patient-history-invoice { display: block; max-width: 100%; min-height: 25px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; border: 0; background: transparent; color: var(--dc-primary); font: inherit; padding: 3px 0; cursor: pointer; text-decoration: underline; }
+.patient-history-detail-row > td { padding: 0; border-bottom: 1px solid var(--dc-border-strong); }
+.patient-history-detail { padding: 12px 18px 12px 35px; background: var(--dc-surface-soft); font-size: 12px; overflow-wrap: anywhere; }
+.patient-history-detail > strong { font-size: 13px; white-space: pre-wrap; }
+.patient-history-detail dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 20px; margin: 12px 0; }
+.patient-history-detail dl > div { min-width: 0; }
+.patient-history-detail dt { font-size: 10px; color: var(--dc-muted); margin-bottom: 3px; }
+.patient-history-detail dd { margin: 0; white-space: pre-wrap; }
+.patient-history-observation { border-top: 1px solid var(--dc-border); padding-top: 8px; margin-top: 8px; }
+.patient-history-observation strong { font-size: 11px; }
+.patient-history-observation p { margin: 5px 0 0; line-height: 1.5; white-space: pre-wrap; }
+.patient-history-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.patient-history-detail-actions:empty { display: none; }
+.patient-history-detail-actions button, .patient-history-detail-actions a, .patient-history-pagination button, .patient-history-focus button { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); font: inherit; font-size: 11px; background: var(--dc-surface); color: var(--dc-primary); text-decoration: none; cursor: pointer; }
+.patient-history-pagination { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; font-size: 11px; color: var(--dc-muted); }
+.patient-history-pagination > div { display: flex; gap: 6px; }
+.patient-history-pagination button:disabled { opacity: .5; cursor: default; }
+.patient-history-empty { padding: 24px 12px; text-align: center; color: var(--dc-muted); }
+.patient-history button { transform: none; }
+.patient-history button:focus-visible, .patient-history a:focus-visible { outline: 2px solid var(--dc-primary); outline-offset: 1px; }
+.patient-history-row > td:focus-within { overflow: visible; }
+@container (max-width: 1100px) {
+ .patient-history-table .ph-type { width: 96px; }
+ .patient-history-table .ph-professional { width: 105px; }
+ .patient-history-table .ph-state { width: 100px; }
+ .patient-history-table .ph-money, .patient-history-table .ph-paid, .patient-history-table .ph-balance { width: 70px; }
+ .patient-history-table .ph-invoice { width: 76px; }
+}
+@container (max-width: 940px) {
+ .patient-history-table .ph-paid, .patient-history-table .ph-balance { display: none; }
+ .patient-history-detail dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 740px) {
+ .patient-history-table .ph-professional { display: none; }
+ .patient-history-table .ph-type { width: 85px; }
+ .patient-history-table .ph-state { width: 90px; }
+ .patient-history-table .ph-date { width: 80px; }
+ .patient-history-table .ph-piece { width: 37px; }
+ .patient-history-row > td, .patient-history-table th { padding-left: 4px; padding-right: 4px; }
+}
+@container (max-width: 560px) {
+ .patient-history-table { font-size: 11px; }
+ .patient-history-table .ph-invoice, .patient-history-table .ph-money, .patient-history-table.with-billing td:nth-child(8), .patient-history-table.with-billing td:nth-child(9), .patient-history-table.with-billing th:nth-child(8), .patient-history-table.with-billing th:nth-child(9) { display: none; }
+ .patient-history-order > span { display: none; }
+ .patient-history-detail { padding: 10px; }
+}
+
 .dc-visit-detail { min-width: 0; padding: 16px; }
 .dc-visit-detail > header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--dc-border); }
 .dc-visit-detail h2 { margin: 0; font-size: 16px; }
@@ -27,4 +105,5 @@
 .dc-visit-detail p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .dc-visit-detail section > button { margin: 4px 8px 4px 0; }
 .dc-visit-pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 16px; }
-@media (max-width: 700px) { .dc-history-event { grid-template-columns: 80px minmax(0, 1fr); gap: 8px; padding: 12px 8px; } .dc-history-event details { grid-column: 1 / -1; } .dc-history-event-actions { grid-column: 2; } .dc-visit-detail dl { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
+
+@media (max-width: 700px) { .dc-visit-detail dl { grid-template-columns: minmax(0, 1fr); gap: 6px; } }

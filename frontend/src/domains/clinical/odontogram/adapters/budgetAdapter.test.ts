@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Presupuesto } from '../../../../api/types';
-import { hasBudgetLineForSelection } from './budgetAdapter';
+import { hasBudgetLineForSelection, visualSelectionToBudgetLine } from './budgetAdapter';
 import type { Treatment } from '../types/odontogram.types';
 
 const presupuesto = {
@@ -46,4 +46,12 @@ describe('budgetAdapter', () => {
     expect(hasBudgetLineForSelection(presupuesto, treatment, { toothNumber: '16', surface: 'occlusal' })).toBe(true);
     expect(hasBudgetLineForSelection(presupuesto, treatment, { toothNumber: '16', surface: 'distal' })).toBe(false);
   });
+});
+
+
+it('sends the catalog UUID instead of the ephemeral visual treatment ID', () => {
+  const visual = { ...treatment, id: 'trat-1-16-123456', catalogId: 'trat-1' };
+  expect(visualSelectionToBudgetLine({ type: 'add_treatment', toothNumber: '16', surface: 'distal', treatment: visual, status: 'pending' }))
+    .toMatchObject({ tratamiento_id: 'trat-1', pieza_dental: 16, caras: 'D' });
+  expect(hasBudgetLineForSelection(presupuesto, visual, { toothNumber: '16', surface: 'occlusal' })).toBe(true);
 });

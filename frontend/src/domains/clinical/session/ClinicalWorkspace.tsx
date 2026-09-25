@@ -1,23 +1,24 @@
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import type {
-ApiPaciente,
-Cita,
-Consentimiento,
-DocumentoPaciente,
-HistorialClinico,
-NotaDental,
-NotaDentalCreateInput,
-Presupuesto,
-PresupuestoLinea,
-RecetaClinica,
-SesionClinicaItem,
-SesionClinicaItemCreateInput,
-SesionClinicaItemUpdateInput,
-SesionTratamientoRealizadoInput,
-TrabajoLaboratorio,
-TrabajoPendiente,
-TratamientoCatalogo,
-UserRole,
+  ApiPaciente,
+  Cita,
+  Consentimiento,
+  DocumentoPaciente,
+  Doctor,
+  HistorialClinico,
+  NotaDental,
+  NotaDentalCreateInput,
+  Presupuesto,
+  PresupuestoLinea,
+  RecetaClinica,
+  SesionClinicaItem,
+  SesionClinicaItemCreateInput,
+  SesionClinicaItemUpdateInput,
+  SesionTratamientoRealizadoInput,
+  TrabajoLaboratorio,
+  TrabajoPendiente,
+  TratamientoCatalogo,
+  UserRole,
 } from '../../../api/types';
 import { TrabajoPendientePanel } from '../../treatment-plans/TrabajoPendiente';
 import type { PrimeraVisitaData } from '../first-visit/PrimeraVisita';
@@ -27,10 +28,11 @@ import { VisitsWorkspace } from './VisitsWorkspace';
 import { TaskSurface } from '../../../design-system/TaskSurface';
 import { PatientTaskContext } from '../../patients/PatientTaskContext';
 
-export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
+export type ClinicalTab = 'primera' | 'presupuestos' | 'pendiente' | 'sesion' | 'visitas';
 
 const CLINICAL_TABS: Array<{ id: ClinicalTab; label: string }> = [
   { id: 'primera', label: 'Diagnóstico' },
+  { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'pendiente', label: 'Pendientes' },
   { id: 'sesion', label: 'Sesión actual' },
   { id: 'visitas', label: 'Visitas' },
@@ -53,6 +55,8 @@ export function ClinicalWorkspace({
   laboratorio,
   saldoPendiente,
   doctorId,
+  doctores,
+  budgetContent,
   tratamientos,
   savingPrimeraVisita,
   onSavePrimeraVisita,
@@ -96,6 +100,8 @@ export function ClinicalWorkspace({
   laboratorio: TrabajoLaboratorio[];
   saldoPendiente: number;
   doctorId?: string | null;
+  doctores?: Doctor[];
+  budgetContent?: ReactNode;
   tratamientos: TratamientoCatalogo[];
   savingPrimeraVisita: boolean;
   onSavePrimeraVisita: (data: PrimeraVisitaData) => void;
@@ -125,30 +131,35 @@ export function ClinicalWorkspace({
 }) {
   return (
     <section className="dc-clinical-workspace">
-      <nav className="dc-clinical-tabs" aria-label="Secciones de clínica" hidden={activeTab === 'primera'}>
+      <nav className="dc-clinical-tabs" aria-label="Secciones de clínica">
         {CLINICAL_TABS.map((item) => (
           <button
             key={item.id}
             type="button"
             className={activeTab === item.id ? 'active' : ''}
+            aria-current={activeTab === item.id ? 'page' : undefined}
             onClick={() => onTabChange(item.id)}
           >
             {item.label}
           </button>
         ))}
-        <button type="button" className="clinical-subtab-action" onClick={onOpenPresupuestos} disabled={!paciente}>
-          Presupuestos
-        </button>
       </nav>
+      {activeTab === 'presupuestos' && budgetContent}
 
       {activeTab === 'primera' && (
-        <TaskSurface title="Primera visita" context={paciente ? <PatientTaskContext paciente={paciente} /> : 'Selecciona un paciente'} onClose={() => onTabChange('pendiente')} backLabel="Volver a tratamientos" className="dc-firstvisit-task">
-        <PrimeraVisitaPanel
-          paciente={paciente}
-          onSave={onSavePrimeraVisita}
-          saving={savingPrimeraVisita}
-          userRole={userRole}
-        />
+        <TaskSurface
+          title="Primera visita"
+          context={paciente ? <PatientTaskContext paciente={paciente} /> : 'Selecciona un paciente'}
+          onClose={() => onTabChange('pendiente')}
+          backLabel="Volver a tratamientos"
+          className="dc-firstvisit-task"
+        >
+          <PrimeraVisitaPanel
+            paciente={paciente}
+            onSave={onSavePrimeraVisita}
+            saving={savingPrimeraVisita}
+            userRole={userRole}
+          />
         </TaskSurface>
       )}
       {activeTab === 'pendiente' && (
@@ -182,6 +193,7 @@ export function ClinicalWorkspace({
           tratamientos={tratamientos}
           notasDentales={notasDentales}
           doctorId={doctorId}
+          doctores={doctores}
           userRole={userRole}
           sesionItems={sesionItems}
           sesionItemsLoading={sesionItemsLoading}

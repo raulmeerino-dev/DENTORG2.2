@@ -1,11 +1,13 @@
+import { clinicDate, clinicDateKey } from '../../../shared/time/clinicTime';
+import { pendingTreatments } from '../../treatment-plans/pendingTreatments';
 import type {
-Cita,
-Presupuesto,
-PresupuestoLinea,
-SesionClinicaItem,
-SesionClinicaItemCreateInput,
-TrabajoPendiente,
-TratamientoCatalogo
+  Cita,
+  Presupuesto,
+  PresupuestoLinea,
+  SesionClinicaItem,
+  SesionClinicaItemCreateInput,
+  TrabajoPendiente,
+  TratamientoCatalogo,
 } from '../../../api/types';
 import { isToday } from './clinicalHistory';
 
@@ -38,11 +40,12 @@ export const SESSION_STATUS_LABELS: Record<SessionTreatmentStatus, string> = {
   pospuesto: 'Pospuesto',
 };
 
-const SESION_ITEM_ORIGEN_BY_SOURCE: Record<SessionTreatmentOrigen, 'manual' | 'cita' | 'presupuesto_linea'> = {
-  manual: 'manual',
-  cita: 'cita',
-  pendiente: 'presupuesto_linea',
-};
+const SESION_ITEM_ORIGEN_BY_SOURCE: Record<SessionTreatmentOrigen, 'manual' | 'cita' | 'presupuesto_linea'> =
+  {
+    manual: 'manual',
+    cita: 'cita',
+    pendiente: 'presupuesto_linea',
+  };
 
 export function normalizeSessionText(value?: string | null) {
   return (value ?? '')
@@ -57,22 +60,21 @@ export function sessionTreatmentFromSesionItem(
   presupuestos: Presupuesto[],
 ): SessionTreatment {
   const linea = item.presupuesto_linea_id
-    ? presupuestos.flatMap((presupuesto) => presupuesto.lineas).find((row) => row.id === item.presupuesto_linea_id)
+    ? presupuestos
+        .flatMap((presupuesto) => presupuesto.lineas)
+        .find((row) => row.id === item.presupuesto_linea_id)
     : undefined;
   const presupuesto = linea ? presupuestos.find((row) => row.id === linea.presupuesto_id) : undefined;
-  const source: SessionTreatmentOrigen = item.origen === 'presupuesto_linea'
-    ? 'pendiente'
-    : item.origen === 'cita'
-      ? 'cita'
-      : 'manual';
-  const sourceLabel = source === 'pendiente' && presupuesto
-    ? `Ppto. ${presupuesto.numero}`
-    : source === 'cita'
-      ? 'Cita programada'
-      : 'Anadido en sesion';
-  const status: SessionTreatmentStatus = item.estado === 'realizado'
-    ? 'realizado'
-    : (item.estado as SessionTreatmentStatus);
+  const source: SessionTreatmentOrigen =
+    item.origen === 'presupuesto_linea' ? 'pendiente' : item.origen === 'cita' ? 'cita' : 'manual';
+  const sourceLabel =
+    source === 'pendiente' && presupuesto
+      ? `Ppto. ${presupuesto.numero}`
+      : source === 'cita'
+        ? 'Cita programada'
+        : 'Anadido en sesion';
+  const status: SessionTreatmentStatus =
+    item.estado === 'realizado' ? 'realizado' : (item.estado as SessionTreatmentStatus);
   return {
     id: `sesion-${item.id}`,
     sesionItemId: item.id,
@@ -97,19 +99,27 @@ export function buildSessionTreatments(
   trabajosPendientes: TrabajoPendiente[],
   sesionItems: SesionClinicaItem[],
 ): SessionTreatment[] {
-  const todayAppointments = citas.filter((cita) => isToday(cita.fecha_hora) && !['anulada', 'falta', 'cancelled_by_patient'].includes(cita.estado));
+  const todayAppointments = citas.filter(
+    (cita) =>
+      isToday(cita.fecha_hora) &&
+      !['anulada', 'cancelada', 'no_presentado', 'falta', 'cancelled_by_patient'].includes(cita.estado),
+  );
 
   const persistedActive = sesionItems.filter((item) => item.estado !== 'realizado');
-  const persistedLineaIds = new Set(persistedActive.map((item) => item.presupuesto_linea_id).filter(Boolean) as string[]);
+  const persistedLineaIds = new Set(
+    persistedActive.map((item) => item.presupuesto_linea_id).filter(Boolean) as string[],
+  );
   const persistedCitaIds = new Set(persistedActive.map((item) => item.cita_id).filter(Boolean) as string[]);
-  const items: SessionTreatment[] = persistedActive.map((item) => sessionTreatmentFromSesionItem(item, presupuestos));
+  const items: SessionTreatment[] = persistedActive.map((item) =>
+    sessionTreatmentFromSesionItem(item, presupuestos),
+  );
 
-  const pendingLines = trabajosPendientes
-    .filter((trabajo) => !trabajo.realizado && !persistedLineaIds.has(trabajo.presupuesto_linea_id))
-    .map((trabajo) => ({
-      linea: trabajo.presupuesto_linea,
-      presupuesto: presupuestos.find((presupuesto) => presupuesto.id === trabajo.presupuesto_linea.presupuesto_id),
-    }));
+  const completedLineIds = new Set(
+    sesionItems.filter((item) => item.historial_id).map((item) => item.presupuesto_linea_id),
+  );
+  const pendingLines = pendingTreatments(presupuestos, trabajosPendientes).filter(
+    ({ linea }) => !persistedLineaIds.has(linea.id) && !completedLineIds.has(linea.id),
+  );
 
   pendingLines.forEach(({ presupuesto, linea }) => {
     const cita = todayAppointments.find((item) => item.presupuesto_linea_id === linea.id);
@@ -135,8 +145,7 @@ export function buildSessionTreatments(
     if (persistedCitaIds.has(cita.id)) return;
     const motivo = cita.motivo || 'Tratamiento previsto';
     const alreadyCovered = Boolean(
-      cita.presupuesto_linea_id
-      && items.some((item) => item.linea?.id === cita.presupuesto_linea_id),
+      cita.presupuesto_linea_id && items.some((item) => item.linea?.id === cita.presupuesto_linea_id),
     );
     if (alreadyCovered) return;
     items.push({
@@ -156,7 +165,7 @@ export function buildSessionTreatments(
     });
   });
 
-  return items;
+  return items.sort((a, b) => Number(Boolean(b.citaId)) - Number(Boolean(a.citaId)));
 }
 
 export function buildCreatePayload(item: SessionTreatment): SesionClinicaItemCreateInput {
@@ -171,4 +180,16 @@ export function buildCreatePayload(item: SessionTreatment): SesionClinicaItemCre
     estado: item.status === 'realizado' ? 'planificado' : item.status,
     origen: SESION_ITEM_ORIGEN_BY_SOURCE[item.source],
   };
+}
+
+export function sessionVisit(citas: Cita[], doctorId?: string | null) {
+  const today = clinicDate(new Date());
+  const eligible = citas.filter(
+    (cita) =>
+      clinicDateKey(cita.fecha_hora) === today &&
+      !['anulada', 'cancelada', 'no_presentado', 'falta', 'cancelled_by_patient'].includes(cita.estado),
+  );
+  const matching = doctorId ? eligible.filter((cita) => cita.doctor_id === doctorId) : eligible;
+  const attending = matching.filter((cita) => cita.estado === 'en_atencion');
+  return attending.length === 1 ? attending[0] : matching.length === 1 ? matching[0] : null;
 }

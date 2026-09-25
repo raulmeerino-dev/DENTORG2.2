@@ -63,7 +63,9 @@ export function treatmentCatalogToQuickTreatments(tratamientos: TratamientoCatal
 
 export function budgetLineToVisualTreatment(linea: PresupuestoLinea): Treatment {
   return {
-    id: linea.tratamiento_id,
+    id: linea.id,
+    catalogId: linea.tratamiento_id,
+    budgetLineId: linea.id,
     name: linea.tratamiento?.nombre ?? 'Tratamiento presupuestado',
     status: linea.aceptado ? 'pending' : 'planned',
     targetScope: linea.caras ? 'surface' : 'tooth',
@@ -104,7 +106,7 @@ export function visualSelectionToBudgetLine(change: OdontogramChange): {
   if (change.type !== 'add_treatment') return null;
   const pieza = Number(change.toothNumber);
   return {
-    tratamiento_id: change.treatment.id,
+    tratamiento_id: change.treatment.catalogId ?? change.treatment.id,
     pieza_dental: Number.isFinite(pieza) ? pieza : null,
     caras: FACE_BY_SURFACE[change.surface ?? change.treatment.surface ?? 'crown'] ?? null,
     precio_unitario: Number(change.treatment.price ?? 0),
@@ -120,7 +122,7 @@ export function hasBudgetLineForSelection(
   const toothNumber = Number(selection.toothNumber);
   const face = FACE_BY_SURFACE[selection.surface ?? treatment.surface ?? 'crown'] ?? null;
   return presupuesto.lineas.some((linea) => (
-    linea.tratamiento_id === treatment.id
+    linea.tratamiento_id === (treatment.catalogId ?? treatment.id)
     && linea.pieza_dental === (Number.isFinite(toothNumber) ? toothNumber : null)
     && (linea.caras ?? null) === face
   ));
@@ -137,7 +139,7 @@ export function createBudgetSnapshotFromVisual(data: ToothData[]): OdontogramaPl
       teeth[tooth.number] = {
         estado: tooth.status ?? 'pending',
         superficies: activeSurfaces.length ? activeSurfaces : ['C'],
-        lineaId: tooth.plannedTreatments?.[0]?.id,
+        lineaId: tooth.plannedTreatments?.[0]?.budgetLineId,
       };
     }
   }

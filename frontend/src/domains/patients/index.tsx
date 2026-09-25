@@ -17,7 +17,6 @@ import { generarDocumentoPdfPaciente, getDocumentosPaciente, openDocumentoPacien
 import { getCitas } from '../../api/scheduling';
 import { getDoctores } from '../../api/identity';
 import { getTratamientosCatalogo } from '../../api/treatmentCatalog';
-import { getWhatsAppComunicaciones } from '../../api/communications';
 import { formatDate, money } from '../../shared/format';
 import { fullName } from './patientName';
 import { invalidatePatientWorkspaceQueries } from '../../shared/query/queryInvalidation';
@@ -51,10 +50,8 @@ import { PatientEditModal } from './PatientEditModal';
 import { PatientFinder } from './PatientFinder';
 import { PatientFullViewModal } from './PatientFullViewModal';
 import { PatientForm } from './PatientSummary';
-import { PatientTaskContext } from './PatientTaskContext';
 import { nextPatientAppointment, patientAge, patientAllergies, patientAppointmentLabel } from './patientContext';
 import { useMinuteClock } from '../../shared/time/useMinuteClock';
-import { TaskSurface } from '../../design-system/TaskSurface';
 import './patient-workspace.css';
 
 
@@ -135,7 +132,7 @@ const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
 const PATIENT_PAGE_SIZE = 50;
 
 function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
-  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
+  return tab === 'presupuestos' || tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
 }
 
 function isPresupuestoCerrado(estado?: string | null) {
@@ -147,6 +144,7 @@ function presupuestoEstadoLabel(estado: string) {
     borrador: 'Borrador',
     presentado: 'Presentado',
     aceptado: 'Aceptado',
+    parcial: 'Aceptación parcial',
     rechazado: 'Rechazado',
     facturado: 'Facturado',
   };
@@ -174,8 +172,8 @@ function PatientWorkspace() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialArea = searchParams.get('tab');
-  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
-  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>(() => initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' ? initialArea : 'pendiente');
+  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'presupuestos' || initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
+  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>(() => initialArea === 'presupuestos' || initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' ? initialArea : 'pendiente');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
   const [treatmentHistoryOpen, setTreatmentHistoryOpen] = useState(false);
@@ -189,8 +187,7 @@ function PatientWorkspace() {
   const [anticipoModal, setAnticipoModal] = useState<AnticipoModalMode | null>(null);
   const [facturaManualOpen, setFacturaManualOpen] = useState(false);
   const [revocarConsentimientoTarget, setRevocarConsentimientoTarget] = useState<Consentimiento | null>(null);
-  const [selectedPresupuestoId, setSelectedPresupuestoId] = useState<string | null>(() => searchParams.get('presupuesto_id'));
-  const [presupuestoPanelOpen, setPresupuestoPanelOpen] = useState(initialArea === 'presupuestos');
+  const selectedPresupuestoId = searchParams.get('presupuesto_id');
   const [nuevoPacienteOpen, setNuevoPacienteOpen] = useState(false);
   const [comentarioOpen, setComentarioOpen] = useState(false);
   const [recetaModalOpen, setRecetaModalOpen] = useState(false);
@@ -199,16 +196,23 @@ function PatientWorkspace() {
   const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion' } | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
-  const dedicatedTaskOpen = Boolean(designer || recetaModalOpen || presupuestoPanelOpen);
+  const dedicatedTaskOpen = Boolean(designer || recetaModalOpen);
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOffset, setPatientOffset] = useState(0);
   const deferredPatientSearch = useDeferredValue(patientSearch);
-  const requestedSessionPatient = searchParams.get('tab') === 'sesion' ? searchParams.get('paciente_id') : null;
   useEffect(() => {
-    if (!requestedSessionPatient) return;
-    const timer = window.setTimeout(() => { setTab('sesion'); setTreatmentTab('sesion'); }, 0);
+    // External navigation (including the assistant) must update an already open patient.
+    const timer = window.setTimeout(() => {
+      if (initialArea && isTreatmentTab(initialArea as WorkTab)) { setTab('clinica'); setTreatmentTab(initialArea as TreatmentTab); }
+      else if (initialArea === 'historial' || initialArea === 'facturacion' || initialArea === 'realizados') setTab('historial');
+      else {
+        setTab('pacientes');
+        if (initialArea === 'documentos' || initialArea === 'consentimientos') setDocumentsDrawerOpen(true);
+        if (initialArea === 'receta') setRecetaModalOpen(true);
+      }
+    }, 0);
     return () => window.clearTimeout(timer);
-  }, [requestedSessionPatient]);
+  }, [initialArea]);
   const activeMainTab: MainPatientTab = isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
       ? 'clinica'
       : tab === 'historial' || tab === 'facturacion' || tab === 'realizados'
@@ -289,11 +293,6 @@ function PatientWorkspace() {
     queryFn: () => getCitas({ paciente_id: active!.id }),
     enabled: Boolean(active),
   });
-  const whatsappPacienteQuery = useQuery({
-    queryKey: ['whatsapp-comunicaciones-paciente', active?.id],
-    queryFn: () => getWhatsAppComunicaciones({ patient_id: active!.id, limit: 100 }),
-    enabled: Boolean(active),
-  });
   const documentosQuery = useQuery({
     queryKey: ['documentos-paciente', active?.id],
     queryFn: () => getDocumentosPaciente(active!.id),
@@ -369,7 +368,7 @@ function PatientWorkspace() {
         return;
       }
       if (action === 'budgets') {
-        setPresupuestoPanelOpen(true);
+        setTreatmentTab('presupuestos'); setTab('clinica');
         return;
       }
       if (action === 'documents' || action === 'upload_document') {
@@ -419,7 +418,23 @@ function PatientWorkspace() {
     setSearchParams(next, { replace: options.replace ?? true, state: location.state });
   }
 
+  function openBudget(presupuestoId: string) {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.set('tab', 'presupuestos');
+      next.set('presupuesto_id', presupuestoId);
+      return next;
+    }, { replace: true, state: location.state });
+    setTreatmentTab('presupuestos');
+    setTab('clinica');
+  }
+
   function openPatientArea(targetTab: WorkTab) {
+    if (targetTab !== 'citas') setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.set('tab', targetTab === 'clinica' || targetTab === 'tratamientos' ? treatmentTab : targetTab);
+      return next;
+    }, { replace: true, state: location.state });
     if (isTreatmentTab(targetTab)) {
       setTreatmentTab(targetTab);
       setTab('clinica');
@@ -427,10 +442,6 @@ function PatientWorkspace() {
     }
     if (targetTab === 'tratamientos' || targetTab === 'clinica') {
       setTab('clinica');
-      return;
-    }
-    if (targetTab === 'presupuestos') {
-      setPresupuestoPanelOpen(true);
       return;
     }
     if (targetTab === 'realizados' || targetTab === 'facturacion' || targetTab === 'historial') {
@@ -460,16 +471,15 @@ function PatientWorkspace() {
 
   const nuevoPresupuesto = useMutation({
     onMutate: () => {
-      setPresupuestoPanelOpen(true);
+      openPatientArea('presupuestos');
     },
     mutationFn: async () => {
       if (!active) throw new Error('Sin paciente');
-      const doctor = doctoresQuery.data?.[0];
+      const doctor = doctoresQuery.data?.find(item => item.id === user?.doctor_id) ?? doctoresQuery.data?.[0];
       if (!doctor) throw new Error('No hay doctores configurados');
       return createPresupuesto(active.id, doctor.id);
     },
     onSuccess: (presupuesto) => {
-      setSelectedPresupuestoId(presupuesto.id);
       queryClient.setQueryData<Presupuesto[]>(['presupuestos', presupuesto.paciente_id], (current = []) => [
         presupuesto,
         ...current.filter((item) => item.id !== presupuesto.id),
@@ -481,7 +491,7 @@ function PatientWorkspace() {
           ...current.filter((item) => item.id !== presupuesto.id),
         ]);
       });
-      openPatientArea('presupuestos');
+      openBudget(presupuesto.id);
     },
   });
 
@@ -982,7 +992,7 @@ function PatientWorkspace() {
                 key={p.id}
                 type="button"
                 className={`presupuesto-pill${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''} presupuesto-pill-${p.estado}`}
-                onClick={() => setSelectedPresupuestoId(p.id)}
+                onClick={() => openBudget(p.id)}
               >
                 <span className="pp-num">#{p.numero}</span>
                 <span className="pp-estado">{presupuestoEstadoLabel(p.estado)}</span>
@@ -1022,7 +1032,7 @@ function PatientWorkspace() {
     );
 
     return (
-      <section className="budget-main-workspace budget-context-workspace">
+      <section className="budget-main-workspace budget-context-workspace" aria-label="Presupuestos">
         {selector}
         {!presupuesto && !presupuestosQuery.isLoading && (
           <div className="desk-panel empty-state">No hay presupuestos para este paciente.</div>
@@ -1030,6 +1040,7 @@ function PatientWorkspace() {
         {presupuesto && active && (
           <PresupuestoPanel
             key={presupuesto.id}
+            onOpenBudget={(budget) => { queryClient.setQueryData<Presupuesto[]>(['presupuestos', budget.paciente_id], (current = []) => [budget, ...current.filter(item => item.id !== budget.id)]); openBudget(budget.id); }}
             presupuesto={presupuesto}
             paciente={active}
             tratamientos={tratamientosQuery.data ?? []}
@@ -1206,7 +1217,9 @@ function PatientWorkspace() {
             notasDentales={notasDentalesQuery.data ?? []}
             laboratorio={laboratorioPacienteQuery.data ?? []}
             saldoPendiente={totalPendiente}
-            doctorId={doctoresQuery.data?.[0]?.id ?? null}
+            doctorId={user?.doctor_id ?? null}
+            doctores={doctoresQuery.data ?? []}
+            budgetContent={activeTreatmentTab === 'presupuestos' ? renderPresupuestosContextPanel() : null}
             tratamientos={tratamientosQuery.data ?? []}
             savingPrimeraVisita={guardarPrimeraVisita.isPending}
             onSavePrimeraVisita={(data) => guardarPrimeraVisita.mutate(data)}
@@ -1246,6 +1259,12 @@ function PatientWorkspace() {
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
             <HistorialCompletoPanel
+              key={active?.id}
+              saldo={saldoQuery.data}
+              professionals={doctoresQuery.data ?? []}
+              onOpenPresupuesto={(presupuesto) => openBudget(presupuesto.id)}
+              loading={[historialQuery, citasPacienteQuery, presupuestosQuery, facturasQuery, pagosAnticipadosQuery, documentosQuery, consentimientosQuery, notasDentalesQuery, saldoQuery].some(query => query.isLoading)}
+              error={[historialQuery, citasPacienteQuery, presupuestosQuery, facturasQuery, pagosAnticipadosQuery, documentosQuery, consentimientosQuery, notasDentalesQuery, saldoQuery].some(query => query.isError)}
               focusedVisitId={searchParams.get('visita_id')}
               initialFilter={initialArea === 'facturacion' ? 'facturacion' : undefined}
               focusedRecordId={searchParams.get('factura_id') || searchParams.get('cobro_id') || searchParams.get('anticipo_id') || searchParams.get('registro_id') || searchParams.get('laboratorio_id')}
@@ -1257,14 +1276,10 @@ function PatientWorkspace() {
               anticipos={pagosAnticipados}
               documentos={documentosQuery.data ?? []}
               consentimientos={consentimientosQuery.data ?? []}
-              recetas={recetasPacienteQuery.data ?? []}
-              laboratorio={laboratorioPacienteQuery.data ?? []}
               notasDentales={notasDentalesQuery.data ?? []}
-              whatsappComunicaciones={whatsappPacienteQuery.data ?? []}
               onOpenDocumento={abrirDocumento}
               onOpenConsentimiento={abrirConsentimiento}
               onOpenFactura={abrirPdfFactura}
-              onOpenReceta={(receta) => abrirRecetaClinica(receta.id)}
               onOpenTreatmentHistory={() => setTreatmentHistoryOpen(true)}
               userRole={user?.rol}
               canManageBilling={canManageBilling}
@@ -1406,16 +1421,6 @@ function PatientWorkspace() {
             setRecetaModalOpen(true);
           }}
         />
-      )}
-      {presupuestoPanelOpen && active && (
-        <TaskSurface
-          title="Presupuestos"
-          context={<PatientTaskContext paciente={active} />}
-          onClose={() => setPresupuestoPanelOpen(false)}
-          className="dc-budget-task"
-        >
-          {renderPresupuestosContextPanel()}
-        </TaskSurface>
       )}
       {canManageBilling && invoiceHistoryOpen && (
         <InvoiceHistoryModal

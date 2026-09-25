@@ -37,14 +37,19 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, user
   const totalBudget = presupuesto.lineas.reduce((sum, linea) => sum + Number(linea.importe_neto || 0), 0);
 
   const addTreatmentMutation = useMutation({
-    mutationFn: async ({ change, nextData }: { change: OdontogramChange; nextData: ToothData[] }) => {
+    mutationFn: async ({ change }: { change: OdontogramChange; nextData: ToothData[] }) => {
       const payload = visualSelectionToBudgetLine(change);
       if (!payload) return null;
-      await addPresupuestoLinea(presupuesto.id, payload);
-      await saveOdontograma(presupuesto.id, createBudgetSnapshotFromVisual(nextData));
+      const line = await addPresupuestoLinea(presupuesto.id, payload);
+      const snapshot = createBudgetSnapshotFromVisual(budgetToVisualOdontogram({ ...presupuesto, lineas: [...presupuesto.lineas, line] }, baseData));
+      if (payload.pieza_dental && snapshot.teeth?.[String(payload.pieza_dental)]) {
+        snapshot.teeth[String(payload.pieza_dental)].lineaId = line.id;
+      }
+      try { await saveOdontograma(presupuesto.id, snapshot); }
+      catch { setDuplicateNotice('Línea guardada. No se pudo actualizar la vista previa del documento; las piezas del presupuesto se conservan.'); }
       return payload;
     },
-    onSuccess: () => {
+    onSettled: () => {
       invalidatePatientWorkspaceQueries(queryClient, paciente.id);
     },
   });
@@ -81,7 +86,7 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, tratamientos, user
           title="Odontograma del presupuesto"
           subtitle="Seleccione pieza/superficie y doble clic para añadir tratamiento propuesto. No modifica el odontograma actual."
           totalBudget={totalBudget}
-          readOnly={addTreatmentMutation.isPending}
+          readOnly={addTreatmentMutation.isPending || ['aceptado', 'rechazado', 'facturado'].includes(presupuesto.estado)}
           enableQuickTreatments
           tratamientos={tratamientos}
           userRole={userRole}

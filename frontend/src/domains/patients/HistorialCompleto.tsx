@@ -1,116 +1,46 @@
-import { statusMetaForCita } from '../scheduling/agenda/appointmentStatus';
-import { useMemo,useState } from 'react';
+import { Fragment, useMemo, useRef, useState } from 'react';
+import {
+  ArrowDownWideNarrow,
+  ArrowUpWideNarrow,
+  ChevronDown,
+  ChevronRight,
+  MessageSquareText,
+} from 'lucide-react';
+import type { ApiPaciente, Cita, UserRole, SaldoPaciente } from '../../api/types';
 import { formatDate, money } from '../../shared/format';
-import type { ApiPaciente,Cita,Consentimiento,DocumentoPaciente,Factura,HistorialClinico,NotaDental,PagoAnticipadoPaciente,Presupuesto,RecetaClinica,TrabajoLaboratorio,UserRole,WhatsAppInboxItem } from '../../api/types';
-import { DentalPieceHistoryPanel } from '../clinical/history/DentalPieceHistoryPanel';
-import { collectDentalPieces } from '../clinical/history/dentalPieceUtils';
+import { ContextToolbar, FiltersPopover, ToolbarSearch } from '../../design-system/ContextToolbar';
+import { StatusChip } from '../../design-system/StatusChip';
 import { VisitDetail } from '../clinical/history/VisitDetail';
+import {
+  buildHistoryRows,
+  filterHistoryRows,
+  HISTORY_FILTERS,
+  isClinicalVisit,
+  isPerformedTreatment,
+  type HistoryData,
+  type HistoryFilter,
+  type HistoryQuery,
+} from './history/historyRows';
+import { HistoryRowDetail, type HistoryActions } from './history/HistoryRowDetail';
 import './history-workspace.css';
 
-type HistoryFilter = 'todo' | 'clinico' | 'citas' | 'presupuestos' | 'facturacion' | 'cobros' | 'documentos' | 'consentimientos' | 'recetas' | 'laboratorio' | 'whatsapp' | 'odontograma';
-
-type TimelineEvent = {
-  id: string;
-  date: string;
-  filter: HistoryFilter;
-  label: string;
-  title: string;
-  detail: string;
-  meta?: string;
-  amount?: string;
-  action?: () => void;
-  ledgerId?: string;
-  ledgerLabel?: string;
-  ledgerTitle?: string;
-  ledgerSummary?: string;
-};
-
-const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
-  { id: 'todo', label: 'Todo' },
-  { id: 'clinico', label: 'Clínico' },
-  { id: 'citas', label: 'Citas' },
-  { id: 'presupuestos', label: 'Presupuestos' },
-  { id: 'facturacion', label: 'Facturación' },
-  { id: 'cobros', label: 'Cobros' },
-  { id: 'documentos', label: 'Documentos' },
-  { id: 'consentimientos', label: 'Consentimientos' },
-  { id: 'recetas', label: 'Recetas' },
-  { id: 'laboratorio', label: 'Laboratorio' },
-  { id: 'whatsapp', label: 'WhatsApp' },
-  { id: 'odontograma', label: 'Odontograma' },
-];
-
-function sortDesc(a: TimelineEvent, b: TimelineEvent) {
-  return b.date.localeCompare(a.date);
-}
-
-function dayKey(date: string) {
-  return date?.slice(0, 10) || 'sin-fecha';
-}
-
-function noteMeta(nota: NotaDental) {
-  if (nota.origen === 'dictado_clinico') return 'Dictado clinico';
-  if (nota.pieza_dental) return [`Pieza ${nota.pieza_dental}`, nota.caras].filter(Boolean).join(' · ');
-  return 'Nota general';
-}
-
-function getLedgerIdentity(event: TimelineEvent) {
-  if (event.ledgerId) {
-    return {
-      id: event.ledgerId,
-      label: event.ledgerLabel || event.label,
-      title: event.ledgerTitle || event.title,
-      summary: event.ledgerSummary || event.detail,
-    };
-  }
-  if (event.filter === 'facturacion' || event.filter === 'cobros') {
-    return {
-      id: `factura-${event.title}`,
-      label: 'Factura / cobros',
-      title: `Factura ${event.title}`,
-      summary: 'Tratamientos facturados y movimientos de cobro asociados.',
-    };
-  }
-  if (event.filter === 'clinico' || event.filter === 'odontograma') {
-    return {
-      id: `tratamiento-${dayKey(event.date)}-${event.title}-${event.meta ?? ''}`,
-      label: 'Tratamiento',
-      title: event.title,
-      summary: event.meta || event.detail,
-    };
-  }
-  if (event.filter === 'presupuestos') {
-    return {
-      id: `presupuesto-${event.title}`,
-      label: 'Presupuesto',
-      title: event.title,
-      summary: event.detail,
-    };
-  }
-  if (event.filter === 'documentos' || event.filter === 'consentimientos' || event.filter === 'recetas') {
-    return {
-      id: `documentacion-${dayKey(event.date)}-${event.title}`,
-      label: 'Documentación',
-      title: event.title,
-      summary: event.detail,
-    };
-  }
-  if (event.filter === 'laboratorio') {
-    return {
-      id: `laboratorio-${dayKey(event.date)}-${event.title}`,
-      label: 'Laboratorio',
-      title: event.title,
-      summary: event.detail,
-    };
-  }
-  return {
-    id: `${event.filter}-${dayKey(event.date)}-${event.title}`,
-    label: event.label,
-    title: event.title,
-    summary: event.detail,
+type Props = Omit<HistoryData, 'notasDentales'> &
+  Partial<Pick<HistoryData, 'notasDentales'>> &
+  Omit<HistoryActions, 'onOpenVisit'> & {
+    paciente: ApiPaciente | null;
+    userRole?: UserRole | null;
+    canManageBilling?: boolean;
+    saldo?: SaldoPaciente;
+    onOpenTreatmentHistory?: () => void;
+    professionals?: { id: string; nombre: string }[];
+    initialFilter?: HistoryFilter;
+    focusedRecordId?: string | null;
+    focusedVisitId?: string | null;
+    loading?: boolean;
+    error?: boolean;
   };
-}
-
+const EMPTY: never[] = [];
+const PAGE_SIZE = 50;
 export function HistorialCompletoPanel({
   historial,
   citas,
@@ -119,320 +49,474 @@ export function HistorialCompletoPanel({
   anticipos,
   documentos,
   consentimientos,
-  recetas = [],
-  laboratorio = [],
-  notasDentales = [],
-  whatsappComunicaciones = [],
-  onOpenDocumento,
-  onOpenConsentimiento,
-  onOpenFactura,
-  onOpenReceta,
-  onOpenTreatmentHistory,
-  canManageBilling = true,
+  notasDentales = EMPTY,
+  canManageBilling = false,
   initialFilter = 'todo',
-  focusedRecordId,
-  focusedVisitId,
-}: {
-  paciente: ApiPaciente | null;
-  historial: HistorialClinico[];
-  citas: Cita[];
-  presupuestos: Presupuesto[];
-  facturas: Factura[];
-  anticipos: PagoAnticipadoPaciente[];
-  documentos: DocumentoPaciente[];
-  consentimientos: Consentimiento[];
-  recetas?: RecetaClinica[];
-  laboratorio?: TrabajoLaboratorio[];
-  notasDentales?: NotaDental[];
-  whatsappComunicaciones?: WhatsAppInboxItem[];
-  onOpenDocumento: (documento: DocumentoPaciente) => void;
-  onOpenConsentimiento: (consentimiento: Consentimiento) => void;
-  onOpenFactura: (factura: Factura) => void;
-  onOpenReceta?: (receta: RecetaClinica) => void;
-  onOpenTreatmentHistory?: () => void;
-  userRole?: UserRole | null;
-  canManageBilling?: boolean;
-  initialFilter?: HistoryFilter;
-  focusedRecordId?: string | null;
-  focusedVisitId?: string | null;
-}) {
+  professionals = EMPTY,
+  ...props
+}: Props) {
   const [visit, setVisit] = useState<Cita | null>(null);
-  const [filter, setFilter] = useState<HistoryFilter>(initialFilter);
   const [focusDismissed, setFocusDismissed] = useState(false);
-  const availableFilters = canManageBilling
-    ? FILTERS
-    : FILTERS.filter((item) => item.id !== 'facturacion' && item.id !== 'cobros');
-  const activeFilter = canManageBilling || (filter !== 'facturacion' && filter !== 'cobros')
-    ? filter
-    : 'todo';
-  const pieceOptions = useMemo(() => collectDentalPieces({
-    historial,
-    presupuestos,
-    notasDentales,
-    documentos,
-  }), [documentos, historial, notasDentales, presupuestos]);
-  const [selectedPiece, setSelectedPiece] = useState<number | null>(pieceOptions[0] ?? null);
-  const activePiece = selectedPiece && pieceOptions.includes(selectedPiece)
-    ? selectedPiece
-    : pieceOptions[0] ?? selectedPiece;
-  const events = useMemo<TimelineEvent[]>(() => {
-    const next: TimelineEvent[] = [];
-
-    historial.forEach((entrada) => {
-      const tratamiento = entrada.procedimiento || entrada.tratamiento?.nombre || 'Tratamiento dental';
-      const factura = entrada.factura_id ? facturas.find((item) => item.id === entrada.factura_id) : null;
-      const facturaLabel = factura ? `${factura.serie}/${factura.numero}` : null;
-      next.push({
-        id: `hist-${entrada.id}`,
-        date: entrada.fecha,
-        filter: 'clinico',
-        label: 'Clínico',
-        title: tratamiento,
-        detail: entrada.observaciones || entrada.diagnostico || entrada.estado,
-        meta: [entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.estado, entrada.doctor?.nombre].filter(Boolean).join(' · '),
-        amount: entrada.importe ? money(entrada.importe) : undefined,
-        ledgerId: facturaLabel ? `factura-${facturaLabel}` : undefined,
-        ledgerLabel: facturaLabel ? 'Factura / tratamientos' : undefined,
-        ledgerTitle: facturaLabel ? `Factura ${facturaLabel}` : undefined,
-        ledgerSummary: facturaLabel ? 'Tratamientos, factura y cobros asociados.' : undefined,
-      });
-      if (entrada.pieza_dental) {
-        next.push({
-          id: `odon-${entrada.id}`,
-          date: entrada.fecha,
-          filter: 'odontograma',
-          label: 'Odontograma',
-          title: `Pieza ${entrada.pieza_dental}`,
-          detail: `${tratamiento} - ${entrada.estado}`,
-          meta: entrada.caras ? `Caras ${entrada.caras}` : 'Pieza completa',
-        });
-      }
-    });
-
-    citas.forEach((cita) => {
-      next.push({
-        id: `cita-${cita.id}`,
-        date: cita.fecha_hora,
-        filter: 'citas',
-        label: ['atendida', 'finalizada'].includes(cita.estado) ? 'Visita' : 'Cita',
-        title: cita.motivo || 'Cita dental',
-        detail: cita.observaciones || statusMetaForCita(cita).label,
-        action: () => setVisit(cita),
-        meta: [cita.doctor?.nombre, statusMetaForCita(cita).label, `${cita.duracion_min} min`].filter(Boolean).join(' · '),
-      });
-    });
-
-    whatsappComunicaciones.forEach((mensaje) => {
-      const fecha = mensaje.received_at ?? mensaje.sent_at ?? mensaje.created_at;
-      const direction = mensaje.direction === 'inbound' ? 'Recibido' : 'Enviado';
-      const appointmentMeta = mensaje.appointment
-        ? `${formatDate(mensaje.appointment.fecha_hora)} ${mensaje.appointment.fecha_hora.slice(11, 16)}`
-        : 'Sin cita asociada';
-      next.push({
-        id: `wa-${mensaje.id}`,
-        date: fecha,
-        filter: 'whatsapp',
-        label: 'WhatsApp',
-        title: direction,
-        detail: mensaje.message_body,
-        meta: [
-          appointmentMeta,
-          mensaje.interpreted_intent,
-          mensaje.appointment?.estado,
-          mensaje.processed ? 'procesado' : 'pendiente',
-        ].filter(Boolean).join(' - '),
-      });
-    });
-
-    presupuestos.forEach((presupuesto) => {
-      const aceptadas = presupuesto.lineas.filter((linea) => linea.aceptado).length;
-      next.push({
-        id: `pres-${presupuesto.id}`,
-        date: presupuesto.fecha,
-        filter: 'presupuestos',
-        label: 'Presupuesto',
-        title: `Presupuesto #${presupuesto.numero}`,
-        detail: `${presupuesto.estado} · ${aceptadas}/${presupuesto.lineas.length} líneas aceptadas`,
-        meta: `${presupuesto.lineas.length} ${presupuesto.lineas.length === 1 ? 'línea' : 'líneas'}`,
-        amount: money(presupuesto.total),
-      });
-    });
-
-    facturas.forEach((factura) => {
-      next.push({
-        id: `fac-${factura.id}`,
-        date: factura.fecha,
-        filter: 'facturacion',
-        label: 'Factura',
-        title: `${factura.serie}/${factura.numero}`,
-        detail: `${factura.estado} · pendiente ${money(factura.pendiente)}`,
-        amount: money(factura.total),
-        action: () => onOpenFactura(factura),
-        ledgerId: `factura-${factura.serie}/${factura.numero}`,
-        ledgerTitle: `Factura ${factura.serie}/${factura.numero}`,
-        ledgerSummary: 'Tratamientos facturados y movimientos de cobro asociados.',
-      });
-      factura.cobros.forEach((cobro) => {
-        next.push({
-          id: `cobro-${cobro.id}`,
-          date: cobro.fecha,
-          filter: 'cobros',
-          label: cobro.anulado_at ? 'Cobro anulado' : 'Cobro',
-          title: `${factura.serie}/${factura.numero}`,
-          detail: cobro.motivo_anulacion || cobro.notas || 'Pago registrado',
-          amount: cobro.anulado_at ? '0,00' : money(cobro.importe),
-          action: () => onOpenFactura(factura),
-          ledgerId: `factura-${factura.serie}/${factura.numero}`,
-          ledgerTitle: `Factura ${factura.serie}/${factura.numero}`,
-          ledgerSummary: 'Tratamientos facturados y movimientos de cobro asociados.',
-        });
-      });
-    });
-
-    anticipos.forEach((anticipo) => {
-      next.push({
-        id: `anticipo-${anticipo.id}`,
-        date: anticipo.fecha,
-        filter: 'cobros',
-        label: anticipo.anulado_at ? 'Anticipo anulado' : 'Anticipo',
-        title: anticipo.concepto || 'Pago anticipado',
-        detail: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta',
-        amount: anticipo.anulado_at ? '0,00' : money(anticipo.importe),
-        ledgerId: `anticipo-${anticipo.id}`,
-        ledgerLabel: 'Anticipo',
-        ledgerTitle: anticipo.concepto || 'Pago anticipado',
-        ledgerSummary: anticipo.motivo_anulacion || anticipo.notas || 'Pago a cuenta',
-      });
-    });
-
-    documentos.forEach((documento) => {
-      next.push({
-        id: `doc-${documento.id}`,
-        date: documento.fecha_documento || documento.created_at || '',
-        filter: 'documentos',
-        label: 'Documento',
-        title: documento.nombre_original,
-        detail: documento.descripcion || documento.categoria || 'Documento del paciente',
-        meta: documento.etiquetas || undefined,
-        action: () => onOpenDocumento(documento),
-      });
-    });
-
-    consentimientos.forEach((consentimiento) => {
-      next.push({
-        id: `cons-${consentimiento.id}`,
-        date: consentimiento.fecha_firma || consentimiento.created_at,
-        filter: 'consentimientos',
-        label: 'Consentimiento',
-        title: consentimiento.tipo,
-        detail: consentimiento.estado,
-        meta: consentimiento.documento_path ? 'PDF archivado' : 'Pendiente de documento',
-        action: () => onOpenConsentimiento(consentimiento),
-      });
-    });
-
-    recetas.forEach((receta) => {
-      next.push({
-        id: `receta-${receta.id}`,
-        date: receta.fecha_prescripcion,
-        filter: 'recetas',
-        label: 'Receta',
-        title: receta.medicamento,
-        detail: receta.posologia,
-        meta: [receta.doctor?.nombre, receta.firma_data_url ? 'firmada' : null].filter(Boolean).join(' · '),
-        action: onOpenReceta ? () => onOpenReceta(receta) : undefined,
-      });
-    });
-
-    notasDentales.forEach((nota) => {
-      const detail = nota.texto;
-      next.push({
-        id: `nota-${nota.id}`,
-        date: nota.fecha,
-        filter: 'clinico',
-        label: nota.origen === 'dictado_clinico' ? 'Dictado clinico' : 'Nota clinica',
-        title: nota.origen === 'dictado_clinico' ? 'Nota por dictado' : 'Nota clinica',
-        detail,
-        meta: [noteMeta(nota), nota.doctor?.nombre].filter(Boolean).join(' · '),
-        ledgerId: `nota-${nota.id}`,
-        ledgerLabel: nota.origen === 'dictado_clinico' ? 'Dictado clinico' : 'Nota clinica',
-        ledgerTitle: nota.origen === 'dictado_clinico' ? 'Nota por dictado' : 'Nota clinica',
-        ledgerSummary: detail,
-      });
-    });
-
-    laboratorio.forEach((trabajo) => {
-      const fecha = trabajo.fecha_recepcion ?? trabajo.fecha_salida ?? trabajo.fecha_entrega_prevista ?? '';
-      if (!fecha) return;
-      next.push({
-        id: `lab-${trabajo.id}`,
-        date: fecha,
-        filter: 'laboratorio',
-        label: 'Laboratorio',
-        title: trabajo.descripcion,
-        detail: trabajo.estado.replace(/_/g, ' '),
-        meta: [
-          trabajo.numero_orden ? `Nº ${trabajo.numero_orden}` : null,
-          trabajo.laboratorio?.nombre,
-          trabajo.pieza_dental ? `Pieza ${trabajo.pieza_dental}` : null,
-        ].filter(Boolean).join(' · '),
-        amount: trabajo.coste_laboratorio ? money(trabajo.coste_laboratorio) : undefined,
-      });
-    });
-
-    return next.filter(event => canManageBilling || !['facturacion', 'cobros'].includes(event.filter)).map(event => canManageBilling ? event : { ...event, amount: undefined, ledgerId: undefined, ledgerTitle: undefined, ledgerLabel: undefined, ledgerSummary: undefined }).sort(sortDesc);
-  }, [canManageBilling, anticipos, citas, consentimientos, documentos, facturas, historial, laboratorio, notasDentales, onOpenConsentimiento, onOpenDocumento, onOpenFactura, onOpenReceta, presupuestos, recetas, whatsappComunicaciones]);
-
-  const visibleEvents = activeFilter === 'todo' ? events.filter(event => event.filter !== 'odontograma') : events.filter((event) => event.filter === activeFilter);
-  const focusedEvent = !focusDismissed && focusedRecordId ? events.find(event => event.id.endsWith(`-${focusedRecordId}`)) : undefined;
-  const focusedGroup = focusedEvent ? getLedgerIdentity(focusedEvent).id : null;
-  const timeline = focusedGroup ? events.filter(event => getLedgerIdentity(event).id === focusedGroup) : visibleEvents;
-  const activeVisit = (visit ? citas.find(cita => cita.id === visit.id) : undefined) ?? (!focusDismissed ? citas.find(cita => cita.id === focusedVisitId) : undefined);
-  if (activeVisit) return <VisitDetail cita={activeVisit} historial={historial} notas={notasDentales} documentos={documentos} consentimientos={consentimientos} recetas={recetas} onClose={() => { setVisit(null); setFocusDismissed(true); }} onOpenDocumento={onOpenDocumento} onOpenConsentimiento={onOpenConsentimiento} onOpenReceta={onOpenReceta} />;
-
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const [query, setQuery] = useState<HistoryQuery>({
+    group: initialFilter,
+    search: '',
+    from: '',
+    to: '',
+    professional: '',
+    state: '',
+    piece: '',
+    order: 'desc',
+  });
+  const tableRef = useRef<HTMLTableElement>(null);
+  const data = useMemo(
+    () => ({
+      historial,
+      citas,
+      presupuestos,
+      facturas,
+      anticipos,
+      documentos,
+      consentimientos,
+      notasDentales,
+    }),
+    [historial, citas, presupuestos, facturas, anticipos, documentos, consentimientos, notasDentales],
+  );
+  const rows = useMemo(
+    () => buildHistoryRows(data, canManageBilling, professionals),
+    [data, canManageBilling, professionals],
+  );
+  const availableFilters = HISTORY_FILTERS.filter(
+    (f) => canManageBilling || !['facturacion', 'cobros'].includes(f.id),
+  );
+  const activeGroup = availableFilters.some((f) => f.id === query.group) ? query.group : 'todo';
+  const focused =
+    !focusDismissed && props.focusedRecordId
+      ? rows.find((r) => r.recordId === props.focusedRecordId)
+      : undefined;
+  const filtered = useMemo(
+    () => filterHistoryRows(rows, { ...query, group: activeGroup }),
+    [rows, query, activeGroup],
+  );
+  const visible = focused
+    ? rows
+        .filter(
+          (r) => r.id === focused.id || Boolean(focused.invoice && r.invoice?.id === focused.invoice.id),
+        )
+        .sort((a, b) => b.date.localeCompare(a.date))
+    : filtered;
+  const currentPage = Math.min(page, Math.max(0, Math.ceil(visible.length / PAGE_SIZE) - 1));
+  const displayed = visible.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
+  const expandedId = expanded || focused?.id;
+  const doctorOptions = [
+    ...new Map(
+      rows.filter((r) => r.professionalId && r.professional).map((r) => [r.professionalId!, r.professional!]),
+    ).entries(),
+  ].sort((a, b) => a[1].localeCompare(b[1]));
+  const states = [...new Set(rows.map((r) => r.status).filter((v): v is string => Boolean(v)))].sort();
+  const pieces = [...new Set(rows.flatMap((r) => r.pieces))].sort((a, b) => a - b);
+  const advancedCount = [query.from, query.to, query.professional, query.state, query.piece].filter(
+    Boolean,
+  ).length;
+  const activeVisit = citas.find(
+    (c) =>
+      isClinicalVisit(c, data) && (c.id === visit?.id || (!focusDismissed && c.id === props.focusedVisitId)),
+  );
+  const actions: HistoryActions = {
+    onOpenDocumento: props.onOpenDocumento,
+    onOpenConsentimiento: props.onOpenConsentimiento,
+    onOpenFactura: props.onOpenFactura,
+    onOpenPresupuesto: props.onOpenPresupuesto,
+    onOpenVisit: setVisit,
+  };
+  function change(patch: Partial<HistoryQuery>) {
+    setQuery((q) => ({ ...q, ...patch }));
+    setFocusDismissed(true);
+    setPage(0);
+    setExpanded(null);
+  }
+  function changePage(next: number) {
+    setPage(next);
+    setExpanded(null);
+    tableRef.current?.closest('.dc-patient-body')?.scrollTo({ top: 0 });
+  }
+  if (activeVisit)
+    return (
+      <VisitDetail
+        cita={activeVisit}
+        historial={historial.filter(isPerformedTreatment)}
+        notas={notasDentales}
+        documentos={documentos}
+        consentimientos={consentimientos}
+        onClose={() => {
+          setVisit(null);
+          setFocusDismissed(true);
+        }}
+        onOpenDocumento={props.onOpenDocumento}
+        onOpenConsentimiento={props.onOpenConsentimiento}
+      />
+    );
   return (
-    <section className="complete-history-panel">
-      <header className="complete-history-head">
-        <h2>Historial completo</h2>
-        <div className="complete-history-head-actions">
-          <em>{visibleEvents.length} eventos visibles</em>
-          {onOpenTreatmentHistory && (
-            <button type="button" onClick={onOpenTreatmentHistory}>
-              {canManageBilling ? 'Tratamientos y facturación' : 'Tratamientos realizados'}
+    <section className="patient-history" aria-label="Historial clínico y económico del paciente">
+      <ContextToolbar className="patient-history-toolbar" aria-label="Herramientas del historial">
+        <ToolbarSearch
+          aria-label="Buscar en el historial"
+          placeholder="Buscar tratamiento, pieza, factura, nota…"
+          value={query.search}
+          onChange={(e) => change({ search: e.target.value })}
+        />
+        <FiltersPopover count={advancedCount}>
+          <label>
+            Desde
+            <input
+              type="date"
+              aria-label="Historial desde"
+              value={query.from}
+              max={query.to || undefined}
+              onChange={(e) => change({ from: e.target.value })}
+            />
+          </label>
+          <label>
+            Hasta
+            <input
+              type="date"
+              aria-label="Historial hasta"
+              value={query.to}
+              min={query.from || undefined}
+              onChange={(e) => change({ to: e.target.value })}
+            />
+          </label>
+          <label>
+            Profesional
+            <select value={query.professional} onChange={(e) => change({ professional: e.target.value })}>
+              <option value="">Todos</option>
+              {doctorOptions.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Estado
+            <select value={query.state} onChange={(e) => change({ state: e.target.value })}>
+              <option value="">Todos</option>
+              {states.map((state) => (
+                <option key={state}>{state}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Pieza
+            <select value={query.piece} onChange={(e) => change({ piece: e.target.value })}>
+              <option value="">Todas</option>
+              {pieces.map((piece) => (
+                <option key={piece}>{piece}</option>
+              ))}
+            </select>
+          </label>
+          {advancedCount > 0 && (
+            <button
+              type="button"
+              onClick={() => change({ from: '', to: '', professional: '', state: '', piece: '' })}
+            >
+              Limpiar filtros avanzados
             </button>
           )}
-        </div>
-      </header>
-
-      <nav className="history-filter-tabs" aria-label="Filtros del historial completo">
-        {availableFilters.map((item) => (
-          <button key={item.id} type="button" className={activeFilter === item.id ? 'active' : ''} onClick={() => { setFilter(item.id); setFocusDismissed(true); }}>
-            {item.label}
+        </FiltersPopover>
+        <button
+          type="button"
+          className="patient-history-order"
+          title={query.order === 'desc' ? 'Más recientes primero' : 'Más antiguos primero'}
+          aria-label={
+            query.order === 'desc'
+              ? 'Ordenar de más antiguo a más reciente'
+              : 'Ordenar de más reciente a más antiguo'
+          }
+          onClick={() => change({ order: query.order === 'desc' ? 'asc' : 'desc' })}
+        >
+          {query.order === 'desc' ? <ArrowDownWideNarrow size={15} /> : <ArrowUpWideNarrow size={15} />}
+          <span>{query.order === 'desc' ? 'Recientes' : 'Antiguos'}</span>
+        </button>
+        <span className="patient-history-count" role="status">
+          {visible.length} {visible.length === 1 ? 'registro' : 'registros'}
+          {visible.length !== rows.length ? ` de ${rows.length}` : ''}
+        </span>
+        {props.onOpenTreatmentHistory && (
+          <button type="button" onClick={props.onOpenTreatmentHistory}>
+            {canManageBilling ? 'Tratamientos y facturación' : 'Tratamientos realizados'}
+          </button>
+        )}
+      </ContextToolbar>
+      <nav className="patient-history-filters" aria-label="Filtros del historial completo">
+        {availableFilters.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            aria-pressed={activeGroup === f.id}
+            onClick={() => change({ group: f.id })}
+          >
+            {f.label}
           </button>
         ))}
+        {(query.search || advancedCount > 0) && (
+          <button
+            type="button"
+            className="patient-history-clear"
+            onClick={() => change({ search: '', from: '', to: '', professional: '', state: '', piece: '' })}
+          >
+            Limpiar búsqueda y filtros
+          </button>
+        )}
       </nav>
-      {focusedEvent && <div className="history-record-focus"><strong>{focusedEvent.label} seleccionado · {focusedEvent.title}</strong><button type="button" onClick={() => { setFocusDismissed(true); setFilter('todo'); }}>Ver historial completo</button></div>}
-
-      <div className="dc-history-timeline" role="list" aria-label="Cronología del paciente">
-        {timeline.map(event => <article key={event.id} role="listitem" className="dc-history-event">
-          <time dateTime={event.date}>{formatDate(event.date)}</time>
-          <span className="dc-history-type">{event.label}</span>
-          <details>
-            <summary><strong>{event.title}</strong><span>{event.detail}</span>{event.meta && <small>{event.meta}</small>}</summary>
-            <div className="dc-history-event-detail"><p>{event.detail}</p></div>
-          </details>
-          <div className="dc-history-event-actions">
-            {event.amount && <b>{event.amount}</b>}
-            {event.action && <button type="button" onClick={event.action}>{event.filter === 'citas' ? 'Abrir visita' : 'Abrir'}</button>}
+      {canManageBilling && props.saldo && (
+        <dl
+          className="patient-history-account"
+          aria-label="Saldo actual del paciente"
+          title="Contabilidad actual del paciente, independiente de los filtros del historial"
+        >
+          <div>
+            <dt>Facturado</dt>
+            <dd>{money(props.saldo.total_facturado)} €</dd>
           </div>
-        </article>)}
-        {!timeline.length && <p>No hay eventos para este filtro.</p>}
-      </div>
-      {activeFilter === 'odontograma' && <section className="dc-history-pieces" aria-label="Consulta por pieza">
-        <h2>Registros por pieza</h2>
-        <div className="piece-history-selector" aria-label="Piezas con historial">{pieceOptions.map(piece => <button key={piece} type="button" className={activePiece === piece ? 'active' : ''} onClick={() => setSelectedPiece(piece)}>{piece}</button>)}</div>
-        <DentalPieceHistoryPanel piece={activePiece} historial={historial} presupuestos={presupuestos} notasDentales={notasDentales} documentos={documentos} onOpenDocumento={onOpenDocumento} />
-      </section>}
+          <div>
+            <dt>Pagado, incluidos anticipos</dt>
+            <dd>{money(props.saldo.total_cobrado)} €</dd>
+          </div>
+          <div
+            className={
+              Number(props.saldo.pendiente) > 0
+                ? 'has-debt'
+                : Number(props.saldo.pendiente) < 0
+                  ? 'has-credit'
+                  : 'is-settled'
+            }
+          >
+            <dt>
+              {Number(props.saldo.pendiente) < 0
+                ? 'A favor'
+                : Number(props.saldo.pendiente) > 0
+                  ? 'Deuda actual'
+                  : 'Saldo actual'}
+            </dt>
+            <dd>{money(Math.abs(Number(props.saldo.pendiente)))} €</dd>
+          </div>
+        </dl>
+      )}
+      {focused && (
+        <div className="patient-history-focus" role="region" aria-label="Registro seleccionado">
+          <span>
+            {focused.type}
+            {focused.invoice ? ` ${focused.invoice.serie}/${focused.invoice.numero}` : ''} · {focused.concept}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setFocusDismissed(true);
+              setExpanded(null);
+            }}
+          >
+            Ver historial completo
+          </button>
+        </div>
+      )}
+      {props.loading && (
+        <p className="patient-history-notice" role="status">
+          Cargando registros del historial…
+        </p>
+      )}
+      {props.error && (
+        <p className="patient-history-notice" role="alert">
+          No se han podido cargar todos los registros. El historial puede estar incompleto.
+        </p>
+      )}
+      <table
+        ref={tableRef}
+        className={`patient-history-table ${canManageBilling ? 'with-billing' : ''}`}
+        aria-label="Cronología del paciente"
+      >
+        <colgroup>
+          <col className="ph-expand" />
+          <col className="ph-date" />
+          <col className="ph-type" />
+          <col className="ph-concept" />
+          <col className="ph-piece" />
+          <col className="ph-professional" />
+          <col className="ph-state" />
+          {canManageBilling && (
+            <>
+              <col className="ph-invoice" />
+              <col className="ph-money" />
+              <col className="ph-paid" />
+              <col className="ph-balance" />
+            </>
+          )}
+        </colgroup>
+        <thead>
+          <tr>
+            <th aria-label="Detalle" />
+            <th aria-sort={query.order === 'desc' ? 'descending' : 'ascending'}>Fecha</th>
+            <th>Tipo</th>
+            <th>Tratamiento / concepto</th>
+            <th>Pieza</th>
+            <th className="ph-professional">Profesional</th>
+            <th>Estado</th>
+            {canManageBilling && (
+              <>
+                <th>Factura</th>
+                <th className="ph-numeric">Importe</th>
+                <th
+                  className="ph-numeric ph-paid"
+                  title="Cobros efectivos; en facturas, total cobrado actual"
+                >
+                  Cobrado
+                </th>
+                <th
+                  className="ph-numeric ph-balance"
+                  title="Saldo pendiente actual de la factura, no saldo histórico acumulado"
+                >
+                  Saldo
+                </th>
+              </>
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {displayed.map((row) => {
+            const isExpanded = expandedId === row.id;
+            const toggle = () => {
+              setExpanded(isExpanded ? null : row.id);
+              if (focused) setFocusDismissed(true);
+            };
+            const amount = (value?: string | number | null) => (value == null ? '—' : money(value));
+            return (
+              <Fragment key={row.id}>
+                <tr
+                  className={`patient-history-row ${isExpanded ? 'is-expanded' : ''}`}
+                  onClick={(event) => {
+                    if (!(event.target as HTMLElement).closest('button, a')) toggle();
+                  }}
+                >
+                  <td>
+                    <button
+                      type="button"
+                      className="patient-history-expand"
+                      aria-label={`${isExpanded ? 'Contraer' : 'Ver detalle'}: ${row.type} · ${row.concept}`}
+                      aria-expanded={isExpanded}
+                      aria-controls={`detail-${row.id}`}
+                      onClick={toggle}
+                    >
+                      {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </button>
+                  </td>
+                  <td>
+                    <time dateTime={row.date || undefined}>{row.day ? formatDate(row.day) : '—'}</time>
+                  </td>
+                  <td title={row.type}>{row.type}</td>
+                  <td>
+                    <div className="patient-history-concept">
+                      <span title={row.concept}>{row.concept}</span>
+                      {row.observation && (
+                        <button
+                          type="button"
+                          className="patient-history-note"
+                          title="Contiene observaciones"
+                          aria-label={`Ver observación: ${row.concept}`}
+                          onClick={() => setExpanded(row.id)}
+                        >
+                          <MessageSquareText size={13} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td title={row.pieces.join(', ')}>{row.pieces.length ? row.pieces.join(', ') : '—'}</td>
+                  <td className="ph-professional" title={row.professional}>
+                    {row.professional || '—'}
+                  </td>
+                  <td>
+                    {row.status ? (
+                      <StatusChip tone={row.tone} title={row.status}>
+                        {row.status}
+                      </StatusChip>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  {canManageBilling && (
+                    <>
+                      <td>
+                        {row.invoice ? (
+                          <button
+                            type="button"
+                            className="patient-history-invoice"
+                            title={`Abrir factura ${row.invoice.serie}/${row.invoice.numero}`}
+                            onClick={() => props.onOpenFactura(row.invoice!)}
+                          >
+                            {row.invoice.serie}/{row.invoice.numero}
+                          </button>
+                        ) : row.treatment ? (
+                          <span title={Number(row.amount) === 0 && row.amount != null ? 'Cortesía · sin factura' : 'Tratamiento realizado pendiente de facturar'}>{Number(row.amount) === 0 && row.amount != null ? 'Cortesía' : 'Sin facturar'}</span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td
+                        className="ph-numeric"
+                        title={row.amount != null ? `${money(row.amount)} €` : undefined}
+                      >
+                        {amount(row.amount)}
+                      </td>
+                      <td className="ph-numeric ph-paid">{amount(row.paid)}</td>
+                      <td className={`ph-numeric ph-balance ${Number(row.balance) > 0 ? 'has-debt' : ''}`}>
+                        {amount(row.balance)}
+                      </td>
+                    </>
+                  )}
+                </tr>
+                {isExpanded && (
+                  <tr id={`detail-${row.id}`} className="patient-history-detail-row">
+                    <td colSpan={canManageBilling ? 11 : 7}>
+                      <HistoryRowDetail row={row} data={data} actions={actions} billing={canManageBilling} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+          {!displayed.length && !props.loading && (
+            <tr>
+              <td colSpan={canManageBilling ? 11 : 7} className="patient-history-empty">
+                {rows.length
+                  ? 'No hay actos clínicos o movimientos económicos que coincidan con estos filtros.'
+                  : 'Todavía no hay tratamientos realizados, visitas clínicas o movimientos económicos.'}
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <footer className="patient-history-pagination">
+        <span>
+          {visible.length
+            ? `${currentPage * PAGE_SIZE + 1}–${Math.min((currentPage + 1) * PAGE_SIZE, visible.length)} de ${visible.length}`
+            : '0 registros'}
+          {canManageBilling && ' · Importes en €'}
+        </span>
+        {visible.length > PAGE_SIZE && (
+          <div>
+            <button type="button" disabled={currentPage === 0} onClick={() => changePage(currentPage - 1)}>
+              Anterior
+            </button>
+            <button
+              type="button"
+              disabled={(currentPage + 1) * PAGE_SIZE >= visible.length}
+              onClick={() => changePage(currentPage + 1)}
+            >
+              Siguiente
+            </button>
+          </div>
+        )}
+      </footer>
     </section>
   );
 }

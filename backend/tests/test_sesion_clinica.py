@@ -3,7 +3,9 @@
 Cubre CRUD de items y la integracion con `historial/sesion-realizada`
 para cerrar el item al finalizar como realizado.
 """
+
 from datetime import datetime, timezone
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -27,12 +29,16 @@ async def auth_headers(client: AsyncClient, db_session: AsyncSession) -> dict[st
     )
     db_session.add(usuario)
     await db_session.commit()
-    response = await client.post("/api/auth/login", json={"username": username, "password": "admin1234"})
+    response = await client.post(
+        "/api/auth/login", json={"username": username, "password": "admin1234"}
+    )
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
-async def crear_paciente_y_tratamiento(client: AsyncClient, db_session: AsyncSession, headers: dict[str, str]):
+async def crear_paciente_y_tratamiento(
+    client: AsyncClient, db_session: AsyncSession, headers: dict[str, str]
+):
     doctor = Doctor(nombre="Dra. Sesion", color_agenda="#0891b2", activo=True)
     familia = FamiliaTratamiento(nombre="Operatoria", icono="OP", orden=4, activo=True)
     db_session.add_all([doctor, familia])
@@ -61,9 +67,13 @@ async def crear_paciente_y_tratamiento(client: AsyncClient, db_session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_sesion_clinica_crud_persiste_tras_refrescar(client: AsyncClient, db_session: AsyncSession):
+async def test_sesion_clinica_crud_persiste_tras_refrescar(
+    client: AsyncClient, db_session: AsyncSession
+):
     headers = await auth_headers(client, db_session)
-    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(client, db_session, headers)
+    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(
+        client, db_session, headers
+    )
 
     creado = await client.post(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items",
@@ -127,9 +137,13 @@ async def test_sesion_clinica_crud_persiste_tras_refrescar(client: AsyncClient, 
 
 
 @pytest.mark.asyncio
-async def test_finalizar_sesion_cierra_item_y_crea_historial(client: AsyncClient, db_session: AsyncSession):
+async def test_finalizar_sesion_cierra_item_y_crea_historial(
+    client: AsyncClient, db_session: AsyncSession
+):
     headers = await auth_headers(client, db_session)
-    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(client, db_session, headers)
+    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(
+        client, db_session, headers
+    )
 
     item_res = await client.post(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items",
@@ -186,9 +200,13 @@ async def test_finalizar_sesion_cierra_item_y_crea_historial(client: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_no_se_puede_editar_o_eliminar_item_realizado(client: AsyncClient, db_session: AsyncSession):
+async def test_no_se_puede_editar_o_eliminar_item_realizado(
+    client: AsyncClient, db_session: AsyncSession
+):
     headers = await auth_headers(client, db_session)
-    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(client, db_session, headers)
+    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(
+        client, db_session, headers
+    )
 
     item_res = await client.post(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items",
@@ -239,7 +257,9 @@ async def test_no_se_puede_editar_o_eliminar_item_realizado(client: AsyncClient,
 async def test_patch_rechaza_estado_realizado(client: AsyncClient, db_session: AsyncSession):
     """El PATCH no puede saltar a 'realizado': hay que usar el endpoint de finalizar."""
     headers = await auth_headers(client, db_session)
-    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(client, db_session, headers)
+    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(
+        client, db_session, headers
+    )
 
     item_res = await client.post(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items",
@@ -299,7 +319,9 @@ async def test_otra_clinica_no_ve_la_sesion(client: AsyncClient, db_session: Asy
     )
     db_session.add(usuario_b)
     await db_session.commit()
-    login = await client.post("/api/auth/login", json={"username": username, "password": "usuario1234"})
+    login = await client.post(
+        "/api/auth/login", json={"username": username, "password": "usuario1234"}
+    )
     assert login.status_code == 200
     headers_b = {"Authorization": f"Bearer {login.json()['access_token']}"}
 
@@ -308,3 +330,143 @@ async def test_otra_clinica_no_ve_la_sesion(client: AsyncClient, db_session: Asy
         headers=headers_b,
     )
     assert listado.status_code == 403
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("amount", [45, 0])
+async def test_reintentar_realizado_manual_no_duplica_ni_reescribe(
+    client: AsyncClient, db_session: AsyncSession, amount
+):
+    headers = await auth_headers(client, db_session)
+    paciente_id, doctor_id, tratamiento_id = await crear_paciente_y_tratamiento(
+        client, db_session, headers
+    )
+    item = await client.post(
+        f"/api/tratamientos/pacientes/{paciente_id}/sesion-items",
+        headers=headers,
+        json={"tratamiento_id": tratamiento_id, "doctor_id": doctor_id, "origen": "manual"},
+    )
+    payload = {
+        "paciente_id": paciente_id,
+        "tratamiento_id": tratamiento_id,
+        "doctor_id": doctor_id,
+        "sesion_item_id": item.json()["id"],
+        "pieza_dental": 24,
+        "caras": "O",
+        "origen": "manual",
+        "importe": amount,
+    }
+    first = await client.post(
+        "/api/tratamientos/historial/sesion-realizada", headers=headers, json=payload
+    )
+    assert first.status_code == 201
+    # A completion endpoint must not become an edit path for an already signed act.
+    second = await client.post(
+        "/api/tratamientos/historial/sesion-realizada",
+        headers=headers,
+        json={**payload, "importe": 999},
+    )
+    assert second.status_code == 201
+    assert second.json()["id"] == first.json()["id"]
+    assert Decimal(second.json()["importe"]) == Decimal(first.json()["importe"])
+    assert second.json()["factura_id"] is None
+
+    pending = await client.get(
+        "/api/facturas/historial-sin-facturar", headers=headers, params={"paciente_id": paciente_id}
+    )
+    assert pending.status_code == 200
+    row = next(row for row in pending.json() if row["id"] == first.json()["id"])
+    assert Decimal(row["tratamiento_precio"]) == Decimal(amount)
+
+
+@pytest.mark.asyncio
+async def test_propuestas_alternativas_no_cambian_diagnostico_y_aceptacion_parcial_crea_pendientes(
+    client: AsyncClient, db_session: AsyncSession
+):
+    headers = await auth_headers(client, db_session)
+    patient, doctor, treatment = await crear_paciente_y_tratamiento(client, db_session, headers)
+    odontogram = await client.post(f"/api/pacientes/{patient}/odontograma", headers=headers)
+    assert odontogram.status_code == 201
+    chart_id = odontogram.json()["id"]
+    await client.patch(
+        f"/api/odontogramas/{chart_id}/piezas/24/superficies/oclusal",
+        headers=headers,
+        json={"condicion": "caries"},
+    )
+    before = (await client.get(f"/api/pacientes/{patient}/odontograma", headers=headers)).json()
+    budget = await client.post(
+        "/api/presupuestos",
+        headers=headers,
+        json={"paciente_id": patient, "doctor_id": doctor, "fecha": "2026-09-25", "lineas": []},
+    )
+    budget_id = budget.json()["id"]
+    line_data = {
+        "tratamiento_id": treatment,
+        "pieza_dental": 24,
+        "caras": "O",
+        "precio_unitario": 45,
+        "descuento_porcentaje": 20,
+    }
+    line = await client.post(
+        f"/api/presupuestos/{budget_id}/lineas", headers=headers, json=line_data
+    )
+    assert line.status_code == 201
+    other = await client.post(
+        f"/api/presupuestos/{budget_id}/lineas",
+        headers=headers,
+        json={**line_data, "pieza_dental": 25},
+    )
+    assert other.status_code == 201
+    alternative = await client.post(
+        "/api/presupuestos",
+        headers=headers,
+        json={
+            "paciente_id": patient,
+            "doctor_id": doctor,
+            "fecha": "2026-09-25",
+            "lineas": [line_data],
+        },
+    )
+    assert alternative.status_code == 201
+    after = (await client.get(f"/api/pacientes/{patient}/odontograma", headers=headers)).json()
+    assert after["piezas"] == before["piezas"]
+    accepted = await client.post(
+        f"/api/presupuestos/{budget_id}/aceptar",
+        headers=headers,
+        json={"linea_ids": [line.json()["id"]], "pasar_a_trabajo_pendiente": True},
+    )
+    assert accepted.status_code == 200
+    assert accepted.json()["estado"] == "parcial"
+    for action in ("rechazar", "presentar"):
+        incompatible = await client.post(
+            f"/api/presupuestos/{budget_id}/{action}", headers=headers, json={}
+        )
+        assert incompatible.status_code == 409
+    preserved = await client.get(f"/api/presupuestos/{budget_id}", headers=headers)
+    assert preserved.json()["estado"] == "parcial"
+    pending = await client.get(f"/api/presupuestos/trabajo-pendiente/{patient}", headers=headers)
+    assert len(pending.json()) == 1
+    assert pending.json()[0]["presupuesto_linea_id"] == line.json()["id"]
+    unavailable = await client.get(
+        "/api/facturas/historial-sin-facturar", headers=headers, params={"paciente_id": patient}
+    )
+    assert unavailable.json() == []
+    completed_payload = {
+        "paciente_id": patient,
+        "tratamiento_id": treatment,
+        "doctor_id": doctor,
+        "presupuesto_linea_id": line.json()["id"],
+        "origen": "presupuesto_linea",
+    }
+    completed = await client.post(
+        "/api/tratamientos/historial/sesion-realizada", headers=headers, json=completed_payload
+    )
+    assert completed.status_code == 201
+    assert Decimal(completed.json()["importe"]) == Decimal("36")
+    retried = await client.post(
+        "/api/tratamientos/historial/sesion-realizada",
+        headers=headers,
+        json={**completed_payload, "importe": 999},
+    )
+    assert retried.json()["id"] == completed.json()["id"]
+    assert Decimal(retried.json()["importe"]) == Decimal("36")

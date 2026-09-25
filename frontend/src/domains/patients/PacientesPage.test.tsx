@@ -301,7 +301,8 @@ describe('PacientesPage structure', () => {
     await user.type(finder, 'Ojeda');
     expect(finder).toHaveFocus();
     expect(finder).toHaveValue('Ojeda');
-    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('Cesar Gutierrez Velez');
+    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('91312');
+    expect(screen.getByTitle('Cesar Gutierrez Velez')).toBeVisible();
     await act(async () => { resolveSearch(pacientesFixture); await pendingSearch; });
     expect(finder).toHaveFocus();
   });
@@ -318,7 +319,8 @@ describe('PacientesPage structure', () => {
       await user.type(screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' }), 'Borrador exclusivo paciente A');
     }
     await user.click(screen.getByRole('button', { name: 'Abrir paciente B desde navegación global' }));
-    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('Pilar Ojeda Calvo');
+    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('91313');
+    expect(screen.getByTitle('Pilar Ojeda Calvo')).toBeVisible();
     expect(screen.queryByRole('heading', { name: /Nueva receta|Consentimiento informado|^Presupuestos$/ })).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue(/Borrador exclusivo paciente A/)).not.toBeInTheDocument();
     if (task !== 'presupuesto') {
@@ -416,8 +418,8 @@ describe('PacientesPage structure', () => {
     expect(screen.queryByRole('button', { name: /^Realizados$/i })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
-    await waitFor(() => expect(screen.getByText(/Historial completo/i)).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /Clínico/i })).toBeInTheDocument();
+    await screen.findByRole('table', { name: 'Cronología del paciente' });
+    expect(within(screen.getByRole('navigation', { name: 'Filtros del historial completo' })).getByRole('button', { name: /^Tratamientos$/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Facturación' })).toBeInTheDocument();
     expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
 
@@ -444,6 +446,10 @@ describe('PacientesPage structure', () => {
     await waitFor(() => expect(createPresupuestoMock).toHaveBeenCalledWith('pac-1', 'doc-1'));
     expect(await screen.findByRole('region', { name: /^Presupuestos$/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Presupuesto #2/i)).toBeInTheDocument());
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-2');
+    await user.click(screen.getByRole('button', { name: /^#1\s*Presentado/i }));
+    expect(await screen.findByText(/Presupuesto #1/i)).toBeInTheDocument();
+    expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-1');
   });
 
   it('shows a closed budget warning when the active budget is accepted', async () => {

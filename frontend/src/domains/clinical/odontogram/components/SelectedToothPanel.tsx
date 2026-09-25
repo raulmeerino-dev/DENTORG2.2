@@ -173,7 +173,7 @@ export function SelectedToothPanel({
         ) : contextTreatment ? (
           <div className="od-treatment-card">
             <strong>{contextTreatment.name}</strong>
-            <span>{contextTreatment.price ? `${contextTreatment.price.toFixed(2)} EUR` : contextTreatment.status}</span>
+            <span>{contextTreatment.price !== undefined ? `${contextTreatment.price.toFixed(2)} EUR` : ({ planned: 'Planificado', pending: 'Pendiente', completed: 'Realizado', cancelled: 'Anulado', in_progress: 'En curso' }[contextTreatment.status])}</span>
           </div>
         ) : (
           <p className="od-muted">{copy.empty}</p>
