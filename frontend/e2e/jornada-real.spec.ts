@@ -67,7 +67,9 @@ test('Jornada real: recepción → sala → atención → finalización → sali
 
   try {
     await login(reception, 'recepcion', 'recep123');
+    await reception.getByRole('button', { name: /^Filtros/ }).click();
     await reception.getByLabel('Buscar en Jornada').fill(data.name);
+    await reception.keyboard.press('Escape');
     const receptionRow = reception.locator(`[data-cita-id="${data.appointment.id}"]`).first();
     const receptionUrl = reception.url();
     await receptionRow.getByRole('button', { name: 'Ha llegado', exact: true }).click();
@@ -101,7 +103,9 @@ test('Jornada real: recepción → sala → atención → finalización → sali
     await expect(doctor.getByRole('dialog', { name: 'En sala', exact: true }).locator(`[data-cita-id="${data.appointment.id}"]`)).toHaveCount(0);
 
     await reception.reload();
+    await reception.getByRole('button', { name: /^Filtros/ }).click();
     await reception.getByLabel('Buscar en Jornada').fill(data.name);
+    await reception.keyboard.press('Escape');
     await reception.getByRole('region', { name: 'Pendiente de salida' }).locator(`[data-cita-id="${data.appointment.id}"]`).getByRole('button', { name: 'Resolver salida', exact: true }).click();
     await reception.getByRole('dialog', { name: 'Resolver salida' }).getByRole('button', { name: 'Confirmar salida revisada' }).click();
     await expect.poll(async () => (await read()).pendiente_salida).toBe(false);
@@ -123,15 +127,21 @@ test('Jornada real: recepción → sala → atención → finalización → sali
 test('Jornada conserva filtros al cambiar Operativa / Agenda y al recargar', async ({ page, request }) => {
   const data = await fixture(request);
   await login(page, 'recepcion', 'recep123');
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Profesional de Jornada').selectOption(data.doctorId);
   await page.getByLabel('Estado de Jornada').selectOption('programada');
   await page.getByLabel('Buscar en Jornada').fill(data.name);
+  await page.keyboard.press('Escape');
   const perspectives = page.getByRole('navigation', { name: 'Perspectiva de Jornada' });
   await perspectives.getByRole('button', { name: 'Agenda', exact: true }).click();
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await expect(page.getByLabel('Profesional de Jornada')).toHaveValue(data.doctorId);
+  await page.keyboard.press('Escape');
   await expect(page.getByLabel('Buscar en Jornada')).toHaveValue(data.name);
   await page.reload();
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await expect(page.getByLabel('Estado de Jornada')).toHaveValue('programada');
+  await page.keyboard.press('Escape');
   await perspectives.getByRole('button', { name: 'Operativa', exact: true }).click();
   await expect(page.locator(`[data-cita-id="${data.appointment.id}"]`).first()).toBeVisible();
   expect((await api<Appointment>(request, data.admin, `/citas/${data.appointment.id}`)).estado).toBe('programada');

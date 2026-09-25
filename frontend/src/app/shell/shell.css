@@ -78,3 +78,21 @@
 
 .dc-nav-link span, .dc-brand strong, .dc-sidebar-control span { min-width: 0; overflow: hidden; white-space: nowrap; }
 .dc-brand img, .dc-sidebar-control svg { flex-shrink: 0; }
+
+/* Shared module context in the permanent application header. */
+.dc-global-context { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.dc-global-context h1 { font-size: 16px; font-weight: 650; margin: 0; white-space: nowrap; }
+.dc-toolbar-slot-module { display: flex; align-items: center; gap: 12px; min-width: 0; font-size: 12px; }
+.dc-global-patient { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+@media (max-width: 1200px) { .dc-topbar { gap: 8px; padding-inline: 12px; } .dc-topbar-actions { gap: 6px; } .dc-global-context, .dc-toolbar-slot-module { gap: 8px; } .dc-user-menu-trigger span { max-width: 95px; overflow: hidden; text-overflow: ellipsis; } }
+@media (max-width: 1000px) { .dc-topbar .dc-clock, .dc-topbar .dc-user-menu-trigger span { display: none; } }
+@media (max-width: 900px) { .app-shell { grid-template-rows: minmax(52px, auto) minmax(0, 1fr) 20px; } .dc-topbar { padding-block: 8px; align-items: flex-start; } .dc-global-context, .dc-toolbar-slot-module { flex-wrap: wrap; } .dc-global-patient { max-width: 220px; } }
+ .dc-toolbar-slot-module .agenda-date-picker { flex-wrap: nowrap; flex-shrink: 0; }
+
+@media (max-width: 600px) {
+  .dc-topbar { flex-wrap: wrap; }
+  .dc-global-context { flex-basis: 100%; }
+  .dc-topbar-actions { flex-wrap: wrap; margin-left: 0; }
+  .dc-toolbar-slot-module .agenda-date-picker { flex-wrap: wrap; flex-shrink: 1; }
+  .dc-global-patient { max-width: 100%; }
+}

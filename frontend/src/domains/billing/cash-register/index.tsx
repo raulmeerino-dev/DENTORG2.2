@@ -1,3 +1,5 @@
+import { ToolbarContribution } from '../../../design-system/ToolbarSlots';
+import { ContextToolbar } from '../../../design-system/ContextToolbar';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -137,9 +139,20 @@ export default function CajaPage() {
   const currentPage = Math.min(page, pageCount - 1);
   return (
     <section className="cash-workspace" aria-label="Caja">
-      <header className="cash-toolbar">
-        <h1>Caja</h1><span>Cobros y facturas</span><time dateTime={today}>{formatDate(today)}</time>
-      </header>
+      <ToolbarContribution slot="module"><span>Cobros y facturas</span><time dateTime={today}>{formatDate(today)}</time>
+      </ToolbarContribution>
+
+      <ContextToolbar className="cash-tabs" aria-label="Filtros de facturas de caja">
+        <button type="button" aria-pressed={tab === 'pendientes'} className={tab === 'pendientes' ? 'active' : ''} onClick={() => { setTab('pendientes'); setPage(0); }}>
+          Pendientes de cobro ({pendientes.length})
+        </button>
+        <button type="button" aria-pressed={tab === 'hoy'} className={tab === 'hoy' ? 'active' : ''} onClick={() => { setTab('hoy'); setPage(0); }}>
+          Emitidas hoy ({emitidashoy.length})
+        </button>
+        <button type="button" aria-pressed={tab === 'todas'} className={tab === 'todas' ? 'active' : ''} onClick={() => { setTab('todas'); setPage(0); }}>
+          Todas las facturas ({facturas.length})
+        </button>
+      </ContextToolbar>
 
       {facturasQuery.isError && (
         <div className="inline-alert" role="alert">No se han podido cargar las facturas. <button type="button" onClick={() => void facturasQuery.refetch()}>Reintentar</button></div>
@@ -181,17 +194,7 @@ export default function CajaPage() {
         </div>
       </div>
 
-      <div className="cash-tabs" aria-label="Filtros de facturas de caja">
-        <button type="button" aria-pressed={tab === 'pendientes'} className={tab === 'pendientes' ? 'active' : ''} onClick={() => { setTab('pendientes'); setPage(0); }}>
-          Pendientes de cobro ({pendientes.length})
-        </button>
-        <button type="button" aria-pressed={tab === 'hoy'} className={tab === 'hoy' ? 'active' : ''} onClick={() => { setTab('hoy'); setPage(0); }}>
-          Emitidas hoy ({emitidashoy.length})
-        </button>
-        <button type="button" aria-pressed={tab === 'todas'} className={tab === 'todas' ? 'active' : ''} onClick={() => { setTab('todas'); setPage(0); }}>
-          Todas las facturas ({facturas.length})
-        </button>
-      </div>
+
 
       <div className="cash-ledger" tabIndex={0} role="region" aria-label="Facturas de caja">
         <table className="dentcore-table">

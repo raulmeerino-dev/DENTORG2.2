@@ -1,3 +1,4 @@
+import { ContextToolbar, FiltersPopover } from '../../design-system/ContextToolbar';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getReportCitasDoctor, getReportDashboard, getReportKpis, getReportPacientes, getReportTopTratamientos } from '../../api/reporting';
@@ -165,19 +166,19 @@ export function AdminReportes() {
 
   return (
     <section className="analysis-workspace" aria-label="Reportes de clínica">
-      <header className="analysis-toolbar">
-        <h2>Reportes</h2>
+      <ContextToolbar className="analysis-toolbar" aria-label="Acciones de reportes">
         <label>Tipo de reporte
           <select value={reportKind} onChange={event => setReportKind(event.target.value as ReportKind)}>
             {REPORT_TYPES.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
           </select>
         </label>
-        <button type="button" disabled={loading || hasError || !customRows.length} onClick={() => downloadCsv(`reporte-${reportKind}-${desde}-${hasta}.csv`, customRows)}>Exportar CSV</button>
-      </header>
-      <div className="analysis-filters">
+
+      <FiltersPopover count={Number(Boolean(desde)) + Number(Boolean(hasta))}>
         <label>Desde<input type="date" value={desde} max={hasta} onChange={event => setDesde(event.target.value)} /></label>
         <label>Hasta<input type="date" value={hasta} min={desde} onChange={event => setHasta(event.target.value)} /></label>
-      </div>
+      </FiltersPopover>
+        <button type="button" className="dc-toolbar-secondary-end" disabled={loading || hasError || !customRows.length} onClick={() => downloadCsv(`reporte-${reportKind}-${desde}-${hasta}.csv`, customRows)}>Exportar CSV</button>
+      </ContextToolbar>
       {hasError && <p className="inline-alert" role="alert">No se han podido cargar todos los reportes. Revisa la conexión.</p>}
       {loading && <p className="analysis-loading" role="status">Cargando reportes…</p>}
       <div className="analysis-content" aria-busy={loading}>

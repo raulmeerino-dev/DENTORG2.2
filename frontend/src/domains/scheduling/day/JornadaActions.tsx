@@ -1,3 +1,4 @@
+import { ToolbarContribution } from '../../../design-system/ToolbarSlots';
 import { lazy, Suspense, useDeferredValue, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -24,12 +25,12 @@ export function JornadaActions({ onReminders, canManageBilling, replies, onNewAp
   const [open, setOpen] = useState(false);
   const anchor = useRef<HTMLButtonElement>(null);
   const go = (path: string) => { setOpen(false); navigate(path); };
-  return <div className="jornada-patient-toolbar" role="region" aria-label="Acciones rápidas de recepción">
+  return <ToolbarContribution slot="actions"><div className="jornada-patient-toolbar" role="region" aria-label="Acciones rápidas de recepción">
     <PatientFinder pacientes={patients.data ?? []} selectedId={null} query={query} onQueryChange={value => { setQuery(value); setOffset(0); }} loading={patients.isFetching} onSelect={patient => go(`/pacientes?paciente_id=${patient.id}`)} hasPreviousPage={offset > 0} hasNextPage={patients.data?.length === 20} onPreviousPage={() => setOffset(value => Math.max(0, value - 20))} onNextPage={() => setOffset(value => value + 20)} />
     <div className="patient-actions"><ActionGroup aria-label="Acciones de Jornada">
       <button type="button" title="Recordatorios" aria-label="Enviar recordatorios por WhatsApp" onClick={onReminders}><Bell size={14} aria-hidden="true" /><span>Recordatorios</span></button>
-      <button type="button" onClick={() => startTask('circular')}><FileText size={14} aria-hidden="true" /><span>Justificantes / circulares</span></button>
-      <button type="button" disabled={!canPrescribe} title={canPrescribe ? 'Crear receta para un paciente' : 'Requiere un profesional autorizado para prescribir'} onClick={() => startTask('receta')}><Pill size={14} aria-hidden="true" /><span>Recetas médicas</span></button>
+      <button type="button" aria-label="Justificantes / circulares" onClick={() => startTask('circular')}><FileText size={14} aria-hidden="true" /><span>Justificantes</span></button>
+      <button type="button" aria-label="Recetas médicas" disabled={!canPrescribe} title={canPrescribe ? 'Crear receta para un paciente' : 'Requiere un profesional autorizado para prescribir'} onClick={() => startTask('receta')}><Pill size={14} aria-hidden="true" /><span>Recetas</span></button>
       <button type="button" disabled={!canUseConsents} title={canUseConsents ? 'Preparar consentimiento' : 'Requiere acceso a documentación clínica'} onClick={() => startTask('consentimiento')}><FileSignature size={14} aria-hidden="true" /><span>Consentimientos</span></button>
       <button type="button" ref={anchor} className="patient-actions-more" title="Más acciones" aria-label="Más acciones" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><MoreHorizontal size={16} aria-hidden="true" /></button>
     </ActionGroup></div>
@@ -47,5 +48,5 @@ export function JornadaActions({ onReminders, canManageBilling, replies, onNewAp
       {canManageBilling && <button type="button" role="menuitem" onClick={() => go('/caja')}><Wallet size={14} /><span>Cobros</span></button>}
       <button type="button" role="menuitem" onClick={() => go('/whatsapp')}><MessageCircle size={14} /><span>Respuestas{replies > 0 ? ` (${replies})` : ''}</span></button>
     </FloatingPopover>}
-  </div>;
+  </div></ToolbarContribution>;
 }

@@ -1,3 +1,5 @@
+import '../../design-system/toolbars.css';
+import { ToolbarSlot } from '../../design-system/ToolbarSlots';
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -58,6 +60,7 @@ export default function MainNav() {
       </button></div>
     </aside>
     <header className="dc-topbar">
+      <div className="dc-global-context"><h1>{WORKFLOW_ITEMS.find(item => item.route && location.pathname.startsWith(item.route))?.label ?? 'DentCore'}</h1><ToolbarSlot name="module" /></div>
       <div className="dc-topbar-actions">
         {user?.rol !== 'paciente' && <EnSala />}
         <DoctorNotificationsBell />

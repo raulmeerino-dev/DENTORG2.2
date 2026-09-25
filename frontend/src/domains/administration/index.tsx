@@ -1,3 +1,4 @@
+import { ToolbarContribution } from '../../design-system/ToolbarSlots';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -243,11 +244,10 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
 
   return (
     <section className="settings-workspace" aria-label={sectionLabel}>
-      <header className="settings-toolbar">
-        <h1>{sectionLabel}</h1>
+      <ToolbarContribution slot="module">
         <span>{availableTabs.find(item => item.id === tab)?.label}</span>
         <span className={online ? 'online-pill' : 'offline-pill'}>{online ? 'Con conexión' : 'Sin conexión'}</span>
-      </header>
+      </ToolbarContribution>
 
       <div className="settings-body">
       <nav className="settings-navigation" aria-label={sectionLabel}>

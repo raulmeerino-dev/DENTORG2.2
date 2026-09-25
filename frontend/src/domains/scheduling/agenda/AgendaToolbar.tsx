@@ -1,3 +1,4 @@
+import { ToolbarContribution } from '../../../design-system/ToolbarSlots';
 import {
 CalendarPlus,
 CalendarSearch,
@@ -46,7 +47,7 @@ export function AgendaToolbar({
   const statusTitle = horarioLabel === 'Todas las agendas' ? 'Resumen' : horarioLabel;
 
   return (
-    <div className="agenda-compact-toolbar" aria-label="Filtros y acciones de agenda" onClick={(event) => event.stopPropagation()}>
+    <ToolbarContribution slot={embedded ? "actions" : "module"}><div className="agenda-compact-toolbar" aria-label="Filtros y acciones de agenda" onClick={(event) => event.stopPropagation()}>
       {!embedded && <><AgendaDatePicker day={day} onChange={onDayChange} />
       <label className="agenda-toolbar-doctor">
         <span>Doctor</span>
@@ -57,10 +58,10 @@ export function AgendaToolbar({
           ))}
         </select>
       </label></>}
-      <div className="agenda-toolbar-status" title={horarioLabel}>
+      {!embedded && <div className="agenda-toolbar-status" title={horarioLabel}>
         <b>{statusTitle}</b>
         <span>{citasCount} citas · {pendingCount} confirmar · {clinicCount} en clínica</span>
-      </div>
+      </div>}
       <div className="agenda-toolbar-actions">
         {!embedded && <button
           type="button"
@@ -87,6 +88,6 @@ export function AgendaToolbar({
           <RefreshCw size={15} aria-hidden="true" />
         </button>
       </div>
-    </div>
+    </div></ToolbarContribution>
   );
 }

@@ -1,7 +1,8 @@
+import { ContextToolbar, FiltersPopover, ActiveFilterChips, ToolbarSearch, ToolbarMenu } from '../../design-system/ContextToolbar';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
-import { Download, Filter, Search } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../identity/session/AuthContext';
 import { exportRecordPage, getRecordCatalog, getRecordPage, type RecordExportFormat } from '../../api/records';
@@ -92,26 +93,23 @@ export default function RecordsWorkspace({ mode = 'records' }: { mode?: 'records
     finally { setExporting(null); }
   }
 
-  if (catalog.isLoading) return <section className="records-workspace" aria-label={title}><header className="records-toolbar"><h1>{title}</h1></header><p className="records-feedback" role="status">Cargando vistas disponibles…</p></section>;
-  if (catalog.isError) return <section className="records-workspace" aria-label={title}><header className="records-toolbar"><h1>{title}</h1></header><div className="records-feedback records-feedback--error" role="alert">No se pudieron cargar las consultas disponibles. <button type="button" onClick={() => void catalog.refetch()}>Reintentar</button></div></section>;
-  if (!view || !query) return <section className="records-workspace" aria-label={title}><header className="records-toolbar"><h1>{title}</h1></header><p className="records-feedback">No hay vistas disponibles para tu perfil.</p></section>;
+  if (catalog.isLoading) return <section className="records-workspace" aria-label={title}><p className="records-feedback" role="status">Cargando vistas disponibles…</p></section>;
+  if (catalog.isError) return <section className="records-workspace" aria-label={title}><div className="records-feedback records-feedback--error" role="alert">No se pudieron cargar las consultas disponibles. <button type="button" onClick={() => void catalog.refetch()}>Reintentar</button></div></section>;
+  if (!view || !query) return <section className="records-workspace" aria-label={title}><p className="records-feedback">No hay vistas disponibles para tu perfil.</p></section>;
 
   return <section className="records-workspace" aria-label={title}>
-    <header className="records-toolbar">
-      <h1>{title}</h1>
+    <ContextToolbar className="records-toolbar">
       <label className="records-view-label"><span>Vista</span><select value={view.id} onChange={event => {
         const selected = views.find(item => item.id === event.target.value);
         if (selected) { setAdvancedOpen(false); updateSearch(current => urlForRecordView(current, selected)); }
       }}>{views.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-      {view.filters.includes('q') && <div className="records-search"><Search size={15} aria-hidden="true" /><input type="search" aria-label={`Buscar ${title.toLowerCase()}`} placeholder={isFiles ? 'Paciente, documento, concepto…' : 'Paciente, historia, concepto, referencia…'} value={searchText} onChange={event => setFilters({ q: event.target.value }, true)} /></div>}
-      {view.can_export && <div className="records-exports" aria-label="Exportar resultado" title={`Exportar los ${total} resultados con los filtros, orden y columnas actuales`}>
-        <Download size={14} aria-hidden="true" />
-        {view.export_formats.includes('xlsx') && <button type="button" disabled={exportDisabled} onClick={() => void exportResults('xlsx')}>Excel</button>}
-        {view.export_formats.includes('csv') && <button type="button" disabled={exportDisabled} onClick={() => void exportResults('csv')}>CSV</button>}
-        {view.export_formats.includes('pdf') && <><button type="button" disabled={exportDisabled} onClick={() => void exportResults('pdf')}>PDF</button><button type="button" title="Abrir PDF para imprimir el resultado completo" disabled={exportDisabled} onClick={() => void exportResults('pdf', true)}>Imprimir</button></>}
-      </div>}
-    </header>
-    <div className="records-filters" aria-label="Filtros de consulta">
+      {view.filters.includes('q') && <ToolbarSearch aria-label={`Buscar ${title.toLowerCase()}`} placeholder={isFiles ? 'Paciente, documento, concepto…' : 'Paciente, historia, concepto, referencia…'} value={searchText} onChange={event => setFilters({ q: event.target.value }, true)} />}
+      {view.can_export && <ToolbarMenu label="Exportar resultados">
+        {view.export_formats.includes('xlsx') && <button type="button" role="menuitem" disabled={exportDisabled} onClick={() => void exportResults('xlsx')}>Exportar Excel</button>}
+        {view.export_formats.includes('csv') && <button type="button" role="menuitem" disabled={exportDisabled} onClick={() => void exportResults('csv')}>Exportar CSV</button>}
+        {view.export_formats.includes('pdf') && <><button type="button" role="menuitem" disabled={exportDisabled} onClick={() => void exportResults('pdf')}>Exportar PDF</button><button type="button" role="menuitem" disabled={exportDisabled} onClick={() => void exportResults('pdf', true)}>Imprimir</button></>}
+      </ToolbarMenu>}
+      <FiltersPopover count={RECORD_FILTER_KEYS.filter(key => key !== 'q' && query[key]).length}>
       {view.filters.includes('fecha_desde') && <label>Desde<input type="date" aria-label="Desde" title={view.date_label} max={query.fecha_hasta} value={query.fecha_desde ?? ''} onChange={event => setFilters({ fecha_desde: event.target.value })} /></label>}
       {view.filters.includes('fecha_hasta') && <label>Hasta<input type="date" aria-label="Hasta" title={view.date_label} min={query.fecha_desde} value={query.fecha_hasta ?? ''} onChange={event => setFilters({ fecha_hasta: event.target.value })} /></label>}
       {view.filters.includes('paciente_id') && <RecordLookup label="Paciente" kind="pacientes" value={query.paciente_id ?? ''} onChange={value => setFilters({ paciente_id: value })} scope={scope} />}
@@ -120,7 +118,9 @@ export default function RecordsWorkspace({ mode = 'records' }: { mode?: 'records
       {view.filters.includes('estado') && <label>{view.columns.find(column => column.key === 'estado')?.label ?? 'Estado'}{view.states.length > 0 ? <select value={query.estado ?? ''} onChange={event => setFilters({ estado: event.target.value })}><option value="">Todos</option>{view.states.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type="text" placeholder="Todos" value={query.estado ?? ''} onChange={event => setFilters({ estado: event.target.value })} />}</label>}
       {advancedKeys.length > 0 && <button className="records-more-filters" type="button" onClick={() => setAdvancedOpen(true)}><Filter size={14} aria-hidden="true" />Más filtros{advancedCount ? ` (${advancedCount})` : ''}</button>}
       {filterCount > 0 && <button type="button" onClick={clearFilters}>Limpiar</button>}
-    </div>
+      </FiltersPopover>
+      <ActiveFilterChips filters={RECORD_FILTER_KEYS.filter(key => key !== 'q' && query[key]).map(key => ({ key, label: `${key === 'doctor_id' ? 'Profesional' : key === 'paciente_id' ? 'Paciente' : key === 'fecha_desde' ? 'Desde' : key === 'fecha_hasta' ? 'Hasta' : key.replaceAll('_', ' ')}${key.endsWith('_id') ? '' : `: ${query[key]}`}`, onRemove: () => setFilters({ [key]: '' }) }))} />
+    </ContextToolbar>
     <div className="records-result-context" role="status" aria-live="polite">
       <span>{view.label}{view.date_label ? ` · ${view.date_label}` : ''}</span>
       <span>{busy || result.isLoading ? 'Buscando…' : result.isError ? 'Consulta no disponible' : `${total.toLocaleString('es-ES')} resultados`}</span>

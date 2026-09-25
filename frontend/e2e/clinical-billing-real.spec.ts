@@ -81,7 +81,9 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
   expect(appointment.presupuesto_linea_id).toBe(line.id);
 
   await page.goto(`/jornada?vista=operativa&fecha=${localDate()}`);
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Buscar en Jornada').fill(name);
+  await page.keyboard.press('Escape');
   const row = page.locator(`[data-cita-id="${appointment.id}"]`).first();
   await row.getByRole('button', { name: 'Ha llegado', exact: true }).click();
   await row.getByRole('button', { name: 'Atender', exact: true }).click();

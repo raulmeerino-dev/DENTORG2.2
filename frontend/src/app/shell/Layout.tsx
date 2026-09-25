@@ -1,3 +1,4 @@
+import { ToolbarSlots } from '../../design-system/ToolbarSlots';
 import { Outlet, useLocation } from 'react-router-dom';
 import MainNav from './MainNav';
 import AppStatus from './AppStatus';
@@ -8,7 +9,7 @@ import AssistantFloatingButton from '../../domains/ai/assistant/AssistantFloatin
 export default function Layout() {
   const location = useLocation();
   return (
-    <div className="app-shell">
+    <ToolbarSlots><div className="app-shell">
       <MainNav />
       <main className="main-content" id="main-workspace" tabIndex={-1}>
         <RecordReturnLink />
@@ -18,6 +19,6 @@ export default function Layout() {
       </main>
       <AppStatus />
       <AssistantFloatingButton />
-    </div>
+    </div></ToolbarSlots>
   );
 }

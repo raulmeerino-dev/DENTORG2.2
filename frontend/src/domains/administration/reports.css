@@ -1,11 +1,5 @@
 .analysis-workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--dc-surface); color: var(--dc-text); }
-.analysis-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dc-space-3); padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); }
-.analysis-toolbar h2 { margin: 0; font-size: var(--dc-font-heading); }
-.analysis-toolbar label { display: flex; flex-wrap: wrap; gap: var(--dc-space-2); align-items: center; }
-.analysis-toolbar button { margin-left: auto; }
-.analysis-filters { display: flex; flex-wrap: wrap; align-items: end; gap: var(--dc-space-2); padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); }
-.analysis-filters label { display: grid; gap: var(--dc-space-1); flex: 1 1 135px; min-width: 0; font-size: var(--dc-font-small); color: var(--dc-muted); }
-.analysis-filters :is(input, select) { width: 100%; min-width: 0; }
+.analysis-toolbar > label { display: flex; flex-wrap: wrap; gap: var(--dc-space-2); align-items: center; }
 .analysis-content { min-width: 0; }
 .analysis-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--dc-border); }
 .analysis-summary > div { display: grid; gap: var(--dc-space-1); padding: var(--dc-space-3); border-right: 1px solid var(--dc-border); min-width: 0; }

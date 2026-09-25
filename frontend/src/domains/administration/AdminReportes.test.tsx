@@ -53,9 +53,11 @@ describe('AdminReportes', () => {
 
     renderReportes();
 
-    expect(await screen.findByRole('heading', { name: 'Reportes' })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Tipo de reporte')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Filtros/ }));
     expect(screen.getByLabelText(/Desde/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Hasta/i)).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     expect(screen.getAllByText(/Facturado/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Cobrado/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Presupuestos/i).length).toBeGreaterThan(0);

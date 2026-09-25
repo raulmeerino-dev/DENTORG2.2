@@ -1,0 +1,33 @@
+.dc-context-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 56px; flex-shrink: 0; padding: 8px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); min-width: 0; }
+.dc-context-toolbar[hidden] { display: none; }
+.dc-context-toolbar button, .dc-context-toolbar select, .dc-context-toolbar input { min-height: 32px; font-size: 12px; }
+.dc-context-toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
+.dc-toolbar-slot:empty { display: none; }
+.dc-toolbar-slot-actions { display: contents; }
+.dc-context-toolbar .jornada-patient-toolbar { display: contents; }
+.dc-context-toolbar .jornada-patient-toolbar > .dc-patient-finder { order: -1; flex: 1 1 200px; max-width: 320px; }
+.dc-context-toolbar .patient-actions { margin-left: auto; }
+.dc-context-toolbar .dc-action-group { gap: 6px; }
+.dc-context-toolbar .agenda-compact-toolbar { display: contents; }
+.dc-context-toolbar .agenda-toolbar-actions { margin-left: auto; }
+.dc-context-toolbar .dc-toolbar-primary { margin-left: auto; }
+.dc-toolbar-search { display: flex; align-items: center; gap: 6px; min-width: 160px; flex: 1 1 200px; max-width: 360px; }
+.dc-toolbar-search input { width: 100%; min-width: 0; }
+.dc-toolbar-filters { padding: 12px; display: grid; gap: 12px; background: var(--dc-surface); border: 1px solid var(--dc-border); border-radius: var(--dc-radius); box-shadow: var(--dc-shadow-menu); }
+.dc-toolbar-filters label { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
+.dc-toolbar-filters :is(input,select) { width: 100%; min-width: 0; min-height: 32px; }
+.dc-toolbar-filter-heading { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.dc-toolbar-filter-heading button { padding: 4px; min-height: 28px; }
+.dc-active-filter-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.dc-active-filter-chips button { background: var(--dc-primary-soft); color: var(--dc-primary); font-size: 11px; padding: 3px 6px; min-height: 26px; }
+
+
+.dc-toolbar-menu { display: grid; gap: 4px; padding: 6px; background: var(--dc-surface); border: 1px solid var(--dc-border); border-radius: var(--dc-radius); box-shadow: var(--dc-shadow-menu); }
+.dc-toolbar-menu button { justify-content: flex-start; width: 100%; }
+.dc-context-toolbar .records-view-label { margin-right: 4px; }
+
+.dc-context-toolbar .records-view-label { min-width: 0; max-width: 100%; }
+.dc-context-toolbar .records-view-label select { min-width: 0; max-width: 100%; }
+.dc-toolbar-filters .records-lookup { width: 100%; }
+
+.dc-context-toolbar .dc-toolbar-secondary-end { margin-left: auto; }

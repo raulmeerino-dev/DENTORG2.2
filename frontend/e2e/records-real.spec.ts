@@ -73,6 +73,7 @@ test('Registros: filtros combinados, orden, paginación, detalle, regreso y expo
   await page.goto('/registros?vista=citas');
   await page.getByLabel('Buscar registros', { exact: true }).fill('REGQA');
   await expect(page).toHaveURL(/q=REGQA/);
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Desde', { exact: true }).fill('2026-01-15');
   await page.getByLabel('Hasta', { exact: true }).fill('2026-06-30');
   await page.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('confirmada');
@@ -121,7 +122,9 @@ test('Registros: filtros combinados, orden, paginación, detalle, regreso y expo
   }
   for (const [label, extension] of [['CSV', 'csv'], ['Excel', 'xlsx']]) {
     const downloadEvent = page.waitForEvent('download');
-    await page.getByRole('button', { name: label, exact: true }).click();
+    await page.getByRole('button', { name: 'Exportar resultados', exact: true }).click();
+    await page.getByRole('menuitem', { name: `Exportar ${label}`, exact: true }).click();
+    await page.keyboard.press('Escape');
     const download = await downloadEvent;
     const filename = testInfo.outputPath(`registros.${extension}`);
     await download.saveAs(filename);
@@ -136,10 +139,12 @@ test('Registros: filtros combinados, orden, paginación, detalle, regreso y expo
 test('Archivos: búsqueda remota de paciente, categoría, documento dedicado y regreso', async ({ page }, testInfo) => {
   await browserLogin(page);
   await page.goto('/archivos');
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByRole('button', { name: /^Paciente / }).click();
   await page.getByLabel('Buscar paciente', { exact: true }).fill('REGQA0980');
   await page.getByRole('option').filter({ hasText: 'REGQA0980' }).click();
   await page.getByRole('combobox', { name: /Tipo/ }).selectOption('radiografia');
+  await page.keyboard.press('Escape');
   await settledRows(page);
   await expect(page.getByRole('link', { name: 'Abrir detalle', exact: true })).toHaveCount(1);
   const returnUrl = page.url();

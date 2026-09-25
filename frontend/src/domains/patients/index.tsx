@@ -1,3 +1,5 @@
+import { ToolbarContribution } from '../../design-system/ToolbarSlots';
+import { ContextToolbar } from '../../design-system/ContextToolbar';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
 import { FloatingPopover } from '../../design-system/FloatingPopover';
 import type { MouseEvent,ReactNode } from 'react';
@@ -1044,7 +1046,8 @@ function PatientWorkspace() {
 
   return (
     <div className="dc-patient-workspace">
-      <div className="dc-patient-header" hidden={dedicatedTaskOpen || firstVisitOpen}>
+      <ToolbarContribution slot="module">{active && <span className="dc-global-patient" title={fullName(active)}> / {fullName(active)}</span>}</ToolbarContribution>
+      <ContextToolbar className="dc-patient-header" hidden={dedicatedTaskOpen || firstVisitOpen}>
         <PatientFinder
           pacientes={pacientes}
           selectedId={active?.id ?? null}
@@ -1068,7 +1071,6 @@ function PatientWorkspace() {
         <div className="dc-patient-identity" aria-label="Paciente activo">
           {active ? (
             <>
-              <strong title={fullName(active)}>{fullName(active)}</strong>
               <small>
                 <b>H {active.num_historial}</b>
                 {patientAge(active) !== null && <> · {patientAge(active)} años</>}
@@ -1131,7 +1133,7 @@ function PatientWorkspace() {
             <span />
           </div>
         )}
-      </div>
+      </ContextToolbar>
       <section className="dc-patient-view" onClick={() => setContextMenu(null)}>
         <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen || firstVisitOpen}>
           {WORK_TABS.map((item) => (
