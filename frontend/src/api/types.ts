@@ -251,6 +251,7 @@ export interface FormaPago {
 }
 
 export interface Factura {
+  paciente?: { id: string; nombre: string; apellidos: string } | null;
   id: string;
   clinica_id?: string | null;
   paciente_id: string;

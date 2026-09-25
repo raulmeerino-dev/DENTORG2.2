@@ -25,7 +25,10 @@
 .cash-payment-fields label { display: grid; gap: var(--dc-space-1); }
 @media (max-width: 1150px) { .cash-totals { grid-template-columns: repeat(3, minmax(0, 1fr)); } .cash-total:nth-child(-n+3) { border-bottom: 1px solid var(--dc-border); } }
 @media (max-width: 600px) { .cash-totals { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cash-total { padding: var(--dc-space-2); border-bottom: 1px solid var(--dc-border); } .cash-total strong { font-size: 16px; } .cash-toolbar span { display: none; } }
-@media (max-height: 600px), (max-width: 700px) {
+@media (max-height: 440px), (max-width: 700px) {
   .cash-workspace { overflow: auto; }
   .cash-ledger { flex: 0 0 auto; min-height: 220px; max-height: 65dvh; }
 }
+
+.cash-pagination { display: flex; align-items: center; gap: var(--dc-space-2); padding: var(--dc-space-2) var(--dc-space-3); border-top: 1px solid var(--dc-border); }
+.cash-pagination > span { margin-right: auto; color: var(--dc-muted); font-size: var(--dc-font-small); }

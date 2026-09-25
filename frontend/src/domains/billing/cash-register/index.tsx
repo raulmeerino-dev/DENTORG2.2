@@ -3,21 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { AlertCircle, Calendar, FileText, TrendingUp, Wallet, CheckCircle2 } from 'lucide-react';
 import { getFacturas, getFormasPago, registrarCobro } from '../../../api/billing';
-import { getIngresosReporte, getReportKpis, getReportPacientes } from '../../../api/reporting';
+import { getIngresosReporte, getReportKpis } from '../../../api/reporting';
 import type { Factura, FormaPago } from '../../../api/types';
 import { formatDate, money } from '../../../shared/format';
 import { Dialog } from '../../../design-system';
+import { clinicDate, clinicDateKey } from '../../../shared/time/clinicTime';
+import { StatusChip } from '../../../design-system';
 import './cash-register.css';
-
-function todayIso() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-function monthStart() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-}
 
 function CobroInlineModal({
   factura,
@@ -87,14 +79,14 @@ function CobroInlineModal({
 
 export default function CajaPage() {
   const queryClient = useQueryClient();
-  const today = todayIso();
-  const mesDesde = monthStart();
+  const today = clinicDate(new Date());
+  const mesDesde = `${today.slice(0, 7)}-01`;
+  const [page, setPage] = useState(0);
   const [cobroTarget, setCobroTarget] = useState<Factura | null>(null);
   const [tab, setTab] = useState<'pendientes' | 'hoy' | 'todas'>('pendientes');
 
-  const facturasQuery = useQuery({ queryKey: ['caja-facturas'], queryFn: () => getFacturas() });
+  const facturasQuery = useQuery({ queryKey: ['caja-facturas'], queryFn: ({ signal }) => getFacturas(undefined, signal) });
   const formasPagoQuery = useQuery({ queryKey: ['formas-pago'], queryFn: getFormasPago });
-  const pacientesQuery = useQuery({ queryKey: ['report-pacientes'], queryFn: getReportPacientes });
   const kpisQuery = useQuery({ queryKey: ['caja-kpis', mesDesde, today], queryFn: () => getReportKpis({ fecha_desde: mesDesde, fecha_hasta: today }) });
   const ingresosQuery = useQuery({
     queryKey: ['caja-ingresos', mesDesde, today],
@@ -122,22 +114,27 @@ export default function CajaPage() {
   const facturas = facturasQuery.data ?? [];
   const formasPago = formasPagoQuery.data ?? [];
   const kpis = kpisQuery.data;
-  const patientNames = new Map((pacientesQuery.data ?? []).map(patient => [patient.id, `${patient.apellidos}, ${patient.nombre}`]));
-  const patientLabel = (id: string) => patientNames.get(id) ?? `Paciente · ${id.slice(0, 8)}`;
+  const patientsById = new Map(facturas.filter(invoice => invoice.paciente).map(invoice => [invoice.paciente_id, invoice.paciente!]));
+  const patientLabel = (id: string) => {
+    const patient = patientsById.get(id);
+    return patient ? [patient.apellidos, patient.nombre].filter(Boolean).join(', ') : 'Paciente no disponible';
+  };
 
   const pendientes = facturas.filter((f) => Number(f.pendiente) > 0);
-  const cobradashoy = facturas.filter((f) => f.cobros.some((c) => c.fecha.slice(0, 10) === today && !c.anulado_at));
+  const cobradashoy = facturas.filter((f) => f.cobros.some((c) => clinicDateKey(c.fecha) === today && !c.anulado_at));
   const emitidashoy = facturas.filter((f) => f.fecha.slice(0, 10) === today);
 
   const totalPendiente = pendientes.reduce((sum, f) => sum + Number(f.pendiente), 0);
   const totalCobradoHoy = cobradashoy.reduce((sum, f) => {
-    const cobrosHoy = f.cobros.filter((c) => c.fecha.slice(0, 10) === today && !c.anulado_at);
+    const cobrosHoy = f.cobros.filter((c) => clinicDateKey(c.fecha) === today && !c.anulado_at);
     return sum + cobrosHoy.reduce((s, c) => s + Number(c.importe), 0);
   }, 0);
   const totalEmitidoHoy = emitidashoy.reduce((sum, f) => sum + Number(f.total), 0);
 
   const rows = tab === 'pendientes' ? pendientes : tab === 'hoy' ? emitidashoy : facturas;
 
+  const pageCount = Math.max(1, Math.ceil(rows.length / 50));
+  const currentPage = Math.min(page, pageCount - 1);
   return (
     <section className="cash-workspace" aria-label="Caja">
       <header className="cash-toolbar">
@@ -150,7 +147,6 @@ export default function CajaPage() {
 
       {(kpisQuery.isError || ingresosQuery.isError) && <div className="inline-alert" role="alert">No se ha podido cargar el resumen del mes.</div>}
       {formasPagoQuery.isError && <div className="inline-alert" role="alert">No se han podido cargar las formas de pago.</div>}
-      {pacientesQuery.isError && <div className="inline-alert" role="alert">No se han podido cargar los nombres de pacientes. Las facturas conservan su enlace a la ficha.</div>}
 
       <div className="cash-totals" aria-label="Resumen de caja">
         <div className={totalPendiente > 0 ? 'cash-total cash-total--pending' : 'cash-total'}>
@@ -171,7 +167,7 @@ export default function CajaPage() {
         <div className="cash-total">
           <span><Calendar size={12} strokeWidth={2.2} aria-hidden="true" /> Facturado este mes</span>
           <strong>{kpis ? money(kpis.facturacion.total_facturado) : '—'}</strong>
-          <small>{kpis ? `${kpis.facturacion.num_facturas} facturas` : 'cargando...'}</small>
+          <small>{kpis ? `${kpis.facturacion.num_facturas} facturas` : kpisQuery.isError ? 'Sin datos disponibles' : 'Cargando…'}</small>
         </div>
         <div className="cash-total">
           <span><Wallet size={12} strokeWidth={2.2} aria-hidden="true" /> Cobrado este mes</span>
@@ -186,13 +182,13 @@ export default function CajaPage() {
       </div>
 
       <div className="cash-tabs" aria-label="Filtros de facturas de caja">
-        <button type="button" aria-pressed={tab === 'pendientes'} className={tab === 'pendientes' ? 'active' : ''} onClick={() => setTab('pendientes')}>
+        <button type="button" aria-pressed={tab === 'pendientes'} className={tab === 'pendientes' ? 'active' : ''} onClick={() => { setTab('pendientes'); setPage(0); }}>
           Pendientes de cobro ({pendientes.length})
         </button>
-        <button type="button" aria-pressed={tab === 'hoy'} className={tab === 'hoy' ? 'active' : ''} onClick={() => setTab('hoy')}>
+        <button type="button" aria-pressed={tab === 'hoy'} className={tab === 'hoy' ? 'active' : ''} onClick={() => { setTab('hoy'); setPage(0); }}>
           Emitidas hoy ({emitidashoy.length})
         </button>
-        <button type="button" aria-pressed={tab === 'todas'} className={tab === 'todas' ? 'active' : ''} onClick={() => setTab('todas')}>
+        <button type="button" aria-pressed={tab === 'todas'} className={tab === 'todas' ? 'active' : ''} onClick={() => { setTab('todas'); setPage(0); }}>
           Todas las facturas ({facturas.length})
         </button>
       </div>
@@ -215,7 +211,7 @@ export default function CajaPage() {
             {facturasQuery.isLoading && (
               <tr><td colSpan={8}>Cargando facturas...</td></tr>
             )}
-            {!facturasQuery.isLoading && rows.map((factura) => {
+            {!facturasQuery.isLoading && rows.slice(currentPage * 50, (currentPage + 1) * 50).map((factura) => {
               const pending = Number(factura.pendiente);
               return (
                 <tr key={factura.id} className={pending > 0 ? 'row-pending' : ''}>
@@ -230,7 +226,7 @@ export default function CajaPage() {
                   <td className="num">{money(factura.total_cobrado)}</td>
                   <td className="num">{money(factura.pendiente)}</td>
                   <td>
-                    <span className={`status-pill status-${factura.estado}`}>{factura.estado}</span>
+                    <StatusChip tone={factura.estado === 'pagada' ? 'success' : factura.estado === 'anulada' ? 'neutral' : pending > 0 ? 'warning' : 'info'}>{{ emitida: 'Emitida', parcial: 'Parcial', pagada: 'Pagada', anulada: 'Anulada', borrador: 'Borrador' }[factura.estado] ?? factura.estado}</StatusChip>
                   </td>
                   <td>
                     {pending > 0 && (
@@ -257,6 +253,12 @@ export default function CajaPage() {
           </tbody>
         </table>
       </div>
+
+      <footer className="cash-pagination">
+        <span>{rows.length ? `${currentPage * 50 + 1}–${Math.min((currentPage + 1) * 50, rows.length)} de ${rows.length} facturas` : facturasQuery.isError ? 'Facturas no disponibles' : facturasQuery.isLoading ? 'Cargando…' : 'Sin facturas'}</span>
+        <button type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+        <button type="button" disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)}>Siguiente</button>
+      </footer>
 
       {cobroTarget && (
         <CobroInlineModal

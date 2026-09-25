@@ -9,9 +9,14 @@ import type {
 } from './types';
 import { openOrDownloadBlob } from './downloads';
 
-export async function getFacturas(pacienteId?: string) {
-  const { data } = await api.get<Factura[]>('/facturas', { params: pacienteId ? { paciente_id: pacienteId } : {} });
-  return data;
+export async function getFacturas(pacienteId?: string, signal?: AbortSignal) {
+  const invoices: Factura[] = [];
+  const limit = 200;
+  for (let offset = 0; ; offset += limit) {
+    const { data } = await api.get<Factura[]>('/facturas', { params: { paciente_id: pacienteId, limit, offset }, signal });
+    invoices.push(...data);
+    if (data.length < limit) return invoices;
+  }
 }
 
 export async function getSaldoPaciente(pacienteId: string) {
