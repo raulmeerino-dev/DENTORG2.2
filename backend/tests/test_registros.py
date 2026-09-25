@@ -190,6 +190,8 @@ async def test_saldos_include_advances_exclude_voided_payments_and_invoices(db_s
         PagoAnticipadoPaciente(id=uuid4(), paciente_id=patient.id, clinica_id=records["a"].id, fecha=now, importe=10, forma_pago_id=pay.id, usuario_id=records["user"].id),
     ])
     await db_session.flush()
+    from tests.billing_fixtures import backfill_account_ledger
+    await backfill_account_ledger(db_session)
     result = await consultar_registros(db_session, records["reception"], "saldos", RegistroFilters(paciente_id=patient.id, saldo_min=Decimal("60"), saldo_max=Decimal("60")))
     assert result.total == 1
     assert result.rows[0].cells["facturado"] == 100
@@ -203,6 +205,8 @@ async def test_balances_do_not_reveal_foreign_clinic_money_even_with_legacy_pati
     patient = records["patients"][0]
     db_session.add(Factura(id=uuid4(), paciente_id=patient.id, clinica_id=records["b"].id, serie="T", numero=987656, fecha=date.today(), subtotal=999, iva_total=0, total=999))
     await db_session.flush()
+    from tests.billing_fixtures import backfill_account_ledger
+    await backfill_account_ledger(db_session)
     result = await consultar_registros(db_session, records["reception"], "saldos", RegistroFilters(paciente_id=patient.id))
     assert result.rows[0].cells["saldo"] == 0
     admin = await consultar_registros(db_session, records["admin"], "saldos", RegistroFilters(paciente_id=patient.id))

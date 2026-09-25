@@ -2,6 +2,7 @@
 Router de generación de PDFs: facturas y presupuestos.
 Devuelve application/pdf para descarga directa o visualización en navegador.
 """
+
 from typing import Annotated
 from uuid import UUID
 
@@ -17,13 +18,21 @@ from app.core.documents.pdf import (
     pdf_response_headers,
     validate_pdf_bytes,
 )
-from app.core.permissions import CurrentUser, RequireBilling, ensure_clinic_access
+from app.core.permissions import (
+    CurrentUser,
+    RequireBilling,
+    ensure_clinic_access,
+    scope_select_by_clinic,
+)
 from app.database import get_db
 from app.domains.billing.application.fiscal_document_service import (
     build_factura_pdf_bytes,
     cargar_factura_para_pdf,
     read_archived_pdf,
 )
+from app.domains.billing.application.invoice_account import invoice_response
+from app.domains.billing.application.ledger import account_patient
+from app.domains.billing.persistence.cuenta import AplicacionPago, CargoPaciente
 from app.domains.billing.persistence.factura import Cobro, DocumentoFiscal, Factura
 from app.domains.treatment_plans.persistence.presupuesto import Presupuesto, PresupuestoLinea
 
@@ -40,6 +49,7 @@ def _pdf_response(data: bytes, filename: str) -> Response:
 
 
 # Factura PDF
+
 
 @router.get("/facturas/{factura_id}", dependencies=[RequireBilling])
 async def pdf_factura(
@@ -61,7 +71,8 @@ async def pdf_factura(
         except ValueError:
             pdf_bytes = None
     if pdf_bytes is None:
-        pdf_bytes = build_factura_pdf_bytes(factura)
+        document = await invoice_response(db, factura)
+        pdf_bytes = build_factura_pdf_bytes(factura, applied_payments=document.cobros)
 
     filename = f"factura_{factura.serie}{factura.numero:04d}_{factura.fecha.strftime('%Y%m%d')}.pdf"
     return _pdf_response(pdf_bytes, filename)
@@ -98,6 +109,7 @@ async def pdf_factura_archivado_info(
 
 # Presupuesto PDF
 
+
 @router.get("/presupuestos/{presupuesto_id}")
 async def pdf_presupuesto(
     presupuesto_id: UUID,
@@ -122,16 +134,20 @@ async def pdf_presupuesto(
     pac = pres.paciente
     lineas_data = []
     for linea in pres.lineas:
-        importe_neto = float(linea.precio_unitario) * (1 - float(linea.descuento_porcentaje or 0) / 100)
-        lineas_data.append({
-            "tratamiento_nombre": linea.tratamiento.nombre if linea.tratamiento else "-",
-            "pieza_dental": linea.pieza_dental,
-            "caras": linea.caras,
-            "precio_unitario": linea.precio_unitario,
-            "descuento_porcentaje": linea.descuento_porcentaje,
-            "importe_neto": importe_neto,
-            "aceptado": linea.aceptado,
-        })
+        importe_neto = float(linea.precio_unitario) * (
+            1 - float(linea.descuento_porcentaje or 0) / 100
+        )
+        lineas_data.append(
+            {
+                "tratamiento_nombre": linea.tratamiento.nombre if linea.tratamiento else "-",
+                "pieza_dental": linea.pieza_dental,
+                "caras": linea.caras,
+                "precio_unitario": linea.precio_unitario,
+                "descuento_porcentaje": linea.descuento_porcentaje,
+                "importe_neto": importe_neto,
+                "aceptado": linea.aceptado,
+            }
+        )
 
     total = sum(linea["importe_neto"] for linea in lineas_data)
     total_aceptado = sum(linea["importe_neto"] for linea in lineas_data if linea["aceptado"])
@@ -172,12 +188,33 @@ async def pdf_recibo_cobro(
     cobro = result.scalar_one_or_none()
     if not cobro:
         raise HTTPException(status_code=404, detail="Cobro no encontrado")
-    ensure_clinic_access(current_user, cobro.factura.clinica_id if cobro.factura else None)
-    paciente = cobro.factura.paciente if cobro.factura else None
+    ensure_clinic_access(current_user, cobro.clinica_id)
+    if cobro.factura:
+        ensure_clinic_access(current_user, cobro.factura.clinica_id)
+    patient_id = cobro.paciente_id or (cobro.factura.paciente_id if cobro.factura else None)
+    if not patient_id:
+        raise HTTPException(404, "No se encontró el paciente del cobro")
+    paciente = await account_patient(db, patient_id, current_user)
     paciente_nombre = " ".join(
-        part for part in [getattr(paciente, "nombre", ""), getattr(paciente, "apellidos", "")] if part
+        part
+        for part in [getattr(paciente, "nombre", ""), getattr(paciente, "apellidos", "")]
+        if part
     ).strip()
-    factura_codigo = f"{cobro.factura.serie}-{cobro.factura.numero:04d}" if cobro.factura else "-"
+    invoice_query = (
+        select(Factura.serie, Factura.numero)
+        .join(CargoPaciente, CargoPaciente.factura_id == Factura.id)
+        .join(AplicacionPago, AplicacionPago.cargo_id == CargoPaciente.id)
+        .where(AplicacionPago.cobro_id == cobro.id)
+        .distinct()
+    )
+    linked = (await db.execute(scope_select_by_clinic(invoice_query, Factura, current_user))).all()
+    factura_codigo = ", ".join(f"{row.serie}-{row.numero:04d}" for row in linked)
+    if not factura_codigo:
+        factura_codigo = (
+            f"{cobro.factura.serie}-{cobro.factura.numero:04d}"
+            if cobro.factura
+            else "Sin factura asociada"
+        )
     pdf_bytes = generar_recibo_pdf(
         numero_recibo=str(cobro.id),
         fecha=cobro.fecha,

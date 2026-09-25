@@ -7,6 +7,7 @@ from app.core.persistence.audit_log import AuditLog
 from app.core.persistence.backup import BackupRegistro
 from app.domains.ai.persistence.copilot import CopilotSession
 from app.domains.ai.persistence.dictado import DictadoClinico
+from app.domains.billing.persistence.cuenta import AplicacionPago, CargoPaciente, OperacionCheckout
 from app.domains.billing.persistence.entidad import Entidad
 from app.domains.billing.persistence.factura import (
     Cobro,
@@ -69,6 +70,9 @@ from app.domains.treatment_plans.persistence.presupuesto import (
 )
 
 __all__ = [
+    "CargoPaciente",
+    "AplicacionPago",
+    "OperacionCheckout",
     "CopilotSession",
     "Doctor",
     "Clinica",

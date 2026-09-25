@@ -107,9 +107,12 @@ class Cobro(UUIDMixin, TimestampMixin, Base):
     """Movimientos de caja — pagos recibidos."""
     __tablename__ = "cobros"
 
-    factura_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("facturas.id"), nullable=False
+    factura_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("facturas.id"), nullable=True
     )
+    paciente_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("pacientes.id"), nullable=True, index=True)
+    clinica_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("clinicas.id"), nullable=True, index=True)
+    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     importe: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     forma_pago_id: Mapped[uuid.UUID] = mapped_column(
@@ -125,7 +128,7 @@ class Cobro(UUIDMixin, TimestampMixin, Base):
     )
     motivo_anulacion: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    factura: Mapped["Factura"] = relationship("Factura", back_populates="cobros")
+    factura: Mapped["Factura | None"] = relationship("Factura", back_populates="cobros")
     forma_pago: Mapped["FormaPago"] = relationship("FormaPago")
     usuario: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[usuario_id])  # noqa: F821
     anulado_por: Mapped["Usuario"] = relationship("Usuario", foreign_keys=[anulado_por_id])  # noqa: F821

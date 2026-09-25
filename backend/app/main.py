@@ -12,7 +12,7 @@ from app.core.backups.scheduler import start_backup_scheduler
 from app.core.http_security import SecurityHeadersMiddleware
 from app.core.permissions import RequireStaff
 from app.domains.ai.api import assistant, dictado
-from app.domains.billing.api import facturas, pdf
+from app.domains.billing.api import cuentas, facturas, pdf
 from app.domains.clinical.api import consentimientos, documentos, odontograma, recetas, tratamientos
 from app.domains.communications.api import notificaciones, whatsapp
 from app.domains.identity.api import admin, auth, clinicas, doctores, fichajes
@@ -70,6 +70,7 @@ app.include_router(doctores.router, prefix="/api/doctores", tags=["doctores"], d
 app.include_router(tratamientos.router, prefix="/api/tratamientos", tags=["tratamientos"], dependencies=staff_only)
 app.include_router(presupuestos.router, prefix="/api/presupuestos", tags=["presupuestos"], dependencies=staff_only)
 app.include_router(facturas.router, prefix="/api/facturas", tags=["facturas"], dependencies=staff_only)
+app.include_router(cuentas.router, prefix="/api/cuentas", tags=["cuentas"], dependencies=staff_only)
 app.include_router(fichajes.router, prefix="/api/fichajes", tags=["fichajes"], dependencies=staff_only)
 app.include_router(reportes.router, prefix="/api/reportes", tags=["reportes"], dependencies=staff_only)
 app.include_router(registros.router, prefix="/api/registros", tags=["registros"], dependencies=staff_only)

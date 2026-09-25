@@ -16,7 +16,8 @@ from app.core.permissions import (
     scope_select_by_clinic,
 )
 from app.database import get_db
-from app.domains.billing.persistence.factura import Cobro, Factura
+from app.domains.billing.persistence.account_queries import account_totals
+from app.domains.billing.persistence.factura import Cobro, Factura, PagoAnticipadoPaciente
 from app.domains.clinical.persistence.historial import HistorialClinico
 from app.domains.clinical.persistence.tratamiento import TratamientoCatalogo
 from app.domains.identity.persistence.doctor import Doctor
@@ -58,35 +59,16 @@ async def _facturacion_resumen(
     facturas_stmt = _apply_clinic(facturas_stmt, Factura, current_user)
     num_facturas, total_facturado = (await db.execute(facturas_stmt)).one()
 
-    cobros_stmt = (
-        select(func.coalesce(func.sum(Cobro.importe), Decimal("0")))
-        .join(Factura, Factura.id == Cobro.factura_id)
-        .where(
-            _clinic_date(Cobro.fecha) >= fecha_desde,
-            _clinic_date(Cobro.fecha) <= fecha_hasta,
-            Cobro.anulado_at.is_(None),
-            Factura.estado != "anulada",
-        )
-    )
-    clinic_filter = _clinic_condition(Factura, current_user)
-    if clinic_filter is not None:
-        cobros_stmt = cobros_stmt.where(clinic_filter)
-    total_cobrado = (await db.execute(cobros_stmt)).scalar_one()
-
-    pendientes_stmt = select(func.coalesce(func.sum(Factura.total), Decimal("0"))).where(Factura.estado != "anulada")
-    pendientes_stmt = _apply_clinic(pendientes_stmt, Factura, current_user)
-    total_facturas_vivas = (await db.execute(pendientes_stmt)).scalar_one()
-
-    cobros_vivos_stmt = (
-        select(func.coalesce(func.sum(Cobro.importe), Decimal("0")))
-        .join(Factura, Factura.id == Cobro.factura_id)
-        .where(Cobro.anulado_at.is_(None), Factura.estado != "anulada")
-    )
-    if clinic_filter is not None:
-        cobros_vivos_stmt = cobros_vivos_stmt.where(clinic_filter)
-    total_cobros_vivos = (await db.execute(cobros_vivos_stmt)).scalar_one()
-
-    pendiente_global = total_facturas_vivas - total_cobros_vivos
+    total_cobrado = Decimal("0")
+    for model in (Cobro, PagoAnticipadoPaciente):
+        payments = select(func.coalesce(func.sum(model.importe), 0)).where(
+            _clinic_date(model.fecha) >= fecha_desde, _clinic_date(model.fecha) <= fecha_hasta,
+            model.anulado_at.is_(None))
+        payments = _apply_clinic(payments, model, current_user)
+        total_cobrado += (await db.execute(payments)).scalar_one()
+    charges, received = account_totals(current_user)
+    accounts = _apply_clinic(select(func.greatest(charges-received, 0).label("pending")), Paciente, current_user).select_from(Paciente).subquery()
+    pendiente_global = await db.scalar(select(func.coalesce(func.sum(accounts.c.pending), 0)))
     ticket_medio = total_facturado / num_facturas if num_facturas else Decimal("0")
     return {
         "num_facturas": int(num_facturas or 0),
@@ -252,19 +234,7 @@ async def _citas_doctores(
 
 
 async def _pacientes_deuda(db: AsyncSession, current_user: CurrentUser, limit: int = 8) -> list[dict]:
-    facturado_total = (
-        select(func.coalesce(func.sum(Factura.total), Decimal("0")))
-        .where(Factura.paciente_id == Paciente.id, Factura.estado != "anulada")
-        .correlate(Paciente)
-        .scalar_subquery()
-    )
-    cobrado_total = (
-        select(func.coalesce(func.sum(Cobro.importe), Decimal("0")))
-        .join(Factura, Factura.id == Cobro.factura_id)
-        .where(Factura.paciente_id == Paciente.id, Factura.estado != "anulada", Cobro.anulado_at.is_(None))
-        .correlate(Paciente)
-        .scalar_subquery()
-    )
+    facturado_total, cobrado_total = account_totals(current_user)
     saldo = func.coalesce(facturado_total - cobrado_total, Decimal("0"))
     stmt = (
         select(Paciente.id, Paciente.num_historial, Paciente.nombre, Paciente.apellidos, saldo.label("saldo_pendiente"))
@@ -299,20 +269,13 @@ async def _facturacion_mensual(db: AsyncSession, current_user: CurrentUser, anno
     facturas_stmt = _apply_clinic(facturas_stmt, Factura, current_user)
     facturas = {int(r.mes): {"facturado": float(r.facturado or 0), "num_facturas": int(r.num_facturas or 0)} for r in await db.execute(facturas_stmt)}
 
-    cobro_mes = func.extract("month", _clinic_date(Cobro.fecha))
-    cobros_stmt = (
-        select(
-            cobro_mes.label("mes"),
-            func.coalesce(func.sum(Cobro.importe), Decimal("0")).label("cobrado"),
-        )
-        .join(Factura, Factura.id == Cobro.factura_id)
-        .where(func.extract("year", _clinic_date(Cobro.fecha)) == anno, Cobro.anulado_at.is_(None), Factura.estado != "anulada")
-        .group_by(cobro_mes)
-    )
-    clinic_filter = _clinic_condition(Factura, current_user)
-    if clinic_filter is not None:
-        cobros_stmt = cobros_stmt.where(clinic_filter)
-    cobros = {int(r.mes): float(r.cobrado or 0) for r in await db.execute(cobros_stmt)}
+    cobros = {}
+    for model in (Cobro, PagoAnticipadoPaciente):
+        month = func.extract("month", _clinic_date(model.fecha))
+        statement = select(month.label("mes"), func.sum(model.importe).label("cobrado")).where(
+            func.extract("year", _clinic_date(model.fecha)) == anno, model.anulado_at.is_(None)).group_by(month)
+        for row in await db.execute(_apply_clinic(statement, model, current_user)):
+            cobros[int(row.mes)] = cobros.get(int(row.mes), 0) + float(row.cobrado or 0)
 
     return [
         {
@@ -479,19 +442,7 @@ async def listado_pacientes(
         .correlate(Paciente)
         .scalar_subquery()
     )
-    facturado_total = (
-        select(func.coalesce(func.sum(Factura.total), Decimal("0")))
-        .where(Factura.paciente_id == Paciente.id, Factura.estado != "anulada")
-        .correlate(Paciente)
-        .scalar_subquery()
-    )
-    cobrado_total = (
-        select(func.coalesce(func.sum(Cobro.importe), Decimal("0")))
-        .join(Factura, Factura.id == Cobro.factura_id)
-        .where(Factura.paciente_id == Paciente.id, Factura.estado != "anulada", Cobro.anulado_at.is_(None))
-        .correlate(Paciente)
-        .scalar_subquery()
-    )
+    facturado_total, cobrado_total = account_totals(current_user)
 
     stmt = (
         select(

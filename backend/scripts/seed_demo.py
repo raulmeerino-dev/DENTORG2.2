@@ -29,6 +29,7 @@ from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy m
 from app.core.crypto import cifrar_campos_paciente
 from app.core.security import hash_password
 from app.database import AsyncSessionLocal
+from app.domains.billing.application.ledger import ensure_history_charge
 from app.domains.clinical.domain.tratamientos_base import (
     FAMILIAS_TRATAMIENTO_BASE,
     TRATAMIENTOS_BASE,
@@ -405,6 +406,9 @@ async def seed():
                     observaciones="Revisión de mantenimiento. Todo correcto."),
             ]
             session.add_all(historial_entries)
+            await session.flush()
+            for entry in historial_entries:
+                await ensure_history_charge(session, entry)
             print(f"✓ Historial clínico: {len(historial_entries)} entradas")
         else:
             print(f"· Historial ya existe: {len(hist_existente)} entradas")

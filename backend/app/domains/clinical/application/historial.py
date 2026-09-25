@@ -10,6 +10,8 @@ from sqlalchemy.orm import selectinload
 
 from app.core.audit_log import write_audit_log
 from app.core.permissions import TokenData, ensure_clinic_access
+from app.domains.billing.application.ledger import ensure_history_charge
+from app.domains.billing.persistence.cuenta import CargoPaciente
 from app.domains.clinical.application.patient_context import (
     current_user_doctor_id,
     get_history_patient_or_404,
@@ -93,6 +95,7 @@ async def registrar_tratamiento(
     entrada = HistorialClinico(**data.model_dump())
     db.add(entrada)
     await db.flush()
+    await ensure_history_charge(db, entrada)
     await write_audit_log(
         db,
         user=current_user,
@@ -207,10 +210,23 @@ async def actualizar_entrada_historial(
         presupuesto_linea_id=data.presupuesto_linea_id,
         cita_id=data.cita_id,
     )
+    await db.scalar(select(Paciente.id).where(Paciente.id == historial.paciente_id).with_for_update())
     changes = data.model_dump(exclude_none=True)
+    cargo = await db.scalar(select(CargoPaciente).where(CargoPaciente.historial_id == historial.id))
+    if cargo and "estado" in changes and changes["estado"] not in {"realizado", "facturado"}:
+        raise HTTPException(409, "El tratamiento tiene un cargo. No se puede borrar su realización cambiando el estado.")
+    if cargo and "importe" in changes and changes["importe"] != historial.importe:
+        from app.domains.billing.application.ledger import load_ledger, money
+        ledger = await load_ledger(db, historial.paciente_id)
+        if cargo.factura_id or ledger.applied(cargo.id):
+            raise HTTPException(409, "El cargo ya está cobrado o facturado; no se puede sobrescribir su importe.")
+        cargo.base = money(changes["importe"])
+        cargo.importe = cargo.base + money(cargo.base * cargo.iva_porcentaje / 100)
+        cargo.motivo_cero = changes.get("observaciones") or "Importe cero registrado por el profesional" if cargo.base == 0 else None
     old_values = {field: getattr(historial, field) for field in changes}
     for field, value in changes.items():
         setattr(historial, field, value)
+    await ensure_history_charge(db, historial)
     await write_audit_log(
         db,
         user=current_user,
@@ -238,5 +254,7 @@ async def eliminar_entrada_historial(
         raise HTTPException(status_code=404, detail="Entrada no encontrada")
     paciente = await get_history_patient_or_404(db, h.paciente_id)
     ensure_clinic_access(current_user, paciente.clinica_id)
+    if await db.scalar(select(CargoPaciente.id).where(CargoPaciente.historial_id == h.id)):
+        raise HTTPException(409, "El tratamiento tiene un cargo económico y no puede eliminarse.")
     await db.delete(h)
     await db.commit()

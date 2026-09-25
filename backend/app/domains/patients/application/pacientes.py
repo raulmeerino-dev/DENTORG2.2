@@ -1,6 +1,5 @@
 """Application use cases: tenant checks, orchestration and existing transactions."""
 from datetime import date, datetime, timezone
-from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -369,38 +368,15 @@ async def proximas_citas_paciente(paciente_id: UUID, db: AsyncSession, current_u
 
 
 async def saldo_paciente(paciente_id: UUID, db: AsyncSession, current_user: TokenData) -> SaldoPacienteResponse:
-    paciente = await _get_paciente_or_404(db, paciente_id)
-    ensure_clinic_access(current_user, paciente.clinica_id)
-    result = await db.execute(
-        select(Factura)
-        .options(selectinload(Factura.cobros))
-        .where(Factura.paciente_id == paciente_id, Factura.estado != "anulada")
-    )
-    facturas = result.scalars().all()
-    anticipos_result = await db.execute(
-        select(PagoAnticipadoPaciente).where(
-            PagoAnticipadoPaciente.paciente_id == paciente_id,
-            PagoAnticipadoPaciente.anulado_at.is_(None),
-        )
-    )
-    anticipos = anticipos_result.scalars().all()
-    total_facturado = sum((factura.total for factura in facturas), Decimal("0.00"))
-    total_cobrado = sum(
-        (cobro.importe for factura in facturas for cobro in factura.cobros if cobro.anulado_at is None),
-        Decimal("0.00"),
-    ) + sum((anticipo.importe for anticipo in anticipos), Decimal("0.00"))
-    pendiente = total_facturado - total_cobrado
-    facturas_pendientes = sum(1 for factura in facturas if factura.total > sum(
-        (cobro.importe for cobro in factura.cobros if cobro.anulado_at is None),
-        Decimal("0.00"),
-    ))
-    return SaldoPacienteResponse(
-        paciente_id=paciente_id,
-        total_facturado=total_facturado,
-        total_cobrado=total_cobrado,
-        pendiente=pendiente,
-        facturas_pendientes=facturas_pendientes,
-    )
+    from app.domains.billing.application.ledger import read_account
+    from app.domains.billing.persistence.account_queries import invoice_paid
+    account = await read_account(db, paciente_id, current_user)
+    scope = [] if current_user.rol == "admin" else [(Factura.clinica_id == current_user.clinica_id) | Factura.clinica_id.is_(None)]
+    total = await db.scalar(select(func.coalesce(func.sum(Factura.total), 0)).where(Factura.paciente_id == paciente_id, Factura.estado != "anulada", *scope))
+    pending = await db.scalar(select(func.count()).select_from(Factura).where(Factura.paciente_id == paciente_id, Factura.estado != "anulada", Factura.total > invoice_paid(), *scope))
+    return SaldoPacienteResponse(paciente_id=paciente_id, total_facturado=total,
+        total_cargos=account.total_cargos, total_cobrado=account.total_cobrado, pendiente=account.saldo,
+        saldo_favor=account.saldo_favor, sin_valorar=account.sin_valorar, facturas_pendientes=pending)
 
 
 async def listar_pagos_anticipados(paciente_id: UUID, db: AsyncSession, current_user: TokenData) -> list[PagoAnticipadoResponse]:
@@ -417,7 +393,8 @@ async def listar_pagos_anticipados(paciente_id: UUID, db: AsyncSession, current_
 
 async def crear_pago_anticipado(paciente_id: UUID, data: PagoAnticipadoCreate, request: Request, db: AsyncSession, current_user: TokenData) -> PagoAnticipadoResponse:
     ensure_can_modify_billing(current_user)
-    paciente = await _get_paciente_or_404(db, paciente_id)
+    from app.domains.billing.application.ledger import account_patient
+    paciente = await account_patient(db, paciente_id, current_user, lock=True)
     ensure_clinic_access(current_user, paciente.clinica_id)
     forma_pago = await db.get(FormaPago, data.forma_pago_id)
     if not forma_pago:
@@ -461,7 +438,8 @@ async def crear_pago_anticipado(paciente_id: UUID, data: PagoAnticipadoCreate, r
 
 async def actualizar_pago_anticipado(paciente_id: UUID, pago_id: UUID, data: PagoAnticipadoUpdate, request: Request, db: AsyncSession, current_user: TokenData) -> PagoAnticipadoResponse:
     ensure_can_modify_billing(current_user)
-    paciente = await _get_paciente_or_404(db, paciente_id)
+    from app.domains.billing.application.ledger import account_patient
+    paciente = await account_patient(db, paciente_id, current_user, lock=True)
     ensure_clinic_access(current_user, paciente.clinica_id)
     result = await db.execute(
         select(PagoAnticipadoPaciente)
@@ -480,6 +458,9 @@ async def actualizar_pago_anticipado(paciente_id: UUID, pago_id: UUID, data: Pag
         "concepto": pago.concepto,
         "notas": pago.notas,
     }
+    from app.domains.billing.persistence.cuenta import AplicacionPago
+    if {"importe", "forma_pago_id"} & data.model_fields_set and await db.scalar(select(AplicacionPago.id).where(AplicacionPago.anticipo_id == pago.id).limit(1)):
+        raise HTTPException(409, "El anticipo ya se aplicó a cargos. No puede modificarse su importe ni forma de pago.")
     cambios = data.model_dump(exclude_unset=True)
     if "forma_pago_id" in cambios:
         forma_pago = await db.get(FormaPago, cambios["forma_pago_id"])

@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.core.crypto import decrypt_sql_expr
 from app.core.permissions import BILLING_ROLES, CLINICAL_DATA_ROLES, TokenData
 from app.core.persistence.audit_log import AuditLog
+from app.domains.billing.persistence.account_queries import account_totals, invoice_paid
 from app.domains.billing.persistence.factura import (
     Cobro,
     Factura,
@@ -152,7 +153,7 @@ def realizados(user, requested_clinic=None, search_dni=False):
 
 
 def facturas(user, requested_clinic=None, search_dni=False):
-    paid = select(func.coalesce(func.sum(Cobro.importe), 0)).where(Cobro.factura_id == Factura.id, Cobro.anulado_at.is_(None)).correlate(Factura).scalar_subquery()
+    paid = invoice_paid()
     concepts = select(func.string_agg(FacturaLinea.concepto, " ")).where(FacturaLinea.factura_id == Factura.id).correlate(Factura).scalar_subquery()
     return _patient_source(Factura, user, {
         "kind": literal("factura"), "fecha": Factura.fecha, "estado": Factura.estado,
@@ -164,7 +165,7 @@ def facturas(user, requested_clinic=None, search_dni=False):
 
 
 def _payment(user, model, kind, requested_clinic=None, search_dni=False):
-    patient = model.paciente_id if model is PagoAnticipadoPaciente else Factura.paciente_id
+    patient = model.paciente_id if model is PagoAnticipadoPaciente else func.coalesce(Cobro.paciente_id, Factura.paciente_id)
     values = {
         "id": model.id, "kind": literal(kind), "patient_id": patient,
         "clinic_id": Paciente.clinica_id, "paciente": patient_name(), "historia": Paciente.num_historial,
@@ -172,7 +173,7 @@ def _payment(user, model, kind, requested_clinic=None, search_dni=False):
         "instant": model.fecha,
         "tipo": literal(kind), "estado": case((model.anulado_at.is_(None), "vigente"), else_="anulado"),
         "profesional": Usuario.nombre, "concepto": FormaPago.nombre,
-        "numero": func.concat(Factura.serie, "-", Factura.numero) if kind == "cobro" else literal("Anticipo"),
+        "numero": case((Factura.id.is_(None), "Pago de cuenta"), else_=func.concat(Factura.serie, "-", Factura.numero)) if kind == "cobro" else literal("Anticipo"),
     }
     parts = [patient_name(), cast(Paciente.num_historial, String), values["numero"], FormaPago.nombre, Usuario.nombre]
     if search_dni:
@@ -180,10 +181,10 @@ def _payment(user, model, kind, requested_clinic=None, search_dni=False):
     values["search"] = func.concat_ws(" ", *parts)
     stmt = select(*normalized_columns(values)).select_from(model)
     if kind == "cobro":
-        stmt = stmt.join(Factura, Factura.id == Cobro.factura_id)
+        stmt = stmt.outerjoin(Factura, Factura.id == Cobro.factura_id)
     stmt = stmt.join(Paciente, Paciente.id == patient).outerjoin(Clinica, Clinica.id == Paciente.clinica_id).outerjoin(Usuario, Usuario.id == model.usuario_id).outerjoin(FormaPago, FormaPago.id == model.forma_pago_id)
     stmt = _scope(stmt, user, Paciente.clinica_id, requested_clinic)
-    clinic_col = Factura.clinica_id if kind == "cobro" else model.clinica_id
+    clinic_col = func.coalesce(Cobro.clinica_id, Factura.clinica_id) if kind == "cobro" else model.clinica_id
     if user.rol != "admin":
         stmt = stmt.where((clinic_col == user.clinica_id) | clinic_col.is_(None))
     return stmt
@@ -197,14 +198,12 @@ def saldos(user, requested_clinic=None, search_dni=False):
     # Same formula as the patient's canonical account, including advances and
     # excluding cancelled invoices/payments. Subqueries aggregate in PostgreSQL.
     invoice_scope = [] if user.rol == "admin" else [(Factura.clinica_id == user.clinica_id) | Factura.clinica_id.is_(None)]
-    advance_scope = [] if user.rol == "admin" else [(PagoAnticipadoPaciente.clinica_id == user.clinica_id) | PagoAnticipadoPaciente.clinica_id.is_(None)]
     billed = select(func.coalesce(func.sum(Factura.total), 0)).where(Factura.paciente_id == Paciente.id, Factura.estado != "anulada", *invoice_scope).correlate(Paciente).scalar_subquery()
-    paid = select(func.coalesce(func.sum(Cobro.importe), 0)).join(Factura, Factura.id == Cobro.factura_id).where(Factura.paciente_id == Paciente.id, Factura.estado != "anulada", Cobro.anulado_at.is_(None), *invoice_scope).correlate(Paciente).scalar_subquery()
-    advance = select(func.coalesce(func.sum(PagoAnticipadoPaciente.importe), 0)).where(PagoAnticipadoPaciente.paciente_id == Paciente.id, PagoAnticipadoPaciente.anulado_at.is_(None), *advance_scope).correlate(Paciente).scalar_subquery()
-    balance = billed - paid - advance
+    charges, paid = account_totals(user)
+    balance = charges - paid
     return _patient_source(Paciente, user, {
         "kind": literal("paciente"), "doctor_id": Paciente.doctor_habitual_id,
-        "profesional": Doctor.nombre, "facturado": billed, "cobrado": paid + advance,
+        "profesional": Doctor.nombre, "facturado": billed, "cobrado": paid,
         "saldo": balance, "estado": case((balance > 0, "deuda"), (balance < 0, "a_favor"), else_="saldado"),
         "tipo": literal("saldo"), "_search_dni": search_dni,
     }, joins=[(Doctor, Doctor.id == Paciente.doctor_habitual_id)], requested_clinic=requested_clinic)

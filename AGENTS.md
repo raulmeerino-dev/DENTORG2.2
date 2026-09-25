@@ -124,17 +124,17 @@ Paciente
 → Trabajo pendiente
 → Cita
 → Pedido laboratorio si procede
-→ Tratamiento realizado
-→ Historial clínico
-→ Factura
-→ Cobro
-→ Historial completo
+→ Tratamiento realizado y cargo del paciente
+→ Finalizar visita y Pendiente de salida
+→ Cobro total, parcial o saldo pendiente
+→ Factura vinculada cuando corresponda
+→ Historial clínico y económico
 
 Reglas:
 - Un presupuesto aceptado debe poder pasar a pendiente.
 - Un pendiente realizado debe aparecer en realizados e historial.
 - Un tratamiento facturado debe quedar vinculado a factura.
-- Un cobro debe actualizar saldo.
+- Un cobro debe actualizar saldo, exista o no factura previa. Los cargos y pagos son la fuente del saldo; la factura documenta los cargos. Ver `docs/patient-checkout.md`.
 - Una anulación o revocación no debe borrar trazabilidad.
 - El historial completo debe contar toda la historia del paciente.
 

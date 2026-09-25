@@ -24,6 +24,7 @@ from app.core import model_registry  # noqa: E402,F401
 from app.core.crypto import cifrar_campos_paciente  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.database import AsyncSessionLocal  # noqa: E402
+from app.domains.billing.persistence.cuenta import CargoPaciente, AplicacionPago  # noqa: E402
 from app.domains.billing.persistence.factura import (  # noqa: E402
     Cobro,
     Factura,
@@ -348,6 +349,25 @@ async def seed():
                                 notas="REGQA cobro sintetico",
                             )
                         )
+            await db.flush()
+            for index in range(1040):
+                key = "a" if index < 1000 else "b"
+                amount = Decimal(50 + (index % 20) * 10)
+                db.add(CargoPaciente(id=fixture_id(f"charge-{index}"), paciente_id=fixture_id(f"patient-{index}"),
+                    clinica_id=fixture_id(f"clinic-{key}"), historial_id=fixture_id(f"history-{index}"),
+                    factura_id=fixture_id(f"invoice-{index}") if index % 2 == 0 else None,
+                    factura_linea_id=fixture_id(f"invoice-line-{index}") if index % 2 == 0 else None,
+                    concepto=f"REGQA tratamiento sintetico {index:04d}", fecha=date(2026,1,1)+timedelta(days=index%240),
+                    base=amount, importe=amount, doctor_id=fixture_id(f"doctor-{key}"), tratamiento_id=treatment.id, pieza_dental=36))
+                if index % 2 == 0 and index % 3 != 2:
+                    payment = await db.get(Cobro, fixture_id(f"payment-{index}"))
+                    payment.paciente_id = fixture_id(f"patient-{index}")
+                    payment.clinica_id = fixture_id(f"clinic-{key}")
+            await db.flush()
+            for index in range(0,1040,2):
+                if index % 3 != 2:
+                    amount = Decimal(50 + (index % 20) * 10)
+                    db.add(AplicacionPago(cargo_id=fixture_id(f"charge-{index}"), cobro_id=fixture_id(f"payment-{index}"), importe=amount if index%3==0 else amount/2))
             await db.commit()
             print("REGQA fixtures created atomically.")
     manifest_path = ROOT / "tmp" / "runtime" / "records-fixtures.json"

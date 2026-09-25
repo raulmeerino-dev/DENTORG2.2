@@ -1,4 +1,5 @@
 """Archivo inmutable de PDFs fiscales emitidos."""
+
 from __future__ import annotations
 
 import hashlib
@@ -44,7 +45,7 @@ async def cargar_factura_para_pdf(db: AsyncSession, factura_id: UUID) -> Factura
     return result.scalar_one_or_none()
 
 
-def build_factura_pdf_bytes(factura: Factura) -> bytes:
+def build_factura_pdf_bytes(factura: Factura, *, applied_payments=None) -> bytes:
     pac = factura.paciente
     url_qr = None
     if factura.huella:
@@ -62,7 +63,7 @@ def build_factura_pdf_bytes(factura: Factura) -> bytes:
             "importe": c.importe,
             "forma_pago": c.forma_pago.nombre if c.forma_pago else "",
         }
-        for c in factura.cobros
+        for c in (factura.cobros if applied_payments is None else applied_payments)
         if c.anulado_at is None
     ]
     lineas_data = [
@@ -123,7 +124,10 @@ async def archivar_pdf_factura(
     if existing:
         return existing
 
-    pdf_bytes = build_factura_pdf_bytes(factura)
+    from app.domains.billing.application.invoice_account import invoice_response
+
+    document = await invoice_response(db, factura)
+    pdf_bytes = build_factura_pdf_bytes(factura, applied_payments=document.cobros)
     ruta = _path_for_factura(factura)
     settings = get_settings()
     base_path = Path(getattr(settings, "storage_root", "."))

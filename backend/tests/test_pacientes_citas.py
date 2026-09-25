@@ -1419,6 +1419,10 @@ async def test_dashboard_bi_agrega_datos_clinicos_y_economicos(client: AsyncClie
     ])
     await db_session.commit()
 
+    from tests.billing_fixtures import backfill_account_ledger
+    await backfill_account_ledger(db_session)
+    await db_session.commit()
+
     response = await client.get("/api/reportes/dashboard", headers=headers)
     assert response.status_code == 200
     data = response.json()

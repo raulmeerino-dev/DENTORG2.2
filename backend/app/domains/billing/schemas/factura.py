@@ -67,6 +67,7 @@ class FacturaLineaResponse(BaseModel):
 # ─── Cobros ───────────────────────────────────────────────────────────────────
 
 class CobroCreate(BaseModel):
+    request_id: UUID | None = None
     importe: Decimal = Field(..., gt=0)
     forma_pago_id: UUID
     notas: str | None = None
@@ -78,7 +79,8 @@ class CobroAnulacionCreate(BaseModel):
 
 class CobroResponse(BaseModel):
     id: UUID
-    factura_id: UUID
+    factura_id: UUID | None
+    origen: str = "cobro"
     fecha: datetime
     importe: Decimal
     forma_pago_id: UUID
@@ -221,6 +223,9 @@ class FacturaResponse(BaseModel):
 class SaldoPacienteResponse(BaseModel):
     paciente_id: UUID
     total_facturado: Decimal
+    total_cargos: Decimal = Decimal("0")
+    saldo_favor: Decimal = Decimal("0")
+    sin_valorar: int = 0
     total_cobrado: Decimal
     pendiente: Decimal
     facturas_pendientes: int

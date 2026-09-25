@@ -4,7 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,12 +12,16 @@ from app.core.permissions import (
     TokenData,
     ensure_clinic_access,
 )
+from app.domains.billing.application.facturas import _siguiente_numero
 from app.domains.billing.application.fiscal_document_service import archivar_pdf_factura
+from app.domains.billing.application.invoice_account import invoice_response, link_invoice_charges
+from app.domains.billing.application.ledger import account_patient
 from app.domains.billing.application.verifactu_service import (
     registrar_evento_sif,
     registrar_registro_facturacion,
     sellar_factura,
 )
+from app.domains.billing.persistence.cuenta import CargoPaciente
 from app.domains.billing.persistence.factura import Cobro, Factura, FacturaLinea
 from app.domains.billing.schemas.factura import FacturaResponse
 from app.domains.clinical.persistence.historial import HistorialClinico
@@ -47,11 +51,7 @@ async def _get_factura_response(db: AsyncSession, factura_id: UUID) -> Factura:
 
 
 async def _siguiente_numero_factura(db: AsyncSession, serie: str, clinica_id: UUID | None) -> int:
-    stmt = select(func.max(Factura.numero)).where(Factura.serie == serie)
-    if clinica_id:
-        stmt = stmt.where(Factura.clinica_id == clinica_id)
-    result = await db.execute(stmt)
-    return (result.scalar_one_or_none() or 0) + 1
+    return await _siguiente_numero(db, serie)
 
 
 def _detalle_factura(factura: Factura) -> dict:
@@ -72,16 +72,6 @@ def _importe_linea(linea: PresupuestoLinea) -> tuple[Decimal, Decimal, Decimal]:
     return base, iva, base + iva
 
 
-def _totales_factura(lineas: list[PresupuestoLinea]) -> tuple[Decimal, Decimal, Decimal]:
-    subtotal = Decimal("0.00")
-    iva_total = Decimal("0.00")
-    for linea in lineas:
-        base, iva, _ = _importe_linea(linea)
-        subtotal += base
-        iva_total += iva
-    return subtotal, iva_total, subtotal + iva_total
-
-
 async def convertir_presupuesto_a_factura(
     presupuesto_id: UUID,
     data: PresupuestoConvertirFacturaCreate,
@@ -90,6 +80,8 @@ async def convertir_presupuesto_a_factura(
 ) -> FacturaResponse:
     presupuesto = await get_presupuesto_or_404(db, presupuesto_id)
     ensure_clinic_access(current_user, presupuesto.clinica_id)
+    await account_patient(db, presupuesto.paciente_id, current_user, lock=True)
+    await db.refresh(presupuesto, ["estado"])
     if presupuesto.estado == "facturado":
         raise HTTPException(status_code=409, detail="El presupuesto ya esta facturado")
 
@@ -101,7 +93,33 @@ async def convertir_presupuesto_a_factura(
     if not lineas:
         raise HTTPException(status_code=409, detail="No hay lineas aceptadas para facturar")
 
-    subtotal, iva_total, total = _totales_factura(lineas)
+    charges = (
+        await db.scalars(
+            select(CargoPaciente).where(
+                CargoPaciente.presupuesto_linea_id.in_([line.id for line in lineas]),
+                CargoPaciente.estado == "activo",
+            )
+        )
+    ).all()
+    snapshots = {c.presupuesto_linea_id: c for c in charges}
+    if any(c.factura_id or c.importe is None for c in charges):
+        raise HTTPException(
+            409,
+            "Hay tratamientos ya documentados o pendientes de valorar. Revisa la cuenta del paciente.",
+        )
+    amounts = {
+        line.id: (
+            snapshots[line.id].base,
+            snapshots[line.id].importe - snapshots[line.id].base,
+            snapshots[line.id].importe,
+        )
+        if line.id in snapshots
+        else _importe_linea(line)
+        for line in lineas
+    }
+    subtotal = sum((values[0] for values in amounts.values()), Decimal("0"))
+    iva_total = sum((values[1] for values in amounts.values()), Decimal("0"))
+    total = subtotal + iva_total
     numero = await _siguiente_numero_factura(db, data.serie, presupuesto.clinica_id)
     factura = Factura(
         paciente_id=presupuesto.paciente_id,
@@ -129,26 +147,41 @@ async def convertir_presupuesto_a_factura(
         trabajo.presupuesto_linea_id: trabajo for trabajo in trabajos_result.scalars().all()
     }
 
+    generated_lines = []
     for linea in lineas:
-        base, iva, total_linea = _importe_linea(linea)
+        base, iva, total_linea = amounts[linea.id]
+        snapshot = snapshots.get(linea.id)
         trabajo = trabajos_por_linea.get(linea.id)
         historial_id = trabajo.historial_id if trabajo else None
-        db.add(
-            FacturaLinea(
-                factura_id=factura.id,
-                historial_id=historial_id,
-                concepto=linea.tratamiento.nombre,
-                cantidad=1,
-                precio_unitario=base,
-                iva_porcentaje=linea.tratamiento.iva_porcentaje,
-                subtotal=total_linea,
+        if not historial_id:
+            historial_id = await db.scalar(
+                select(HistorialClinico.id)
+                .where(HistorialClinico.presupuesto_linea_id == linea.id)
+                .limit(1)
             )
+        invoice_line = FacturaLinea(
+            factura_id=factura.id,
+            historial_id=historial_id,
+            concepto=(snapshot.concepto if snapshot else linea.tratamiento.nombre)[:200],
+            cantidad=1,
+            precio_unitario=base,
+            iva_porcentaje=snapshot.iva_porcentaje
+            if snapshot
+            else linea.tratamiento.iva_porcentaje,
+            subtotal=total_linea,
         )
-        if historial_id:
-            historial = await db.get(HistorialClinico, historial_id)
-            if historial and historial.factura_id is None:
-                historial.factura_id = factura.id
-
+        db.add(invoice_line)
+        generated_lines.append((linea, invoice_line))
+    await db.flush()
+    await link_invoice_charges(db, factura)
+    # Explicit plan relation also prevents a second charge when a prepaid plan is performed later.
+    for source, invoice_line in generated_lines:
+        charge = await db.scalar(
+            select(CargoPaciente).where(CargoPaciente.factura_linea_id == invoice_line.id)
+        )
+        if charge:
+            charge.presupuesto_linea_id = source.id
+            charge.descuento_porcentaje = source.descuento_porcentaje
     presupuesto.estado = "facturado"
     await sellar_factura(db, factura)
     await registrar_registro_facturacion(
@@ -169,4 +202,4 @@ async def convertir_presupuesto_a_factura(
     factura_pdf = await _get_factura_response(db, factura.id)
     await archivar_pdf_factura(db, factura=factura_pdf, created_by_id=current_user.user_id)
     await db.commit()
-    return FacturaResponse.model_validate(await _get_factura_response(db, factura.id))
+    return await invoice_response(db, await _get_factura_response(db, factura.id))

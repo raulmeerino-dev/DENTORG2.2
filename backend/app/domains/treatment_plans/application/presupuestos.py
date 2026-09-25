@@ -265,13 +265,15 @@ async def _ensure_historial_for_trabajo_pendiente(
         procedimiento=linea.tratamiento.nombre if linea.tratamiento else "Tratamiento realizado",
         observaciones=f"Realizado desde trabajo pendiente del presupuesto {linea.presupuesto.numero}",
         estado="realizado",
-        importe=linea.precio_unitario,
+        importe=linea.precio_unitario * (1 - linea.descuento_porcentaje / 100),
         origen="presupuesto_linea",
         presupuesto_linea_id=linea.id,
     )
     db.add(entrada)
     await db.flush()
     trabajo.historial_id = entrada.id
+    from app.domains.billing.application.ledger import ensure_history_charge
+    await ensure_history_charge(db, entrada)
 
 
 async def listar_presupuestos(

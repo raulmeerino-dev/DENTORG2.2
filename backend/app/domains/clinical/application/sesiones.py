@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import TokenData, ensure_clinic_access
+from app.domains.billing.application.ledger import ensure_history_charge
 from app.domains.clinical.application.patient_context import (
     current_user_doctor_id,
     validate_history_links,
@@ -495,6 +496,7 @@ async def finalizar_tratamiento_sesion(
         presupuesto_linea_id=data.presupuesto_linea_id,
         current_user=current_user,
     )
+    await ensure_history_charge(db, historial)
     await db.commit()
     result = await db.execute(
         select(HistorialClinico)
