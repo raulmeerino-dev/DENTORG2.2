@@ -40,7 +40,7 @@
 .dc-patient-summary { display: grid; grid-template-columns: minmax(270px, 1fr) minmax(280px, 1.1fr) minmax(270px, 1fr); min-height: 100%; align-content: start; }
 .dc-summary-bento-col { min-width: 0; display: flex; flex-direction: column; }
 .dc-summary-bento-col + .dc-summary-bento-col { border-left: 1px solid var(--dc-border); }
-.dc-summary-bento-col > section { min-width: 0; border-bottom: 1px solid var(--dc-border); padding: var(--dc-space-4); }
+.dc-summary-bento-col > section { min-width: 0; border-bottom: 1px solid var(--dc-border); padding: var(--dc-space-3); }
 .dc-summary-bento-col > section:last-child { border-bottom: 0; }
 .dc-summary-bento-col p { margin: var(--dc-space-2) 0; line-height: 1.5; color: var(--dc-text); overflow-wrap: anywhere; }
 .dc-summary-bento-col small { color: var(--dc-muted); }
@@ -73,7 +73,7 @@
 .dc-summary-health-list > div { display: grid; grid-template-columns: minmax(80px, .65fr) minmax(0, 1fr); gap: var(--dc-space-2); margin-top: var(--dc-space-1); }
 .dc-summary-health-list dt { font-size: var(--dc-font-small); color: var(--dc-muted); }
 .dc-summary-health-list dd { margin: 0; color: var(--dc-text); overflow-wrap: anywhere; }
-.dc-summary-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--dc-space-3); margin: 0; }
+.dc-summary-admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--dc-space-2); margin: 0; }
 .dc-summary-admin-grid .wide { grid-column: 1 / -1; }
 .dc-summary-admin-grid dt { color: var(--dc-muted); font-size: var(--dc-font-small); }
 .dc-summary-admin-grid dd { margin: 2px 0 0; font-size: var(--dc-font-body); overflow-wrap: anywhere; }

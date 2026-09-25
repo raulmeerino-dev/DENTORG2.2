@@ -86,7 +86,7 @@ export function PatientOdontogramSummary({
           Resumen odontograma
         </h3>
         <div className="dc-summary-card-head-right">
-          <span>{teethWithClinicalData} piezas con datos</span>
+          <span>{teethWithClinicalData} {teethWithClinicalData === 1 ? 'pieza con datos' : 'piezas con datos'}</span>
           <button type="button" onClick={onOpenDetail} aria-label="Ver detalle en Tratamientos">Detalle</button>
         </div>
       </div>

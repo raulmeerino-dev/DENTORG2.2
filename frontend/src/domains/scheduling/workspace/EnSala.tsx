@@ -1,3 +1,4 @@
+import { clinicTime } from '../../../shared/time/clinicTime';
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -47,7 +48,7 @@ export default function EnSala() {
         const timing = appointmentTiming(cita, now);
         const canStart = ['admin', 'doctor', 'auxiliar'].includes(user?.rol ?? '') && (user?.rol !== 'doctor' || user?.doctor_id === cita.doctor_id);
         return <article className="waiting-room-item" key={cita.id} data-cita-id={cita.id}>
-          <time dateTime={cita.fecha_hora}>{new Date(cita.fecha_hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</time>
+          <time dateTime={cita.fecha_hora}>{clinicTime(cita.fecha_hora)}</time>
           <div className="waiting-room-person"><strong>{cita.paciente?.nombre} {cita.paciente?.apellidos}</strong><small>{cita.doctor?.nombre}{cita.gabinete_nombre ? ` · ${cita.gabinete_nombre}` : ''}</small><span className="jornada-time-notes"><span className={(timing.waitingMinutes ?? 0) >= (config.data?.espera_critica_min ?? 20) ? 'is-overdue' : (timing.waitingMinutes ?? 0) >= (config.data?.espera_aviso_min ?? 10) ? 'is-late' : ''}>{timing.waitingMinutes === null ? 'Llegada sin hora registrada' : `${timing.waitingMinutes} min esperando`}{(timing.waitingMinutes ?? 0) >= (config.data?.espera_critica_min ?? 20) ? ' · espera prolongada' : ''}</span></span>
             <div className="jornada-inline-actions"><button type="button" onClick={() => openPatient(cita)}>Abrir ficha</button>{canStart && <button type="button" disabled={start.isPending} onClick={() => start.mutate(cita.id)}>Atender</button>}</div>
           </div>

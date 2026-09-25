@@ -1,3 +1,15 @@
+## 2026-09-25 — Acabado transversal y fiabilidad de workspaces
+
+Correcciones incrementales sin migraciones ni cambios de permisos: estilos de acción primaria consolidados en el design system (incluido contraste oscuro), eliminación de overrides sustituidos, etiquetas y estados legibles, una sola región principal por pantalla, recuperación al cambiar de ruta tras un error y destino desconocido con respuesta visible. Los diálogos anidados atienden Escape y tabulación únicamente en el superior.
+
+Caja recupera todas las páginas de facturas antes de calcular totales, muestra nombres desde la relación autorizada de cada factura, pagina la tabla de 50 en 50 y conserva controles accesibles en ventanas bajas. Jornada, notificaciones y En sala utilizan la hora clínica. El asistente reconoce los workspaces actuales y distingue Agenda de Operativa.
+
+Pacientes e Historial: espaciado contenido, etiquetas documentales explícitas, acciones/importes alineados y estados de citas traducidos también en el detalle. Administración: inventario con altura útil completa y columnas legibles, horarios sin horas ni días partidos, validación de stock y prevención de envíos repetidos. Se retira el generador de pacientes demo de la interfaz administrativa; la sincronización existente se conserva.
+
+Validación local con PostgreSQL y API reales sobre datos sintéticos densos: 363 tests frontend; TypeScript, build y ESLint correctos; 208 tests backend y Ruff; 11 E2E (circuito clínico/económico, Jornada, Registros, roles y clínicas). Recorridos de navegador por 10 vistas en 1366×768, 1440×900, 1920×1080 y 1280×600: sin overflow horizontal de página, errores de ejecución ni respuestas HTTP fallidas en esos recorridos. Inspección adicional de todas las secciones de Ajustes, consentimiento, presupuesto, odontograma, detalle de visita y subida documental. Prueba de error 500 y cero facturas, hover estable, foco/Tab/Escape en cobro y contraste oscuro. Evidencias en output/qa/polish-* y output/playwright/final*.png (locales, ignoradas por Git).
+
+Alcance de la evidencia: valida los recorridos descritos, no certificación legal/fiscal ni pruebas exhaustivas de todas las combinaciones de datos. El repositorio no contiene una pantalla independiente de periodontograma; no se ha inventado una función clínica durante esta pasada de acabado. Se mantienen redirecciones de rutas antiguas que preservan enlaces existentes, sin exponer pantallas duplicadas.
+
 ## 2026-09-25 — Agenda: calendario, selector temporal y cuadrícula
 
 Cambio limitado a Agenda: calendario mensual compartido con días adyacentes atenuados y seleccionables; selector de día/mes/año y Hoy en cabecera, conservando filtros y ajustando finales de mes. El workspace compartido solo monta el selector en perspectiva Agenda; Operativa conserva su control anterior. Cabeceras profesionales compactas y sin leyenda duplicada, separación horaria gradual, intervalos visibles en citas y etiqueta de hora actual coherente con zona clínica. Sin cambios en backend, permisos o navegación.

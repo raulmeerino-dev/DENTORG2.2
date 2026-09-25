@@ -313,7 +313,7 @@ describe('PacientesPage structure', () => {
       await user.click(screen.getByRole('button', { name: /^Presupuestos\s+\d+$/i }));
       await screen.findByRole('region', { name: /^Presupuestos$/i });
     } else {
-      await user.click(screen.getByRole('button', { name: /Mas acciones del paciente/i }));
+      await user.click(screen.getByRole('button', { name: /Más acciones del paciente/i }));
       await user.click(screen.getByRole('menuitem', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' }));
       await user.type(screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' }), 'Borrador exclusivo paciente A');
     }
@@ -322,7 +322,7 @@ describe('PacientesPage structure', () => {
     expect(screen.queryByRole('heading', { name: /Nueva receta|Consentimiento informado|^Presupuestos$/ })).not.toBeInTheDocument();
     expect(screen.queryByDisplayValue(/Borrador exclusivo paciente A/)).not.toBeInTheDocument();
     if (task !== 'presupuesto') {
-      await user.click(screen.getByRole('button', { name: /Mas acciones del paciente/i }));
+      await user.click(screen.getByRole('button', { name: /Más acciones del paciente/i }));
       await user.click(screen.getByRole('menuitem', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' }));
       expect(screen.getByRole('region', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' })).toHaveTextContent('Pilar Ojeda Calvo');
       expect(screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' })).not.toHaveValue('Borrador exclusivo paciente A');
@@ -335,7 +335,7 @@ describe('PacientesPage structure', () => {
   it.each(['receta', 'consentimiento'] as const)('conserva el borrador de %s y una única tarea cuando IA pide abrir presupuestos', async (task) => {
     const user = userEvent.setup();
     renderPage(['/pacientes?paciente_id=pac-1']);
-    await user.click(screen.getByRole('button', { name: /Mas acciones del paciente/i }));
+    await user.click(screen.getByRole('button', { name: /Más acciones del paciente/i }));
     await user.click(screen.getByRole('menuitem', { name: task === 'receta' ? 'Nueva receta' : 'Consentimiento informado' }));
     const field = screen.getByRole('textbox', { name: task === 'receta' ? /Medicamento/ : 'Texto del documento' });
     await user.type(field, 'Borrador conservado');
@@ -385,7 +385,7 @@ describe('PacientesPage structure', () => {
     expect(within(mainTabs).getByRole('button', { name: /^Tratamientos$/i })).toBeInTheDocument();
     expect(within(mainTabs).getByRole('button', { name: /^Historial$/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Nueva cita$/i })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /^Docs\s+\d+$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Documentos\s+\d+$/i })).toBeInTheDocument();
     expect(await screen.findByText(/Resumen odontograma/i)).toBeInTheDocument();
     expect(screen.getByTestId('mini-odontogram')).toBeInTheDocument();
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
@@ -417,8 +417,8 @@ describe('PacientesPage structure', () => {
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
     await waitFor(() => expect(screen.getByText(/Historial completo/i)).toBeInTheDocument());
-    expect(screen.getByRole('button', { name: /Clinico/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Facturacion/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Clínico/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Facturación' })).toBeInTheDocument();
     expect(screen.getAllByText(/Limpieza/i).length).toBeGreaterThan(0);
 
     await user.click(screen.getByRole('button', { name: /Tratamientos y facturaci/i }));

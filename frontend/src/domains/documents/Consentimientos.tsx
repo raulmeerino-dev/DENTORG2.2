@@ -241,7 +241,7 @@ export function DocumentDesignerModal({
                 {options.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
-            <label>Titulo
+            <label>Título
               <input value={titulo} onChange={(event) => setTitulo(event.target.value)} />
             </label>
             <details>
@@ -260,7 +260,7 @@ export function DocumentDesignerModal({
             </div>
             {(saveError || errorMessage) && <div className="inline-alert" role="alert">{saveError || errorMessage}</div>}
           </aside>
-          <main className="dc-document-main">
+          <section className="dc-document-main">
             <nav className="dc-document-tabs" aria-label="Vista del documento">
               <button type="button" aria-pressed={view === 'edit'} onClick={() => setView('edit')}>Editar texto</button>
               <button type="button" aria-pressed={view === 'preview'} onClick={() => setView('preview')}>Vista previa</button>
@@ -281,7 +281,7 @@ export function DocumentDesignerModal({
                 {firmaDataUrl && <img src={firmaDataUrl} alt="Firma recogida" />}
               </article>
             )}
-          </main>
+          </section>
         </div>
     </TaskSurface>
   );

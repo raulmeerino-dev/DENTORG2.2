@@ -1,3 +1,4 @@
+import { statusMetaForCita } from '../scheduling/agenda/appointmentStatus';
 import { useMemo,useState } from 'react';
 import { formatDate, money } from '../../shared/format';
 import type { ApiPaciente,Cita,Consentimiento,DocumentoPaciente,Factura,HistorialClinico,NotaDental,PagoAnticipadoPaciente,Presupuesto,RecetaClinica,TrabajoLaboratorio,UserRole,WhatsAppInboxItem } from '../../api/types';
@@ -26,10 +27,10 @@ type TimelineEvent = {
 
 const FILTERS: Array<{ id: HistoryFilter; label: string }> = [
   { id: 'todo', label: 'Todo' },
-  { id: 'clinico', label: 'Clinico' },
+  { id: 'clinico', label: 'Clínico' },
   { id: 'citas', label: 'Citas' },
   { id: 'presupuestos', label: 'Presupuestos' },
-  { id: 'facturacion', label: 'Facturacion' },
+  { id: 'facturacion', label: 'Facturación' },
   { id: 'cobros', label: 'Cobros' },
   { id: 'documentos', label: 'Documentos' },
   { id: 'consentimientos', label: 'Consentimientos' },
@@ -89,7 +90,7 @@ function getLedgerIdentity(event: TimelineEvent) {
   if (event.filter === 'documentos' || event.filter === 'consentimientos' || event.filter === 'recetas') {
     return {
       id: `documentacion-${dayKey(event.date)}-${event.title}`,
-      label: 'Documentacion',
+      label: 'Documentación',
       title: event.title,
       summary: event.detail,
     };
@@ -185,7 +186,7 @@ export function HistorialCompletoPanel({
         id: `hist-${entrada.id}`,
         date: entrada.fecha,
         filter: 'clinico',
-        label: 'Clinico',
+        label: 'Clínico',
         title: tratamiento,
         detail: entrada.observaciones || entrada.diagnostico || entrada.estado,
         meta: [entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.estado, entrada.doctor?.nombre].filter(Boolean).join(' · '),
@@ -215,9 +216,9 @@ export function HistorialCompletoPanel({
         filter: 'citas',
         label: ['atendida', 'finalizada'].includes(cita.estado) ? 'Visita' : 'Cita',
         title: cita.motivo || 'Cita dental',
-        detail: cita.observaciones || cita.estado,
+        detail: cita.observaciones || statusMetaForCita(cita).label,
         action: () => setVisit(cita),
-        meta: [cita.doctor?.nombre, cita.estado, `${cita.duracion_min} min`].filter(Boolean).join(' · '),
+        meta: [cita.doctor?.nombre, statusMetaForCita(cita).label, `${cita.duracion_min} min`].filter(Boolean).join(' · '),
       });
     });
 
@@ -251,8 +252,8 @@ export function HistorialCompletoPanel({
         filter: 'presupuestos',
         label: 'Presupuesto',
         title: `Presupuesto #${presupuesto.numero}`,
-        detail: `${presupuesto.estado} · ${aceptadas}/${presupuesto.lineas.length} lineas aceptadas`,
-        meta: `${presupuesto.lineas.length} lineas`,
+        detail: `${presupuesto.estado} · ${aceptadas}/${presupuesto.lineas.length} líneas aceptadas`,
+        meta: `${presupuesto.lineas.length} ${presupuesto.lineas.length === 1 ? 'línea' : 'líneas'}`,
         amount: money(presupuesto.total),
       });
     });
@@ -420,8 +421,10 @@ export function HistorialCompletoPanel({
             <summary><strong>{event.title}</strong><span>{event.detail}</span>{event.meta && <small>{event.meta}</small>}</summary>
             <div className="dc-history-event-detail"><p>{event.detail}</p></div>
           </details>
-          {event.amount && <b>{event.amount}</b>}
-          {event.action && <button type="button" onClick={event.action}>{event.filter === 'citas' ? 'Abrir visita' : 'Abrir'}</button>}
+          <div className="dc-history-event-actions">
+            {event.amount && <b>{event.amount}</b>}
+            {event.action && <button type="button" onClick={event.action}>{event.filter === 'citas' ? 'Abrir visita' : 'Abrir'}</button>}
+          </div>
         </article>)}
         {!timeline.length && <p>No hay eventos para este filtro.</p>}
       </div>

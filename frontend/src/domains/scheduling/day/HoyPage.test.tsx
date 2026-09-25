@@ -26,8 +26,8 @@ const { mocks } = vi.hoisted(() => {
   } satisfies Omit<Cita, 'id' | 'fecha_hora' | 'estado'>;
   return {
     mocks: {
-      cambio: { ...baseCita, id: 'cita-cambio', fecha_hora: '2026-06-17T10:00:00', estado: 'reschedule_requested' } as Cita,
-      enClinica: { ...baseCita, id: 'cita-clinica', fecha_hora: '2026-06-17T09:30:00', estado: 'en_clinica' } as Cita,
+      cambio: { ...baseCita, id: 'cita-cambio', fecha_hora: '2026-06-17T10:00:00+02:00', estado: 'reschedule_requested' } as Cita,
+      enClinica: { ...baseCita, id: 'cita-clinica', fecha_hora: '2026-06-17T09:30:00+02:00', estado: 'en_clinica' } as Cita,
     },
   };
 });

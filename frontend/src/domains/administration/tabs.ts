@@ -16,18 +16,18 @@ type AdminTab =
 
 export const ADMIN_TABS: Array<{ id: AdminTab; label: string }> = [
   { id: 'general', label: 'General' },
-  { id: 'clinicas', label: 'Clinicas' },
-  { id: 'usuarios', label: 'Usuarios/Roles' },
-  { id: 'doctores', label: 'Doctores' },
-  { id: 'agenda', label: 'Agenda/Horarios' },
+  { id: 'clinicas', label: 'Clínicas' },
+  { id: 'usuarios', label: 'Usuarios y roles' },
+  { id: 'doctores', label: 'Profesionales' },
+  { id: 'agenda', label: 'Agenda y horarios' },
   { id: 'tratamientos', label: 'Tratamientos' },
-  { id: 'laboratorio', label: 'Protesicos/Lab.' },
+  { id: 'laboratorio', label: 'Laboratorio' },
   { id: 'inventario', label: 'Inventario' },
   { id: 'documentos', label: 'Documentos' },
   { id: 'reportes', label: 'Reportes' },
-  { id: 'auditoria', label: 'Auditoria' },
-  { id: 'importacion', label: 'Importacion' },
-  { id: 'seguridad', label: 'Seguridad/Backups' },
+  { id: 'auditoria', label: 'Auditoría' },
+  { id: 'importacion', label: 'Importación' },
+  { id: 'seguridad', label: 'Seguridad y copias' },
 ];
 
 export type AdminTabId = AdminTab;

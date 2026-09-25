@@ -246,7 +246,7 @@ describe('HistorialCompletoPanel filtros', () => {
   it('filtro Facturacion muestra solo facturas (no cobros)', async () => {
     const user = userEvent.setup();
     renderHistorial();
-    await user.click(screen.getByRole('button', { name: 'Facturacion' }));
+    await user.click(screen.getByRole('button', { name: 'Facturación' }));
     expect(screen.getByText('Factura')).toBeInTheDocument();
     expect(screen.queryByText('Cobro')).toBeNull();
     expect(screen.queryByText('Anticipo')).toBeNull();

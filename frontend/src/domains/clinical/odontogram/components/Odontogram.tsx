@@ -297,7 +297,7 @@ export function Odontogram({
   const historyTooth = historyToothNumber ? teeth.find((tooth) => tooth.number === historyToothNumber) : undefined;
 
   return (
-    <main className="od-page">
+    <section className="od-page">
       {showDemoHeader ? <OdontogramHeader patientName={patientName} mode={mode} contextDate={contextDate} totalBudget={totalBudget} /> : null}
 
       <section className="od-shell" aria-label="Odontograma interactivo">
@@ -387,6 +387,6 @@ export function Odontogram({
       ) : null}
 
       {historyTooth ? <ToothHistoryModal tooth={historyTooth} onClose={() => setHistoryToothNumber(null)} /> : null}
-    </main>
+    </section>
   );
 }

@@ -363,8 +363,8 @@ export function PatientForm({
         {canManageBilling && (
           <button type="button" className={facturasPendientes.length ? 'dc-summary-flow-danger' : ''} onClick={onOpenFacturacion} disabled={!paciente}>Facturación <strong>{facturasPendientes.length}</strong></button>
         )}
-        <button type="button" className={consentimientosPendientes ? 'dc-summary-flow-warning' : ''} onClick={onOpenConsentimientos} disabled={!paciente}>CI pte. <strong>{consentimientosPendientes}</strong></button>
-        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Docs <strong>{documentos.length}</strong></button>
+        <button type="button" className={consentimientosPendientes ? 'dc-summary-flow-warning' : ''} onClick={onOpenConsentimientos} disabled={!paciente}>Consentimientos <strong>{consentimientosPendientes}</strong></button>
+        <button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Documentos <strong>{documentos.length}</strong></button>
       </section>
 
       {/* COL IZQ — clínica: odontograma + observaciones */}
@@ -492,7 +492,7 @@ export function PatientForm({
           {paciente?.pagador_distinto && (
             <div className="wide"><dt>Pagador</dt><dd>{[paciente.pagador_nombre, paciente.pagador_dni].filter(Boolean).join(' · ') || 'Pagador distinto'}</dd></div>
           )}
-          <div className="wide"><dt>1ª visita / Ultima</dt><dd>{paciente?.fecha_primera_visita ? formatDate(paciente.fecha_primera_visita) : '—'} · {paciente?.fecha_ultima_visita ? formatDate(paciente.fecha_ultima_visita) : '—'}</dd></div>
+          <div className="wide"><dt>1ª visita / Última</dt><dd>{paciente?.fecha_primera_visita ? formatDate(paciente.fecha_primera_visita) : '—'} · {paciente?.fecha_ultima_visita ? formatDate(paciente.fecha_ultima_visita) : '—'}</dd></div>
         </dl>
       </section>
 
@@ -500,7 +500,7 @@ export function PatientForm({
         <PanelHead
           icon={<FileText size={14} strokeWidth={2} />}
           title="Documentos y consentimientos"
-          status={consentimientosPendientes ? `${consentimientosPendientes} CI pte.` : `${documentos.length} docs · ${consentimientos.length} CI`}
+          status={consentimientosPendientes ? `${consentimientosPendientes} pendientes de firma` : `${documentos.length} documentos · ${consentimientos.length} consentimientos`}
           statusTone={consentimientosPendientes ? 'warning' : 'info'}
           action={<button type="button" onClick={onOpenDocumentos} disabled={!paciente}>Ver todos</button>}
         />
@@ -529,8 +529,8 @@ export function PatientForm({
           </div>
         </div>
         <footer className="dc-summary-documents-summary-actions">
-          <button type="button" onClick={onSubirDocumento} disabled={!paciente}>Subir doc.</button>
-          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo CI</button>
+          <button type="button" onClick={onSubirDocumento} disabled={!paciente}>Subir documento</button>
+          <button type="button" onClick={onOpenConsentimientos} disabled={!paciente}>Nuevo consentimiento</button>
         </footer>
       </section>
       </div>

@@ -507,10 +507,10 @@ export function ConfiguracionWorkspace({
           <section className="settings-section">
             <div className="settings-caption">
               <strong>Formas de pago</strong>
-              <span>Configuracion minima</span>
+              <span>Métodos disponibles</span>
             </div>
             <table className="dentcore-table compact-table">
-              <thead><tr><th>Metodo</th><th>Estado</th><th>Uso</th></tr></thead>
+              <thead><tr><th>Método</th><th>Estado</th><th>Uso</th></tr></thead>
               <tbody>
                 {(formasPagoQuery.data ?? []).map((forma) => (
                   <tr key={forma.id}>
@@ -573,7 +573,7 @@ export function ConfiguracionWorkspace({
             </div>
             <div className="editor-actions">
               <button onClick={() => { setDoctorId(''); setDoctorForm(EMPTY_DOCTOR_FORM); }}>Nuevo</button>
-              <button disabled={!isAdmin || saveDoctorMutation.isPending} onClick={() => saveDoctorMutation.mutate()}>Guardar</button>
+              <button className="primary-action" disabled={!isAdmin || saveDoctorMutation.isPending} onClick={() => saveDoctorMutation.mutate()}>Guardar</button>
             </div>
             {saveDoctorMutation.error && <p className="form-error">{String((saveDoctorMutation.error as Error).message)}</p>}
           </section>
@@ -595,7 +595,7 @@ export function ConfiguracionWorkspace({
             </div>
             <div className="treatment-catalog-scroll">
               <table className="dentcore-table">
-                <thead><tr><th>Codigo</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th>IVA</th><th>Precio</th></tr></thead>
+                <thead><tr><th>Código</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th>IVA</th><th>Precio</th></tr></thead>
                 <tbody>
                   {filteredTratamientos.map((tratamiento) => (
                     <tr
@@ -612,8 +612,8 @@ export function ConfiguracionWorkspace({
                       </td>
                       <td>{tratamiento.nombre}</td>
                       <td>{tratamiento.familia?.nombre ?? ''}</td>
-                      <td>{tratamiento.requiere_pieza ? 'Si' : 'No'}</td>
-                      <td>{tratamiento.requiere_caras ? 'Si' : 'No'}</td>
+                      <td>{tratamiento.requiere_pieza ? 'Sí' : 'No'}</td>
+                      <td>{tratamiento.requiere_caras ? 'Sí' : 'No'}</td>
                       <td className="num">{money(tratamiento.iva_porcentaje)}</td>
                       <td className="num">{money(tratamiento.precio)}</td>
                     </tr>
@@ -652,7 +652,7 @@ export function ConfiguracionWorkspace({
             </div>
             <div className="editor-actions">
               <button onClick={() => setTratamientoForm({ ...EMPTY_TREATMENT_FORM, familia_id: familias[0]?.id ?? '' })}>Nuevo</button>
-              <button disabled={!canEditTreatments || saveTreatmentMutation.isPending} onClick={() => saveTreatmentMutation.mutate()}>Guardar</button>
+              <button className="primary-action" disabled={!canEditTreatments || saveTreatmentMutation.isPending} onClick={() => saveTreatmentMutation.mutate()}>Guardar</button>
               <button disabled={!canEditTreatments || !tratamientoForm.id || deactivateTreatmentMutation.isPending} onClick={() => deactivateTreatmentMutation.mutate()}>Desactivar</button>
               <button disabled={!canEditTreatments} onClick={() => setFamiliaModalOpen(true)}>Nueva familia</button>
             </div>
@@ -731,7 +731,7 @@ export function ConfiguracionWorkspace({
                       <div className="horario-turno-cell">
                         <label className="checkline horario-turno-toggle">
                           <input type="checkbox" checked={form.manana_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { manana_activa: event.target.checked })} />
-                          Mañana
+                          <span className="sr-only">{day} mañana activa</span>
                         </label>
                         <input aria-label={`${day} mañana inicio`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_inicio} onChange={(event) => updateHorarioDia(index, { manana_inicio: event.target.value })} />
                         <input aria-label={`${day} mañana fin`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.manana_activa} value={form.manana_fin} onChange={(event) => updateHorarioDia(index, { manana_fin: event.target.value })} />
@@ -741,7 +741,7 @@ export function ConfiguracionWorkspace({
                       <div className="horario-turno-cell">
                         <label className="checkline horario-turno-toggle">
                           <input type="checkbox" checked={form.tarde_activa && form.tipo_dia !== 'festivo'} disabled={!isAdmin || form.tipo_dia === 'festivo'} onChange={(event) => updateHorarioDia(index, { tarde_activa: event.target.checked })} />
-                          Tarde
+                          <span className="sr-only">{day} tarde activa</span>
                         </label>
                         <input aria-label={`${day} tarde inicio`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_inicio} onChange={(event) => updateHorarioDia(index, { tarde_inicio: event.target.value })} />
                         <input aria-label={`${day} tarde fin`} type="time" disabled={!isAdmin || form.tipo_dia === 'festivo' || !form.tarde_activa} value={form.tarde_fin} onChange={(event) => updateHorarioDia(index, { tarde_fin: event.target.value })} />
@@ -772,14 +772,14 @@ export function ConfiguracionWorkspace({
 
       {tab === 'laboratorio' && (
         <section className="settings-section">
-          <div className="settings-caption"><strong>Laboratorios y protesicos</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
+          <div className="settings-caption"><strong>Laboratorios y protésicos</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
           <table className="dentcore-table">
-            <thead><tr><th>Nombre</th><th>Contacto</th><th>Telefono</th><th>WhatsApp</th><th>Email</th><th>Notas</th><th>Activo</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Contacto</th><th>Teléfono</th><th>WhatsApp</th><th>Email</th><th>Notas</th><th>Activo</th></tr></thead>
             <tbody>
               {(laboratoriosQuery.data ?? []).map((lab) => (
                 <tr key={lab.id}>
                   <td>{lab.nombre}</td><td>{lab.contacto ?? ''}</td><td>{lab.telefono ?? ''}</td>
-                  <td>{lab.whatsapp ?? ''}</td><td>{lab.email ?? ''}</td><td>{lab.notas ?? ''}</td><td>{lab.activo ? 'Si' : 'No'}</td>
+                  <td>{lab.whatsapp ?? ''}</td><td>{lab.email ?? ''}</td><td>{lab.notas ?? ''}</td><td>{lab.activo ? 'Sí' : 'No'}</td>
                 </tr>
               ))}
             </tbody>
@@ -791,10 +791,10 @@ export function ConfiguracionWorkspace({
         <section className="settings-section">
           <div className="settings-caption"><strong>Archivo documental</strong><AccessPill allowed={isAdmin || canEditClinical} /></div>
           <div className="settings-reference-list settings-documents">
-            <div><strong>Clinicos</strong><span>Radiografias, fotografias, informes y adjuntos.</span></div>
-            <div><strong>Consentimientos</strong><span>Plantillas, firma, version y trazabilidad.</span></div>
+            <div><strong>Clínicos</strong><span>Radiografías, fotografías, informes y adjuntos.</span></div>
+            <div><strong>Consentimientos</strong><span>Plantillas, firma, versión y trazabilidad.</span></div>
             <div><strong>Facturas PDF</strong><span>Documento fiscal original archivado y copia marcada.</span></div>
-            <div><strong>Privacidad</strong><span>Descarga protegida, no-cache y auditoria de acceso.</span></div>
+            <div><strong>Privacidad</strong><span>Descarga protegida y auditada.</span></div>
           </div>
         </section>
       )}
@@ -818,7 +818,7 @@ export function ConfiguracionWorkspace({
           </div>
           <div className="settings-section compact-panel">
             <div className="settings-caption">
-              <strong>Preflight comercial</strong>
+              <strong>Comprobaciones de instalación</strong>
               <span className={`status-pill ${readinessQuery.data?.overall ?? 'warn'}`}>
                 {readinessQuery.data?.overall === 'ok' && 'Listo'}
                 {readinessQuery.data?.overall === 'warn' && 'Revisar'}
@@ -832,12 +832,12 @@ export function ConfiguracionWorkspace({
               <div><strong>{readinessQuery.data?.totals.fail ?? '-'}</strong><span>Bloqueos</span></div>
             </div>
             <table className="dentcore-table compact-table">
-              <thead><tr><th>Area</th><th>Estado</th><th>Revision</th><th>Accion</th></tr></thead>
+              <thead><tr><th>Área</th><th>Estado</th><th>Revisión</th><th>Acción</th></tr></thead>
               <tbody>
                 {(readinessQuery.data?.checks ?? []).map((check) => (
                   <tr key={`${check.area}-${check.titulo}`}>
                     <td>{check.area}</td>
-                    <td><span className={`status-pill ${check.status}`}>{check.status}</span></td>
+                    <td><span className={`status-pill ${check.status}`}>{{ ok: 'Correcto', warn: 'Revisar', fail: 'Bloqueante' }[check.status] ?? check.status}</span></td>
                     <td><strong>{check.titulo}</strong><br /><span>{check.detalle}</span></td>
                     <td>{check.accion_recomendada}</td>
                   </tr>
@@ -847,7 +847,7 @@ export function ConfiguracionWorkspace({
             </table>
           </div>
           <table className="dentcore-table backup-table">
-            <thead><tr><th>Inicio</th><th>Estado</th><th>Alcance</th><th>Tamano</th><th>Cifrado</th><th>Verificacion</th><th>Restauracion</th><th>Retencion</th><th>Destino</th><th></th></tr></thead>
+            <thead><tr><th>Inicio</th><th>Estado</th><th>Alcance</th><th>Tamaño</th><th>Cifrado</th><th>Verificación</th><th>Restauración</th><th>Retención</th><th>Destino</th><th></th></tr></thead>
             <tbody>
               {(backupsQuery.data ?? []).map((backup) => (
                 <tr key={backup.id}>
@@ -855,7 +855,7 @@ export function ConfiguracionWorkspace({
                   <td>{backup.estado}</td>
                   <td>{backup.alcance}{backup.incluye_bd && backup.incluye_uploads ? ' completo' : ''}</td>
                   <td>{backup.tamano_bytes ? `${Math.round(backup.tamano_bytes / 1024)} KB` : '-'}</td>
-                  <td>{backup.cifrado ? 'Si' : 'No'}</td>
+                  <td>{backup.cifrado ? 'Sí' : 'No'}</td>
                   <td>{backup.verificado_at ? new Date(backup.verificado_at).toLocaleDateString('es-ES') : backup.hash_sha256 ? backup.hash_sha256.slice(0, 12) : '-'}</td>
                   <td>{backup.restauracion_probada_at ? new Date(backup.restauracion_probada_at).toLocaleDateString('es-ES') : 'Pendiente'}</td>
                   <td>{backup.retention_days ? `${backup.retention_days} dias` : '-'}</td>
@@ -863,7 +863,7 @@ export function ConfiguracionWorkspace({
                   <td className="inline-actions">
                     <button disabled={!isAdmin || verificarBackupMutation.isPending} onClick={() => verificarBackupMutation.mutate(backup.id)}>Verificar</button>
                     <button disabled={!isAdmin || simularRestauracionMutation.isPending} onClick={() => simularRestauracionMutation.mutate(backup.id)}>Simular</button>
-                    <button disabled={!isAdmin || registrarRestauracionMutation.isPending} onClick={() => registrarRestauracionMutation.mutate(backup.id)}>Registrar restore</button>
+                    <button disabled={!isAdmin || registrarRestauracionMutation.isPending} onClick={() => registrarRestauracionMutation.mutate(backup.id)}>Registrar restauración</button>
                     <button disabled={!isAdmin || descargarBackupMutation.isPending} onClick={() => descargarBackupMutation.mutate(backup.id)}>Descargar</button>
                   </td>
                 </tr>
@@ -884,14 +884,14 @@ export function ConfiguracionWorkspace({
         <section className="settings-section">
           <div className="settings-caption"><strong>Mapa de roles y permisos visibles</strong><AccessPill allowed={isAdmin} /></div>
           <table className="dentcore-table">
-            <thead><tr><th>Seccion</th><th>Admin</th><th>Doctor</th><th>Recepcion</th><th>Contenido</th></tr></thead>
+            <thead><tr><th>Sección</th><th>Admin</th><th>Doctor</th><th>Recepción</th><th>Contenido</th></tr></thead>
             <tbody>
               {WORKFLOW_ITEMS.map((item) => (
                 <tr key={item.id}>
                   <td>{item.label}</td>
-                  <td>{item.roles.includes('admin') ? 'Si' : 'No'}</td>
-                  <td>{item.roles.includes('doctor') ? 'Si' : 'No'}</td>
-                  <td>{item.roles.includes('recepcion') ? 'Si' : 'No'}</td>
+                  <td>{item.roles.includes('admin') ? 'Sí' : 'No'}</td>
+                  <td>{item.roles.includes('doctor') ? 'Sí' : 'No'}</td>
+                  <td>{item.roles.includes('recepcion') ? 'Sí' : 'No'}</td>
                   <td>{item.description}</td>
                 </tr>
               ))}

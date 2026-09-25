@@ -1,3 +1,4 @@
+import { clinicTime } from '../../../shared/time/clinicTime';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bell, CheckCircle2, Clock3 } from 'lucide-react';
@@ -16,17 +17,11 @@ function appointmentDate(notification: DoctorNotification) {
 }
 
 function appointmentTimeLabel(notification: DoctorNotification) {
-  return new Date(notification.appointment_time).toLocaleTimeString('es-ES', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return clinicTime(notification.appointment_time);
 }
 
 function createdTimeLabel(notification: DoctorNotification) {
-  return new Date(notification.created_at).toLocaleTimeString('es-ES', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return clinicTime(notification.created_at);
 }
 
 function playNotificationSound() {

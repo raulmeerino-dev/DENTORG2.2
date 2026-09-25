@@ -13,7 +13,7 @@ import { getCitas } from '../../../api/scheduling';
 import { enviarRecordatorioCita, getTelefonear, getWhatsAppComunicaciones } from '../../../api/communications';
 import { useAuth } from '../../identity/session/AuthContext';
 import { useJornada } from '../workspace/JornadaContext';
-import { localAppointmentDate, localDayRange } from '../agenda/agendaTime';
+import { localAppointmentDate, localDayRange, todayIso, localAppointmentTime } from '../agenda/agendaTime';
 import { getVisualStatus, statusMetaForCita } from '../agenda/appointmentStatus';
 import AppointmentActions, { AppointmentStatusBadge, AppointmentTiming } from '../workspace/AppointmentActions';
 import CheckoutQueue from '../workspace/CheckoutQueue';
@@ -21,18 +21,13 @@ import './operativa.css';
 import { JornadaActions } from './JornadaActions';
 import type { Cita, TelefonearPendiente } from '../../../api/types';
 
-function todayIso() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
 function citaHora(cita: Cita) {
-  return new Date(cita.fecha_hora).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  return localAppointmentTime(cita.fecha_hora);
 }
 
 function pacienteNombre(cita: Cita) {
   if (!cita.paciente) return 'Paciente';
-  return `${cita.paciente.apellidos}, ${cita.paciente.nombre}`;
+  return [cita.paciente.apellidos, cita.paciente.nombre].filter(Boolean).join(', ');
 }
 
 function pacienteNombreWhatsApp(cita: Cita) {
@@ -47,7 +42,7 @@ function addDaysIso(days: number) {
 }
 
 function citaFecha(cita: Cita) {
-  const date = new Date(cita.fecha_hora);
+  const date = new Date(`${localAppointmentDate(cita.fecha_hora)}T12:00:00`);
   if (Number.isNaN(date.getTime())) return localAppointmentDate(cita.fecha_hora);
   return date.toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: '2-digit' });
 }
@@ -301,7 +296,7 @@ export default function HoyPage() {
       </section>
 
       <div className="hoy-layout">
-        <main className="hoy-agenda">
+        <section className="hoy-agenda">
           <div className="panel-caption">
             <div>
               <strong>Citas de la jornada</strong>
@@ -382,7 +377,7 @@ export default function HoyPage() {
               </table>
             </details>
           )}
-        </main>
+        </section>
 
         <aside className="hoy-sidebar">
           <CheckoutQueue />

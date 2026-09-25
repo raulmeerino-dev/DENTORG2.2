@@ -36,3 +36,17 @@
 .dc-empty-state h2 { font-size: 13px; margin: 0 0 4px; }
 .dc-empty-state p { color: var(--dc-muted); font-size: 12px; margin: 0; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
+
+/* Shared action skins consume semantic tokens in both themes. */
+:is(.primary-button, .primary-action, .budget-create-button, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary) {
+  border: 1px solid var(--dc-primary) !important;
+  border-radius: var(--dc-radius-sm);
+  background: var(--dc-primary) !important;
+  color: var(--dc-on-primary) !important;
+  box-shadow: none;
+}
+:is(.primary-button, .primary-action, .budget-create-button, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary):hover:not(:disabled) {
+  background: var(--dc-primary-hover) !important;
+  border-color: var(--dc-primary-hover) !important;
+}
+.secondary-action { border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); background: var(--dc-surface); color: var(--dc-text); box-shadow: none; }

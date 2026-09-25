@@ -350,11 +350,6 @@ textarea {
   line-height: 1.45;
 }
 
-:is(.primary-button, button[type="submit"], .primary-action) {
-  border-color: var(--dc-primary) !important;
-  background: var(--dc-primary) !important;
-  color: #ffffff !important;
-}
 
 :is(.dentcore-table, .data-table, .history-ledger-table) {
   border-collapse: separate !important;
@@ -608,7 +603,7 @@ textarea {
   background: var(--dc-surface) !important;
 }
 
-.fichero-grid, .inventory-layout {
+.fichero-grid {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 380px) !important;
   gap: 10px !important;
 }
@@ -679,7 +674,7 @@ textarea {
 
 @media (max-width: 1100px) {
 
-  .fichero-grid, .inventory-layout {
+  .fichero-grid {
     grid-template-columns: 1fr !important;
     overflow: auto !important;
   }
@@ -1005,7 +1000,7 @@ html[data-theme="dark"] :is(.status-pill, .appointment-state, .treatment-badge, 
     min-width: 840px !important;
   }
 
-  .complete-history-layout, .fichero-grid, .inventory-layout {
+  .complete-history-layout, .fichero-grid {
     grid-template-columns: 1fr !important;
   }
 }
@@ -1274,7 +1269,7 @@ html[data-theme="dark"] :is(input, select, textarea) {
 }
 
 /* Cards and clinical content */
-:is(.desk-panel, .workspace-section, .billing-panel, .history-billing-dentcore, .history-ledger-group, .complete-history-head, .agenda-slots, .settings-form) {
+:is(.desk-panel, .workspace-section, .billing-panel, .history-billing-dentcore, .history-ledger-group, .agenda-slots, .settings-form) {
   border: 1px solid var(--dc-border) !important;
   border-radius: 14px !important;
   background: var(--dc-surface) !important;
@@ -1452,18 +1447,9 @@ label {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dc-primary) 24%, transparent);
 }
 
-:where(.primary-button, .primary-action, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary) {
-  border-color: var(--dc-primary) !important;
-  background: var(--dc-primary) !important;
-  color: #ffffff !important;
-}
 
-:where(.primary-button, .primary-action, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary):hover:not(:disabled) {
-  border-color: var(--dc-primary-hover) !important;
-  background: var(--dc-primary-hover) !important;
-}
 
-:where(.danger, button[aria-label*="cancel" i]) {
+:where(.danger) {
   border-color: color-mix(in srgb, var(--dc-danger) 28%, var(--dc-border)) !important;
   background: var(--dc-danger-soft) !important;
   color: var(--dc-danger) !important;
@@ -1890,11 +1876,11 @@ label {
   border-radius: 0 !important;
 }
 
-.fichero-grid, .inventory-layout, .settings-overview-grid, .admin-security-stack {
+.fichero-grid, .settings-overview-grid, .admin-security-stack {
   gap: 10px !important;
 }
 
-.fichero-grid, .inventory-layout {
+.fichero-grid {
   grid-template-columns: minmax(0, 1fr) minmax(280px, 360px) !important;
 }
 
@@ -2020,7 +2006,7 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
 
 @media (max-width: 1100px) {
 
-  .fichero-grid, .inventory-layout {
+  .fichero-grid {
     grid-template-columns: 1fr !important;
   }
 

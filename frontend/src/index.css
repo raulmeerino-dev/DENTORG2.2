@@ -3138,7 +3138,7 @@ html[data-theme="dark"] .history-billing-dentcore {
 
 .horario-turno-cell {
   display: grid;
-  grid-template-columns: 82px 1fr 1fr;
+  grid-template-columns: 18px minmax(88px, 1fr) minmax(88px, 1fr);
   gap: 5px;
   align-items: center;
 }
@@ -3147,12 +3147,12 @@ html[data-theme="dark"] .history-billing-dentcore {
   table-layout: fixed;
 }
 
-.horario-col-dia { width: 74px; }
-.horario-col-tipo { width: 112px; }
-.horario-col-turno { width: 250px; }
-.horario-col-intervalo { width: 112px; }
-.horario-col-resumen { width: 190px; }
-.horario-col-accion { width: 100px; }
+.horario-col-dia { width: 88px; }
+.horario-col-tipo { width: 106px; }
+.horario-col-turno { width: 228px; }
+.horario-col-intervalo { width: 100px; }
+.horario-col-resumen { width: 150px; }
+.horario-col-accion { width: 90px; }
 
 .horario-editor-table th {
   white-space: normal;
@@ -3383,21 +3383,6 @@ html[data-theme="dark"] .history-billing-dentcore {
   display: grid;
   align-content: start;
   gap: 10px;
-}
-
-.inventory-layout {
-  grid-template-columns: minmax(0, 1.35fr) minmax(330px, .72fr);
-  align-items: start;
-}
-
-.inventory-layout .inventory-stock-panel {
-  grid-row: span 3;
-}
-
-.inventory-layout .panel-caption span {
-  color: #647789;
-  font-size: .84rem;
-  font-weight: 800;
 }
 
 .muted-cell {
@@ -6946,20 +6931,7 @@ html[data-theme="dark"] .mini-odontogram-footer b {
   align-items: center;
 }
 
-.primary-action, .page-shell .primary-action, .budget-create-button {
-  border: 1px solid #0b7f98;
-  border-radius: 9px;
-  background: linear-gradient(180deg, #18a7b8, #0d8ba0);
-  color: #ffffff;
-  box-shadow: 0 8px 20px rgba(15, 136, 168, 0.18);
-}
 
-.secondary-action {
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: #ffffff;
-  color: #17364b;
-}
 
 .status-chip, .status-pill, .appointment-state, .linea-estado-badge, .budget-estado-pill {
   display: inline-flex;

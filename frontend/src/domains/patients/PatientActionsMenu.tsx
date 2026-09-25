@@ -77,10 +77,10 @@ export function PatientActionsMenu({
       width={276}
       className="patient-actions-menu"
       role="menu"
-      aria-label="Mas acciones del paciente"
+      aria-label="Más acciones del paciente"
     >
-      <div className="patient-actions-menu-group" role="group" aria-label="Clinico">
-        <span className="patient-actions-group">Clinico</span>
+      <div className="patient-actions-menu-group" role="group" aria-label="Clínico">
+        <span className="patient-actions-group">Clínico</span>
         <button
           type="button"
           role="menuitem"
@@ -198,10 +198,10 @@ export function PatientActionsMenu({
           disabled={noPatient}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label="Mas acciones del paciente"
+          aria-label="Más acciones del paciente"
         >
           <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
-          <span className="sr-only">Mas acciones</span>
+          <span className="sr-only">Más acciones</span>
         </button>
       </ActionGroup>
       {menu ? createPortal(menu, document.body) : null}

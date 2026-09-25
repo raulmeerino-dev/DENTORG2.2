@@ -6,7 +6,7 @@ import { createClinica, getClinicas } from '../../api/identity';
 import { createPedidoInventario, createProductoInventario, createProveedorInventario, getInventario, getMovimientosInventario, getPedidosInventario, getProveedoresInventario, recibirPedidoInventario, registrarMovimientoInventario, updatePedidoInventario, updateProductoInventario } from '../../api/inventory';
 import { enableTwoFactor } from '../../api/auth';
 import { importPacientes, syncOffline } from '../../api/patients';
-import { addOfflinePending, clearOfflinePending, getOfflinePending } from '../../shared/offline/offline';
+import { clearOfflinePending, getOfflinePending } from '../../shared/offline/offline';
 import { ADMIN_TABS, ADMINISTRATION_TAB_IDS } from './tabs';
 import type { AdminTabId } from './tabs';
 import { AdminReportes } from './AdminReportes';
@@ -85,6 +85,8 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
     queryFn: () => getMovimientosInventario(productoActivoId),
     enabled: Boolean(productoActivoId),
   });
+
+  const activarSegundoFactor = useMutation({ mutationFn: enableTwoFactor, onSuccess: setTwoFactor });
 
   const crearClinica = useMutation({
     mutationFn: () => createClinica(clinicaForm),
@@ -256,7 +258,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
         ))}
       </nav>
       <div className="settings-content">
-      {[crearClinica.error, crearProducto.error, actualizarProducto.error, registrarMovimiento.error, crearProveedor.error, crearPedido.error, marcarPedidoEnviado.error, recibirPedido.error, importar.error].filter(Boolean).map((error, index) => <p key={index} className="inline-alert" role="alert">{error instanceof Error ? error.message : 'No se pudo completar la operación.'}</p>)}
+      {[activarSegundoFactor.error, crearClinica.error, crearProducto.error, actualizarProducto.error, registrarMovimiento.error, crearProveedor.error, crearPedido.error, marcarPedidoEnviado.error, recibirPedido.error, importar.error].filter(Boolean).map((error, index) => <p key={index} className="inline-alert" role="alert">{error instanceof Error ? error.message : 'No se pudo completar la operación.'}</p>)}
       {((tab === 'clinicas' && clinicasQuery.isError) || (tab === 'inventario' && (inventarioQuery.isError || proveedoresQuery.isError || pedidosQuery.isError))) && <p className="inline-alert" role="alert">No se pudieron cargar los datos. Revisa la conexión.</p>}
 
       {tab === 'clinicas' && (
@@ -271,7 +273,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
             <div className="settings-caption"><strong>Nueva clínica</strong></div>
             <label>Nombre<input value={clinicaForm.nombre} onChange={(e) => setClinicaForm((p) => ({ ...p, nombre: e.target.value }))} required /></label>
             <label>Dirección<input value={clinicaForm.direccion} onChange={(e) => setClinicaForm((p) => ({ ...p, direccion: e.target.value }))} /></label>
-            <button type="submit">Crear clínica</button>
+            <button type="submit" className="primary-action" disabled={crearClinica.isPending}>{crearClinica.isPending ? 'Guardando…' : 'Crear clínica'}</button>
           </form>
         </div>
       )}
@@ -296,9 +298,13 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                       <td>{producto.categoria || '-'}</td>
                       <td>{proveedor?.nombre || '-'}</td>
                       <td>{producto.stock_min}</td>
-                      <td><input className="stock-input" defaultValue={producto.stock_act} onBlur={(e) => actualizarProducto.mutate({ id: producto.id, stock_act: Number(e.target.value) })} /></td>
+                      <td><input className="stock-input" type="number" min="0" step="1" aria-label={`Stock actual de ${producto.nombre}`} disabled={actualizarProducto.isPending} defaultValue={producto.stock_act} onBlur={(event) => {
+                        const value = event.currentTarget.valueAsNumber;
+                        if (!event.currentTarget.checkValidity() || !Number.isFinite(value)) { event.currentTarget.reportValidity(); return; }
+                        if (value !== producto.stock_act) actualizarProducto.mutate({ id: producto.id, stock_act: value });
+                      }} /></td>
                       <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td>
-                      <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Mov.</button></td>
+                      <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Movimientos</button></td>
                     </tr>
                   );
                 })}
@@ -325,7 +331,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                   {(proveedoresQuery.data ?? []).map((proveedor) => <option key={proveedor.id} value={proveedor.id}>{proveedor.nombre}</option>)}
                 </select>
               </label>
-                <button type="submit">Crear producto</button>
+                <button type="submit" className="primary-action" disabled={crearProducto.isPending}>{crearProducto.isPending ? 'Guardando…' : 'Crear producto'}</button>
               </form>
             </details>
             {productoActivoId && (
@@ -342,14 +348,13 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                     <label>Cantidad<input type="number" min="1" value={movimientoForm.cantidad} onChange={(e) => setMovimientoForm((p) => ({ ...p, cantidad: e.target.value }))} /></label>
                     <label>Motivo<input value={movimientoForm.motivo} onChange={(e) => setMovimientoForm((p) => ({ ...p, motivo: e.target.value }))} /></label>
                   </div>
-                  <button type="submit">Registrar movimiento</button>
+                  <button type="submit" className="primary-action" disabled={registrarMovimiento.isPending}>{registrarMovimiento.isPending ? 'Guardando…' : 'Registrar movimiento'}</button>
                   <div className="movement-list">
                     {(movimientosQuery.data ?? []).slice(0, 5).map((mov) => <p key={mov.id}><strong>{mov.tipo}</strong> {mov.cantidad} -&gt; {mov.stock_resultante}</p>)}
                   </div>
                 </form>
               </details>
             )}
-          </div>
 
           <section className="settings-section settings-form-body">
             <details className="admin-create-panel">
@@ -362,7 +367,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                 <label>Email<input value={proveedorForm.email} onChange={(e) => setProveedorForm((p) => ({ ...p, email: e.target.value }))} /></label>
                 <label>Notas<input value={proveedorForm.notas} onChange={(e) => setProveedorForm((p) => ({ ...p, notas: e.target.value }))} /></label>
               </div>
-                <button type="submit">Crear proveedor</button>
+                <button type="submit" className="primary-action" disabled={crearProveedor.isPending}>{crearProveedor.isPending ? 'Guardando…' : 'Crear proveedor'}</button>
               </form>
             </details>
             <div className="compact-list">
@@ -396,7 +401,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                 <label>Coste<input type="number" min="0" step="0.01" value={pedidoForm.coste_unitario} onChange={(e) => setPedidoForm((p) => ({ ...p, coste_unitario: e.target.value }))} /></label>
               </div>
               <label>Notas<input value={pedidoForm.notas} onChange={(e) => setPedidoForm((p) => ({ ...p, notas: e.target.value }))} /></label>
-                <button type="submit">Crear pedido</button>
+                <button type="submit" className="primary-action" disabled={crearPedido.isPending}>{crearPedido.isPending ? 'Guardando…' : 'Crear pedido'}</button>
               </form>
             </details>
             <div className="compact-list">
@@ -413,6 +418,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
               })}
             </div>
           </section>
+          </div>
         </div>
       )}
 
@@ -421,12 +427,12 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
       {tab === 'importacion' && (
         <section className="settings-section settings-form-body">
           <div className="settings-caption"><strong>Importar pacientes CSV</strong></div>
-          <input type="file" accept=".csv,text/csv" onChange={async (event) => {
+          <input aria-label="Archivo CSV de pacientes" type="file" accept=".csv,text/csv" onChange={async (event) => {
             const file = event.target.files?.[0];
             if (file) setImportText(await file.text());
           }} />
-          <textarea value={importText} onChange={(e) => setImportText(e.target.value)} />
-          <button onClick={() => importar.mutate()}>Importar</button>
+          <textarea aria-label="Contenido CSV para importar" value={importText} onChange={(e) => setImportText(e.target.value)} />
+          <button disabled={importar.isPending || !importText.trim()} onClick={() => importar.mutate()}>{importar.isPending ? 'Importando…' : 'Importar'}</button>
           {importar.data && <p>Creados: {importar.data.creados}. Errores: {importar.data.errores.length}</p>}
         </section>
       )}
@@ -436,18 +442,14 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
           {renderConfigTab(tab)}
           <section className="settings-section settings-form-body">
             <div className="settings-caption"><strong>Doble factor</strong><span>Cuenta administradora</span></div>
-            <button onClick={async () => setTwoFactor(await enableTwoFactor())}>Activar/mostrar QR 2FA</button>
+            <button disabled={activarSegundoFactor.isPending} onClick={() => activarSegundoFactor.mutate()}>{activarSegundoFactor.isPending ? 'Preparando…' : 'Configurar doble factor'}</button>
             {twoFactor?.qrDataUrl && <img className="qr-preview" src={twoFactor.qrDataUrl} alt="QR 2FA" />}
-            {twoFactor && <p>Secret: {twoFactor.secret}</p>}
+            {twoFactor && <p>Clave de configuración: {twoFactor.secret}</p>}
           </section>
           <section className="settings-section">
-            <div className="settings-caption"><strong>Modo offline y sincronizacion</strong><span>Cola local del navegador</span></div>
-            <p>La app marca "Sin conexion" cuando el navegador pierde red. Los datos pendientes se guardan en IndexedDB y se sincronizan con `/api/sync` al volver.</p>
+            <div className="settings-caption"><strong>Sincronización pendiente</strong><span>Cola local del navegador</span></div>
+            <p>Revisa los cambios pendientes de este navegador y sincronízalos cuando recuperes la conexión.</p>
             <div className="editor-actions">
-              <button onClick={async () => {
-                await addOfflinePending({ type: 'paciente', payload: { idTemp: `tmp-${Date.now()}`, nombre: 'Paciente offline' } });
-                setPendingCount((await getOfflinePending()).length);
-              }}>Crear pendiente demo</button>
               <button onClick={async () => {
                 const pending = await getOfflinePending();
                 const pacientes = pending.filter((item) => item.type === 'paciente').map((item) => item.payload);
