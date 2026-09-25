@@ -17,9 +17,7 @@ import { getPacientes } from '../../../api/patients';
 import { enviarRecordatorioCita, getTelefonear, marcarTelefonearReubicada } from '../../../api/communications';
 import { getDoctores } from '../../../api/identity';
 import type { Cita,TelefonearPendiente } from '../../../api/types';
-import { AgendaDayBrief } from './AgendaDayBrief';
 import { AgendaResourceGrid } from './AgendaResourceGrid';
-import { AgendaLabSummaryStrip } from './AgendaLabSummaryStrip';
 import { citaMatchesQuery } from './agendaSearch';
 import { buildAgendaSlots,minutesFromTime,slotInHorario,todayIso,weekdayIndex,localAppointmentDate,localAppointmentTime,localDayRange,slotIso,overlaps } from './agendaTime';
 import { AgendaToolbar } from './AgendaToolbar';
@@ -446,23 +444,7 @@ export default function AgendaPage() {
     setToastMessage(slots.length ? `${citasActivas.length} citas activas · ${freeSlotsCount} inicios disponibles de ${configQuery.data?.duracion_habitual_min ?? 30} minutos para los profesionales visibles.` : 'No hay horario visible para calcular ocupación.');
   }
 
-  const todayHorario = doctorId
-    ? horariosByDoctor[doctorId]?.find((horario) => horario.dia_semana === weekdayIndex(day))
-    : null;
-  const horarioLabel = todayHorario?.bloques.length
-    ? todayHorario.bloques.map((bloque) => `${bloque.inicio}-${bloque.fin}`).join(' / ')
-    : todayHorario?.tipo_dia === 'festivo'
-      ? 'No trabaja'
-      : doctorId
-        ? 'Sin horario'
-        : 'Todas las agendas';
   const citasActivas = citas.filter((cita) => !['cancelada', 'no_presentado'].includes(getVisualStatus(cita)));
-  const pendientesConfirmar = citasActivas.filter((cita) => getVisualStatus(cita) === 'programada');
-  const solicitudesCambio = citasActivas.filter((cita) => cita.estado === 'reschedule_requested');
-  const pacientesEnClinica = citasActivas.filter((cita) => ['en_sala', 'en_atencion'].includes(getVisualStatus(cita)));
-  const nextVisibleCita = citasActivas
-    .filter((cita) => ['programada', 'confirmada', 'en_sala'].includes(getVisualStatus(cita)) && new Date(cita.fecha_hora).getTime() >= now.getTime())
-    .sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora))[0] ?? null;
   const freeSlotsCount = doctores.filter(doctor => !doctorId || doctor.id === doctorId).reduce((total, doctor) => {
     const duration = configQuery.data?.duracion_habitual_min ?? 30;
     const horario = horariosByDoctor[doctor.id]?.find(item => item.dia_semana === weekdayIndex(day));
@@ -483,10 +465,9 @@ export default function AgendaPage() {
         day={day}
         doctorId={doctorId}
         doctores={doctores}
-        horarioLabel={horarioLabel}
-        citasCount={citasActivas.length}
-        pendingCount={pendientesConfirmar.length}
-        clinicCount={pacientesEnClinica.length}
+        labSummary={labSummary}
+        labOnly={labOnly}
+        onToggleLabOnly={() => setLabOnly(value => !value)}
         onDayChange={setDay}
         onDoctorChange={setDoctorId}
         onCreateCita={() => {
@@ -513,22 +494,6 @@ export default function AgendaPage() {
           <span />
         </div>
       )}
-      <AgendaDayBrief
-        nextCita={nextVisibleCita}
-        pendingCount={pendientesConfirmar.length}
-        changeRequestCount={solicitudesCambio.length}
-        clinicCount={pacientesEnClinica.length}
-        freeSlotsCount={freeSlotsCount}
-        totalSlots={slots.length}
-        onOpenNext={() => nextVisibleCita && setModalCita(nextVisibleCita)}
-        onSearchSlot={buscarHuecoLibre}
-        onSearchCita={buscarCita}
-      />
-      <AgendaLabSummaryStrip
-        summary={labSummary}
-        labOnly={labOnly}
-        onToggleLabOnly={() => setLabOnly((value) => !value)}
-      />
       <div className="agenda-layout">
         <aside className="agenda-left-panel">
           <AgendaMonthCalendar day={day} onChange={setDay} />

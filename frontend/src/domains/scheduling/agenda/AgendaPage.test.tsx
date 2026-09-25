@@ -193,11 +193,13 @@ describe('AgendaPage flujos de cita', () => {
     mocks.marcarTelefonearReubicada.mockClear();
   });
 
-  it('muestra resumen operativo del dia y busca huecos al abrir el modal', async () => {
+  it('prioriza controles sin franja de resumen y mantiene la búsqueda de huecos', async () => {
     const user = userEvent.setup();
     renderAgenda();
 
-    expect(await screen.findByLabelText(/Resumen operativo de agenda/i)).toHaveTextContent('Huecos visibles');
+    await screen.findByLabelText('Mes de Agenda');
+    expect(screen.queryByLabelText(/Resumen operativo de agenda/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Resumen laboratorio agenda/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^Buscar hueco$/i }));
 
@@ -219,8 +221,8 @@ describe('AgendaPage flujos de cita', () => {
     renderAgenda();
 
     const toolbar = await screen.findByLabelText(/Filtros y acciones de agenda/i);
-    expect(within(toolbar).getAllByText('Todas las agendas')).toHaveLength(1);
-    expect(within(toolbar).getByText('Resumen')).toBeInTheDocument();
+    expect(within(toolbar).getAllByText('Todos los profesionales')).toHaveLength(1);
+    expect(within(toolbar).queryByText('Resumen')).not.toBeInTheDocument();
 
     const legend = await screen.findByLabelText(/Leyenda de estados de cita/i);
     expect(within(legend).getAllByText('Programada')).toHaveLength(1);
@@ -263,7 +265,7 @@ describe('AgendaPage flujos de cita', () => {
     renderAgenda();
 
     expect(await screen.findByText(/Lab: Corona zirconio 16/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Resumen laboratorio agenda/i)).toHaveTextContent('Trabajos de laboratorio hoy1');
+    expect(screen.queryByLabelText(/Resumen laboratorio agenda/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByText('Cesar Gutierrez Velez'));
 
@@ -296,11 +298,30 @@ describe('AgendaPage flujos de cita', () => {
     expect(await screen.findByText('Prueba corona')).toBeInTheDocument();
     expect(screen.getByText('Revision general')).toBeInTheDocument();
 
+    await user.click(screen.getByRole('button', { name: 'Más opciones de Agenda' }));
     const labSummary = screen.getByLabelText(/Resumen laboratorio agenda/i);
-    await user.click(within(labSummary).getByRole('button', { name: /Trabajos de laboratorio hoy/i }));
+    await user.click(within(labSummary).getByRole('menuitemcheckbox', { name: 'Solo citas con laboratorio' }));
+    await user.keyboard('{Escape}');
 
     expect(screen.getByText('Prueba corona')).toBeInTheDocument();
     expect(screen.queryByText('Revision general')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Quitar filtro de laboratorio' }));
+    expect(screen.getByText('Revision general')).toBeInTheDocument();
+  });
+
+  it('cambia mes y año desde controles visibles sin perder el profesional', async () => {
+    const user = userEvent.setup();
+    renderAgenda();
+    const professional = await screen.findByLabelText('Profesional de Agenda');
+    await screen.findByRole('option', { name: 'Dra. Ruiz' });
+    await user.selectOptions(professional, 'doc-1');
+    await user.selectOptions(screen.getByLabelText('Mes de Agenda'), '1');
+    await user.selectOptions(screen.getByLabelText('Año de Agenda'), '2028');
+    await waitFor(() => expect(mocks.getCitas).toHaveBeenLastCalledWith(expect.objectContaining({ doctor_id: 'doc-1', fecha_desde: expect.stringContaining('2028-02-') })));
+    expect(professional).toHaveValue('doc-1');
+    await user.selectOptions(professional, '');
+    await waitFor(() => expect(mocks.getCitas).toHaveBeenLastCalledWith(expect.not.objectContaining({ doctor_id: 'doc-1' })));
+    expect(screen.getByLabelText('Año de Agenda')).toHaveValue('2028');
   });
 
   it('abre nueva cita desde Pacientes con paciente y tratamiento precargados y llama a createCita', async () => {

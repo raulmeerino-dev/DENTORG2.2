@@ -23,9 +23,7 @@ export function AgendaMonthCalendar({ day, onChange }: { day: string; onChange: 
   </div>;
 }
 
-export function AgendaDatePicker({ day, onChange }: { day: string; onChange: (day: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const anchor = useRef<HTMLButtonElement>(null);
+export function AgendaPeriodSelectors({ day, onChange, compact = false }: { day: string; onChange: (day: string) => void; compact?: boolean }) {
   const latestDay = useRef(day);
   useLayoutEffect(() => { latestDay.current = day; }, [day]);
   const changePart = (part: 'month' | 'year', value: number) => {
@@ -37,8 +35,22 @@ export function AgendaDatePicker({ day, onChange }: { day: string; onChange: (da
   const year = date.getFullYear();
   const firstYear = Math.min(1900, year);
   const lastYear = Math.max(new Date().getFullYear() + 100, year);
+  return <div className={`agenda-month-selectors${compact ? ' agenda-month-selectors-inline' : ''}`}>
+    <label><span>Mes</span><select aria-label="Mes de Agenda" value={date.getMonth()} onChange={event => changePart('month', Number(event.target.value))}>
+      {Array.from({ length: 12 }, (_, month) => <option key={month} value={month}>{new Date(2024, month, 1).toLocaleDateString('es-ES', { month: 'long' })}</option>)}
+    </select></label>
+    <label><span>Año</span><select aria-label="Año de Agenda" value={year} onChange={event => changePart('year', Number(event.target.value))}>
+      {Array.from({ length: lastYear - firstYear + 1 }, (_, index) => firstYear + index).map(value => <option key={value}>{value}</option>)}
+    </select></label>
+  </div>;
+}
+
+export function AgendaDatePicker({ day, onChange, compactOnNarrowScreens = false }: { day: string; onChange: (day: string) => void; compactOnNarrowScreens?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const anchor = useRef<HTMLButtonElement>(null);
+  const date = new Date(`${day}T12:00:00`);
   const choose = (value: string) => { onChange(value); setOpen(false); anchor.current?.focus(); };
-  return <div className="agenda-date-picker">
+  return <div className={`agenda-date-picker${compactOnNarrowScreens ? ' agenda-date-picker-compact' : ''}`}>
     <button type="button" aria-label="Día anterior" onClick={() => onChange(addDaysIso(day, -1))}><ChevronLeft size={15} /></button>
     <button type="button" ref={anchor} aria-label="Elegir fecha de Agenda" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}>
       <CalendarDays size={15} /><span>{date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}</span><ChevronDown size={13} />
@@ -46,14 +58,7 @@ export function AgendaDatePicker({ day, onChange }: { day: string; onChange: (da
     <button type="button" aria-label="Día siguiente" onClick={() => onChange(addDaysIso(day, 1))}><ChevronRight size={15} /></button>
     <button type="button" onClick={() => onChange(todayIso())}>Hoy</button>
     {open && <FloatingPopover anchorRef={anchor} align="start" width={300} maxHeight={410} role="dialog" aria-label="Seleccionar fecha de Agenda" className="agenda-date-popover" onClose={() => setOpen(false)}>
-      <div className="agenda-month-selectors">
-        <label>Mes<select aria-label="Mes de Agenda" value={date.getMonth()} onChange={event => changePart('month', Number(event.target.value))}>
-          {Array.from({ length: 12 }, (_, month) => <option key={month} value={month}>{new Date(2024, month, 1).toLocaleDateString('es-ES', { month: 'long' })}</option>)}
-        </select></label>
-        <label>Año<select aria-label="Año de Agenda" value={year} onChange={event => changePart('year', Number(event.target.value))}>
-          {Array.from({ length: lastYear - firstYear + 1 }, (_, index) => firstYear + index).map(value => <option key={value}>{value}</option>)}
-        </select></label>
-      </div>
+      <AgendaPeriodSelectors day={day} onChange={onChange} />
       <AgendaMonthCalendar day={day} onChange={choose} />
       <button type="button" className="agenda-calendar-today" onClick={() => choose(todayIso())}>Volver a hoy</button>
     </FloatingPopover>}

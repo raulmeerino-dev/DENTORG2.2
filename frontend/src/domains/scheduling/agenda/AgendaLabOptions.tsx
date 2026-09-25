@@ -1,7 +1,7 @@
 import type { AgendaLabSummary } from './laboratorioAgenda';
 
 
-export function AgendaLabSummaryStrip({
+export function AgendaLabOptions({
   summary,
   labOnly,
   onToggleLabOnly,
@@ -12,10 +12,9 @@ export function AgendaLabSummaryStrip({
 }) {
   const hasLabSignal = summary.total > 0 || summary.suspectedWithoutWork > 0;
   return (
-    <div className={`dc-agenda-lab-summary${labOnly ? ' active' : ''}`} aria-label="Resumen laboratorio agenda">
-      <button type="button" onClick={onToggleLabOnly}>
-        <span>Trabajos de laboratorio hoy</span>
-        <strong>{summary.total}</strong>
+    <div className="agenda-lab-options" role="group" aria-label="Resumen laboratorio agenda">
+      <button type="button" role="menuitemcheckbox" aria-checked={labOnly} onClick={onToggleLabOnly}>
+        <span>Solo citas con laboratorio</span>
       </button>
       <span className="dc-agenda-lab-summary-ok">Listos: {summary.ready}</span>
       <span className="dc-agenda-lab-summary-pending">Pendientes: {summary.pending}</span>

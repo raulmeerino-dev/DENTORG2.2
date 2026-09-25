@@ -1,10 +1,15 @@
 .agenda-date-picker { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
 .agenda-date-picker > button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 30px; padding: 4px 7px; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); font-size: 12px; }
 .agenda-date-picker > button:hover { background: var(--dc-surface-hover); }
+.agenda-date-picker-compact { flex-wrap: nowrap; }
+.agenda-date-picker-compact > button { flex-shrink: 0; }
+@media (max-width: 1100px) { .agenda-date-picker-compact > button > span { display: none; } }
 .agenda-date-popover { padding: 12px; background: var(--dc-surface); color: var(--dc-text); }
 .agenda-month-selectors { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
 .agenda-month-selectors label { display: grid; gap: 3px; font-size: 11px; color: var(--dc-muted); }
 .agenda-month-selectors select { width: 100%; min-width: 0; height: 32px; padding: 4px; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); }
+.agenda-month-selectors-inline { grid-template-columns: 116px 76px; gap: 6px; flex: 0 0 auto; }
+.agenda-month-selectors-inline label > span { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .agenda-month-caption { font-size: 12px; font-weight: 600; text-transform: capitalize; padding: 8px 0; }
 .agenda-month-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
 .agenda-month-days > span { color: var(--dc-muted); font-size: 10px; text-align: center; padding: 4px 0; }

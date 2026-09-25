@@ -28,3 +28,9 @@ Los datos utilizados son sintéticos y pertenecen a bases locales separadas de l
 El modelo local puede tardar decenas de segundos y su comprensión no es infalible. La integración Responses se comprueba mediante pruebas de transporte, sin una llamada a una cuenta remota configurada. No se ha probado un micrófono físico. Estos límites no se presentan como funcionalidades verificadas en producción.
 
 Los artefactos locales de revisión están bajo `output/qa` y `output/playwright` (ignorados por Git). La subida al repositorio no equivale a un despliegue en producción.
+
+## Petición posterior: cabecera funcional de Agenda
+
+Se retiran las dos franjas permanentes de resumen operativo y laboratorio. La barra existente incorpora mes, año y profesional (uno o todos); conserva búsqueda, filtros secundarios, navegación diaria, Hoy y acciones de cita. Laboratorio pasa al menú secundario y muestra un filtro removible cuando se activa. Se reutiliza el selector temporal, conservando contexto en URL. Operativa mantiene sus controles anteriores; no cambian citas, permisos ni backend.
+
+Validación: 388 pruebas frontend, build/TypeScript y ESLint, cuatro recorridos reales de Jornada/Agenda y revisión en navegador al 100 % (viewport CSS verificado). Cabecera de 56 px en 1366×768, 1440×900 y 1920×1080; adaptación en dos filas a 1024×600 y revisión adicional a 1366×500. Se comprueban dos profesionales, vuelta a los seis, mes/año, recarga, menús completos, hover estable y apertura de nueva cita.
