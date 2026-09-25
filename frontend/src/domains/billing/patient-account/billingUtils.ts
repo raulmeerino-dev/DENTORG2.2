@@ -7,16 +7,17 @@ export function amount(value?: string | number | null) {
 export function getBillingTotals(facturas: Factura[]) {
   return facturas.reduce(
     (totals, factura) => ({
-      facturado: totals.facturado + amount(factura.total),
+      facturado: totals.facturado + (['borrador', 'anulada'].includes(factura.estado) ? 0 : amount(factura.total)),
+      // Cancelling a document does not cancel money already received.
       cobrado: totals.cobrado + amount(factura.total_cobrado),
-      pendiente: totals.pendiente + amount(factura.pendiente),
+      pendiente: totals.pendiente + (['borrador', 'anulada'].includes(factura.estado) ? 0 : amount(factura.pendiente)),
     }),
     { facturado: 0, cobrado: 0, pendiente: 0 },
   );
 }
 
 export function isFacturaPendiente(factura: Factura) {
-  return amount(factura.pendiente) > 0 && factura.estado !== 'anulada';
+  return amount(factura.pendiente) > 0 && !['borrador', 'anulada'].includes(factura.estado);
 }
 
 export function getFacturasPendientes(facturas: Factura[]) {
@@ -24,7 +25,7 @@ export function getFacturasPendientes(facturas: Factura[]) {
 }
 
 export function getPagosParciales(facturas: Factura[]) {
-  return facturas.filter((factura) => amount(factura.total_cobrado) > 0 && amount(factura.pendiente) > 0);
+  return facturas.filter((factura) => isFacturaPendiente(factura) && amount(factura.total_cobrado) > 0);
 }
 
 export function getFacturasRecientes(facturas: Factura[], limit = 3) {

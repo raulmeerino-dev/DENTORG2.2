@@ -10,7 +10,9 @@ import type { TreatmentVisual } from '../../clinical/components/treatmentVisual'
 import { TreatmentBadge } from '../../clinical/components/TreatmentBadge';
 import { emitirRecetaPdf } from '../../../api/prescriptions';
 import { openFacturaPdf } from '../../../api/billing';
-import { amount, getBillingTotals, getFacturaPendientePreferida } from './billingUtils';
+import { amount, getFacturaPendientePreferida } from './billingUtils';
+import { patientBalance, patientBalanceClass } from './patientBalance';
+import './history-billing.css';
 
 type HistoryBillingRow = {
   id: string;
@@ -54,7 +56,7 @@ function getFacturaForHistorial(entrada: HistorialClinico, facturas: Factura[]) 
 }
 
 function formatFactura(factura?: Factura | null) {
-  return factura ? `${factura.serie}/${factura.numero}` : 'No';
+  return factura ? factura.estado === 'borrador' ? 'Borrador' : `${factura.serie}/${factura.numero}` : 'Sin facturar';
 }
 
 function activeCobros(factura?: Factura | null) {
@@ -154,7 +156,6 @@ export function DentCoreHistoryBillingPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedRow = rows.find((row) => row.id === selectedId) ?? rows[rows.length - 1] ?? null;
   const selectedFactura = selectedRow?.facturaItem ?? null;
-  const totals = getBillingTotals(facturas);
   const firstPendingFactura = getFacturaPendientePreferida(facturas, selectedFactura);
 
   function abrirFacturaPdf(factura: Factura) {
@@ -203,7 +204,7 @@ export function DentCoreHistoryBillingPanel({
             {' - '}
             {rows.length} realizado{rows.length === 1 ? '' : 's'}
             {canManageBilling && (
-              <> - saldo {money(account?.saldo ?? totals.pendiente)}</>
+              <> · <b className={patientBalanceClass(account?.saldo)}>Saldo {patientBalance(account?.saldo)}</b></>
             )}
           </span>
         </div>
@@ -340,7 +341,7 @@ export function DentCoreHistoryBillingPanel({
                     <td data-label="Recibo/Cobro">{row.recibo}</td>
                     <td data-label="Importe" className="num">{row.importe ? money(row.importe) : '0,00'}</td>
                     <td data-label="Cobrado" className="num editable-cobrado-cell" onDoubleClick={(event) => handleCobradoDoubleClick(event, row)} title="Doble clic para anadir pago">{row.cobrado ? money(row.cobrado) : '0,00'}</td>
-                    <td data-label="Saldo" className="num">{money(row.saldo)}</td>
+                    <td data-label="Saldo" className="num"><span className={patientBalanceClass(row.saldo)}>{patientBalance(row.saldo)}</span></td>
                   </>
                 )}
               </tr>
@@ -396,7 +397,7 @@ export function DentCoreHistoryBillingPanel({
                     </div>
                     <div>
                       <dt>Saldo</dt>
-                      <dd className={row.saldo > 0 ? 'is-pending' : ''}>{money(row.saldo)}</dd>
+                      <dd className={patientBalanceClass(row.saldo)}>{patientBalance(row.saldo)}</dd>
                     </div>
                   </dl>
                   <footer>

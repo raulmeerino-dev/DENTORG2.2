@@ -22,7 +22,7 @@ import {
   type HistoryQuery,
 } from './history/historyRows';
 import { HistoryRowDetail, type HistoryActions } from './history/HistoryRowDetail';
-import { historyBalance, historyBalanceClass } from './history/historyBalance';
+import { patientBalance, patientBalanceClass } from '../billing/patient-account/patientBalance';
 import './history-workspace.css';
 
 type Props = Omit<HistoryData, 'notasDentales'> &
@@ -314,7 +314,7 @@ export function HistorialCompletoPanel({
                   ? 'Saldo pendiente'
                   : 'Saldo actual'}
             </dt>
-            <dd>{historyBalance(props.saldo.pendiente)} €</dd>
+            <dd>{patientBalance(props.saldo.pendiente)} €</dd>
           </div>
         </dl>
       )}
@@ -485,8 +485,8 @@ export function HistorialCompletoPanel({
                         {amount(row.amount)}
                       </td>
                       <td className="ph-numeric ph-paid">{amount(row.paid)}</td>
-                      <td title={row.balanceAtPayment ? 'Saldo de cuenta al registrar este pago; negativo = pendiente, positivo = a favor.' : 'Saldo de este acto o documento; negativo = pendiente de pago.'} className={`ph-numeric ph-balance ${historyBalanceClass(row.balance)}`}>
-                        {historyBalance(row.balance)}
+                      <td title={row.balanceAtPayment ? 'Saldo de cuenta al registrar este pago; negativo = pendiente, positivo = a favor.' : 'Saldo de este acto o documento; negativo = pendiente de pago.'} className={`ph-numeric ph-balance ${patientBalanceClass(row.balance)}`}>
+                        {patientBalance(row.balance)}
                       </td>
                     </>
                   )}

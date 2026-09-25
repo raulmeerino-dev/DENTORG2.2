@@ -2,7 +2,7 @@ import type { HistoryData, HistoryRow } from './historyRows';
 import type { HistoryActions } from './HistoryRowDetail';
 import { formatDate, money } from '../../../shared/format';
 import { clinicDateKey } from '../../../shared/time/clinicTime';
-import { historyBalance, historyBalanceClass } from './historyBalance';
+import { patientBalance, patientBalanceClass } from '../../billing/patient-account/patientBalance';
 
 /** Read the same allocations as checkout; never apportion invoice totals by percentage. */
 export function HistoryEconomics({
@@ -55,7 +55,7 @@ export function HistoryEconomics({
                     {money(importe)}
                     {row.payment?.anulado ? ' · Anulado' : ''}
                   </td>
-                  <td className={`ph-numeric ${historyBalanceClass(charge.pendiente)}`}>{money(charge.pendiente)}</td>
+                  <td className={`ph-numeric ${patientBalanceClass(charge.pendiente)}`}>{money(charge.pendiente)}</td>
                 </tr>
               ))}
             </tbody>
@@ -116,8 +116,8 @@ export function HistoryEconomics({
                   </td>
                   <td className="ph-numeric">{money(m.importe)}</td>
                   <td className="ph-numeric">{money(m.anulado ? 0 : applied)}</td>
-                  <td className={`ph-numeric ${!m.anulado ? historyBalanceClass(m.saldo_tras_operacion) : ''}`}>
-                    {m.saldo_tras_operacion == null || m.anulado ? '—' : historyBalance(m.saldo_tras_operacion)}
+                  <td className={`ph-numeric ${!m.anulado ? patientBalanceClass(m.saldo_tras_operacion) : ''}`}>
+                    {m.saldo_tras_operacion == null || m.anulado ? '—' : patientBalance(m.saldo_tras_operacion)}
                   </td>
                 </tr>
               ))}
@@ -196,8 +196,8 @@ export function HistoryLinkedTreatments({
               {billing && (
                 <>
                   {(['amount', 'paid', 'balance'] as const).map((field) => (
-                    <td className={`ph-numeric ${field === 'balance' ? historyBalanceClass(child.balance) : ''}`} key={field}>
-                      {field === 'balance' ? historyBalance(child.balance) : child[field] == null ? '—' : money(child[field]!)}
+                    <td className={`ph-numeric ${field === 'balance' ? patientBalanceClass(child.balance) : ''}`} key={field}>
+                      {field === 'balance' ? patientBalance(child.balance) : child[field] == null ? '—' : money(child[field]!)}
                     </td>
                   ))}
                 </>

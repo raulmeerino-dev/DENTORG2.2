@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { openPaymentReceipt } from '../../../api/billing';
 import { getApiErrorMessage } from '../../../api/errors';
 import { HistoryEconomics, HistoryLinkedTreatments } from './HistoryEconomics';
-import { historyBalance, historyBalanceClass } from './historyBalance';
+import { patientBalance, patientBalanceClass } from '../../billing/patient-account/patientBalance';
 
 export interface HistoryActions {
   onOpenDocumento: (document: DocumentoPaciente) => void;
@@ -60,7 +60,7 @@ export function HistoryRowDetail({
         value: `${money(row.paid)} €`,
       });
     if (row.balance != null)
-      fields.push({ label: row.balanceAtPayment ? 'Saldo de cuenta al registrar el pago' : row.visit ? 'Saldo de la sesión' : row.treatment ? 'Saldo del tratamiento' : 'Saldo actual de la factura', value: `${historyBalance(row.balance)} €`, className: historyBalanceClass(row.balance) });
+      fields.push({ label: row.balanceAtPayment ? 'Saldo de cuenta al registrar el pago' : row.visit ? 'Saldo de la sesión' : row.treatment ? 'Saldo del tratamiento' : 'Saldo actual de la factura', value: `${patientBalance(row.balance)} €`, className: patientBalanceClass(row.balance) });
   }
   return (
     <section className="patient-history-detail" aria-label={`Detalle de ${row.type.toLowerCase()}`}>

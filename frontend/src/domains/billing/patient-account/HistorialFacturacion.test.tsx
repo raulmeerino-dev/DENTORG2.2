@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { ApiPaciente, HistorialClinico } from '../../../api/types';
+import type { ApiPaciente, Factura, HistorialClinico } from '../../../api/types';
 import { DentCoreHistoryBillingPanel } from './HistorialFacturacion';
+import { getBillingTotals, getFacturasPendientes, getPagosParciales } from './billingUtils';
 
 const paciente: ApiPaciente = {
   id: 'pac-1',
@@ -72,5 +73,18 @@ describe('DentCoreHistoryBillingPanel permissions', () => {
     expect(screen.getAllByText('Importe').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Cobrado').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Saldo').length).toBeGreaterThan(0);
+    expect(screen.getByRole('cell', { name: '-95,00' }).querySelector('.has-debt')).toHaveTextContent('-95,00');
+    expect(screen.getByText('Saldo —')).toBeInTheDocument(); // No account response must not imply zero debt.
+  });
+  it('no trata un borrador ni una factura anulada como deuda facturada', () => {
+    const invoices = [
+      { id: 'draft', estado: 'borrador', total: '150', total_cobrado: '0', pendiente: '150' },
+      { id: 'void', estado: 'anulada', total: '300', total_cobrado: '50', pendiente: '250' },
+      { id: 'issued', estado: 'emitida', total: '150', total_cobrado: '0', pendiente: '150' },
+      { id: 'partial', estado: 'parcial', total: '100', total_cobrado: '60', pendiente: '40' },
+    ] as Factura[];
+    expect(getBillingTotals(invoices)).toEqual({ facturado: 250, cobrado: 110, pendiente: 190 });
+    expect(getFacturasPendientes(invoices).map(f => f.id)).toEqual(['issued', 'partial']);
+    expect(getPagosParciales(invoices).map(f => f.id)).toEqual(['partial']);
   });
 });
