@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getClinicas } from '../../api/identity';
-import { Banknote, CalendarDays, ClipboardList, FolderOpen, BriefcaseBusiness, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles } from 'lucide-react';
+import { Banknote, CalendarDays, ClipboardList, FolderOpen, BriefcaseBusiness, LogOut, Moon, Settings2, Sun, UsersRound, Sparkles, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { FloatingPopover } from '../../design-system/FloatingPopover';
 import { useAuth } from '../../domains/identity/session/AuthContext';
 import { GLOBAL_LAUNCHER_IDS, ROLE_LABELS, WORKFLOW_ITEMS, canAccess } from '../navigation/workflow';
@@ -12,11 +12,14 @@ import DoctorNotificationsBell from '../../domains/scheduling/components/DoctorN
 import StaffClockPopover from '../../domains/identity/components/StaffClockPopover';
 import EnSala from '../../domains/scheduling/workspace/EnSala';
 import { getClinicTimeZone } from '../../shared/time/clinicTime';
+import { useSidebarPreference } from './useSidebarPreference';
+import { SidebarLink } from './SidebarLink';
 import './shell.css';
 
 const icons: Partial<Record<AppSection, typeof CalendarDays>> = { hoy: CalendarDays, pacientes: UsersRound, caja: Banknote, listados: ClipboardList, archivos: FolderOpen, administracion: BriefcaseBusiness, adminExtras: Settings2, portalPaciente: CalendarDays };
 
 export default function MainNav() {
+  const [compact, setCompact] = useSidebarPreference();
   const { user, logout } = useAuth();
   const location = useLocation();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -35,9 +38,9 @@ export default function MainNav() {
   const clock = now.toLocaleDateString('es-ES', { timeZone: getClinicTimeZone(), day: '2-digit', month: 'short' }) + ' · ' + now.toLocaleTimeString('es-ES', { timeZone: getClinicTimeZone(), hour: '2-digit', minute: '2-digit' });
   return <>
     <a className="dc-skip-link" href="#main-workspace">Ir al área de trabajo</a>
-    <aside className="dc-sidebar" aria-label="Barra lateral">
+    <aside className="dc-sidebar" data-compact={compact} aria-label="Barra lateral">
       <NavLink to={user?.rol === 'paciente' ? '/mis-citas' : '/jornada'} className="dc-brand" aria-label="DentCore"><img src={dentcoreLogo} alt="" /><strong>DentCore</strong></NavLink>
-      <nav className="dc-navigation" aria-label="Navegación principal">
+      <nav id="dc-navigation" className="dc-navigation" aria-label="Navegación principal">
         {(['daily', 'secondary'] as const).map(group => <div className={`dc-nav-group dc-nav-group-${group}`} key={group} role="group" aria-label={group === 'daily' ? 'Trabajo diario' : 'Consulta y administración'}>
         {navItems.filter(item => (item.group ?? 'daily') === group).map(item => {
           const Icon = icons[item.id] ?? CalendarDays;
@@ -46,10 +49,13 @@ export default function MainNav() {
           const jornadaParams = new URLSearchParams(location.pathname === '/jornada' ? location.search : '');
           if (item.id === 'agenda' || item.id === 'hoy') jornadaParams.set('vista', item.id === 'agenda' ? 'agenda' : 'operativa');
           const route = item.id === 'agenda' || item.id === 'hoy' ? `/jornada?${jornadaParams}` : item.route!;
-          return <Link key={item.id} to={route} className={`dc-nav-link${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={item.label}><Icon size={18} aria-hidden="true" /><span>{item.label}</span></Link>;
+          return <SidebarLink key={item.id} to={route} label={item.label} active={active} compact={compact} icon={<Icon size={18} aria-hidden="true" />} />;
         })}
         </div>)}
       </nav>
+      <div className="dc-sidebar-control"><button type="button" aria-label={compact ? 'Expandir navegación' : 'Contraer navegación'} title={compact ? 'Expandir navegación' : 'Contraer navegación'} aria-expanded={!compact} aria-controls="dc-navigation" onClick={() => setCompact(value => !value)}>
+        {compact ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}<span>Contraer</span>
+      </button></div>
     </aside>
     <header className="dc-topbar">
       <div className="dc-topbar-actions">

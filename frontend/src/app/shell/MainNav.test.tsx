@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MainNav from './MainNav';
 
 const authState = vi.hoisted(() => ({ user: { id: 'user-1', nombre: 'Administrador', rol: 'admin' }, logout: vi.fn() }));
@@ -15,7 +15,21 @@ function renderNav(role: string, path = '/jornada') {
   authState.user = { id: 'user-1', nombre: 'Usuario', rol: role };
   return render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><MainNav /></MemoryRouter></QueryClientProvider>);
 }
+beforeEach(() => localStorage.clear());
+
 describe('Persistent navigation', () => {
+  it('toggles compact navigation without losing names or the active section', async () => {
+    renderNav('admin');
+    await userEvent.click(screen.getByRole('button', { name: 'Contraer navegación' }));
+    expect(screen.getByRole('complementary', { name: 'Barra lateral' })).toHaveAttribute('data-compact', 'true');
+    expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
+    await userEvent.hover(screen.getByRole('link', { name: 'Ajustes' }));
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Ajustes');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Expandir navegación' }));
+    expect(screen.getByRole('complementary', { name: 'Barra lateral' })).toHaveAttribute('data-compact', 'false');
+  });
   it('shows the clinic and keeps the main workspaces in one navigation', async () => {
     renderNav('admin');
     expect(screen.getByRole('link', { name: 'Jornada' })).toHaveAttribute('aria-current', 'page');
