@@ -23,6 +23,29 @@ beforeEach(() => {
   HTMLElement.prototype.scrollTo = vi.fn();
 });
 describe('Copilot', () => {
+  it('keeps conversation across patient navigation and clears drafts from the previous patient', async () => {
+    const user = userEvent.setup();
+    const nextPatient = '7a31e8d8-55af-41a9-a830-3954a7e41851';
+    vi.mocked(askCopilot).mockResolvedValueOnce({
+      message: 'Conversación anterior',
+      sources: [{ label: 'Abrir otro paciente', path: `/pacientes?paciente_id=${nextPatient}&tab=sesion` }],
+      proposal: { id: 'old', label: 'Confirmar nota anterior', steps: [] },
+    }).mockResolvedValueOnce({ message: 'Nuevo contexto', sources: [] });
+    open();
+    await user.type(screen.getByRole('textbox'), 'Primera petición');
+    await user.click(screen.getByRole('button', { name: 'Enviar petición' }));
+    await user.click(await screen.findByRole('button', { name: 'Abrir otro paciente' }));
+    act(() => window.dispatchEvent(new Event('dentcore:open-assistant')));
+    expect(screen.getByText('Conversación anterior')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Confirmar nota anterior' })).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox'), 'Y ahora este paciente');
+    await user.click(screen.getByRole('button', { name: 'Enviar petición' }));
+    await screen.findByText('Nuevo contexto');
+    const calls = vi.mocked(askCopilot).mock.calls;
+    expect(calls[0][0].session_id).toBe(calls[1][0].session_id);
+    expect(calls[1][0].context.patient_id).toBe(nextPatient);
+    expect(confirmCopilot).not.toHaveBeenCalled();
+  });
   it('unlocks immediately on stop and a late response cannot unlock a newer request', async () => {
     const user = userEvent.setup();
     let resolveOld!: (result: { message: string; sources: [] }) => void;

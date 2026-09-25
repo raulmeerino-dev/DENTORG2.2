@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 OLLAMA_UNAVAILABLE_MESSAGE = (
     "Ollama no está ejecutándose. Instálalo y ejecuta: "
-    "ollama pull qwen2.5:14b-instruct"
+    "ollama pull qwen3.5:4b"
 )
 NO_LLM_ENGINE_MESSAGE = "No hay motor de IA disponible. Revisa Ollama u OpenAI."
 
@@ -546,6 +546,7 @@ class OllamaIntentInterpreter:
         self.base_url = settings.ollama_base_url.strip().rstrip("/")
         self.model = settings.ollama_model.strip()
         self.timeout = settings.ollama_timeout_seconds
+        self.thinking = settings.ollama_thinking
 
     async def interpret(self, request: AssistantInterpretRequest) -> AssistantIntentPayload:
         if not self.base_url or not self.model:
@@ -587,6 +588,7 @@ class OllamaIntentInterpreter:
             "model": self.model,
             "stream": False,
             "format": OLLAMA_INTENT_JSON_SCHEMA,
+            "think": self.thinking,
             "options": {"temperature": 0},
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},

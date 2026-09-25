@@ -98,6 +98,7 @@ async def test_ollama_respects_resource_budget_and_rejects_truncated_generation(
     def handle(request):
         payload = json.loads(request.content)
         assert payload["options"] == {"temperature": 0, "num_ctx": 8192, "num_predict": 512}
+        assert payload["think"] is False
         return httpx.Response(200, json={
             "done_reason": "length", "message": {"content": "Respuesta incompleta"},
         })

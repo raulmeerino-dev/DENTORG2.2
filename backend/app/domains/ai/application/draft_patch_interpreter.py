@@ -274,6 +274,7 @@ class OllamaDraftPatchInterpreter:
         self.base_url = settings.ollama_base_url.strip().rstrip("/")
         self.model = settings.ollama_model.strip()
         self.timeout = settings.ollama_timeout_seconds
+        self.thinking = settings.ollama_thinking
 
     async def interpret(self, request: DraftPatchInterpretRequest) -> DraftPatch:
         if not self.base_url or not self.model:
@@ -311,6 +312,7 @@ class OllamaDraftPatchInterpreter:
             "model": self.model,
             "stream": False,
             "format": DRAFT_PATCH_JSON_SCHEMA,
+            "think": self.thinking,
             "options": {"temperature": 0},
             "messages": [
                 {"role": "system", "content": DRAFT_PATCH_SYSTEM_PROMPT},

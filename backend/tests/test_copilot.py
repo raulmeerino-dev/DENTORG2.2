@@ -17,6 +17,7 @@ from app.domains.ai.application import copilot
 from app.domains.ai.application.copilot_lifecycle import await_turn
 from app.domains.ai.application.copilot_provider import ProviderUnavailable, strict_schema
 from app.domains.ai.application.copilot_tools import TOOLS
+from app.domains.ai.application.copilot_workspace import workspace_knowledge
 from app.domains.ai.persistence.copilot import CopilotSession
 from app.domains.ai.schemas import copilot as S
 from app.domains.clinical.persistence.historial import HistorialClinico, NotaDental
@@ -68,7 +69,7 @@ async def fixture(db):
         clinica_id=clinic.id,
     )
     patient = Paciente(nombre="Paciente", apellidos="Copilot", clinica_id=clinic.id)
-    doctor = Doctor(nombre="Doctor QA", clinica_id=clinic.id, activo=True)
+    doctor = Doctor(nombre=f"Doctor QA {uuid4().hex[:8]}", clinica_id=clinic.id, activo=True)
     family = FamiliaTratamiento(nombre="Prueba", activo=True)
     db.add_all([account, patient, doctor, family])
     await db.flush()
@@ -99,6 +100,9 @@ def turn(patient, **kwargs):
 
 
 async def run(db, user, request, calls):
+    notes = [args["text"] for name, args in calls if name == "clinical_note"]
+    if notes:
+        request.text = "Preparar notas dictadas: " + " / ".join(notes)
     return await copilot.run_turn(request, db, user, None, ScriptedModel(calls))
 
 
@@ -135,7 +139,7 @@ async def test_patient_summary_includes_recent_reviewed_notes_with_bounded_conte
     assert len(notes[0]["text"]) == 1500 and notes[0]["text_truncated"]
     assert notes[0]["professional"] == doctor.nombre
     assert notes[-1]["date"] == "2026-09-02"
-    assert "tab=historial" in notes[0]["source"]
+    assert "tab=sesion" in notes[0]["source"]
     assert "recepcion" not in TOOLS["patient_summary"].roles
     with pytest.raises(HTTPException) as error:
         await TOOLS["patient_summary"].handler(
@@ -210,6 +214,132 @@ async def test_note_requires_confirmation_and_retries_never_duplicate(db_session
         assert any("tab=sesion" in source["path"] for source in saved["sources"])
 
 
+@pytest.mark.parametrize("decision", ["confirm", "cancel"])
+async def test_write_then_open_only_navigates_after_successful_confirmation(db_session, decision):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient)
+    result = await run(db_session, user, request, [
+        ("clinical_note", {"patient_id": str(patient.id), "text": "Control de prueba"}),
+        ("navigate", {"module": "documentos", "patient_id": str(patient.id)}),
+    ])
+    assert result["proposal"] and result["navigation"] is None
+    saved = await confirm(db_session, user, request, result, decision)
+    assert bool(saved.get("navigation")) is (decision == "confirm")
+    if decision == "confirm":
+        assert "tab=documentos" in saved["navigation"]
+
+
+async def test_followup_has_ordered_references_without_old_tool_payloads(db_session):
+    user, patient, *_ = await fixture(db_session)
+    patient.nombre = f"Álvaro {uuid4().hex[:8]}"
+    patient.apellidos = "García López"
+    await db_session.commit()
+    request = turn(patient)
+    query = f"garcia lopez {patient.nombre.replace('Á', 'A')}"
+    await run(db_session, user, request, [("search_patients", {"query": query})])
+    session, state = await copilot.session_state(db_session, user, request.session_id)
+    references = state["references"]["patients"]
+    assert references and str(patient.id) in [r["id"] for r in references]
+    by_history = await TOOLS["search_patients"].handler(S.SearchPatients(query=f"H{patient.num_historial}"), db_session, user, None)
+    assert [r["id"] for r in by_history["patients"]] == [str(patient.id)]
+    assert not (await TOOLS["search_patients"].handler(S.SearchPatients(query="9999999999"), db_session, user, None))["patients"]
+    state["messages"].append({"role": "tool", "content": "LARGE_OLD_TOOL_PAYLOAD"})
+    await copilot.save_state(db_session, session, state)
+    await db_session.commit()
+
+    class FollowUp(ScriptedModel):
+        async def complete(self, system, messages, tools):
+            assert str(patient.id) in system and "history_number" in system
+            assert "LARGE_OLD_TOOL_PAYLOAD" not in str(messages)
+            assert "Referencias anteriores" in system
+            return await super().complete(system, messages, tools)
+
+    await copilot.run_turn(request.model_copy(update={"request_id": uuid4(), "text": "El segundo"}),
+                           db_session, user, None, FollowUp())
+
+
+async def test_patient_change_discards_draft_but_preserves_conversation(db_session):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient)
+    first = await run(db_session, user, request, [
+        ("clinical_note", {"patient_id": str(patient.id), "text": "BORRADOR_ANTERIOR"}),
+    ])
+    other = Paciente(nombre="Nuevo", apellidos="Paciente", clinica_id=user.clinica_id)
+    db_session.add(other)
+    await db_session.commit()
+
+    class PatientChanged(ScriptedModel):
+        async def complete(self, system, messages, tools):
+            assert "BORRADOR_ANTERIOR" not in system
+            assert str(other.id) in system
+            assert sum(m["role"] == "user" for m in messages) == 2
+            return await super().complete(system, messages, tools)
+
+    await copilot.run_turn(request.model_copy(update={
+        "request_id": uuid4(), "text": "¿Qué puedo hacer aquí?",
+        "context": S.CopilotContext(module="pacientes", patient_id=other.id),
+    }), db_session, user, None, PatientChanged())
+    with pytest.raises(HTTPException) as error:
+        await confirm(db_session, user, request, first)
+    assert error.value.status_code == 409
+    assert await note_count(db_session, patient) == 0
+
+
+async def test_workspace_knowledge_and_tools_are_filtered_by_real_role(db_session):
+    user, patient, doctor, _ = await fixture(db_session)
+    account = await db_session.get(Usuario, user.user_id)
+    account.doctor_id = doctor.id
+    await db_session.commit()
+    context = await copilot.context_for(db_session, user, turn(patient).context, {"known": [], "names": {}})
+    assert context["own_professional"]["id"] == str(doctor.id)
+    for role in ["admin", "doctor", "auxiliar", "recepcion"]:
+        actor = TokenData(user.user_id, user.username, role, user.clinica_id)
+        knowledge = workspace_knowledge(actor)
+        financial = role in {"admin", "recepcion"}
+        assert ("facturas" in knowledge["record_views"]) is financial
+        assert ("economia" in knowledge["patient_editors"]) is financial
+        tools = {t["name"]: t for t in copilot.available_tools(actor)}
+        assert ("register_payment" in tools) is financial
+        assert "section" not in tools["navigate"]["parameters"]["properties"]
+        assert ("facturas" in tools["search_records"]["parameters"]["properties"]["view"]["enum"]) is financial
+    for area, tab in [("sesion", "sesion"), ("visitas", "visitas"), ("economia", "facturacion")]:
+        result = await TOOLS["navigate"].handler(S.Navigate(module=area, patient_id=patient.id), db_session, user, None)
+        assert f"tab={tab}" in result["navigation"]
+
+
+async def test_model_discovers_only_needed_tools_for_each_request(db_session):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient)
+
+    class Discovery(ScriptedModel):
+        async def complete(self, system, messages, tools):
+            names = {t["name"] for t in tools}
+            if not self.count:
+                assert "get_schedule" not in names and "navigate" in names
+            else:
+                assert "get_schedule" in names and "register_payment" not in names
+            return await super().complete(system, messages, tools)
+
+    await copilot.run_turn(request, db_session, user, None,
+                           Discovery([("discover_tools", {"groups": ["agenda"]})]))
+    await copilot.run_turn(request.model_copy(update={"request_id": uuid4()}), db_session, user, None,
+                           Discovery([("discover_tools", {"groups": ["agenda"]})]))
+    doctor = TokenData(user.user_id, user.username, "doctor", user.clinica_id)
+    with pytest.raises(HTTPException) as error:
+        await TOOLS["discover_tools"].handler(S.DiscoverTools(groups=["economia"]), db_session, doctor, None)
+    assert error.value.status_code == 403
+
+
+async def test_unsupplied_note_content_never_becomes_a_confirmation(db_session):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient).model_copy(update={"text": "Apunta control sin molestias"})
+    result = await copilot.run_turn(request, db_session, user, None, ScriptedModel([
+        ("clinical_note", {"patient_id": str(patient.id), "text": "Control sin molestias. Radiografía normal."}),
+    ]))
+    assert result["proposal"] is None
+    assert await note_count(db_session, patient) == 0
+
+
 async def test_multi_action_plan_rolls_back_even_services_that_commit(db_session, monkeypatch):
     user, patient, *_ = await fixture(db_session)
     request = turn(patient)
@@ -237,13 +367,13 @@ async def test_multi_action_plan_rolls_back_even_services_that_commit(db_session
     assert await note_count(db_session, patient) == 0
 
 
-async def known_catalog(db, user, request):
+async def known_catalog(db, user, request, doctor, treatment):
     session, state = await copilot.session_state(db, user, request.session_id)
     rows = await TOOLS["search_treatments"].handler(
-        S.SearchPatients(query="Obturación QA"), db, user, None
+        S.SearchPatients(query=treatment.codigo), db, user, None
     )
     doctors = await TOOLS["search_professionals"].handler(
-        S.SearchProfessionals(query="Doctor QA"), db, user, None
+        S.SearchProfessionals(query=doctor.nombre), db, user, None
     )
     copilot.remember_entities(state, rows)
     copilot.remember_entities(state, doctors)
@@ -254,7 +384,7 @@ async def known_catalog(db, user, request):
 async def test_actual_treatment_confirmation_preserves_zero_amount(db_session):
     user, patient, doctor, treatment = await fixture(db_session)
     request = turn(patient)
-    await known_catalog(db_session, user, request)
+    await known_catalog(db_session, user, request, doctor, treatment)
     result = await run(
         db_session,
         user,
@@ -292,7 +422,7 @@ async def test_actual_treatment_confirmation_preserves_zero_amount(db_session):
 async def test_budget_price_change_requires_new_review(db_session):
     user, patient, doctor, treatment = await fixture(db_session)
     request = turn(patient)
-    await known_catalog(db_session, user, request)
+    await known_catalog(db_session, user, request, doctor, treatment)
     result = await run(
         db_session,
         user,

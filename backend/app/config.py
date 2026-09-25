@@ -93,10 +93,11 @@ class Settings(BaseSettings):
     openai_timeout_seconds: int = 12
     openai_responses_endpoint: str = "https://api.openai.com/v1/responses"
     ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "qwen2.5:14b-instruct"
+    ollama_model: str = "qwen3.5:4b"
     ollama_timeout_seconds: int = 120
     ollama_context_length: int = Field(default=16384, ge=8192, le=131072)
     ollama_max_output_tokens: int = Field(default=768, ge=256, le=4096)
+    ollama_thinking: bool = False
     whatsapp_webhook_token: str = ""
     backup_retention_days: int = 180
     backup_external_location: str = ""

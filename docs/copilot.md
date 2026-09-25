@@ -10,6 +10,12 @@ Una nota confirmada sin cita se muestra entre las notas de hoy en Sesión y su e
 
 ## Arquitectura
 
+El modelo comienza cada petición con cuatro herramientas: búsqueda de pacientes, profesionales, navegación y descubrimiento de capacidades. `discover_tools` activa sólo los grupos necesarios y permitidos durante ese turno. La selección la hace el LLM mediante una llamada nativa, sin clasificador por palabras ni respuesta simulada. `copilot_workspace.py` comparte destinos reales con la navegación y obtiene las vistas/estados de Registros desde su catálogo canónico filtrado por rol.
+
+La conversación continúa al navegar. Al cambiar de paciente se detienen consultas pendientes y se retiran los borradores anteriores; el siguiente turno utiliza el contexto visible validado. Se recuerdan hasta ocho referencias ordenadas por tipo (pacientes, profesionales, tratamientos y citas), sin repetir los informes clínicos completos. Nombres ambiguos siguen exigiendo selección; importes y disponibilidad se vuelven a consultar. El profesional propio procede de la cuenta del servidor.
+
+Las notas dictadas usan contenido extractivo: además del prompt, un control previo rechaza palabras no aportadas en el dictado o sus correcciones recientes. Esto limita ampliaciones inventadas, pero **no verifica el significado clínico ni sustituye la revisión profesional**, que sigue siendo obligatoria. Si una petición combina guardar y abrir una vista, la navegación espera a que se confirme y termine correctamente el guardado.
+
 `ai/application/copilot.py` dirige un bucle acotado de llamadas nativas a herramientas. `copilot_provider.py` adapta Ollama y OpenAI Responses; no hay interpretación simulada ni rescate mediante palabras clave cuando falla el modelo. `LLM_PROVIDER=auto` usa OpenAI cuando está configurada su clave y Ollama en caso contrario. El modelo y endpoint siguen la configuración existente. Responses usa `store=false` y conserva los elementos necesarios para continuar llamadas a herramientas, incluido el contexto de razonamiento cifrado ([documentación oficial](https://developers.openai.com/api/docs/guides/migrate-to-responses)).
 
 Las herramientas usan servicios de dominio, schemas Pydantic estrictos y permisos de servidor. El contexto visible identifica paciente, sección, cita y fecha; el servidor valida el paciente y la clínica antes de enviarlo al modelo. Los identificadores de herramientas deben proceder de este contexto o de una consulta autorizada. No se permite SQL, código ni HTTP arbitrarios.
@@ -22,7 +28,7 @@ El contexto conserva las tres últimas intervenciones de diálogo; los resultado
 
 ### Ollama local
 
-Dimensionar el modelo para el equipo. En la prueba local con RTX 3060 Laptop de 6 GB, `qwen2.5:14b-instruct` se ejecutaba parcialmente en CPU a unos 4,2 tokens/s; `qwen2.5:7b-instruct` redujo la espera. Se puede cambiar `OLLAMA_MODEL` en el entorno de DentCore sin cambiar el modelo de Codex CLI. No hay cambio automático de proveedor ni envío a servicios externos.
+El modelo local predeterminado es `qwen3.5:4b`, con `OLLAMA_THINKING=false`, usando el [control documentado de Ollama](https://docs.ollama.com/capabilities/thinking). Debe estar instalado (`ollama pull qwen3.5:4b`). En la prueba local con RTX 3060 Laptop de 6 GB se comparó con Qwen 2.5 7B y Qwen 3 4B; se eligió junto con la selección gradual de herramientas, no sólo por velocidad. El modelo de Codex CLI sigue siendo independiente. No hay cambio automático de proveedor ni envío a servicios externos.
 
 `OLLAMA_CONTEXT_LENGTH` (16384 por defecto) reserva espacio para política, herramientas y resultados; reducirlo demasiado puede hacer que Ollama trunque instrucciones. `OLLAMA_MAX_OUTPUT_TOKENS` (768 por defecto) acota cada generación; las respuestas truncadas se rechazan antes de preparar acciones. Los límites de inferencia no garantizan una latencia concreta: depende del hardware, la carga y el modelo.
 

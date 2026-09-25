@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException, Request, status
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -126,7 +126,7 @@ async def listar_pacientes(db: AsyncSession, current_user: TokenData, q: str | N
     """
     Búsqueda de pacientes.
     - Sin `q`: devuelve la lista ordenada por apellidos (paginada).
-    - Con `q`: filtra por nombre, apellidos o código (ILIKE).
+    - Con `q`: nombre completo por palabras, sin tildes, código o número de historia.
     """
     if current_user.rol == ROLE_PACIENTE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Use el portal paciente para consultar sus datos.")
@@ -139,12 +139,17 @@ async def listar_pacientes(db: AsyncSession, current_user: TokenData, q: str | N
         stmt = stmt.where(Paciente.activo == True)  # noqa: E712
 
     if q:
-        term = f"%{q}%"
+        query = q.strip()
+        normalized = query.lower().translate(str.maketrans("áéíóúüñ", "aeiouun"))
+        full_name = func.lower(func.translate(func.concat_ws(" ", Paciente.nombre, Paciente.apellidos), "áéíóúüñÁÉÍÓÚÜÑ", "aeiouunaeiouun"))
+        terms = normalized.split()
+        history = query.lstrip("#Hh")
+        history_number = int(history) if history.isascii() and history.isdigit() and len(history) <= 10 else None
         stmt = stmt.where(
             or_(
-                Paciente.nombre.ilike(term),
-                Paciente.apellidos.ilike(term),
-                Paciente.codigo.ilike(term),
+                and_(*(full_name.contains(word, autoescape=True) for word in terms)) if terms else False,
+                Paciente.codigo.ilike(f"%{query}%"),
+                Paciente.num_historial == history_number if history_number is not None and history_number <= 2147483647 else False,
             )
         )
 

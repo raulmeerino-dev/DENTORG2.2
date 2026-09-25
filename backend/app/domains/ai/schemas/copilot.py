@@ -75,6 +75,9 @@ class Navigate(StrictModel):
         "consentimientos",
         "receta",
         "primera_visita",
+        "sesion",
+        "visitas",
+        "economia",
     ] = Field(
         description="Destino semántico: agenda=calendario/citas, jornada=panel operativo/recepción. Las áreas historial, presupuestos, etc. abren al paciente indicado."
     )
@@ -93,6 +96,9 @@ class Navigate(StrictModel):
             "consentimientos",
             "receta",
             "primera_visita",
+            "sesion",
+            "visitas",
+            "economia",
         ]
         | None
     ) = None
@@ -149,7 +155,7 @@ class ClinicalNote(PatientReference):
     text: str = Field(
         min_length=1,
         max_length=4000,
-        description="Nota basada únicamente en hechos dictados por el profesional. No añadir diagnósticos.",
+        description="Copia literal del contenido clínico dictado por el profesional. No añadir palabras, síntomas, diagnósticos, resultados ni fechas. Sólo corregir puntuación/tildes. Una llamada por nota si pide notas separadas.",
     )
     tooth: str | None = Field(
         None,
@@ -181,6 +187,10 @@ class Payment(StrictModel):
 
 class Empty(StrictModel):
     pass
+
+
+class DiscoverTools(StrictModel):
+    groups: list[Literal["agenda", "clinica", "presupuestos", "economia", "registros"]] = Field(min_length=1, max_length=5)
 
 
 class BudgetLine(StrictModel):

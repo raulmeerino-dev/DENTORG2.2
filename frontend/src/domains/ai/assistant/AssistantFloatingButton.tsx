@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowUp, Mic, Sparkles, X } from 'lucide-react';
@@ -13,9 +13,7 @@ import './copilot.css';
 type Entry = { id: string; role: 'user' | 'assistant'; result: CopilotResult };
 export default function AssistantFloatingButton() {
   const { user } = useAuth();
-  const location = useLocation();
-  const context = copilotContext(location.pathname, location.search);
-  return user && user.rol !== 'paciente' ? <Copilot key={`${user.id}:${user.clinica_id}:${context.patient_id || ''}`} /> : null;
+  return user && user.rol !== 'paciente' ? <Copilot key={`${user.id}:${user.clinica_id}`} /> : null;
 }
 function Copilot() {
   const { user } = useAuth();
@@ -38,6 +36,7 @@ function Copilot() {
   const lock = useRef(false);
   const pendingRequest = useRef<CopilotRequest | null>(null);
   const context = copilotContext(location.pathname, location.search);
+  const previousPatient = useRef(context.patient_id);
   const patient = useQuery({ queryKey: ['paciente-detalle', context.patient_id], queryFn: () => getPaciente(context.patient_id!), enabled: open && Boolean(context.patient_id), staleTime: 30_000, retry: false });
   const patientLabel = patient.data ? `${patient.data.nombre} ${patient.data.apellidos}` : 'Paciente activo';
   const clinical = ['admin', 'doctor', 'auxiliar'].includes(user?.rol || '');
@@ -56,6 +55,19 @@ function Copilot() {
     inputRef.current?.focus();
   }
   function close() { if (confirming) return; if (busy) stopWaiting(); setOpen(false); }
+  const changePatient = useEffectEvent(() => {
+    abort.current?.abort(); abort.current = null; pendingRequest.current = null;
+    voiceAbort.current?.abort(); lock.current = false;
+    setBusy(false); setInput(''); setRetry(null); setError(''); setOpen(false);
+    // Keep the conversation, but never carry a draft action into another patient.
+    setEntries(items => items.map(item => ({ ...item, result: { ...item.result, proposal: null } })));
+  });
+  useLayoutEffect(() => {
+    if (!confirming && previousPatient.current !== context.patient_id) {
+      previousPatient.current = context.patient_id;
+      changePatient();
+    }
+  }, [context.patient_id, confirming]);
   const toggle = useEffectEvent(() => { if (open) close(); else setOpen(true); });
   useEffect(() => {
     const show = () => setOpen(true);

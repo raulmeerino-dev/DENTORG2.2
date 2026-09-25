@@ -10,6 +10,8 @@ from urllib.parse import urlencode
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+from app.domains.ai.application.copilot_capabilities import groups_for
+from app.domains.ai.application.copilot_workspace import PATIENT_AREAS
 from app.domains.ai.schemas import copilot as S
 from app.domains.billing.application import facturas
 from app.domains.billing.schemas.factura import CobroCreate
@@ -66,8 +68,20 @@ def patient_path(patient_id, tab=None):
 
 
 @tool(
+    "discover_tools",
+    "Activar herramientas para una tarea: agenda=consultar citas/huecos o preparar cambios; clinica=notas/resumen/realizados; presupuestos=catálogo/planes; economia=saldo/cobro; registros=listados/documentos/laboratorio/inventario. Para ABRIR una pantalla usa navigate directamente, sin activar herramientas.",
+    S.DiscoverTools,
+)
+async def discover_tools(a, db, user, request):
+    groups = groups_for(user, TOOLS)
+    if any(group not in groups for group in a.groups):
+        raise HTTPException(403, "Tu perfil no dispone de esas herramientas.")
+    return {"available_tools": sorted({name for group in a.groups for name in groups[group]["tools"]})}
+
+
+@tool(
     "search_patients",
-    "Buscar pacientes por nombre, apellidos o código. Si hay varias coincidencias, pregunta cuál; nunca elijas la primera automáticamente.",
+    "Buscar pacientes por nombre completo, apellidos, código o número de historia (también H123), sin exigir tildes. Si hay varias coincidencias, pregunta cuál; nunca elijas la primera automáticamente.",
     S.SearchPatients,
 )
 async def search_patients(a, db, user, request):
@@ -79,9 +93,11 @@ async def search_patients(a, db, user, request):
                 "name": f"{p.nombre} {p.apellidos}",
                 "history_number": p.num_historial,
                 "source": patient_path(p.id),
+                "source_label": f"{p.nombre} {p.apellidos} · H{p.num_historial}",
             }
             for p in rows
-        ]
+        ],
+        "may_have_more": len(rows) == 8,
     }
 
 
@@ -96,24 +112,12 @@ async def search_professionals(a, db, user, request):
 
 @tool(
     "navigate",
-    "Abrir módulo, paciente, historial, presupuesto o cita. Calendario/agenda/citas: module=agenda. Jornada/recepción/operativa: module=jornada. No guarda datos. Usa el paciente/cita del contexto cuando sea inequívoco.",
+    "Abrir pantalla: calendario=module agenda; operativa=module jornada; áreas de paciente=module sesion, documentos, receta, etc. No guarda datos. Si hay cambios propuestos, prepara el destino para abrirlo DESPUÉS de confirmar. Usa paciente/cita del contexto cuando sea inequívoco.",
     S.Navigate,
 )
 async def navigate(a, db, user, request):
     # Patient sections have one canonical owner, irrespective of the originating workspace.
-    patient_sections = {
-        "ficha",
-        "historial",
-        "tratamientos",
-        "presupuestos",
-        "pendientes",
-        "realizados",
-        "documentos",
-        "consentimientos",
-        "receta",
-        "primera_visita",
-    }
-    section = a.section or (a.module if a.module in patient_sections else None)
+    section = a.section or (a.module if a.module in PATIENT_AREAS else None)
     module = "pacientes" if section else a.module
     if section and not a.patient_id:
         raise HTTPException(422, "Selecciona el paciente para abrir esta sección.")
@@ -124,8 +128,8 @@ async def navigate(a, db, user, request):
         and user.rol != "admin"
     ):
         raise HTTPException(403, "No tienes permiso para abrir este módulo.")
-    if section in {"historial", "primera_visita", "receta"} and user.rol not in CLINICAL:
-        raise HTTPException(403, "Esta sección requiere permisos clínicos.")
+    if section and user.rol not in PATIENT_AREAS[section].roles:
+        raise HTTPException(403, "Tu perfil no permite abrir esta sección.")
     params = {}
     if a.patient_id:
         await pacientes.obtener_paciente(a.patient_id, db, user)
@@ -136,12 +140,7 @@ async def navigate(a, db, user, request):
     if a.day:
         params["fecha"] = a.day.isoformat()
     if section:
-        params["tab"] = {
-            "ficha": "pacientes",
-            "tratamientos": "presupuestos",
-            "pendientes": "pendiente",
-            "primera_visita": "primera",
-        }.get(section, section)
+        params["tab"] = PATIENT_AREAS[section].tab
     if module == "agenda":
         params["vista"] = "agenda"
     elif module == "jornada":
@@ -230,14 +229,18 @@ async def patient_summary(a, db, user, request):
                 "professional": n.doctor.nombre if n.doctor else None,
                 "appointment_id": str(n.cita_id) if n.cita_id else None,
                 "tooth": n.pieza_dental, "origin": n.origen,
-                "source": patient_path(p.id, "historial"),
+                "signature_status": "no_disponible",
+                "source": patient_path(p.id, "historial" if n.cita_id else "sesion"),
+                "source_label": "Ver visita" if n.cita_id else "Ver notas de sesión",
             }
             for n in notes
         ],
         "recent_notes_limit": 6,
+        "recent_notes_order": "Más reciente primero. El profesional asociado no acredita una firma.",
         "plans": plain(plans),
         "laboratory": plain(lab),
         "source": patient_path(p.id, "historial"),
+        "source_label": "Ver historial del paciente",
         "instruction": "Resume sólo datos presentes, distingue desconocido de normal. No inventes consentimiento necesario ni diagnóstico.",
     }
 

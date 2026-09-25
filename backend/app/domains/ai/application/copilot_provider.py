@@ -76,6 +76,7 @@ class ToolCallingProvider:
                         json={
                             "model": self.model,
                             "stream": False,
+                            "think": getattr(self.settings, "ollama_thinking", False),
                             "messages": native,
                             "tools": [{"type": "function", "function": t} for t in tools],
                             "options": {
@@ -96,10 +97,12 @@ class ToolCallingProvider:
                         parse_call(c["function"]["name"], c["function"]["arguments"])
                         for c in message.get("tool_calls", [])
                     ]
+                    if len(calls) > 6:
+                        raise InvalidModelResponse()
                     return {
                         "role": "assistant",
                         "content": message.get("content", "")[:4000],
-                        "calls": calls[:6],
+                        "calls": calls,
                     }
                 if not self.settings.openai_api_key:
                     raise ProviderUnavailable()

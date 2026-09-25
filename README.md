@@ -69,26 +69,27 @@ Frontend local: `http://127.0.0.1:5173`.
 
 DentCore Voice Assistant puede usar Ollama como proveedor LLM local gratuito. Descarga Ollama desde su web oficial: [ollama.com/download](https://ollama.com/download).
 
-Los comandos simples de navegacion y borradores rapidos pasan primero por `FastCommandRouter` en frontend. Si el router local alcanza confianza alta, ejecuta al instante sin llamar a Ollama ni a OpenAI. Ollama/OpenAI solo interpretan ordenes complejas o ambiguas.
+El asistente global usa llamadas nativas del modelo a herramientas tipadas. Empieza con navegación y búsqueda; el propio modelo activa las herramientas de Agenda, Clínica, Presupuestos, Economía o Registros cuando las necesita. No utiliza un router de palabras clave ni interpretación simulada. Los cambios requieren revisión y confirmación. Ver [arquitectura y límites del asistente](docs/copilot.md).
 
 Configura el backend en modo automatico:
 
 ```powershell
 $env:LLM_PROVIDER="auto"
-$env:LLM_FALLBACK_ORDER="ollama,openai,mock"
 $env:OLLAMA_BASE_URL="http://127.0.0.1:11434"
-$env:OLLAMA_MODEL="qwen2.5:14b-instruct"
+$env:OLLAMA_MODEL="qwen3.5:4b"
+$env:OLLAMA_CONTEXT_LENGTH="16384"
+$env:OLLAMA_THINKING="false"
 $env:OPENAI_MODEL="gpt-4o-mini"
 ```
 
 Prepara el modelo:
 
 ```powershell
-ollama pull qwen2.5:14b-instruct
-ollama run qwen2.5:14b-instruct
+ollama pull qwen3.5:4b
+ollama run qwen3.5:4b
 ```
 
-El estado interno se puede comprobar en `GET /api/assistant/llm-health`. En `auto`, DentCore prueba Ollama local, despues OpenAI si `OPENAI_API_KEY` existe, y finalmente muestra un error seguro si no hay motor disponible: `No hay motor de IA disponible. Revisa Ollama u OpenAI.`
+El estado interno se puede comprobar en `GET /api/assistant/llm-health`. El copiloto en `auto` selecciona OpenAI si existe `OPENAI_API_KEY`, y Ollama en caso contrario. Para asegurar ejecución local, usa `LLM_PROVIDER=ollama`. Un fallo deja visible el error y permite reintentar; no cambia silenciosamente de proveedor. El modelo de DentCore es independiente del modelo configurado para Codex CLI.
 
 ## Verificacion
 
