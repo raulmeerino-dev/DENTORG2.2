@@ -52,7 +52,7 @@ function RoleProtected({ roles, children }: { roles: UserRole[]; children: React
 
 function LazyRoute({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="loading-page">Cargando modulo...</div>}>
+    <Suspense fallback={<div className="loading-page">Cargando módulo…</div>}>
       {children}
     </Suspense>
   );
@@ -113,6 +113,7 @@ export default function App() {
               <Route path="administracion" element={<RoleProtected roles={ADMIN_ROLES}><LazyRoute><AdminExtrasPage key="administration" mode="administration" /></LazyRoute></RoleProtected>} />
               <Route path="ajustes" element={<RoleProtected roles={ADMIN_ROLES}><LazyRoute><AdminExtrasPage key="settings" /></LazyRoute></RoleProtected>} />
               <Route path="mis-citas" element={<RoleProtected roles={PATIENT_ROLES}><LazyRoute><MisCitasPage /></LazyRoute></RoleProtected>} />
+              <Route path="*" element={<section className="page error-screen"><h1>Pantalla no encontrada</h1><p>Comprueba la dirección o abre una sección desde la navegación lateral.</p></section>} />
               <Route path="portal" element={<RoleProtected roles={PATIENT_ROLES}><LazyRoute><MisCitasPage /></LazyRoute></RoleProtected>} />
             </Route>
           </Routes>

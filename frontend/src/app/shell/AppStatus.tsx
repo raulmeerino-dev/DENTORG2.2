@@ -7,7 +7,7 @@ export default function AppStatus() {
 
   return (
     <div className={`app-status ${busy ? 'is-busy' : ''}`} aria-live="polite">
-      <span>{busy ? 'Sincronizando cambios' : 'Sistema listo'}</span>
+      <span>{mutating ? 'Guardando cambios…' : fetching ? 'Actualizando información…' : 'Sistema listo'}</span>
       {busy > 0 && <i aria-hidden="true" />}
     </div>
   );

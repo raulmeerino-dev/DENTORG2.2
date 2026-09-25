@@ -59,12 +59,13 @@ const ROLE_PERMISSIONS: Record<UserRole, AssistantPermission[]> = {
   paciente: [],
 };
 
-function screenFromPath(pathname: string) {
+function screenFromPath(pathname: string, search = '') {
+  if (pathname.startsWith('/jornada')) return new URLSearchParams(search).get('vista') === 'agenda' ? 'schedule' : 'today';
   if (pathname.startsWith('/pacientes')) return 'patient_profile';
   if (pathname.startsWith('/agenda')) return 'schedule';
   if (pathname.startsWith('/caja')) return 'cashdesk';
-  if (pathname.startsWith('/listados')) return 'reports';
-  if (pathname.startsWith('/admin-extras') || pathname.startsWith('/configuracion')) return 'admin';
+  if (['/listados', '/registros', '/archivos'].some(path => pathname.startsWith(path))) return 'reports';
+  if (['/admin-extras', '/configuracion', '/administracion', '/ajustes'].some(path => pathname.startsWith(path))) return 'admin';
   if (pathname.startsWith('/hoy')) return 'today';
   if (pathname.startsWith('/whatsapp')) return 'whatsapp';
   return 'unknown';
@@ -78,7 +79,7 @@ function readSessionValue(key: string) {
   }
 }
 
-export function buildAssistantContext(pathname: string, user: UsuarioMe | null): AssistantContextSnapshot {
+export function buildAssistantContext(pathname: string, user: UsuarioMe | null, search = ''): AssistantContextSnapshot {
   const patientId = user?.rol === 'paciente'
     ? user.paciente_id ?? null
     : readSessionValue('dentcore_selected_patient_id');
@@ -87,7 +88,7 @@ export function buildAssistantContext(pathname: string, user: UsuarioMe | null):
     : readSessionValue('dentcore_selected_patient_name');
 
   return {
-    screen: screenFromPath(pathname),
+    screen: screenFromPath(pathname, search),
     path: pathname,
     currentPatientId: patientId,
     currentPatientDisplayName: patientName,
@@ -97,7 +98,7 @@ export function buildAssistantContext(pathname: string, user: UsuarioMe | null):
     currentDoctorId: user?.doctor_id ?? null,
     currentUserRole: user?.rol ?? null,
     permissions: user?.rol ? ROLE_PERMISSIONS[user.rol] : [],
-    recentActions: [screenFromPath(pathname)],
+    recentActions: [screenFromPath(pathname, search)],
   };
 }
 
@@ -106,7 +107,7 @@ export function useAssistantContextProvider() {
   const { user } = useAuth();
 
   return useCallback(
-    () => buildAssistantContext(location.pathname, user),
-    [location.pathname, user],
+    () => buildAssistantContext(location.pathname, user, location.search),
+    [location.pathname, location.search, user],
   );
 }

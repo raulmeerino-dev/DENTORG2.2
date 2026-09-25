@@ -42,19 +42,19 @@ afterEach(() => {
 });
 
 describe('api response interceptor', () => {
-  it('reescribe Network Error como backend no conectado si falla healthcheck', async () => {
+  it('muestra un mensaje de conexión comprensible si falla healthcheck', async () => {
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Backend down')));
 
     const error = makeAxiosError();
     const enhanced = await rejectThroughInterceptor(error);
-    expect(enhanced.message).toMatch(/Backend no conectado/i);
-    expect(enhanced.message).toContain(String(api.defaults.baseURL));
+    expect(enhanced.message).toMatch(/No se puede conectar con DentCore/i);
+    expect(enhanced.message).not.toContain(String(api.defaults.baseURL));
     expect(globalThis.fetch).toHaveBeenCalledWith(API_HEALTH_URL, expect.objectContaining({ method: 'GET' }));
     expect(consoleWarn).toHaveBeenCalled();
   });
 
-  it('mantiene el endpoint en el mensaje si healthcheck responde', async () => {
+  it('mantiene los detalles técnicos fuera del mensaje si healthcheck responde', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -67,8 +67,8 @@ describe('api response interceptor', () => {
       config: { url: '/citas', method: 'get' } as never,
     });
     const enhanced = await rejectThroughInterceptor(error);
-    expect(enhanced.message).toContain('Backend conectado');
-    expect(enhanced.message).toContain('/citas');
+    expect(enhanced.message).toContain('No se pudo completar la solicitud');
+    expect(enhanced.message).not.toContain('/citas');
   });
 
   it('extrae detail string de FastAPI cuando viene en response', async () => {
@@ -107,7 +107,7 @@ describe('api response interceptor', () => {
       },
     });
     const enhanced = await rejectThroughInterceptor(error);
-    expect(enhanced.message).toBe('pieza_dental: ensure this value is greater than or equal to 11');
+    expect(enhanced.message).toBe('Revisa los datos del formulario: hay campos obligatorios o valores no válidos.');
   });
 
   it('usa mensaje generico legible para 401 sin detail', async () => {
@@ -116,7 +116,7 @@ describe('api response interceptor', () => {
       response: { status: 401, data: null, statusText: '', headers: {}, config: {} as never },
     });
     const enhanced = await rejectThroughInterceptor(error);
-    expect(enhanced.message).toMatch(/Sesion expirada/i);
+    expect(enhanced.message).toMatch(/Sesión expirada/i);
   });
 });
 

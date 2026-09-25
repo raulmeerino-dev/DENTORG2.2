@@ -19,8 +19,8 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
         <section className="page error-screen">
           <p className="eyebrow">Interfaz</p>
           <h1>No se ha podido mostrar esta pantalla</h1>
-          <p>Vuelve al inicio o recarga la aplicacion. La sesion y los datos guardados se mantienen.</p>
-          <button type="button" onClick={() => window.location.assign('/dashboard')}>Ir a inicio</button>
+          <p>Vuelve al inicio o recarga la aplicación. La sesión y los datos guardados se mantienen.</p>
+          <button type="button" onClick={() => window.location.assign('/jornada')}>Ir a inicio</button>
         </section>
       );
     }

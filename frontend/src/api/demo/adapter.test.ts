@@ -34,7 +34,7 @@ describe('explicit development demo adapter', () => {
 
   it('rejects writes instead of simulating a clinical or economic record', async () => {
     await login('admin', 'admin1234');
-    await expect(createPaciente({ nombre: 'Paciente', apellidos: 'Prueba' })).rejects.toThrow('requiere la API real');
+    await expect(createPaciente({ nombre: 'Paciente', apellidos: 'Prueba' })).rejects.toThrow('no está disponible en este entorno');
   });
 
   it('never grants fixture access with invalid credentials or after logout', async () => {
