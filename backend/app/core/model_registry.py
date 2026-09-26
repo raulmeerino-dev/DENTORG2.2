@@ -5,6 +5,8 @@ El orden de importación respeta las dependencias entre tablas.
 
 from app.core.persistence.audit_log import AuditLog
 from app.core.persistence.backup import BackupRegistro
+from app.core.persistence.operation_receipt import OperationReceipt
+from app.core.persistence.realtime import RealtimeEvent
 from app.domains.ai.persistence.copilot import CopilotSession
 from app.domains.ai.persistence.dictado import DictadoClinico
 from app.domains.billing.persistence.cuenta import AplicacionPago, CargoPaciente, OperacionCheckout
@@ -70,6 +72,8 @@ from app.domains.treatment_plans.persistence.presupuesto import (
 )
 
 __all__ = [
+    "RealtimeEvent",
+    "OperationReceipt",
     "CargoPaciente",
     "AplicacionPago",
     "OperacionCheckout",

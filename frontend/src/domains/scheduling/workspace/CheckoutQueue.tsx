@@ -12,7 +12,7 @@ export default function CheckoutQueue() {
   const canManage = ['admin', 'recepcion'].includes(user?.rol ?? '');
   const jornada = useJornada();
   const [selected, setSelected] = useState<{ patientId: string; citaId: string | null; leavePending: boolean } | null>(null);
-  const query = useQuery({ queryKey: ['checkout-queue'], queryFn: getCheckoutQueue, enabled: canManage, refetchInterval: 15_000 });
+  const query = useQuery({ queryKey: ['checkout-queue'], queryFn: getCheckoutQueue, enabled: canManage });
   const accounts = (query.data ?? []).filter(account => (!jornada?.doctorId || account.doctor_id === jornada.doctorId) && (!jornada?.gabineteId || account.gabinete_id === jornada.gabineteId));
   if (!canManage) return null;
   return <section className="jornada-checkout" aria-label="Pendiente de salida">

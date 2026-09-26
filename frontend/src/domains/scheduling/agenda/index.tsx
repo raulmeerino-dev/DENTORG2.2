@@ -144,6 +144,7 @@ export default function AgendaPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: {
+      revision?: number;
       citaId?: string;
       paciente_id: string;
       doctor_id: string;
@@ -168,7 +169,7 @@ export default function AgendaPage() {
           if (key === 'fecha_hora') return new Date(String(previous)).getTime() !== new Date(String(value)).getTime();
           return value !== previous;
         }));
-        return { cita: await updateCita(citaId, patch), warning: null };
+        return { cita: await updateCita(citaId, { ...patch, revision: data.revision }), warning: null };
       }
       const saved = await createCita({ ...citaData, paciente_id, estado: estado === 'confirmada' ? 'confirmada' : 'programada' });
       let warning: string | null = null;
@@ -204,7 +205,7 @@ export default function AgendaPage() {
   }, [queryClient]);
 
   const quickUpdate = useMutation({
-    mutationFn: ({ cita, patch }: { cita: Cita; patch: Parameters<typeof updateCita>[1] }) => updateCita(cita.id, patch),
+    mutationFn: ({ cita, patch }: { cita: Cita; patch: Parameters<typeof updateCita>[1] }) => updateCita(cita.id, { ...patch, revision: cita.revision }),
     onSuccess: (updated) => {
       setContextMenu(null);
       invalidatePatientCitas(updated.paciente_id);

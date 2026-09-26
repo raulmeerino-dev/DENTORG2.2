@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 // Explicit opt-in. Every clinical/economic action below goes through the browser
 // and the real local API; setup only creates synthetic patient/payment fixtures.
@@ -8,7 +9,7 @@ test.use({ actionTimeout: 15_000, viewport: { width: 1280, height: 720 } });
 const apiBase = process.env.DENTCORE_E2E_API_URL ?? 'http://127.0.0.1:8011/api';
 
 async function api<T>(request: APIRequestContext, token: string, path: string, method = 'GET', data?: unknown): Promise<T> {
-  const response = await request.fetch(`${apiBase}${path}`, { method, data, headers: { Authorization: `Bearer ${token}` } });
+  const response = await request.fetch(`${apiBase}${path}`, { method, data, headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': randomUUID() } });
   expect(response.ok(), `${method} ${path}: ${response.status()} ${await response.text()}`).toBeTruthy();
   return response.json() as Promise<T>;
 }

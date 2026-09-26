@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '../domains/identity/session/AuthContext';
 import { getApiErrorMessage } from '../api/errors';
 import type { UserRole } from '../api/types';
 import Layout from './shell/Layout';
+import RealtimeSync from '../shared/realtime/RealtimeSync';
 import JornadaWorkspace from '../domains/scheduling/workspace/JornadaWorkspace';
 import LoginPage from '../domains/identity/LoginPage';
 import PortalInvitePage from '../domains/patient-portal/invitation';
@@ -91,6 +92,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <RealtimeSync />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

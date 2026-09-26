@@ -171,11 +171,11 @@ async def test_visit_permissions_and_invalid_transitions(client, jornada_data):
         assert (await client.post(base + "/" + suffix, headers=reception)).status_code == 403
     # Compatibility APIs cannot bypass the permissions either.
     assert (
-        await client.patch(base + "/estado", headers=reception, json={"estado": "en_atencion"})
+        await client.patch(base + "/estado", headers=reception, json={"estado": "en_atencion", "revision": (await client.get(base, headers=reception)).json()["revision"]})
     ).status_code == 403
     assert (await client.post(base + "/iniciar-atencion", headers=doctor)).status_code == 200
     assert (
-        await client.patch(base, headers=reception, json={"estado": "programada"})
+        await client.patch(base, headers=reception, json={"estado": "programada", "revision": (await client.get(base, headers=reception)).json()["revision"]})
     ).status_code == 409
     assert (await client.post(base + "/finalizar-visita", headers=doctor)).status_code == 200
     assert (await client.post(base + "/resolver-salida", headers=doctor)).status_code == 403

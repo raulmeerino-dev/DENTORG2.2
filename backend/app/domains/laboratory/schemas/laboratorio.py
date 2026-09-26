@@ -136,6 +136,7 @@ class DoctorMin(BaseModel):
 
 
 class TrabajoResponse(BaseModel):
+    revision: int = 1
     id: uuid.UUID
     paciente_id: uuid.UUID
     doctor_id: uuid.UUID

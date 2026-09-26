@@ -33,6 +33,7 @@ class ProductoUpdate(BaseModel):
 
 
 class ProductoResponse(BaseModel):
+    revision: int = 1
     id: UUID
     clinica_id: UUID | None
     nombre: str

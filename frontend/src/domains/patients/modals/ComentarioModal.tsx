@@ -3,20 +3,23 @@ import { useState } from 'react';
 
 export function ComentarioModal({
   initialValue,
+  revision,
   saving = false,
   onClose,
   onConfirm,
 }: {
   initialValue?: string | null;
+  revision?: number;
   saving?: boolean;
   onClose: () => void;
-  onConfirm: (texto: string) => void;
+  onConfirm: (texto: string, revision?: number) => void;
 }) {
   const [texto, setTexto] = useState(initialValue ?? '');
+  const [initialRevision] = useState(revision);
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    onConfirm(texto);
+    onConfirm(texto, initialRevision);
   }
 
   return (

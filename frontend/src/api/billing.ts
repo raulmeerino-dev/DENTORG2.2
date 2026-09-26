@@ -40,6 +40,7 @@ export async function createPagoAnticipadoPaciente(pacienteId: string, data: {
 }
 
 export async function updatePagoAnticipadoPaciente(pacienteId: string, pagoId: string, data: Partial<{
+  revision: number;
   importe: number;
   forma_pago_id: string;
   concepto: string;

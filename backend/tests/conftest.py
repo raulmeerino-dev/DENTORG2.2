@@ -7,6 +7,7 @@ para que el metadata del proyecto pueda crearse en limpio.
 import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -17,14 +18,21 @@ from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from alembic import command
-from app.config import get_settings
-from app.database import get_db
-from app.main import app
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://dentcore:dentcore_dev_pass@postgres:5432/dentcore_test",
 )
+
+# Middleware, background work and independent concurrent sessions must use the
+# same isolated database as fixtures, even when backend/.env points elsewhere.
+if not (make_url(TEST_DATABASE_URL).database or "").endswith("_test"):
+    raise RuntimeError("TEST_DATABASE_URL debe identificar una base terminada en _test")
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+
+from app.config import get_settings  # noqa: E402
+from app.database import get_db, request_session  # noqa: E402
+from app.main import app  # noqa: E402
 
 _test_url = make_url(TEST_DATABASE_URL)
 ADMIN_DATABASE_URL = _test_url.set(database="postgres").render_as_string(hide_password=False)
@@ -89,11 +97,15 @@ async def db_session(create_tables: None) -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_db():
-        yield db_session
+        yield request_session.get() or db_session
+
+    async def identify_command(request):
+        if request.method in {"POST", "PATCH", "PUT", "DELETE"} and not request.url.path.startswith("/api/auth/"):
+            request.headers.setdefault("Idempotency-Key", str(uuid4()))
 
     app.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test", event_hooks={"request": [identify_command]}) as ac:
         yield ac
 
     app.dependency_overrides.clear()

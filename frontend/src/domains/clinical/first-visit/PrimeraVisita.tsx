@@ -44,11 +44,14 @@ function getPrimeraVisita(paciente?: ApiPaciente | null): PrimeraVisitaData {
 
 export function PrimeraVisitaPanel({ paciente, onSave, saving, userRole }: {
   paciente: ApiPaciente | null;
-  onSave: (data: PrimeraVisitaData) => void;
+  onSave: (data: PrimeraVisitaData, revision?: number) => void;
   saving: boolean;
   userRole?: UserRole | null;
 }) {
   const [data, setData] = useState<PrimeraVisitaData>(() => getPrimeraVisita(paciente));
+  const [baseline, setBaseline] = useState(paciente);
+  const edited = useRef(false);
+  const owner = useRef(paciente?.id);
   const [exploring, setExploring] = useState(false);
   const assessment = useRef<HTMLElement>(null);
   const exploration = useRef<HTMLDetailsElement>(null);
@@ -56,11 +59,17 @@ export function PrimeraVisitaPanel({ paciente, onSave, saving, userRole }: {
   const saved = getSavedPrimeraVisita(paciente);
   const dirty = JSON.stringify(data) !== JSON.stringify(getPrimeraVisita(paciente));
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setData(getPrimeraVisita(paciente));
+    if (owner.current === paciente?.id && edited.current && JSON.stringify(getPrimeraVisita(paciente)) !== JSON.stringify(data)) return;
+    owner.current = paciente?.id;
+    edited.current = false;
+    setData(current => {
+      const incoming = getPrimeraVisita(paciente);
+      return JSON.stringify(current) === JSON.stringify(incoming) ? current : incoming;
+    });
+    setBaseline(paciente);
     setExploring(false);
-  }, [paciente?.id, paciente?.datos_salud]); // eslint-disable-line react-hooks/exhaustive-deps
-  const update = (key: keyof PrimeraVisitaData, value: string) => setData(current => ({ ...current, [key]: value }));
+  }, [paciente, data]);
+  const update = (key: keyof PrimeraVisitaData, value: string) => { edited.current = true; setData(current => ({ ...current, [key]: value })); };
   const field = (key: keyof PrimeraVisitaData, label: string) => <label key={key}>{label}<textarea value={data[key] ?? ''} onChange={event => update(key, event.target.value)} disabled={!paciente} /></label>;
   return <section className="dc-first-visit-panel">
     <nav className="dc-first-visit-nav" aria-label="Apartados de primera visita">
@@ -94,7 +103,8 @@ export function PrimeraVisitaPanel({ paciente, onSave, saving, userRole }: {
       </div>
       <div className="dc-first-visit-editor-actions">
         {dirty && <span>Cambios sin guardar</span>}
-        <button type="button" className="primary-action" onClick={() => onSave(data)} disabled={!paciente || saving}><Save size={15} aria-hidden="true" />{saving ? 'Guardando...' : 'Guardar valoración'}</button>
+        {baseline?.revision !== paciente?.revision && <span role="status">La ficha cambió. Tu valoración se conserva; revisa la información antes de guardarla.</span>}
+        <button type="button" className="primary-action" onClick={() => onSave(data, baseline?.revision)} disabled={!paciente || saving}><Save size={15} aria-hidden="true" />{saving ? 'Guardando...' : 'Guardar valoración'}</button>
       </div>
     </section>
   </section>;

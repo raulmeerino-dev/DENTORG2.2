@@ -80,6 +80,7 @@ export async function addPresupuestoLinea(presupuestoId: string, data: {
 }
 
 export async function updatePresupuestoLinea(presupuestoId: string, lineaId: string, data: Partial<{
+  revision: number;
   pieza_dental: number | null;
   caras: string | null;
   precio_unitario: string | number;

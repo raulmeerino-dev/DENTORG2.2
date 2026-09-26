@@ -107,7 +107,7 @@ async def test_sesion_clinica_crud_persiste_tras_refrescar(
     editado = await client.patch(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items/{item_id}",
         headers=headers,
-        json={"observaciones": "Anestesia + matriz palodent", "estado": "pospuesto"},
+        json={"observaciones": "Anestesia + matriz palodent", "estado": "pospuesto", "revision": item["revision"]},
     )
     assert editado.status_code == 200
     assert editado.json()["observaciones"] == "Anestesia + matriz palodent"
@@ -242,7 +242,7 @@ async def test_no_se_puede_editar_o_eliminar_item_realizado(
     bloqueado_patch = await client.patch(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items/{item_id}",
         headers=headers,
-        json={"observaciones": "nueva nota"},
+        json={"observaciones": "nueva nota", "revision": 1},
     )
     assert bloqueado_patch.status_code == 409
 
@@ -276,7 +276,7 @@ async def test_patch_rechaza_estado_realizado(client: AsyncClient, db_session: A
     intento = await client.patch(
         f"/api/tratamientos/pacientes/{paciente_id}/sesion-items/{item_id}",
         headers=headers,
-        json={"estado": "realizado"},
+        json={"estado": "realizado", "revision": item_res.json()["revision"]},
     )
     assert intento.status_code == 400
 

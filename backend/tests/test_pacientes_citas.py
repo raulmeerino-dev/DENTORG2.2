@@ -106,7 +106,7 @@ async def test_crud_paciente(client: AsyncClient, db_session: AsyncSession):
     updated = await client.patch(
         f"/api/pacientes/{paciente['id']}",
         headers=headers,
-        json={"telefono": "611111111", "observaciones": "Completar datos"},
+        json={"telefono": "611111111", "observaciones": "Completar datos", "revision": paciente["revision"]},
     )
     assert updated.status_code == 200
     assert updated.json()["observaciones"] == "Completar datos"
@@ -293,6 +293,7 @@ async def test_crud_cita(client: AsyncClient, db_session: AsyncSession):
             "fecha_hora": fecha.replace(hour=10).isoformat(),
             "duracion_min": 30,
             "motivo": "Paciente prefiere mas tarde",
+            "revision": (await client.get(f"/api/citas/{cita['id']}", headers=headers)).json()["revision"],
         },
     )
     assert reprogramada.status_code == 200

@@ -21,7 +21,7 @@ export default function EnSala() {
   const [mine, setMine] = useState(Boolean(user?.doctor_id));
   const [now, setNow] = useState(Date.now);
   const trigger = useRef<HTMLButtonElement>(null);
-  const query = useQuery({ queryKey: ['citas', 'en-sala'], queryFn: () => getCitas({ estado: 'en_clinica' }), refetchInterval: 15_000 });
+  const query = useQuery({ queryKey: ['citas', 'en-sala'], queryFn: () => getCitas({ estado: 'en_clinica' }) });
   const config = useQuery({ queryKey: ['jornada-config'], queryFn: getJornadaConfig, staleTime: 300_000 });
   const waiting = (query.data ?? []).filter(cita => ['en_sala', 'en_clinica'].includes(getVisualStatus(cita)) && (!mine || cita.doctor_id === user?.doctor_id)).sort((a, b) => (a.llegada_at ?? a.fecha_hora).localeCompare(b.llegada_at ?? b.fecha_hora));
   function openPatient(cita: Cita, session = false) {

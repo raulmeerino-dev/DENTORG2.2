@@ -13,7 +13,7 @@ import type { Cita, Doctor } from '../../../api/types';
 
 export function dayAppointmentsQuery(day: string) {
   const range = localDayRange(day);
-  return { queryKey: ['citas', range], queryFn: () => getCitas(range), refetchInterval: 15_000 };
+  return { queryKey: ['citas', range], queryFn: () => getCitas(range) };
 }
 
 interface JornadaState {

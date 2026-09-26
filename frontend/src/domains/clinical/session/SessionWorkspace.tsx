@@ -197,6 +197,8 @@ export function SessionWorkspace({
     ];
   }
   const selected = draftItems.find((item) => item.id === selectedId) ?? draftItems[0] ?? null;
+  const serverSelected = baseSessionItems.find(item => item.id === selected?.id);
+  const selectedChanged = serverSelected && selected?.revision !== undefined && serverSelected.revision !== selected.revision;
   const selectedPieceNumber = selected?.piezaDental ? Number(selected.piezaDental) : null;
   const selectedPieceNotes = selectedPieceNumber
     ? notasDentales.filter((nota) => nota.pieza_dental === selectedPieceNumber).slice(0, 3)
@@ -240,6 +242,7 @@ export function SessionWorkspace({
           const local = current.find((row) => ids.includes(row.id));
           if (!local) return item;
           const next = { ...item };
+          if (ids.some(id => [...dirtyFieldsRef.current].some(key => key.startsWith(`${id}:`)))) next.revision = local.revision;
           for (const [field, apiField] of Object.entries(SESSION_FIELD_NAMES)) {
             if (ids.some((id) => dirtyFieldsRef.current.has(`${id}:${apiField}`))) {
               Object.assign(next, { [field]: local[field as keyof SessionTreatment] });
@@ -293,7 +296,7 @@ export function SessionWorkspace({
         materializedAlias.current.set(item.id, promoted);
         setDraftItems((current) =>
           current.map((row) =>
-            row.id === item.id ? { ...row, id: promoted.id, sesionItemId: promoted.sesionItemId } : row,
+            row.id === item.id ? { ...row, id: promoted.id, sesionItemId: promoted.sesionItemId, revision: promoted.revision } : row,
           ),
         );
         setSelectedId((current) => (current === item.id ? promoted.id : current));
@@ -316,12 +319,12 @@ export function SessionWorkspace({
     try {
       const persisted = await ensurePersistedItem(item);
       if (!persisted?.sesionItemId) return;
-      const updated = await onUpdateSesionItem(persisted.sesionItemId, cambios);
+      const updated = await onUpdateSesionItem(persisted.sesionItemId, { ...cambios, revision: persisted.revision });
       const refreshed = sessionTreatmentFromSesionItem(updated, presupuestos);
       setDraftItems((current) =>
         current.map((row) => {
           if (row.id !== persisted.id) return row;
-          const next = { ...row };
+          const next = { ...row, revision: refreshed.revision };
           for (const [field, apiField] of Object.entries(SESSION_FIELD_NAMES)) {
             const submitted = submittedFields.find((entry) => entry.key === `${item.id}:${apiField}`);
             if (submitted && (fieldVersions.current.get(submitted.key) ?? 0) === submitted.version) {
@@ -816,6 +819,16 @@ export function SessionWorkspace({
                   {sessionError}
                 </p>
               )}
+              {selectedChanged && <details className="session-save-error">
+                <summary>Este tratamiento cambió. Revisar la versión actual</summary>
+                <p>Actual: {serverSelected.title} · Pieza {serverSelected.piezaDental || '—'} · Caras {serverSelected.caras || '—'}</p>
+                <p>Observaciones actuales: {serverSelected.observaciones || 'Sin observaciones'}</p>
+                <p>Tu borrador sigue en los campos. Comprueba las diferencias antes de reaplicarlo.</p>
+                <button type="button" onClick={() => {
+                  setDraftItems(current => current.map(item => item.id === selected.id ? { ...item, revision: serverSelected.revision } : item));
+                  setSessionError(null);
+                }}>He revisado los cambios; conservar mi borrador</button>
+              </details>}
               <details className="session-secondary-actions">
                 <summary>Mas acciones del tratamiento</summary>
                 <div>

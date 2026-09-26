@@ -133,6 +133,7 @@ class TrabajoLaboratorioCitaResumen(BaseModel):
 
 
 class CitaResponse(BaseModel):
+    revision: int = 1
     id: UUID
     paciente_id: UUID
     clinica_id: UUID | None = None

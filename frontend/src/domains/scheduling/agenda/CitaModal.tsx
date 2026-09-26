@@ -57,6 +57,7 @@ export function CitaModal({
   error?: string;
   onClose: () => void;
   onSubmit: (data: {
+    revision?: number;
     citaId?: string;
     paciente_id: string;
     doctor_id: string;
@@ -74,6 +75,7 @@ export function CitaModal({
   }) => void;
   onCreateTemporaryPaciente: (data: { nombreCompleto: string; telefono: string }) => Promise<ApiPaciente>;
 }) {
+  const [revision] = useState(cita?.revision);
   const [query, setQuery] = useState('');
   const [patientResultsOpen, setPatientResultsOpen] = useState(false);
   const initialPacienteId = cita?.paciente_id ?? draft?.pacienteId ?? (draft && draft.scheduleKnown !== false ? '' : sessionStorage.getItem('dentcore_selected_patient_id')) ?? '';
@@ -186,6 +188,7 @@ export function CitaModal({
     setValidationError('');
     onSubmit({
       citaId: cita?.id,
+      revision,
       paciente_id: pacienteId,
       doctor_id: doctorId,
       presupuesto_linea_id: presupuestoLineaId,

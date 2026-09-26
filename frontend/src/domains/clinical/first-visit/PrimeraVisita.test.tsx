@@ -19,6 +19,16 @@ const paciente: ApiPaciente = {
 };
 
 describe('PrimeraVisitaPanel', () => {
+  it('preserves the draft and its original revision when another user updates the patient', async () => {
+    const user = userEvent.setup(); const onSave = vi.fn();
+    const { rerender } = render(<PrimeraVisitaPanel paciente={{ ...paciente, revision: 14 }} onSave={onSave} saving={false} />);
+    await user.type(screen.getByLabelText('Motivo de consulta'), 'Borrador local');
+    rerender(<PrimeraVisitaPanel paciente={{ ...paciente, revision: 15, datos_salud: { primera_visita: { motivo: 'Nueva valoración remota' } } }} onSave={onSave} saving={false} />);
+    expect(screen.getByLabelText('Motivo de consulta')).toHaveValue('Borrador local');
+    await user.click(screen.getByRole('button', { name: 'Guardar valoración' }));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ motivo: 'Borrador local' }), 14);
+  });
+
   it('muestra la valoración y carga el odontograma solo al abrir exploración', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
@@ -42,7 +52,7 @@ describe('PrimeraVisitaPanel', () => {
 
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
       motivo: 'Dolor en molar inferior',
-    }));
+    }), undefined);
   });
 
   it('conserva los datos guardados accesibles y no monta el odontograma', () => {

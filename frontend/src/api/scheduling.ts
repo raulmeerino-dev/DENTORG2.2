@@ -76,6 +76,7 @@ export async function createCita(data: {
 }
 
 export async function updateCita(citaId: string, data: Partial<{
+  revision: number;
   doctor_id: string;
   gabinete_id: string | null;
   presupuesto_linea_id: string | null;

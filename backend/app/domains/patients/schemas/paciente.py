@@ -167,6 +167,7 @@ class ReferenciaResponse(BaseModel):
 
 
 class PacienteResponse(BaseModel):
+    revision: int = 1
     id: UUID
     codigo: str | None
     num_historial: int

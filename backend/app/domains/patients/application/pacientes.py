@@ -74,6 +74,7 @@ async def _build_response(db: AsyncSession, p: Paciente, include_health: bool) -
     primera_visita, ultima_visita = await _fechas_visita_paciente(db, p.id)
     data = {
         "id": p.id,
+        "revision": p.revision,
         "clinica_id": p.clinica_id,
         "codigo": p.codigo,
         "num_historial": p.num_historial,

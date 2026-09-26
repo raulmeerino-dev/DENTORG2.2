@@ -48,6 +48,7 @@ export interface FichajeRegistroResponse {
 export type PacienteSexo = 'M' | 'F' | 'otro';
 
 export interface ApiPaciente {
+  revision?: number;
   id: string;
   codigo?: string | null;
   num_historial: number;
@@ -164,6 +165,7 @@ export interface TratamientoCatalogo {
 }
 
 export interface PresupuestoLinea {
+  revision?: number;
   id: string;
   presupuesto_id: string;
   tratamiento_id: string;
@@ -178,6 +180,7 @@ export interface PresupuestoLinea {
 }
 
 export interface Presupuesto {
+  revision?: number;
   id: string;
   clinica_id?: string | null;
   paciente_id: string;
@@ -229,6 +232,7 @@ export interface Cobro {
 }
 
 export interface PagoAnticipadoPaciente {
+  revision?: number;
   id: string;
   paciente_id: string;
   clinica_id?: string | null;
@@ -251,6 +255,7 @@ export interface FormaPago {
 }
 
 export interface Factura {
+  revision?: number;
   paciente?: { id: string; nombre: string; apellidos: string } | null;
   id: string;
   clinica_id?: string | null;
@@ -299,6 +304,7 @@ export interface Clinica {
 }
 
 export interface ProductoInventario {
+  revision?: number;
   id: string;
   clinica_id: string | null;
   nombre: string;
@@ -490,6 +496,7 @@ export interface TrabajoLaboratorioCitaResumen {
 export type EstadoOperativoCita = 'programada' | 'confirmada' | 'en_sala' | 'en_atencion' | 'finalizada' | 'cancelada' | 'no_presentado';
 
 export interface Cita {
+  revision?: number;
   id: string;
   paciente_id: string;
   doctor_id: string;
@@ -595,6 +602,7 @@ export interface TelefonearPendiente {
 }
 
 export interface HistorialClinico {
+  revision?: number;
   id: string;
   paciente_id: string;
   tratamiento_id: string;
@@ -637,6 +645,7 @@ export type EstadoSesionClinicaItem = 'planificado' | 'en_curso' | 'pospuesto' |
 export type OrigenSesionClinicaItem = 'manual' | 'cita' | 'presupuesto_linea';
 
 export interface SesionClinicaItem {
+  revision?: number;
   id: string;
   paciente_id: string;
   clinica_id: string | null;
@@ -671,6 +680,7 @@ export interface SesionClinicaItemCreateInput {
 }
 
 export interface SesionClinicaItemUpdateInput {
+  revision?: number;
   tratamiento_id?: string | null;
   presupuesto_linea_id?: string | null;
   cita_id?: string | null;
@@ -847,6 +857,7 @@ export interface RecetaClinica {
 }
 
 export interface NotaDental {
+  revision?: number;
   id: string;
   paciente_id: string;
   pieza_dental: number | null;
@@ -942,6 +953,7 @@ export interface Laboratorio {
 }
 
 export interface TrabajoLaboratorio {
+  revision?: number;
   id: string;
   paciente_id: string;
   doctor_id: string;

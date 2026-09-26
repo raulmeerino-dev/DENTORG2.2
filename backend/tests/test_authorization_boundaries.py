@@ -47,6 +47,13 @@ def bearer_headers(
     return {"Authorization": f"Bearer {create_access_token(claims)}"}
 
 
+async def persisted_bearer_headers(db, role, clinic_id=None):
+    user = Usuario(username=f"authz-live-{uuid4().hex}", password_hash="not-used", nombre="Authz test", rol=role, clinica_id=clinic_id, activo=True)
+    db.add(user)
+    await db.commit()
+    return bearer_headers(role, clinic_id=clinic_id, user_id=user.id)
+
+
 @pytest_asyncio.fixture
 async def boundary_client() -> AsyncClient:
     async def override_get_db():
@@ -159,12 +166,13 @@ async def test_non_billing_roles_cannot_register_payments(
 @pytest.mark.parametrize("operation", ["cobros", "pagos"])
 async def test_billing_roles_reach_payment_resource_lookup(
     client: AsyncClient,
+    db_session: AsyncSession,
     role: str,
     operation: str,
 ) -> None:
     response = await client.post(
         f"/api/facturas/{uuid4()}/{operation}",
-        headers=bearer_headers(role),
+        headers=await persisted_bearer_headers(db_session, role),
         json={"forma_pago_id": str(uuid4()), "importe": "10.00"},
     )
 
@@ -262,7 +270,7 @@ async def test_assigned_staff_cannot_cross_clinics(
     db_session.add_all([patient_a, patient_b])
     await db_session.commit()
 
-    headers = bearer_headers("recepcion", clinic_id=clinic_a.id)
+    headers = await persisted_bearer_headers(db_session, "recepcion", clinic_a.id)
     listed = await client.get("/api/pacientes?limit=200", headers=headers)
     own = await client.get(f"/api/pacientes/{patient_a.id}", headers=headers)
     foreign = await client.get(f"/api/pacientes/{patient_b.id}", headers=headers)
@@ -428,17 +436,17 @@ async def test_clinical_history_enforces_clinic_role_and_related_resources(
     reception_patch = await client.patch(
         f"/api/tratamientos/historial/{created_id}",
         headers=reception_a_headers,
-        json={"observaciones": "No autorizada"},
+        json={"observaciones": "No autorizada", "revision": 1},
     )
     cross_clinic_patch = await client.patch(
         f"/api/tratamientos/historial/{created_id}",
         headers=doctor_b_headers,
-        json={"observaciones": "No autorizada"},
+        json={"observaciones": "No autorizada", "revision": 1},
     )
     valid_patch = await client.patch(
         f"/api/tratamientos/historial/{created_id}",
         headers=doctor_a_headers,
-        json={"observaciones": "Evolucion autorizada"},
+        json={"observaciones": "Evolucion autorizada", "revision": 1},
     )
 
     assert reception_patch.status_code == 403
@@ -491,7 +499,7 @@ async def test_financial_data_and_payments_are_isolated_between_clinics(
     db_session.add_all([invoice_a, invoice_b])
     await db_session.commit()
 
-    headers = bearer_headers("recepcion", clinic_id=clinic_a.id)
+    headers = await persisted_bearer_headers(db_session, "recepcion", clinic_a.id)
     listed = await client.get("/api/facturas?limit=200", headers=headers)
     foreign = await client.get(f"/api/facturas/{invoice_b.id}", headers=headers)
     foreign_payment = await client.post(
@@ -535,7 +543,7 @@ async def test_unassigned_staff_user_cannot_cross_into_a_named_clinic(
     db_session.add_all([scoped_patient, legacy_patient])
     await db_session.commit()
 
-    headers = bearer_headers("recepcion")
+    headers = await persisted_bearer_headers(db_session, "recepcion")
     listed = await client.get("/api/pacientes?limit=200", headers=headers)
     direct = await client.get(f"/api/pacientes/{scoped_patient.id}", headers=headers)
     create_in_clinic = await client.post(

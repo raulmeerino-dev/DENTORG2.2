@@ -16,6 +16,7 @@ export type SessionTreatmentStatus = 'planificado' | 'en_curso' | 'realizado' | 
 type SessionTreatmentOrigen = 'cita' | 'pendiente' | 'manual';
 
 export type SessionTreatment = {
+  revision?: number;
   id: string;
   sesionItemId: string | null;
   source: SessionTreatmentOrigen;
@@ -76,6 +77,7 @@ export function sessionTreatmentFromSesionItem(
   const status: SessionTreatmentStatus =
     item.estado === 'realizado' ? 'realizado' : (item.estado as SessionTreatmentStatus);
   return {
+    revision: item.revision,
     id: `sesion-${item.id}`,
     sesionItemId: item.id,
     source,

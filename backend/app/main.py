@@ -1,16 +1,22 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm.exc import StaleDataError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.responses import JSONResponse
 
 from app.config import get_settings
 from app.core import model_registry  # noqa: F401 -- register every SQLAlchemy mapper
 from app.core.audit import AuditLogMiddleware
 from app.core.backups.scheduler import start_backup_scheduler
+from app.core.concurrency import require_edit_revision
 from app.core.http_security import SecurityHeadersMiddleware
-from app.core.permissions import RequireStaff
+from app.core.idempotency import IdempotencyMiddleware, require_operation_key
+from app.core.permissions import RequireBilling, RequireStaff
+from app.core.realtime import hub
+from app.core.realtime import router as realtime_router
 from app.domains.ai.api import assistant, dictado
 from app.domains.billing.api import cuentas, facturas, pdf
 from app.domains.clinical.api import consentimientos, documentos, odontograma, recetas, tratamientos
@@ -30,8 +36,11 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     # Startup
     start_backup_scheduler()
-    yield
-    # Shutdown
+    await hub.start()
+    try:
+        yield
+    finally:
+        await hub.stop()
 
 
 app = FastAPI(
@@ -44,12 +53,13 @@ app = FastAPI(
 )
 
 # CORS — solo permitir el frontend local
+app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=settings.cors_allowed_methods_list,
-    allow_headers=settings.cors_allowed_headers_list,
+    allow_headers=[*settings.cors_allowed_headers_list, "Idempotency-Key", "If-Match"],
 )
 
 if settings.allowed_hosts_list:
@@ -61,15 +71,16 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(AuditLogMiddleware)
 
 # Routers
+app.include_router(realtime_router, prefix="/api/realtime", tags=["realtime"])
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-staff_only = [RequireStaff]
+staff_only = [RequireStaff, Depends(require_operation_key), Depends(require_edit_revision)]
 app.include_router(assistant.router, prefix="/api/assistant", tags=["assistant"], dependencies=staff_only)
 app.include_router(pacientes.router, prefix="/api/pacientes", tags=["pacientes"], dependencies=staff_only)
 app.include_router(citas.router, prefix="/api/citas", tags=["citas"], dependencies=staff_only)
 app.include_router(doctores.router, prefix="/api/doctores", tags=["doctores"], dependencies=staff_only)
 app.include_router(tratamientos.router, prefix="/api/tratamientos", tags=["tratamientos"], dependencies=staff_only)
 app.include_router(presupuestos.router, prefix="/api/presupuestos", tags=["presupuestos"], dependencies=staff_only)
-app.include_router(facturas.router, prefix="/api/facturas", tags=["facturas"], dependencies=staff_only)
+app.include_router(facturas.router, prefix="/api/facturas", tags=["facturas"], dependencies=[RequireBilling, *staff_only])
 app.include_router(cuentas.router, prefix="/api/cuentas", tags=["cuentas"], dependencies=staff_only)
 app.include_router(fichajes.router, prefix="/api/fichajes", tags=["fichajes"], dependencies=staff_only)
 app.include_router(reportes.router, prefix="/api/reportes", tags=["reportes"], dependencies=staff_only)
@@ -99,3 +110,8 @@ async def health_check():
         "service": "DentCore backend",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+@app.exception_handler(StaleDataError)
+async def stale_write_handler(_request, _error):
+    return JSONResponse({"detail": "Esta información cambió mientras la estabas editando. Revisa la versión actual; tu borrador se conserva."}, status_code=409)

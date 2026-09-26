@@ -138,6 +138,7 @@ class DoctorResumen(BaseModel):
 
 
 class HistorialResponse(BaseModel):
+    revision: int = 1
     id: UUID
     paciente_id: UUID
     tratamiento_id: UUID
@@ -173,6 +174,7 @@ class NotaDentalCreate(BaseModel):
 
 
 class NotaDentalResponse(BaseModel):
+    revision: int = 1
     id: UUID
     paciente_id: UUID
     pieza_dental: int | None
@@ -222,6 +224,7 @@ class SesionClinicaItemUpdate(BaseModel):
 
 
 class SesionClinicaItemResponse(BaseModel):
+    revision: int = 1
     id: UUID
     paciente_id: UUID
     clinica_id: UUID | None

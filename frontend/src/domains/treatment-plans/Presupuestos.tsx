@@ -55,6 +55,7 @@ export function PresupuestoPanel({
   const queryClient = useQueryClient();
   const [selectedTreatmentId, setSelectedTreatmentId] = useState('');
   const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
+  const [selectedLineRevision, setSelectedLineRevision] = useState<number | undefined>();
   const lineaSeleccionada = presupuesto.lineas.find((line) => line.id === selectedLineId) ?? null;
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [pieza, setPieza] = useState('');
@@ -94,9 +95,9 @@ export function PresupuestoPanel({
       }>,
     ) => {
       if (!lineaSeleccionada) throw new Error('Seleccione linea');
-      return updatePresupuestoLinea(presupuesto.id, lineaSeleccionada.id, patch);
+      return updatePresupuestoLinea(presupuesto.id, lineaSeleccionada.id, { ...patch, revision: selectedLineRevision });
     },
-    onSuccess: invalidate,
+    onSuccess: (line) => { setSelectedLineRevision(line.revision); invalidate(); },
   });
 
   const deleteLine = useMutation({
@@ -164,6 +165,7 @@ export function PresupuestoPanel({
     acceptedLines.length > 0 && !['facturado', 'rechazado'].includes(presupuesto.estado);
 
   function loadLine(linea: PresupuestoLinea) {
+    setSelectedLineRevision(linea.revision);
     setSelectedLineId(linea.id);
     setPieza(linea.pieza_dental ? String(linea.pieza_dental) : '');
     setCaras(linea.caras ?? '');

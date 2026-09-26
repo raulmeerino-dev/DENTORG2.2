@@ -115,7 +115,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
   });
 
   const actualizarProducto = useMutation({
-    mutationFn: ({ id, stock_act }: { id: string; stock_act: number }) => updateProductoInventario(id, { stock_act }),
+    mutationFn: ({ id, stock_act, revision }: { id: string; stock_act: number; revision?: number }) => updateProductoInventario(id, { stock_act, revision }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['inventario'] }),
   });
 
@@ -298,10 +298,10 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                       <td>{producto.categoria || '-'}</td>
                       <td>{proveedor?.nombre || '-'}</td>
                       <td>{producto.stock_min}</td>
-                      <td><input className="stock-input" type="number" min="0" step="1" aria-label={`Stock actual de ${producto.nombre}`} disabled={actualizarProducto.isPending} defaultValue={producto.stock_act} onBlur={(event) => {
+                      <td><input className="stock-input" type="number" min="0" step="1" aria-label={`Stock actual de ${producto.nombre}`} disabled={actualizarProducto.isPending} defaultValue={producto.stock_act} onFocus={(event) => { event.currentTarget.dataset.revision = String(producto.revision ?? ''); }} onBlur={(event) => {
                         const value = event.currentTarget.valueAsNumber;
                         if (!event.currentTarget.checkValidity() || !Number.isFinite(value)) { event.currentTarget.reportValidity(); return; }
-                        if (value !== producto.stock_act) actualizarProducto.mutate({ id: producto.id, stock_act: value });
+                        if (value !== producto.stock_act) actualizarProducto.mutate({ id: producto.id, stock_act: value, revision: Number(event.currentTarget.dataset.revision) || undefined });
                       }} /></td>
                       <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td>
                       <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Movimientos</button></td>

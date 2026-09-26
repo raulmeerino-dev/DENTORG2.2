@@ -38,7 +38,7 @@ vi.mock('../domains/administration', () => ({
 }));
 vi.mock('sonner', () => ({
   Toaster: () => null,
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), dismiss: vi.fn() },
 }));
 
 describe('App navigation', () => {

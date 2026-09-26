@@ -10,7 +10,6 @@ import { localAppointmentDate } from '../agenda/agendaTime';
 import type { DoctorNotification } from '../../../api/types';
 import { FloatingPopover } from '../../../design-system/FloatingPopover';
 
-const POLL_INTERVAL_MS = 6000;
 
 function appointmentDate(notification: DoctorNotification) {
   return localAppointmentDate(notification.appointment_time);
@@ -55,7 +54,6 @@ function DoctorNotificationsBellContent({ userId }: { userId: string }) {
   const notificationsQuery = useQuery({
     queryKey: ['doctor-notifications', userId],
     queryFn: () => getMyDoctorNotifications(false),
-    refetchInterval: POLL_INTERVAL_MS,
     refetchIntervalInBackground: true,
   });
 

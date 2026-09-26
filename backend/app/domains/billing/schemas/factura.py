@@ -51,6 +51,7 @@ class FacturaLineaCreate(BaseModel):
 
 
 class FacturaLineaResponse(BaseModel):
+    revision: int = 1
     id: UUID
     factura_id: UUID
     historial_id: UUID | None
@@ -109,6 +110,7 @@ class PagoAnticipadoUpdate(BaseModel):
 
 
 class PagoAnticipadoResponse(BaseModel):
+    revision: int = 1
     id: UUID
     paciente_id: UUID
     clinica_id: UUID | None = None
@@ -180,6 +182,7 @@ class FacturaRectificativaCreate(BaseModel):
 
 
 class FacturaResponse(BaseModel):
+    revision: int = 1
     id: UUID
     clinica_id: UUID | None = None
     paciente_id: UUID

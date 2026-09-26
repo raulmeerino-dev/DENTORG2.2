@@ -146,6 +146,7 @@ async def _to_response(db: AsyncSession, cita: Cita) -> CitaResponse:
     return CitaResponse.model_validate(
         {
             "id": cita.id,
+            "revision": cita.revision,
             "paciente_id": cita.paciente_id,
             "clinica_id": cita.clinica_id,
             "doctor_id": cita.doctor_id,

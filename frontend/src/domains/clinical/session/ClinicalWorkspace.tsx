@@ -104,7 +104,7 @@ export function ClinicalWorkspace({
   budgetContent?: ReactNode;
   tratamientos: TratamientoCatalogo[];
   savingPrimeraVisita: boolean;
-  onSavePrimeraVisita: (data: PrimeraVisitaData) => void;
+  onSavePrimeraVisita: (data: PrimeraVisitaData, revision?: number) => void;
   onDarCita: (linea: PresupuestoLinea) => void;
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
   onCrearPedidoLab: (linea: PresupuestoLinea) => void;

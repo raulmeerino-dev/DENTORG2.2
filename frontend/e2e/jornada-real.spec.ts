@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 
 // Opt in only against the isolated PostgreSQL runtime documented in e2e/README.md.
 // There are deliberately no route mocks: mutations and reads reach FastAPI.
@@ -9,7 +10,7 @@ const apiBase = process.env.DENTCORE_E2E_API_URL ?? 'http://127.0.0.1:8011/api';
 type Appointment = { id: string; paciente_id: string; doctor_id: string; fecha_hora: string; duracion_min: number; estado: string; estado_operativo: string; llegada_at: string | null; atencion_iniciada_at: string | null; finalizada_at: string | null; salida_resuelta_at: string | null; pendiente_salida: boolean };
 
 async function api<T>(request: APIRequestContext, token: string, path: string, method = 'GET', data?: unknown): Promise<T> {
-  const response = await request.fetch(`${apiBase}${path}`, { method, data, headers: { Authorization: `Bearer ${token}` } });
+  const response = await request.fetch(`${apiBase}${path}`, { method, data, headers: { Authorization: `Bearer ${token}`, 'Idempotency-Key': randomUUID() } });
   expect(response.ok(), `${method} ${path}: ${response.status()} ${await response.text()}`).toBeTruthy();
   return response.json() as Promise<T>;
 }

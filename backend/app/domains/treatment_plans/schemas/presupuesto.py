@@ -31,6 +31,7 @@ class TratamientoResumen(BaseModel):
 
 
 class PresupuestoLineaResponse(BaseModel):
+    revision: int = 1
     id: UUID
     presupuesto_id: UUID
     tratamiento_id: UUID
@@ -109,6 +110,7 @@ class DoctorResumen(BaseModel):
 
 
 class PresupuestoResponse(BaseModel):
+    revision: int = 1
     id: UUID
     clinica_id: UUID | None = None
     paciente_id: UUID
@@ -138,6 +140,7 @@ class PresupuestoResponse(BaseModel):
 # ─── Trabajo Pendiente ────────────────────────────────────────────────────────
 
 class TrabajoPendienteResponse(BaseModel):
+    revision: int = 1
     id: UUID
     paciente_id: UUID
     presupuesto_linea_id: UUID

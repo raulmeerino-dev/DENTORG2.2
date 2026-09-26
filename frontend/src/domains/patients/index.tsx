@@ -559,7 +559,7 @@ function PatientWorkspace() {
   const editarPagoAnticipado = useMutation({
     mutationFn: ({ pago, importe, concepto, notas, formaPagoId }: { pago: PagoAnticipadoPaciente; importe: number; concepto: string; notas: string | null; formaPagoId: string }) => {
       if (!active) throw new Error('Sin paciente');
-      return updatePagoAnticipadoPaciente(active.id, pago.id, { importe, concepto, notas, forma_pago_id: formaPagoId });
+      return updatePagoAnticipadoPaciente(active.id, pago.id, { importe, concepto, notas, forma_pago_id: formaPagoId, revision: pago.revision });
     },
     onSuccess: () => {
       setAnticipoModal(null);
@@ -791,9 +791,10 @@ function PatientWorkspace() {
   });
 
   const guardarPrimeraVisita = useMutation({
-    mutationFn: async (data: PrimeraVisitaData) => {
+    mutationFn: async ({ data, revision }: { data: PrimeraVisitaData; revision?: number }) => {
       if (!active) throw new Error('Sin paciente');
       return updatePaciente(active.id, {
+        revision,
         datos_salud: {
           ...(active.datos_salud ?? {}),
           primera_visita: data,
@@ -872,10 +873,10 @@ function PatientWorkspace() {
     setRevocarConsentimientoTarget(candidato);
   }
 
-  function guardarComentario(texto: string) {
+  function guardarComentario(texto: string, revision?: number) {
     if (!active) return;
     guardarFichaPaciente.mutate(
-      { observaciones: texto.trim() || null },
+      { observaciones: texto.trim() || null, revision },
       { onSuccess: () => setComentarioOpen(false) },
     );
   }
@@ -1180,7 +1181,7 @@ function PatientWorkspace() {
             budgetContent={activeTreatmentTab === 'presupuestos' ? renderPresupuestosContextPanel() : null}
             tratamientos={tratamientosQuery.data ?? []}
             savingPrimeraVisita={guardarPrimeraVisita.isPending}
-            onSavePrimeraVisita={(data) => guardarPrimeraVisita.mutate(data)}
+            onSavePrimeraVisita={(data, revision) => guardarPrimeraVisita.mutate({ data, revision })}
             onDarCita={darCitaParaTratamiento}
             onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
             onCrearPedidoLab={(linea) => {
@@ -1325,6 +1326,7 @@ function PatientWorkspace() {
       )}
       {comentarioOpen && active && (
         <ComentarioModal
+          revision={active.revision}
           initialValue={active.observaciones}
           saving={guardarFichaPaciente.isPending}
           onClose={() => setComentarioOpen(false)}

@@ -14,6 +14,9 @@ export function PatientEditModal({
   onClose: () => void;
   onSave: (data: Partial<ApiPaciente>) => void;
 }) {
+  const [baseline, setBaseline] = useState(paciente);
+  const [original] = useState(paciente);
+  const [reviewing, setReviewing] = useState(false);
   const [form, setForm] = useState({
     nombre: paciente.nombre ?? '',
     apellidos: paciente.apellidos ?? '',
@@ -45,7 +48,8 @@ export function PatientEditModal({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    onSave({
+    const data: Partial<ApiPaciente> = {
+      revision: baseline.revision,
       nombre: form.nombre.trim(),
       apellidos: form.apellidos.trim(),
       fecha_nacimiento: form.fecha_nacimiento || null,
@@ -58,7 +62,7 @@ export function PatientEditModal({
       ciudad: form.ciudad || null,
       provincia: form.provincia || null,
       observaciones: form.observaciones || null,
-      datos_salud: { ...(paciente.datos_salud ?? {}), alergias: form.alergias },
+      datos_salud: { ...(baseline.datos_salud ?? {}), alergias: form.alergias },
       sexo: form.sexo || null,
       profesion: form.profesion.trim() || null,
       pais: form.pais.trim() || null,
@@ -68,7 +72,13 @@ export function PatientEditModal({
       pagador_nombre: form.pagador_distinto ? form.pagador_nombre.trim() || null : null,
       pagador_dni: form.pagador_distinto ? form.pagador_dni.trim() || null : null,
       pagador_direccion: form.pagador_distinto ? form.pagador_direccion.trim() || null : null,
-    });
+    };
+    const changes = Object.fromEntries(Object.entries(data).filter(([key, value]) => {
+      if (key === 'revision') return true;
+      if (key === 'datos_salud') return form.alergias !== (original.datos_salud?.alergias ?? '');
+      return JSON.stringify(value ?? null) !== JSON.stringify(original[key as keyof ApiPaciente] ?? null);
+    }));
+    onSave(changes);
   }
 
   return (
@@ -78,6 +88,18 @@ export function PatientEditModal({
           <strong>Editar ficha del paciente</strong>
           <button type="button" onClick={onClose}>Cerrar</button>
         </div>
+        {baseline.revision !== paciente.revision && <div role="status" className="alert alert-warning">
+          <p>Esta ficha cambió mientras la estabas editando. Tu borrador se conserva.</p>
+          <button type="button" onClick={() => setReviewing(!reviewing)}>Revisar versión actual</button>
+          {reviewing && <>
+            <dl>{Object.entries(form).filter(([key]) => key !== 'alergias').map(([key, value]) => (
+              String(paciente[key as keyof ApiPaciente] ?? '') !== String(baseline[key as keyof ApiPaciente] ?? '')
+                ? <div key={key}><dt>{key}</dt><dd>Actual: {String(paciente[key as keyof ApiPaciente] ?? '—')} · Tu borrador: {String(value)}</dd></div> : null
+            ))}</dl>
+            <p>Comprueba también los datos de salud antes de volver a guardar.</p>
+            <button type="button" onClick={() => { setBaseline(paciente); setReviewing(false); }}>He revisado los cambios; conservar mi borrador</button>
+          </>}
+        </div>}
         <div className="patient-edit-grid">
           <label>Nombre<input value={form.nombre} onChange={(event) => setField('nombre', event.target.value)} required /></label>
           <label>Apellidos<input value={form.apellidos} onChange={(event) => setField('apellidos', event.target.value)} required /></label>

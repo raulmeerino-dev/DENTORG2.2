@@ -89,7 +89,7 @@ async def test_notifica_solo_al_doctor_asignado_cuando_paciente_llega(
     llegada = await client.patch(
         f"/api/citas/{cita['id']}",
         headers=admin_headers,
-        json={"estado": "en_clinica"},
+        json={"estado": "en_clinica", "revision": cita["revision"]},
     )
     assert llegada.status_code == 200
 
@@ -110,7 +110,7 @@ async def test_notifica_solo_al_doctor_asignado_cuando_paciente_llega(
     duplicada = await client.patch(
         f"/api/citas/{cita['id']}",
         headers=admin_headers,
-        json={"estado": "en_clinica", "observaciones": "En tratamiento"},
+        json={"estado": "en_clinica", "observaciones": "En tratamiento", "revision": llegada.json()["revision"]},
     )
     assert duplicada.status_code == 200
     propias_todas = await client.get("/api/notificaciones/mias", headers=doctor_headers)
