@@ -127,13 +127,13 @@ test('Jornada real: recepción → sala → atención → finalización → sali
 test('Jornada conserva filtros al cambiar Operativa / Agenda y al recargar', async ({ page, request }) => {
   const data = await fixture(request);
   await login(page, 'recepcion', 'recep123');
-  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Profesional de Jornada').selectOption(data.doctorId);
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Estado de Jornada').selectOption('programada');
   await page.getByLabel('Buscar en Jornada').fill(data.name);
   await page.keyboard.press('Escape');
-  const perspectives = page.getByRole('navigation', { name: 'Perspectiva de Jornada' });
-  await perspectives.getByRole('button', { name: 'Agenda', exact: true }).click();
+  const navigation = page.getByRole('navigation', { name: 'Navegación principal' });
+  await navigation.getByRole('link', { name: 'Agenda', exact: true }).click();
   await expect(page.getByLabel('Profesional de Agenda')).toHaveValue(data.doctorId);
   await expect(page.getByLabel('Buscar en Jornada')).toHaveValue(data.name);
   await page.reload();
@@ -146,7 +146,7 @@ test('Jornada conserva filtros al cambiar Operativa / Agenda y al recargar', asy
   await expect(page.getByLabel('Profesional de Agenda')).toHaveValue(data.doctorId);
   await expect(page.getByLabel('Buscar en Jornada')).toHaveValue(data.name);
   await page.locator('.agenda-date-picker').getByRole('button', { name: 'Hoy', exact: true }).click();
-  await perspectives.getByRole('button', { name: 'Operativa', exact: true }).click();
+  await navigation.getByRole('link', { name: 'Jornada', exact: true }).click();
   await expect(page.locator(`[data-cita-id="${data.appointment.id}"]`).first()).toBeVisible();
   expect((await api<Appointment>(request, data.admin, `/citas/${data.appointment.id}`)).estado).toBe('programada');
 });
@@ -202,7 +202,7 @@ test('Agenda real crea provisional sin teléfono y registra un solape urgente au
 test('Agenda crea desde un hueco sin volver a pedir profesional ni hora', async ({ page, request }) => {
   const data = await fixture(request);
   await login(page, 'recepcion', 'recep123');
-  await page.getByRole('navigation', { name: 'Perspectiva de Jornada' }).getByRole('button', { name: 'Agenda', exact: true }).click();
+  await page.getByRole('navigation', { name: 'Navegación principal' }).getByRole('link', { name: 'Agenda', exact: true }).click();
   const cell = page.locator(`.agenda-resource-cell:not(.outside-hours)[data-doctor-id="${data.doctorId}"]`)
     .filter({ has: page.getByRole('button', { name: /^Nueva cita \d/ }) }).first();
   await expect(cell).toBeVisible();

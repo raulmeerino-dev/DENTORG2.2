@@ -1,7 +1,13 @@
 .jornada-workspace { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--dc-surface); }
-.jornada-perspectives { display: flex; gap: 2px; padding: 2px; background: var(--dc-surface-soft); border-radius: 5px; }
-.jornada-perspectives button { display: flex; align-items: center; gap: 6px; min-height: 30px; border: 0; padding: 5px 12px; border-radius: 4px; background: transparent; font-size: 12px; font-weight: 500; }
-.jornada-perspectives button[aria-pressed="true"] { background: var(--dc-surface); color: var(--dc-primary); box-shadow: 0 1px 3px #122a421a; font-weight: 650; }
+.jornada-header-controls { display: flex; align-items: center; gap: var(--dc-space-2); min-width: 0; max-width: 100%; overflow-x: auto; }
+.jornada-professional-select { flex: 0 1 210px; width: 210px; min-width: 160px; height: 30px; min-height: 30px; padding: 4px 7px; font-size: 12px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); background: var(--dc-surface); color: var(--dc-text); text-overflow: ellipsis; }
+.dc-toolbar-slot-module .jornada-header-controls .agenda-date-picker { flex-wrap: nowrap; flex-shrink: 0; }
+.jornada-header-controls .agenda-date-picker > button { flex-shrink: 0; }
+@media (max-width: 1150px) {
+  .jornada-header-controls { gap: var(--dc-space-1); }
+  .jornada-header-controls .agenda-date-picker > button { padding-inline: 4px; }
+  .jornada-professional-select { min-width: 150px; }
+}
 .jornada-new { background: var(--dc-primary); color: var(--dc-on-primary); border: 1px solid var(--dc-primary); border-radius: 4px; min-height: 32px; padding: 5px 12px; }
 .jornada-content { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
 .jornada-workspace > :not(.jornada-content) { flex-shrink: 0; }
@@ -46,9 +52,6 @@
 .waiting-room-empty { padding: 20px 12px; color: var(--dc-muted); font-size: 12px; }
 @media (max-width: 1100px) { .jornada-content .hoy-layout { grid-template-columns: minmax(0, 1fr); } .jornada-content .hoy-sidebar { border-left: 0; padding-left: 0; border-top: 1px solid var(--dc-border); padding-top: 12px; } }
 @media (max-width: 700px) {
-  .jornada-perspectives button { padding-inline: 6px; }
-  .jornada-perspectives { flex-shrink: 0; }
-  .jornada-perspectives button { font-size: 11px; gap: 4px; }
   .jornada-new { margin-left: auto; }
   .jornada-content .hoy-page { padding: 8px; }
 }

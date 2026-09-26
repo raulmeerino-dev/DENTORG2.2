@@ -155,7 +155,7 @@ export default function HoyPage() {
   const enClinica = activas.filter((c) => ['en_sala', 'en_atencion'].includes(getVisualStatus(c)));
   const atendidas = citas.filter((c) => getVisualStatus(c) === 'finalizada');
   const canceladas = citas.filter((c) => ['anulada', 'falta', 'cancelled_by_patient'].includes(c.estado));
-  const pendientesLlamar = telefonear.filter((item) => !item.reubicada);
+  const pendientesLlamar = telefonear.filter((item) => !item.reubicada && (!jornada?.doctorId || item.doctor_id === jornada.doctorId));
   const proximaAccion = [...activas]
     .filter((cita) => cita.estado !== 'atendida')
     .sort((a, b) => {

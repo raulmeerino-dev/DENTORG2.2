@@ -6,7 +6,6 @@
 .agenda-controls-toolbar .dc-toolbar-search { flex-basis: 190px; max-width: 290px; }
 .agenda-controls-toolbar .agenda-toolbar-actions { margin-left: auto; }
 .agenda-controls-toolbar .dc-toolbar-primary { margin-left: 0; }
-.agenda-perspective-tabs button { white-space: nowrap; }
 .agenda-left-panel .agenda-month-days button { white-space: nowrap; padding-inline: 0; }
 .agenda-professional-select { width: 210px; max-width: 100%; min-width: 0; height: 32px; padding: 4px 7px; font-size: 12px; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); }
 .agenda-lab-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px; font-size: 11px; }
