@@ -111,7 +111,7 @@ describe('Cita: contexto y disponibilidad', () => {
 
   it('crea un paciente provisional sin exigir teléfono ni inventar datos', async () => {
     const { user, onCreateTemporaryPaciente, onSubmit } = setup({ draft: { day: '2026-09-21', slot: '09:00', doctorId: doctor.id } });
-    await user.click(screen.getByRole('button', { name: 'Crear paciente provisional' }));
+    await user.click(screen.getByRole('button', { name: 'Nuevo paciente' }));
     await user.type(screen.getByLabelText('Nombre del paciente provisional'), 'Lucía');
     await user.click(screen.getByRole('button', { name: 'Apuntar' }));
     await waitFor(() => expect(onCreateTemporaryPaciente).toHaveBeenCalledWith({ nombreCompleto: 'Lucía', telefono: '' }));

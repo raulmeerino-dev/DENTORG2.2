@@ -161,7 +161,7 @@ test('Agenda real crea provisional sin teléfono y registra un solape urgente au
   if (await modal.getByRole('button', { name: 'Cambiar paciente' }).isVisible()) {
     await modal.getByRole('button', { name: 'Cambiar paciente' }).click();
   }
-  await modal.getByRole('button', { name: 'Crear paciente provisional' }).click();
+  await modal.getByRole('button', { name: 'Nuevo paciente' }).click();
   const provisionalName = `UrgenciaE2E${Date.now()}`;
   await modal.getByLabel('Nombre del paciente provisional', { exact: true }).fill(provisionalName);
   await modal.getByRole('button', { name: 'Apuntar', exact: true }).click();

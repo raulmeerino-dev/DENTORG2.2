@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { UserPlus } from 'lucide-react';
 import { CatalogTreatmentSelector } from '../../clinical/treatment-selection/TreatmentSelector';
 import type { FormEvent } from 'react';
 import { useEffect,useMemo,useState } from 'react';
@@ -262,12 +263,12 @@ export function CitaModal({
             <button
               type="button"
               className={`temp-patient-toggle ${showTempPatient ? 'active' : ''}`}
-              title="Crear paciente provisional"
-              aria-label="Crear paciente provisional"
+              title="Nuevo paciente"
+              aria-label="Nuevo paciente"
               aria-expanded={showTempPatient}
               onClick={() => setShowTempPatient((value) => !value)}
             >
-              <span className="temp-patient-icon" aria-hidden="true" />
+              <UserPlus size={20} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
           {query.trim() && patientResultsOpen && (
