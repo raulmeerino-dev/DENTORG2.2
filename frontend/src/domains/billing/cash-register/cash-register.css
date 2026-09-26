@@ -30,8 +30,10 @@
 .cash-summary { display: flex; flex-wrap: wrap; gap: var(--dc-space-4); padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); color: var(--dc-muted); font-size: var(--dc-font-small); }
 .cash-summary strong { margin-left: var(--dc-space-2); color: var(--dc-text); font-variant-numeric: tabular-nums; }
 .cash-empty { padding: var(--dc-space-4); color: var(--dc-muted); }
-.cash-ledger > .jornada-checkout { margin: 0; border: 0; }
-.cash-ledger .jornada-checkout-item { padding: var(--dc-space-3); }
+.cash-ledger > .jornada-checkout { margin: 0; border: 0; padding: var(--dc-space-3); }
+.cash-ledger > .jornada-checkout > header { margin-bottom: var(--dc-space-3); }
+.cash-ledger > .jornada-checkout > small { display: block; padding-block: var(--dc-space-1); }
+.cash-ledger .jornada-checkout-item { padding: var(--dc-space-3) 0; }
 
 .cash-ledger .dentcore-table td:first-child { white-space: normal; overflow-wrap: anywhere; }
 .cash-ledger .dentcore-table td:last-child button { white-space: nowrap; }
