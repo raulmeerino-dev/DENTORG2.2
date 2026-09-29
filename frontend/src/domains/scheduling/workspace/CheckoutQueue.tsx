@@ -23,12 +23,15 @@ export default function CheckoutQueue() {
       <strong className="checkout-patient">{account.paciente_nombre}</strong>
       <small className="checkout-concepts">{account.cargos.filter(c => c.cita_id === account.cita_id).map(c => `${c.concepto}${c.pieza_dental ? ` · ${c.pieza_dental}` : ''} · ${c.importe === null ? 'Sin valorar' : money(c.importe)}`).join(' / ') || 'Visita finalizada sin tratamientos con cargo'}</small>
       <small className="checkout-summary">Hoy {money(account.realizado_hoy)} · Anterior {money(account.saldo_anterior)}{Number(account.saldo_favor) > 0 ? ` · A favor ${money(account.saldo_favor)}` : ''}</small>
-      <strong className="checkout-balance">Pendiente {money(Math.max(0, Number(account.saldo)))}</strong>
-      {!!account.sin_valorar && <small className="checkout-unpriced" role="status">{account.sin_valorar} cargos por valorar</small>}
-      <div className="jornada-inline-actions">
+      <div className="checkout-balance">
+        <span>Pendiente</span>
+        <strong>{money(Math.max(0, Number(account.saldo)))}</strong>
+        {!!account.sin_valorar && <small className="checkout-unpriced" role="status">{account.sin_valorar} cargos por valorar</small>}
+      </div>
+      <div className="checkout-actions">
         <button type="button" className="primary-action" onClick={() => setSelected({ patientId: account.paciente_id, citaId: account.cita_id, leavePending: false })}>Cobrar</button>
-        <button type="button" onClick={() => setSelected({ patientId: account.paciente_id, citaId: account.cita_id, leavePending: true })}>Dejar pendiente</button>
-        <Link to={`/pacientes?paciente_id=${account.paciente_id}`}>Ficha</Link>
+        <button type="button" className="secondary-action" onClick={() => setSelected({ patientId: account.paciente_id, citaId: account.cita_id, leavePending: true })}>Dejar pendiente</button>
+        <Link className="checkout-record-link" to={`/pacientes?paciente_id=${account.paciente_id}`}>Ficha</Link>
       </div>
     </article>)}
     {!query.isLoading && !query.isError && !accounts.length && <small>Sin salidas pendientes.</small>}

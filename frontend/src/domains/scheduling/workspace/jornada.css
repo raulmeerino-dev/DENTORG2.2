@@ -31,6 +31,13 @@
 .jornada-checkout-item { display: grid; gap: 7px; padding: 10px 0; border-top: 1px solid var(--dc-border); }
 .jornada-checkout-item strong { font-size: 12px; }
 .jornada-checkout-item small { color: var(--dc-muted); }
+.checkout-balance { display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
+.checkout-balance > span { color: var(--dc-muted); font-size: var(--dc-font-small); line-height: 1.4; }
+.checkout-balance > strong { font-size: 15px; line-height: 1.4; font-weight: 650; }
+.checkout-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.checkout-actions > :is(button, a) { display: inline-flex; align-items: center; justify-content: center; min-height: var(--dc-control-height); padding: 5px 10px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); font-size: 12px; font-weight: 500; line-height: 20px; white-space: nowrap; text-decoration: none; box-shadow: none; transition: background-color 140ms ease, border-color 140ms ease; }
+.checkout-actions > .checkout-record-link { border-color: transparent; background: transparent; color: var(--dc-primary); }
+.checkout-actions > :is(.secondary-action, .checkout-record-link):hover { background: var(--dc-surface-hover); }
 .jornada-exit-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 20px; background: var(--dc-surface); color: var(--dc-text); border-radius: 8px; box-shadow: var(--dc-shadow-menu); }
 .jornada-exit-dialog h2 { font-size: 17px; margin-top: 0; }
 .jornada-exit-dialog p { font-size: 13px; line-height: 1.5; }
