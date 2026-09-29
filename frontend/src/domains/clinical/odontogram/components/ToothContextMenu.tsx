@@ -13,6 +13,9 @@ type ToothContextMenuProps = {
   onClearTreatments: () => void;
   onViewHistory: () => void;
   onClose: () => void;
+  prepareTreatmentLabel?: string;
+  onPrepareTreatment?: () => void;
+  onInspect?: () => void;
 };
 
 const surfaceLabels: Partial<Record<SurfaceKey, string>> = {
@@ -45,14 +48,17 @@ export function ToothContextMenu({
   onClearTreatments,
   onViewHistory,
   onClose,
+  onPrepareTreatment,
+  prepareTreatmentLabel = 'Añadir tratamiento propuesto',
+  onInspect,
 }: ToothContextMenuProps) {
   return (
       <FloatingPopover
-        className="od-context-menu"
+        className="dc-object-menu"
         role="menu"
         aria-label={`Acciones de pieza ${tooth.number}`}
         point={{ x, y }}
-        width={226}
+        width={260}
         onClose={onClose}
         onContextMenu={(event) => event.preventDefault()}
         onMouseDown={(event) => event.stopPropagation()}
@@ -61,18 +67,20 @@ export function ToothContextMenu({
           <strong>Pieza {tooth.number}</strong>
           <span>{contextLabel(surface)}</span>
         </div>
+        {onPrepareTreatment && <button type="button" role="menuitem" onClick={onPrepareTreatment}>{prepareTreatmentLabel}</button>}
+        {onInspect && <button type="button" role="menuitem" onClick={onInspect}>Registrar hallazgo</button>}
 
         {enableQuickTreatments ? (
           <button type="button" role="menuitem" onClick={onQuickTreatment} disabled={readOnly}>
             Añadir tratamiento
           </button>
         ) : null}
-        <button type="button" role="menuitem" onClick={onMarkMissing} disabled={readOnly}>
-          Eliminar pieza / ausente
+        {!readOnly && <><button type="button" role="menuitem" onClick={onMarkMissing}>
+          Marcar pieza ausente
         </button>
-        <button type="button" role="menuitem" onClick={onClearTreatments} disabled={readOnly}>
+        <button type="button" role="menuitem" className="dc-menu-danger dc-menu-divider" onClick={onClearTreatments} disabled={Boolean(tooth.completedTreatments?.length)}>
           Eliminar tratamientos
-        </button>
+        </button></>}
         <button type="button" role="menuitem" onClick={onViewHistory}>
           Ver historial de la pieza
         </button>

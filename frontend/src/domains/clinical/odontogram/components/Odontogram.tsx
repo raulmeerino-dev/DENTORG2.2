@@ -21,6 +21,7 @@ import { QuickTreatmentModal } from './QuickTreatmentModal';
 import { ToothArch } from './ToothArch';
 import { ToothContextMenu } from './ToothContextMenu';
 import { ToothHistoryModal } from './ToothHistoryModal';
+import { MoreHorizontal } from 'lucide-react';
 
 const defaultSelection: ToothSelection = {
   toothNumber: '36',
@@ -58,6 +59,8 @@ export function Odontogram({
   onAddTreatment,
   onSelectTooth,
   onContextAction,
+  onPrepareTreatment,
+  prepareTreatmentLabel,
 }: OdontogramProps) {
   const config = odontogramModeConfig[mode];
   const isReadOnly = readOnly ?? config.readOnly;
@@ -165,11 +168,11 @@ export function Odontogram({
 
   const openContextMenu = (toothNumber: string, surface: SurfaceKey | undefined, x: number, y: number) => {
     const nextSelection = { toothNumber, surface };
-    setSelection(nextSelection);
+    if (!selected) setInternalSelection(nextSelection);
     setContextMenu({
       ...nextSelection,
-      x: Math.min(x, window.innerWidth - 244),
-      y: Math.min(y, window.innerHeight - 226),
+      x,
+      y,
     });
   };
 
@@ -314,6 +317,7 @@ export function Odontogram({
               <span>{patientName}</span>
               {contextDate && <span>{contextDate}</span>}
               {totalBudget !== undefined && <strong>{formatCurrency(totalBudget)}</strong>}
+              <button type="button" aria-label={`Acciones de pieza ${selectedTooth.number}`} title={`Acciones de pieza ${selectedTooth.number}`} aria-haspopup="menu" onClick={event => { const rect = event.currentTarget.getBoundingClientRect(); openContextMenu(selectedTooth.number, selectedSurface, rect.left, rect.bottom); }}><MoreHorizontal size={16} /></button>
             </div>
           </div>
 
@@ -379,6 +383,9 @@ export function Odontogram({
           x={contextMenu.x}
           y={contextMenu.y}
           readOnly={isReadOnly}
+          prepareTreatmentLabel={prepareTreatmentLabel}
+          onPrepareTreatment={onPrepareTreatment ? () => { onPrepareTreatment(contextMenu); setContextMenu(null); } : undefined}
+          onInspect={!isReadOnly && ['initialVisit', 'diagnosis'].includes(mode) ? () => { setSelection(contextMenu); setContextMenu(null); } : undefined}
           enableQuickTreatments={quickTreatmentsEnabled}
           onQuickTreatment={() => quickTreatmentFromContext(contextMenu)}
           onMarkMissing={() => markMissingFromContext(contextMenu)}

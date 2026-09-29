@@ -87,7 +87,7 @@ describe('PresupuestoPanel', () => {
   it('confirma aceptación parcial y bloquea la línea aceptada', async () => {
     const budget = { ...base(), lineas: [line(), line('l2', 17)] }; setup(budget); const user = userEvent.setup();
     vi.mocked(api.aceptarPresupuesto).mockResolvedValue({ ...budget, estado: 'parcial', lineas: [{ ...line(), aceptado: true, pasado_trabajo_pendiente: true }, line('l2', 17)] });
-    await user.click(screen.getByRole('button', { name: 'Acciones de línea 1' })); await user.click(screen.getByRole('button', { name: 'Aceptar línea' }));
+    await user.click(screen.getByRole('button', { name: 'Acciones: Obturación · Pieza 16' })); await user.click(screen.getByRole('menuitem', { name: 'Aceptar línea' }));
     expect(api.aceptarPresupuesto).not.toHaveBeenCalled();
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Confirmar aceptación' }));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Editar línea 1' })).toBeDisabled());
@@ -97,11 +97,11 @@ describe('PresupuestoPanel', () => {
   });
   it('duplica como borrador en otra pieza, pide confirmar eliminación y no cambia otras líneas', async () => {
     setup({ ...base(), lineas: [line()] }); const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Acciones de línea 1' })); await user.click(screen.getByRole('button', { name: 'Duplicar en otra pieza' }));
+    await user.click(screen.getByRole('button', { name: 'Acciones: Obturación · Pieza 16' })); await user.click(screen.getByRole('menuitem', { name: 'Duplicar en otra pieza' }));
     expect(screen.getByLabelText('Piezas')).toHaveValue(''); expect(screen.getByLabelText('Precio unitario')).toHaveValue('100');
     expect(api.addPresupuestoLinea).not.toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: 'Limpiar' }));
-    await user.click(screen.getByRole('button', { name: 'Acciones de línea 1' })); await user.click(screen.getByRole('button', { name: 'Eliminar línea' }));
+    await user.click(screen.getByRole('button', { name: 'Acciones: Obturación · Pieza 16' })); await user.click(screen.getByRole('menuitem', { name: 'Eliminar línea' }));
     expect(api.deletePresupuestoLinea).not.toHaveBeenCalled();
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Eliminar línea' }));
     await screen.findByText('Empieza por un tratamiento');

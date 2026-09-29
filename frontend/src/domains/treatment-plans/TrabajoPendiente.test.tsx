@@ -65,7 +65,6 @@ describe('TrabajoPendientePanel', () => {
         presupuestos={[presupuestoLegacy]}
         citas={[]}
         onDarCita={onDarCita}
-        onContextLinea={vi.fn()}
         onOpenPresupuestos={vi.fn()}
       />,
     );
@@ -134,7 +133,6 @@ describe('TrabajoPendientePanel', () => {
         presupuestos={[presupuesto]}
         citas={citas}
         onDarCita={vi.fn()}
-        onContextLinea={vi.fn()}
       />,
     );
 

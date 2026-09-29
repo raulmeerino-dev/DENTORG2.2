@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import './patient-finder.css';
 import type { ApiPaciente } from '../../api/types';
 import { FloatingPopover } from '../../design-system/FloatingPopover';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
+import { fullName } from './patientName';
 
 
 function normalizePatientFinderText(value?: string | number | null) {
@@ -84,6 +86,8 @@ export function PatientFinder({
     restoringFocus.current = true;
     queueMicrotask(() => { restoringFocus.current = false; });
   }
+  const menu = useObjectMenu({ items: filtered, id: patient => patient.id, label: fullName,
+    actions: patient => [{ id: 'select', label: 'Seleccionar paciente', run: () => selectPaciente(patient) }] });
 
   return (
     <div className="dc-patient-finder" onBlur={(event) => {
@@ -126,6 +130,7 @@ export function PatientFinder({
               type="button"
               className={paciente.id === selectedId ? 'active' : ''}
               key={paciente.id}
+              {...menu.bindings(paciente)}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => selectPaciente(paciente)}
             >
@@ -157,6 +162,7 @@ export function PatientFinder({
           )}
         </FloatingPopover>
       )}
+      {menu.menu}
     </div>
   );
 }

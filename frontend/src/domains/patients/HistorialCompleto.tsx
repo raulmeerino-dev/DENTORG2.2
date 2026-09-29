@@ -24,6 +24,7 @@ import {
 import { HistoryRowDetail, type HistoryActions } from './history/HistoryRowDetail';
 import { patientBalance, patientBalanceClass } from '../billing/patient-account/patientBalance';
 import './history-workspace.css';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
 
 type Props = Omit<HistoryData, 'notasDentales'> &
   Partial<Pick<HistoryData, 'notasDentales'>> &
@@ -148,6 +149,12 @@ export function HistorialCompletoPanel({
     setExpanded(null);
     tableRef.current?.closest('.dc-patient-body')?.scrollTo({ top: 0 });
   }
+  const menu = useObjectMenu({ items: displayed, id: row => row.id, label: row => `${row.type} · ${row.concept}`, actions: row => [
+    { id: 'detail', label: 'Ver detalle', run: () => setExpanded(row.id) },
+    ...(row.visit ? [{ id: 'visit', label: 'Abrir visita', run: () => setVisit(row.visit!) }] : []),
+    ...(canManageBilling && row.invoice ? [{ id: 'invoice', label: 'Abrir factura', run: () => props.onOpenFactura(row.invoice!) }] : []),
+    ...(row.budget && props.onOpenPresupuesto ? [{ id: 'budget', label: 'Abrir presupuesto', run: () => props.onOpenPresupuesto!(row.budget!) }] : []),
+  ] });
   if (activeVisit)
     return (
       <VisitDetail
@@ -408,6 +415,7 @@ export function HistorialCompletoPanel({
             return (
               <Fragment key={row.id}>
                 <tr
+                  {...menu.bindings(row)}
                   className={`patient-history-row ${isExpanded ? 'is-expanded' : ''}`}
                   onClick={(event) => {
                     if (!(event.target as HTMLElement).closest('button, a')) toggle();
@@ -512,6 +520,7 @@ export function HistorialCompletoPanel({
           )}
         </tbody>
       </table>
+      {menu.menu}
       <footer className="patient-history-pagination">
         <span>
           {visible.length

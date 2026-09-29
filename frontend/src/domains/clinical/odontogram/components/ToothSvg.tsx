@@ -1,3 +1,4 @@
+import { usesNativeContextMenu } from '../../../../design-system/useObjectMenu';
 import type { Arch, Side, SurfaceKey, ToothStatus, ToothType } from '../types/odontogram.types';
 import { getToothAnatomy, type ToothAnatomy } from '../data/toothAnatomy';
 import { statusConfig } from '../data/statusConfig';
@@ -164,6 +165,8 @@ export function ToothSvg({
     onOpenQuickTreatment(toothNumber, undefined);
   };
   const openContextMenuTooth = (event: React.MouseEvent<SVGElement>) => {
+    if (usesNativeContextMenu(event.target)) return;
+    event.currentTarget.closest<HTMLElement>('[tabindex], button')?.focus({ preventScroll: true });
     event.preventDefault();
     event.stopPropagation();
     onOpenContextMenu(toothNumber, undefined, event.clientX, event.clientY);
@@ -174,6 +177,8 @@ export function ToothSvg({
     onOpenQuickTreatment(toothNumber, 'root');
   };
   const openContextMenuRoot = (event: React.MouseEvent<SVGElement>) => {
+    if (usesNativeContextMenu(event.target)) return;
+    event.currentTarget.closest<HTMLElement>('[tabindex], button')?.focus({ preventScroll: true });
     event.preventDefault();
     event.stopPropagation();
     onOpenContextMenu(toothNumber, 'root', event.clientX, event.clientY);

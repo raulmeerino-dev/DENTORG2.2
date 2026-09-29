@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import { describe, expect, it } from 'vitest';
 import type { ApiPaciente, UserRole } from '../../../api/types';
@@ -50,6 +50,10 @@ describe('OdontogramaTool', () => {
     expect(screen.getByText('Odontograma diagnóstico')).toBeInTheDocument();
     expect(screen.queryByText('Guardar diagnostico')).not.toBeInTheDocument();
     expect(screen.queryByText('Guardar superficie')).not.toBeInTheDocument();
+    fireEvent.contextMenu(screen.getByRole('button', { name: 'Seleccionar pieza 16' }));
+    expect(screen.queryByRole('menuitem', { name: 'Registrar hallazgo' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Marcar pieza ausente' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'Ver historial de la pieza' })).toBeInTheDocument();
   });
 
   it('renderiza pendientes con acciones de trabajo clinico', () => {

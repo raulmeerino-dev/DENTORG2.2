@@ -1,3 +1,4 @@
+import { usesNativeContextMenu } from '../../../../design-system/useObjectMenu';
 import type { Arch, SurfaceKey, ToothStatus, ToothType } from '../types/odontogram.types';
 import { statusConfig } from '../data/statusConfig';
 import { getPrimarySurface } from '../data/toothMap';
@@ -153,6 +154,8 @@ export function ToothOclusalSvg({
     onOpenQuickTreatment(toothNumber, surface);
   };
   const openContextMenu = (event: React.MouseEvent<SVGElement>, surface: SurfaceKey) => {
+    if (usesNativeContextMenu(event.target)) return;
+    event.currentTarget.closest<HTMLElement>('[tabindex], button')?.focus({ preventScroll: true });
     event.preventDefault();
     event.stopPropagation();
     onOpenContextMenu(toothNumber, surface, event.clientX, event.clientY);

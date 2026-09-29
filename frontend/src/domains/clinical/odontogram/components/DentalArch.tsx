@@ -1,3 +1,4 @@
+import { isContextMenuKey, usesNativeContextMenu } from '../../../../design-system/useObjectMenu';
 import type { Arch, SurfaceKey, ToothData } from '../types/odontogram.types';
 import { Tooth } from './Tooth';
 
@@ -32,7 +33,15 @@ export function DentalArch({
           className={`od-tooth-number-button ${selectedToothNumber === toothNumber ? 'is-selected' : ''} ${index === 8 ? 'has-gap' : ''}`}
           type="button"
           onClick={() => onSelectTooth(toothNumber)}
-          onContextMenu={(event) => {
+          onKeyDown={event => {
+              if (!isContextMenuKey(event) || usesNativeContextMenu(event.target)) return;
+              event.preventDefault(); event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              onOpenContextMenu(toothNumber, undefined, rect.left, rect.bottom);
+            }}
+            onContextMenu={(event) => {
+              if (usesNativeContextMenu(event.target)) return;
+              event.currentTarget.focus({ preventScroll: true });
             event.preventDefault();
             onOpenContextMenu(toothNumber, undefined, event.clientX, event.clientY);
           }}

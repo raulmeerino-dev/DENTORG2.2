@@ -605,12 +605,6 @@ textarea {
   gap: 12px !important;
 }
 
-.context-menu {
-  max-width: min(320px, calc(100vw - 24px));
-  max-height: calc(var(--app-window-height) - 24px);
-  overflow: auto;
-}
-
 /* ------------------------------------------------------------------ */
 /* 23. Responsive rules                                                */
 /* ------------------------------------------------------------------ */

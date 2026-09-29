@@ -1,5 +1,5 @@
 import { pendingTreatments } from './pendingTreatments';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties } from 'react';
 import { useState } from 'react';
 import { ArrowRight, ClipboardCheck } from 'lucide-react';
 import type {
@@ -15,6 +15,7 @@ import { formatDate, money } from '../../shared/format';
 import { normalizeText } from '../../shared/text';
 import { TreatmentBadge } from '../clinical/components/TreatmentBadge';
 import { PatientOdontogramFlow } from '../clinical/odontogram';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
 
 function findCitaForLinea(citas: Cita[], lineaId: string) {
   const linked = citas
@@ -42,9 +43,9 @@ export function TrabajoPendientePanel({
   error = null,
   paciente,
   onDarCita,
-  onContextLinea,
   onCrearPedidoLab,
   onOpenPresupuestos,
+  onOpenBudget,
   userRole,
   focusedId,
 }: {
@@ -55,9 +56,9 @@ export function TrabajoPendientePanel({
   error?: string | null;
   paciente?: ApiPaciente | null;
   onDarCita: (linea: PresupuestoLinea) => void;
-  onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
   onCrearPedidoLab?: (linea: PresupuestoLinea) => void;
   onOpenPresupuestos?: () => void;
+  onOpenBudget?: (budget: Presupuesto) => void;
   userRole?: UserRole | null;
   focusedId?: string | null;
 }) {
@@ -73,6 +74,12 @@ export function TrabajoPendientePanel({
       ? rows.find((row) => row.trabajo?.id === focusedId || row.linea.id === focusedId)
       : undefined;
   const visibleRows = focused ? [focused] : rows;
+  const menu = useObjectMenu({ items: visibleRows, id: row => row.linea.id, label: row => `${row.linea.tratamiento?.nombre ?? 'Tratamiento'}${row.linea.pieza_dental ? ` · Pieza ${row.linea.pieza_dental}` : ''}`,
+    actions: row => [
+      { id: 'schedule', label: 'Dar cita', run: () => onDarCita(row.linea) },
+      ...(row.presupuesto && onOpenBudget ? [{ id: 'budget', label: 'Abrir presupuesto', run: () => onOpenBudget(row.presupuesto!) }] : onOpenPresupuestos ? [{ id: 'budgets', label: 'Abrir presupuestos', run: onOpenPresupuestos }] : []),
+      ...(onCrearPedidoLab ? [{ id: 'lab', label: 'Pedido de laboratorio', run: () => onCrearPedidoLab(row.linea) }] : []),
+    ] });
 
   return (
     <section className="dc-pending-workspace">
@@ -132,14 +139,15 @@ export function TrabajoPendientePanel({
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.map(({ presupuesto, linea, cita }) => {
+                {visibleRows.map((row) => {
+                  const { presupuesto, linea, cita } = row;
                   const estado = cita ? cita.estado : 'Pendiente';
                   return (
                     <tr
                       key={linea.id}
                       className="treatment-coded-row"
                       style={{ '--treatment-color': colorForTreatment(linea.tratamiento) } as CSSProperties}
-                      onContextMenu={(event) => onContextLinea(event, linea)}
+                      {...menu.bindings(row)}
                     >
                       <td>{presupuesto?.numero ?? '-'}</td>
                       <td>
@@ -161,6 +169,7 @@ export function TrabajoPendientePanel({
                         </span>
                       </td>
                       <td className="trabajo-pendiente-acciones">
+                        {menu.trigger(row)}
                         <button onClick={() => onDarCita(linea)}>Dar cita</button>
                         {onCrearPedidoLab && (
                           <button
@@ -192,6 +201,7 @@ export function TrabajoPendientePanel({
           </details>
         </>
       )}
+      {menu.menu}
     </section>
   );
 }

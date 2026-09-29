@@ -30,6 +30,8 @@ type OdontogramaToolProps = {
   onAction?: (action: OdontogramaAction, payload: Record<string, unknown>) => void;
   onChange?: (nextData: ToothData[], change: OdontogramChange) => void;
   onAddTreatment?: (treatment: Treatment, selection: ToothSelection, nextData: ToothData[]) => void;
+  onPrepareTreatment?: (selection: ToothSelection) => void;
+  prepareTreatmentLabel?: string;
   userRole?: UserRole | null;
 };
 
@@ -79,6 +81,8 @@ export function OdontogramaTool({
   onChange,
   onAddTreatment,
   userRole,
+  onPrepareTreatment,
+  prepareTreatmentLabel,
 }: OdontogramaToolProps) {
   const contextQuery = useQuery({
     queryKey: ['odontograma-contexto', paciente?.id, mode, contextId],
@@ -107,7 +111,7 @@ export function OdontogramaTool({
     canViewBilling,
   });
   const odontogramMode = mapToolModeToOdontogramMode(mode);
-  const forcedReadOnly = readOnly ?? mode === 'lectura';
+  const forcedReadOnly = (readOnly ?? mode === 'lectura') || (mode === 'diagnostico' && !canEditDiagnosis);
   const quickTreatmentsEnabled = enableQuickTreatments ?? mode === 'presupuesto';
 
   if (!paciente) {
@@ -135,6 +139,8 @@ export function OdontogramaTool({
         readOnly={forcedReadOnly}
         enableQuickTreatments={quickTreatmentsEnabled && !forcedReadOnly}
         quickTreatments={quickTreatments}
+        onPrepareTreatment={onPrepareTreatment}
+        prepareTreatmentLabel={prepareTreatmentLabel}
         onChange={onChange}
         onAddTreatment={onAddTreatment}
         onSelectTooth={(selection, tooth) => {

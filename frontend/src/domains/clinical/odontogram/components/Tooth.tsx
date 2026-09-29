@@ -1,3 +1,4 @@
+import { isContextMenuKey, usesNativeContextMenu } from '../../../../design-system/useObjectMenu';
 import type { SurfaceKey, ToothData } from '../types/odontogram.types';
 import { ToothSvg } from './ToothSvg';
 
@@ -28,7 +29,15 @@ export function Tooth({
       type="button"
       onClick={() => onSelectTooth(tooth.number)}
       onDoubleClick={() => onOpenQuickTreatment(tooth.number)}
-      onContextMenu={(event) => {
+      onKeyDown={event => {
+              if (!isContextMenuKey(event) || usesNativeContextMenu(event.target)) return;
+              event.preventDefault(); event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              onOpenContextMenu(tooth.number, undefined, rect.left, rect.bottom);
+            }}
+            onContextMenu={(event) => {
+              if (usesNativeContextMenu(event.target)) return;
+              event.currentTarget.focus({ preventScroll: true });
         event.preventDefault();
         onOpenContextMenu(tooth.number, undefined, event.clientX, event.clientY);
       }}

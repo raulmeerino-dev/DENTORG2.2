@@ -134,6 +134,8 @@ export type OdontogramProps = {
   showDemoHeader?: boolean;
   showLegend?: boolean;
   showInspector?: boolean;
+  prepareTreatmentLabel?: string;
+  onPrepareTreatment?: (selection: ToothSelection) => void;
   enableQuickTreatments?: boolean;
   quickTreatments?: QuickTreatment[];
   onChange?: (nextData: ToothData[], change: OdontogramChange) => void;

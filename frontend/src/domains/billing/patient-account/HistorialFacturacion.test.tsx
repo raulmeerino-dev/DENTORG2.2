@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ApiPaciente, Factura, HistorialClinico } from '../../../api/types';
 import { DentCoreHistoryBillingPanel } from './HistorialFacturacion';
@@ -46,7 +46,6 @@ function renderPanel(canManageBilling: boolean) {
       onAddAnticipo={vi.fn()}
       onCobrarImporte={vi.fn()}
       onRecibos={vi.fn()}
-      onContextFactura={vi.fn()}
       onCrearReceta={vi.fn()}
       onOpenActivity={vi.fn()}
     />,
@@ -75,6 +74,19 @@ describe('DentCoreHistoryBillingPanel permissions', () => {
     expect(screen.getAllByText('Saldo').length).toBeGreaterThan(0);
     expect(screen.getByRole('cell', { name: '-95,00' }).querySelector('.has-debt')).toHaveTextContent('-95,00');
     expect(screen.getByText('Saldo —')).toBeInTheDocument(); // No account response must not imply zero debt.
+  });
+  it.each([false, true])('aplica los permisos económicos al menú de la fila (%s)', (canManageBilling) => {
+    renderPanel(canManageBilling);
+    const row = screen.getByRole('row', { name: /Obturacion/ });
+    fireEvent.contextMenu(row, { clientX: 200, clientY: 100 });
+    const menu = screen.getByRole('menu', { name: /Obturacion/ });
+    expect(within(menu).getByRole('menuitem', { name: 'Ver observaciones' })).toBeInTheDocument();
+    expect(Boolean(within(menu).queryByRole('menuitem', { name: 'Cobrar cuenta del paciente' }))).toBe(canManageBilling);
+    expect(Boolean(within(menu).queryByRole('menuitem', { name: 'Añadir anticipo' }))).toBe(canManageBilling);
+    expect(within(menu).queryByRole('menuitem', { name: 'Cobrar pendiente' })).not.toBeInTheDocument();
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    expect(row).toHaveFocus();
   });
   it('no trata un borrador ni una factura anulada como deuda facturada', () => {
     const invoices = [

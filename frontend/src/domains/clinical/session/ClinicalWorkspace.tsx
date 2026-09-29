@@ -1,4 +1,3 @@
-import type { MouseEvent } from 'react';
 import type {
   ApiPaciente,
   Cita,
@@ -54,13 +53,13 @@ export function ClinicalWorkspace({
   doctores,
   tratamientos,
   onDarCita,
-  onContextLinea,
   onCrearPedidoLab,
   onCrearPedidoLabGeneral,
   onCrearReceta,
   onOpenConsentimiento,
   onOpenDocumentos,
   onOpenPresupuestos,
+  onOpenBudget,
   onOpenHistorial,
   onDictarNotaSesion = () => undefined,
   canDictarNota = false,
@@ -96,13 +95,13 @@ export function ClinicalWorkspace({
   doctores?: Doctor[];
   tratamientos: TratamientoCatalogo[];
   onDarCita: (linea: PresupuestoLinea) => void;
-  onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
   onCrearPedidoLab: (linea: PresupuestoLinea) => void;
   onCrearPedidoLabGeneral: () => void;
   onCrearReceta: () => void;
   onOpenConsentimiento: (tipo?: string) => void;
   onOpenDocumentos: () => void;
   onOpenPresupuestos: () => void;
+  onOpenBudget?: (budget: Presupuesto) => void;
   onOpenHistorial: (citaId?: string) => void;
   onDictarNotaSesion?: (citaId?: string) => void;
   canDictarNota?: boolean;
@@ -148,9 +147,9 @@ export function ClinicalWorkspace({
           error={trabajosPendientesError}
           paciente={paciente}
           onDarCita={onDarCita}
-          onContextLinea={onContextLinea}
           onCrearPedidoLab={onCrearPedidoLab}
           onOpenPresupuestos={onOpenPresupuestos}
+          onOpenBudget={onOpenBudget}
           userRole={userRole}
         />
       )}

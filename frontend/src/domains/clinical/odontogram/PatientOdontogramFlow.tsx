@@ -17,6 +17,7 @@ type PatientOdontogramFlowProps = {
   enableQuickTreatments?: boolean;
   className?: string;
   userRole?: UserRole | null;
+  onPrepareTreatment?: (selection: ToothSelection) => void;
   onSelectDentalTarget?: (selection: ToothSelection, tooth: ToothData) => void;
 };
 
@@ -43,6 +44,7 @@ export function PatientOdontogramFlow({
   className,
   userRole,
   onSelectDentalTarget,
+  onPrepareTreatment,
 }: PatientOdontogramFlowProps) {
   const modeConfig = odontogramModeConfig[mode];
   const toolMode = modeToToolMode[mode];
@@ -109,6 +111,8 @@ export function PatientOdontogramFlow({
         onChange={(_, change) => {
           if (!effectiveReadOnly && usesDirectBaseData) updateMutation.mutate(change);
         }}
+        onPrepareTreatment={onPrepareTreatment}
+        prepareTreatmentLabel={mode === 'current' ? 'Preparar tratamiento realizado' : undefined}
         onAction={(action, payload) => {
           if (action !== 'filtrar_pieza') return;
           const selection = payload.selection as ToothSelection | undefined;

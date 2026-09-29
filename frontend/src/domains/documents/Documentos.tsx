@@ -1,10 +1,11 @@
 import { Dialog } from '../../design-system/Dialog';
 import './documents-manager.css';
 import { useMemo, useState } from 'react';
-import type { ChangeEvent, MouseEvent } from 'react';
+import type { ChangeEvent } from 'react';
 import { Folder, FolderPlus, UploadCloud, X } from 'lucide-react';
 import type { DocumentoPaciente } from '../../api/types';
 import { formatDate } from '../../shared/format';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
 
 type UploadDocumentoData = {
   archivo: File;
@@ -68,7 +69,6 @@ export function DocumentosPanel({
   onUploadOpenChange,
   onSubir,
   onAbrirDocumento,
-  onContextDocumento,
 }: {
   pacienteId: string | null;
   documentos: DocumentoPaciente[];
@@ -76,7 +76,6 @@ export function DocumentosPanel({
   onUploadOpenChange: (open: boolean) => void;
   onSubir: (data: UploadDocumentoData) => Promise<unknown> | unknown;
   onAbrirDocumento: (documento: DocumentoPaciente) => void;
-  onContextDocumento: (event: MouseEvent, documento: DocumentoPaciente) => void;
 }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [carpeta, setCarpeta] = useState<string>('radiografia');
@@ -87,6 +86,10 @@ export function DocumentosPanel({
   const [uploading, setUploading] = useState(false);
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [etiquetas, setEtiquetas] = useState('');
+  const menu = useObjectMenu({ items: documentos, id: doc => doc.id, label: documentTitle, actions: doc => [
+    { id: 'open', label: 'Abrir documento', disabled: !pacienteId, run: () => onAbrirDocumento(doc) },
+    { id: 'upload', label: 'Subir documento', disabled: !pacienteId, run: () => onUploadOpenChange(true) },
+  ] });
 
   const carpetasPersonalizadas = useMemo(() => {
     const folders = new Set<string>();
@@ -205,7 +208,7 @@ export function DocumentosPanel({
               <thead><tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Etiquetas</th><th /></tr></thead>
               <tbody>
                 {docs.map((doc) => (
-                  <tr key={doc.id} onContextMenu={(event) => onContextDocumento(event, doc)}>
+                  <tr key={doc.id} {...menu.bindings(doc)}>
                     <td>{formatDate(doc.fecha_documento ?? doc.created_at)}</td>
                     <td>
                       <strong>{documentTitle(doc)}</strong>
@@ -229,6 +232,7 @@ export function DocumentosPanel({
         )}
       </div>
 
+      {menu.menu}
       {uploadOpen && (
         <Dialog label="Subir documento" className="document-upload-modal" onClose={closeUpload} closeDisabled={uploading}>
             <header>

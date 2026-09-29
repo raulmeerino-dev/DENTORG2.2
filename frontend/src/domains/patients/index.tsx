@@ -3,8 +3,7 @@ import { getPatientAccount } from '../../api/accounts';
 import { ToolbarContribution } from '../../design-system/ToolbarSlots';
 import { ContextToolbar } from '../../design-system/ContextToolbar';
 import { useMutation,useQuery,useQueryClient } from '@tanstack/react-query';
-import { FloatingPopover } from '../../design-system/FloatingPopover';
-import type { MouseEvent,ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useDeferredValue,useEffect,useState } from 'react';
 import { useLocation,useNavigate,useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -13,7 +12,7 @@ import { createFacturaDesdeHistorial, createFacturaManual, createPagoAnticipadoP
 import { createNotaDental, createSesionItem, deleteSesionItem, finalizarTratamientoSesion, getHistorialPaciente, getNotasDentalesPaciente, getSesionItemsPaciente, updateSesionItem } from '../../api/clinical';
 import { createPaciente, getPaciente, getPacientes, updatePaciente } from '../../api/patients';
 import { createPresupuesto, getPresupuestos, getTrabajosPendientesPaciente } from '../../api/treatmentPlans';
-import { createRecetaClinica, emitirRecetaLocal, emitirRecetaPdf, enviarRecetaProveedor, getRecetaPlantillas, getRecetaProviderStatus, getRecetasPaciente, importRecetaPlantilla, openRecetaClinicaPdf } from '../../api/prescriptions';
+import { createRecetaClinica, emitirRecetaLocal, enviarRecetaProveedor, getRecetaPlantillas, getRecetaProviderStatus, getRecetasPaciente, importRecetaPlantilla, openRecetaClinicaPdf } from '../../api/prescriptions';
 import { createTrabajoLaboratorio, getLaboratorios, getTrabajosLaboratorio } from '../../api/laboratory';
 import { generarDocumentoPdfPaciente, getDocumentosPaciente, openDocumentoPaciente, uploadDocumentoPaciente } from '../../api/documents';
 import { getCitas } from '../../api/scheduling';
@@ -50,6 +49,7 @@ import { buildWhatsAppUrl } from './patientActionUtils';
 import { PatientEditModal } from './PatientEditModal';
 import { PatientFinder } from './PatientFinder';
 import { PatientHeaderContext } from './PatientHeaderContext';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
 import { PatientFullViewModal } from './PatientFullViewModal';
 import { PatientForm } from './PatientSummary';
 import { nextPatientAppointment, patientAllergies } from './patientContext';
@@ -60,16 +60,6 @@ import './patient-workspace.css';
 export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
 type MainPatientTab = 'pacientes' | 'clinica' | 'presupuestos' | 'historial';
 
-type PatientContextMenu =
-  | { x: number; y: number; kind: 'paciente' }
-  | { x: number; y: number; kind: 'linea'; linea: PresupuestoLinea }
-  | { x: number; y: number; kind: 'factura'; factura: Factura }
-  | { x: number; y: number; kind: 'documento'; documento: DocumentoPaciente };
-type PatientContextDraft =
-  | { kind: 'paciente' }
-  | { kind: 'linea'; linea: PresupuestoLinea }
-  | { kind: 'factura'; factura: Factura }
-  | { kind: 'documento'; documento: DocumentoPaciente };
 type PatientFastActionName = 'new' | 'budgets' | 'documents' | 'upload_document';
 
 const PATIENT_FAST_ACTIONS = new Set<PatientFastActionName>(['new', 'budgets', 'documents', 'upload_document']);
@@ -182,7 +172,6 @@ function PatientWorkspace() {
   const [fullPatientOpen, setFullPatientOpen] = useState(false);
   const [invoiceCreatorOpen, setInvoiceCreatorOpen] = useState(false);
   const [invoiceHistoryOpen, setInvoiceHistoryOpen] = useState(false);
-  const [contextMenu, setContextMenu] = useState<PatientContextMenu | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [anticipoModal, setAnticipoModal] = useState<AnticipoModalMode | null>(null);
   const [facturaManualOpen, setFacturaManualOpen] = useState(false);
@@ -796,11 +785,6 @@ function PatientWorkspace() {
     },
   });
 
-  function focusPacienteSearch() {
-    setTab('pacientes');
-    window.setTimeout(() => document.getElementById('patient-search-input')?.focus(), 0);
-  }
-
   function abrirCobroDesdeFicha() {
     if (active && canManageBilling) setCheckoutOpen(true);
   }
@@ -825,11 +809,6 @@ function PatientWorkspace() {
     abrirCobroDesdeFicha();
   }
 
-  function openContext(event: MouseEvent, menu: PatientContextDraft) {
-    event.preventDefault();
-    setContextMenu({ ...menu, x: event.clientX, y: event.clientY } as PatientContextMenu);
-  }
-
   function abrirAgendaPaciente() {
     if (!active) return;
     sessionStorage.setItem('dentcore_selected_patient_id', active.id);
@@ -837,7 +816,6 @@ function PatientWorkspace() {
     sessionStorage.setItem('dentcore_agenda_action', 'new');
     sessionStorage.removeItem('dentcore_selected_treatment');
     sessionStorage.removeItem('dentcore_selected_presupuesto_linea_id');
-    setContextMenu(null);
     navigate('/agenda');
   }
 
@@ -845,7 +823,6 @@ function PatientWorkspace() {
     if (!active) return;
     const datos = `${fullName(active)} - H ${active.num_historial}${active.telefono ? ` - ${active.telefono}` : ''}`;
     void navigator.clipboard?.writeText(datos);
-    setContextMenu(null);
   }
 
   function abrirWhatsAppPaciente() {
@@ -873,14 +850,6 @@ function PatientWorkspace() {
     void openFacturaPdf(factura.id).catch((error) => {
       toast.error(error instanceof Error ? error.message : 'No se pudo abrir la factura.');
     });
-    setContextMenu(null);
-  }
-
-  function emitirRecetaFactura(factura: Factura) {
-    void emitirRecetaPdf(factura.id).catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'No se pudo emitir la receta.');
-    });
-    setContextMenu(null);
   }
 
   function abrirDocumento(documento: DocumentoPaciente) {
@@ -888,7 +857,6 @@ function PatientWorkspace() {
     void openDocumentoPaciente(active.id, documento.id, documento.nombre_original).catch((error) => {
       toast.error(error instanceof Error ? error.message : 'No se pudo abrir el documento.');
     });
-    setContextMenu(null);
   }
 
   function abrirConsentimiento(consentimiento: Consentimiento) {
@@ -910,7 +878,6 @@ function PatientWorkspace() {
     sessionStorage.setItem('dentcore_selected_treatment', linea.tratamiento?.nombre ?? 'Tratamiento dental');
     sessionStorage.setItem('dentcore_selected_presupuesto_linea_id', linea.id);
     sessionStorage.setItem('dentcore_agenda_action', 'new');
-    setContextMenu(null);
     navigate('/agenda');
   }
 
@@ -981,6 +948,36 @@ function PatientWorkspace() {
     );
   }
 
+  const patientActions = {
+    onNuevaCita: abrirAgendaPaciente,
+    onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
+    onCobrar: () => abrirCobroDesdeFicha(),
+    onSubirDocumento: () => openDocumentsDrawer({ upload: true }),
+    onCrearReceta: () => {
+      setRecetaError(null);
+      setRecetaModalOpen(true);
+    },
+    onPedidoLaboratorio: () => {
+      setPedidoLabError(null);
+      setPedidoLabContext({ open: true, linea: null });
+    },
+    onConsentimiento: () => setDesigner(active ? { mode: 'consentimiento' } : null),
+    onRevocarConsentimiento: abrirRevocarConsentimientoMenu,
+    onCircular: () => setDesigner(active ? { mode: 'circular' } : null),
+    onCuestionarioMedico: () => setDesigner(active ? { mode: 'circular', tipo: 'Cuestionario medico' } : null),
+    onDocumentoLOPD: () => setDesigner(active ? { mode: 'circular', tipo: 'Documento LOPD / proteccion de datos' } : null),
+    onWhatsApp: abrirWhatsAppPaciente,
+    onComentario: () => setComentarioOpen(true),
+    onCopiarDatos: copiarDatosPaciente,
+    onVistaCompleta: () => setFullPatientOpen(true),
+  };
+  const patientMenu = useObjectMenu({ items: active ? [active] : [], id: patient => patient.id, label: fullName, actions: () => [
+    { id: 'appointment', label: 'Nueva cita', run: patientActions.onNuevaCita },
+    { id: 'budget', label: 'Nuevo presupuesto', disabled: nuevoPresupuesto.isPending, run: patientActions.onNuevoPresupuesto },
+    { id: 'documents', label: 'Subir documento', run: patientActions.onSubirDocumento },
+    ...(canViewClinicalDocuments ? [{ id: 'consent', label: 'Consentimiento informado', run: patientActions.onConsentimiento }] : []),
+    ...(canManageBilling ? [{ id: 'checkout', label: 'Cobrar', run: patientActions.onCobrar }] : []),
+  ] });
   if ((!active && hasPatientLoading) || (active && urlPatientId !== active.id)) {
     return <div className="dc-patient-workspace" role="status">Abriendo ficha del paciente…</div>;
   }
@@ -1023,29 +1020,7 @@ function PatientWorkspace() {
             busy={nuevoPresupuesto.isPending}
             canManageBilling={canManageBilling}
             canViewClinicalDocuments={canViewClinicalDocuments}
-            handlers={{
-              onNuevaCita: abrirAgendaPaciente,
-              onNuevoPresupuesto: () => nuevoPresupuesto.mutate(),
-              onCobrar: () => abrirCobroDesdeFicha(),
-              onSubirDocumento: () => openDocumentsDrawer({ upload: true }),
-              onCrearReceta: () => {
-                setRecetaError(null);
-                setRecetaModalOpen(true);
-              },
-              onPedidoLaboratorio: () => {
-                setPedidoLabError(null);
-                setPedidoLabContext({ open: true, linea: null });
-              },
-              onConsentimiento: () => setDesigner(active ? { mode: 'consentimiento' } : null),
-              onRevocarConsentimiento: abrirRevocarConsentimientoMenu,
-              onCircular: () => setDesigner(active ? { mode: 'circular' } : null),
-              onCuestionarioMedico: () => setDesigner(active ? { mode: 'circular', tipo: 'Cuestionario medico' } : null),
-              onDocumentoLOPD: () => setDesigner(active ? { mode: 'circular', tipo: 'Documento LOPD / proteccion de datos' } : null),
-              onWhatsApp: abrirWhatsAppPaciente,
-              onComentario: () => setComentarioOpen(true),
-              onCopiarDatos: copiarDatosPaciente,
-              onVistaCompleta: () => setFullPatientOpen(true),
-            }}
+            handlers={patientActions}
           />
         )}
         {hasPatientError && (
@@ -1061,7 +1036,7 @@ function PatientWorkspace() {
           </div>
         )}
       </ContextToolbar>
-      <section className="dc-patient-view" onClick={() => setContextMenu(null)}>
+      <section className="dc-patient-view">
         <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen}>
           {WORK_TABS.map((item) => (
             <button
@@ -1076,7 +1051,7 @@ function PatientWorkspace() {
         </nav>
       <div className="dc-patient-body" hidden={dedicatedTaskOpen}>
         {activeMainTab === 'pacientes' && (
-          <div onContextMenu={(event) => openContext(event, { kind: 'paciente' })}>
+          <div {...(active ? patientMenu.bindings(active) : {})}>
             <PatientForm
               embedded
               paciente={active}
@@ -1137,7 +1112,7 @@ function PatientWorkspace() {
             doctores={doctoresQuery.data ?? []}
             tratamientos={tratamientosQuery.data ?? []}
             onDarCita={darCitaParaTratamiento}
-            onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
+            onOpenBudget={budget => openBudget(budget.id)}
             onCrearPedidoLab={(linea) => {
               setPedidoLabError(null);
               setPedidoLabContext({ open: true, linea });
@@ -1202,62 +1177,7 @@ function PatientWorkspace() {
           </section>
         )}
       </div>
-      {contextMenu && (
-        <FloatingPopover className="context-menu patient-context-menu" point={contextMenu} onClose={() => setContextMenu(null)} role="menu" aria-label="Acciones del paciente" onClick={(event) => event.stopPropagation()}>
-          {contextMenu.kind === 'paciente' && (
-            <>
-              <strong>Paciente</strong>
-              <button onClick={() => { setEditingPatient(true); setContextMenu(null); }}>Editar ficha</button>
-              <button onClick={() => { setContextMenu(null); focusPacienteSearch(); }}>Buscar / cambiar paciente</button>
-              <button onClick={abrirAgendaPaciente}>Nueva cita</button>
-              <button onClick={() => { nuevoPresupuesto.mutate(); setContextMenu(null); }} disabled={!active || nuevoPresupuesto.isPending}>Nuevo presupuesto</button>
-              <span />
-              <button onClick={() => { openPatientArea('primera'); setContextMenu(null); }}>Primera visita</button>
-              {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Consentimiento informado</button>}
-              <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Circular / justificante</button>
-              <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar / ver enlaces</button>
-              {canManageBilling && (
-                <>
-                  <span />
-                  <button onClick={() => { setInvoiceCreatorOpen(true); setContextMenu(null); }} disabled={!active}>Emitir factura</button>
-                  <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={!active}>Registrar cobro</button>
-                </>
-              )}
-              <button onClick={() => { openPatientArea('historial'); setContextMenu(null); }}>Historial completo</button>
-              <button onClick={copiarDatosPaciente}>Copiar datos</button>
-            </>
-          )}
-          {contextMenu.kind === 'linea' && (
-            <>
-              <strong>Tratamiento pendiente</strong>
-              <button onClick={() => darCitaParaTratamiento(contextMenu.linea)}>Dar cita para este tratamiento</button>
-              {canManageBilling && (
-                <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }}>Revisar cuenta y facturación</button>
-              )}
-              {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento', tipo: contextMenu.linea.tratamiento?.nombre } : null); setContextMenu(null); }}>Consentimiento de tratamiento</button>}
-              <button onClick={() => { openPatientArea('presupuestos'); setContextMenu(null); }}>Abrir presupuesto</button>
-            </>
-          )}
-          {canManageBilling && contextMenu.kind === 'factura' && (
-            <>
-              <strong>Factura</strong>
-              <button onClick={() => abrirPdfFactura(contextMenu.factura)}>Ver / imprimir PDF</button>
-              <button onClick={() => { abrirCobroDesdeFicha(); setContextMenu(null); }} disabled={Number(contextMenu.factura.pendiente) <= 0}>Registrar cobro pendiente</button>
-              <button onClick={() => emitirRecetaFactura(contextMenu.factura)}>Emitir receta</button>
-              <button onClick={() => { openDocumentsDrawer(); setContextMenu(null); }}>Ver documentos del paciente</button>
-            </>
-          )}
-          {contextMenu.kind === 'documento' && (
-            <>
-              <strong>Documento</strong>
-              <button onClick={() => abrirDocumento(contextMenu.documento)}>Abrir documento</button>
-              <button onClick={() => { openDocumentsDrawer({ upload: true }); setContextMenu(null); }}>Adjuntar otro archivo</button>
-              {canViewClinicalDocuments && <button onClick={() => { setDesigner(active ? { mode: 'consentimiento' } : null); setContextMenu(null); }}>Crear consentimiento</button>}
-              <button onClick={() => { setDesigner(active ? { mode: 'circular' } : null); setContextMenu(null); }}>Crear circular</button>
-            </>
-          )}
-        </FloatingPopover>
-      )}
+      {patientMenu.menu}
       {nuevoPacienteOpen && (
         <NuevoPacienteModal
           saving={crearPaciente.isPending}
@@ -1364,7 +1284,6 @@ function PatientWorkspace() {
               onAddAnticipo={() => setAnticipoModal({ kind: 'crear' })}
               onCobrarImporte={() => abrirCobroDesdeFicha()}
               onRecibos={abrirRecibos}
-              onContextFactura={(event, factura) => openContext(event, { kind: 'factura', factura })}
               onCrearReceta={() => {
                 setRecetaError(null);
                 setRecetaModalOpen(true);
@@ -1422,7 +1341,6 @@ function PatientWorkspace() {
               onUploadOpenChange={setDocumentsUploadOpen}
               onSubir={(data) => subirDocumento.mutateAsync(data)}
               onAbrirDocumento={abrirDocumento}
-              onContextDocumento={(event, documento) => openContext(event, { kind: 'documento', documento })}
             />
             {canViewClinicalDocuments && <ConsentimientosPanel
               consentimientos={consentimientosQuery.data ?? []}

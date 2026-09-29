@@ -1,3 +1,4 @@
+import { useObjectMenu } from '../../../design-system/useObjectMenu';
 import type { PatientAccount } from '../../../api/accounts';
 import { useMemo, useRef, useState } from 'react';
 import { FloatingPopover } from '../../../design-system/FloatingPopover';
@@ -127,7 +128,6 @@ export function DentCoreHistoryBillingPanel({
   onAddAnticipo,
   onCobrarImporte,
   onRecibos,
-  onContextFactura,
   onCrearReceta,
   onOpenActivity,
   canManageBilling = true,
@@ -142,13 +142,11 @@ export function DentCoreHistoryBillingPanel({
   onAddAnticipo: () => void;
   onCobrarImporte: (factura: Factura) => void;
   onRecibos: () => void;
-  onContextFactura: (event: MouseEvent, factura: Factura) => void;
   onCrearReceta?: () => void;
   onOpenActivity?: () => void;
   canManageBilling?: boolean;
 }) {
   const rows = useMemo(() => buildHistoryBillingRows(historial, facturas, account), [historial, facturas, account]);
-  const [historyMenu, setHistoryMenu] = useState<{ x: number; y: number; row: HistoryBillingRow | null } | null>(null);
   const [invoiceMenuOpen, setInvoiceMenuOpen] = useState(false);
   const [historyActionsOpen, setHistoryActionsOpen] = useState(false);
   const invoiceTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -164,13 +162,6 @@ export function DentCoreHistoryBillingPanel({
     });
   }
 
-  function openBlankHistoryMenu(event: MouseEvent<HTMLDivElement>) {
-    const target = event.target as HTMLElement;
-    if (target.closest('tr')) return;
-    event.preventDefault();
-    setHistoryMenu({ x: event.clientX, y: event.clientY, row: null });
-  }
-
   function handleCobradoDoubleClick(event: MouseEvent<HTMLTableCellElement>, row: HistoryBillingRow) {
     event.preventDefault();
     event.stopPropagation();
@@ -181,18 +172,18 @@ export function DentCoreHistoryBillingPanel({
     onCobrar();
   }
 
-  function openRowMenuFromButton(event: MouseEvent<HTMLButtonElement>, row: HistoryBillingRow) {
-    event.preventDefault();
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const menuWidth = 240;
-    setSelectedId(row.id);
-    setHistoryMenu({
-      x: Math.max(10, Math.min(rect.left, window.innerWidth - menuWidth - 10)),
-      y: Math.min(rect.bottom + 6, window.innerHeight - 160),
-      row,
-    });
-  }
+  const rowMenu = useObjectMenu({ items: rows, id: row => row.id, label: row => `${row.tratamiento}${row.pieza ? ` · Pieza ${row.pieza}` : ''}`,
+    actions: row => [
+      { id: 'detail', label: 'Ver observaciones', run: () => setSelectedId(row.id) },
+      ...(canManageBilling ? [
+        { id: 'account', label: 'Cobrar cuenta del paciente', run: onCobrar },
+        { id: 'advance', label: 'Añadir anticipo', run: onAddAnticipo },
+        ...(row.facturaItem ? [
+          { id: 'invoice', label: 'Abrir PDF de factura', run: () => abrirFacturaPdf(row.facturaItem!) },
+          { id: 'payment', label: 'Cobrar pendiente', disabled: row.facturaItem.estado === 'anulada' || Number(row.facturaItem.pendiente) <= 0, run: () => onCobrarImporte(row.facturaItem!) },
+        ] : []),
+      ] : []),
+    ] });
 
   return (
     <section className="history-billing-dentcore">
@@ -293,7 +284,6 @@ export function DentCoreHistoryBillingPanel({
       <div
         className="history-ledger-scroll"
         aria-label="Historial de tratamientos con desplazamiento"
-        onContextMenu={canManageBilling ? openBlankHistoryMenu : undefined}
       >
         <table className="dentcore-table history-ledger-table">
           <thead>
@@ -321,11 +311,7 @@ export function DentCoreHistoryBillingPanel({
                 className={`${selectedRow?.id === row.id ? 'selected-row ' : ''}treatment-coded-row`}
                 style={{ '--treatment-color': colorForTreatment(row.treatment) } as CSSProperties}
                 onClick={() => setSelectedId(row.id)}
-                onContextMenu={canManageBilling ? (event) => {
-                  event.preventDefault();
-                  setSelectedId(row.id);
-                  setHistoryMenu({ x: event.clientX, y: event.clientY, row });
-                } : undefined}
+                {...rowMenu.bindings(row)}
               >
                 <td data-label="Fecha">{formatDate(row.date)}</td>
                 <td data-label="Tipo"><TreatmentBadge tratamiento={row.treatment} /></td>
@@ -358,25 +344,12 @@ export function DentCoreHistoryBillingPanel({
               role="listitem"
               aria-selected={selectedRow?.id === row.id}
               onClick={() => setSelectedId(row.id)}
-              onContextMenu={canManageBilling ? (event) => {
-                event.preventDefault();
-                setSelectedId(row.id);
-                setHistoryMenu({ x: event.clientX, y: event.clientY, row });
-              } : undefined}
+                {...rowMenu.bindings(row)}
             >
               <header>
                 <time dateTime={row.date}>{formatDate(row.date)}</time>
                 <TreatmentBadge tratamiento={row.treatment} />
-                {canManageBilling && (
-                  <button
-                    type="button"
-                    className="history-card-menu-button"
-                    aria-label="Mas acciones del tratamiento"
-                    onClick={(event) => openRowMenuFromButton(event, row)}
-                  >
-                    ...
-                  </button>
-                )}
+                {rowMenu.trigger(row)}
               </header>
               <strong className="history-card-treatment">{row.tratamiento}</strong>
               <div className="history-card-meta">
@@ -420,19 +393,7 @@ export function DentCoreHistoryBillingPanel({
           value={selectedRow?.comentario || 'Sin observaciones especificas para el tratamiento seleccionado.'}
         />
       </label>
-      {canManageBilling && historyMenu && (
-        <FloatingPopover className="context-menu patient-context-menu history-row-context-menu" point={historyMenu} onClose={() => setHistoryMenu(null)} role="menu" aria-label="Historial y facturación">
-          <strong>Historial / facturacion</strong>
-          <button onClick={() => { onCobrar(); setHistoryMenu(null); }}>Cobrar cuenta del paciente</button><button onClick={() => { onAddAnticipo(); setHistoryMenu(null); }}>Añadir anticipo</button>
-          {historyMenu.row?.facturaItem && (
-            <>
-              <button onClick={() => { onCobrarImporte(historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Anadir cobro a esta factura</button>
-              <button onClick={(event) => { onContextFactura(event as unknown as MouseEvent, historyMenu.row!.facturaItem!); setHistoryMenu(null); }}>Opciones de factura</button>
-            </>
-          )}
-          <button onClick={() => setHistoryMenu(null)}>Cerrar</button>
-        </FloatingPopover>
-      )}
+      {rowMenu.menu}
     </section>
   );
 }
@@ -450,6 +411,9 @@ export function InvoiceHistoryModal({
     });
   }
 
+  const invoiceMenu = useObjectMenu({ items: facturas, id: invoice => invoice.id, label: invoice => `Factura ${invoice.serie}/${invoice.numero}`,
+    actions: invoice => [{ id: 'pdf', label: 'Abrir PDF', run: () => abrirFacturaPdf(invoice) }] });
+
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
       <section className="document-modal invoice-history-modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -457,12 +421,13 @@ export function InvoiceHistoryModal({
           <strong>Historial de facturas</strong>
           <button onClick={onClose}>Cerrar</button>
         </header>
+        {invoiceMenu.menu}
         <div className="invoice-history-list">
           <table className="dentcore-table">
             <thead><tr><th>Fecha</th><th>Factura</th><th>Estado</th><th>Total</th><th>Cobrado</th><th>Pendiente</th><th>PDF</th></tr></thead>
             <tbody>
               {facturas.map((factura) => (
-                <tr key={factura.id}>
+                <tr key={factura.id} {...invoiceMenu.bindings(factura)}>
                   <td>{formatDate(factura.fecha)}</td>
                   <td><strong>{factura.serie}/{factura.numero}</strong></td>
                   <td>{factura.estado}</td>

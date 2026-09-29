@@ -22,11 +22,20 @@ function healthLabel(key: string) {
   return clean ? `${clean.charAt(0).toUpperCase()}${clean.slice(1)}` : key;
 }
 
+function healthValue(value: unknown): string {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim();
+  if (typeof value === 'boolean') return value ? 'Sí' : 'No';
+  if (Array.isArray(value)) return value.map(healthValue).filter(Boolean).join(', ');
+  return '';
+}
+
 export function readableHealthItems(datos?: Record<string, unknown> | null) {
   if (!datos) return [];
   return Object.entries(datos)
-    .filter(([key, value]) => !['temporal', 'pendiente_completar'].includes(key) && value !== null && value !== undefined && String(value).trim() !== '')
-    .map(([key, value]) => ({ key, label: healthLabel(key), value: String(value).trim() }));
+    // Assessments have their own clinical reader; never stringify their internal records in the summary.
+    .filter(([key]) => !['temporal', 'pendiente_completar', 'primera_visita', 'valoraciones'].includes(key))
+    .map(([key, value]) => ({ key, label: healthLabel(key), value: healthValue(value) }))
+    .filter(item => item.value !== '');
 }
 
 export function readableHealthData(datos?: Record<string, unknown> | null) {

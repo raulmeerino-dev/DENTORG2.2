@@ -2652,10 +2652,6 @@ html[data-theme="dark"] .history-billing-dentcore {
   background: rgba(11, 113, 137, 0.08);
 }
 
-.history-row-context-menu {
-  min-width: 210px;
-}
-
 .invoice-split-button {
   position: relative;
   display: inline-flex;

@@ -12,7 +12,6 @@ function renderPanel(onSubir = vi.fn()) {
       onUploadOpenChange={vi.fn()}
       onSubir={onSubir}
       onAbrirDocumento={vi.fn()}
-      onContextDocumento={vi.fn()}
     />,
   );
 }

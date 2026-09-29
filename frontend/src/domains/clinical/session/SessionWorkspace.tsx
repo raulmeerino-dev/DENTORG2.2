@@ -1,3 +1,4 @@
+import { useObjectMenu } from '../../../design-system/useObjectMenu';
 import { RecordPerformedTreatment } from './RecordPerformedTreatment';
 import { clinicDateKey } from '../../../shared/time/clinicTime';
 import {
@@ -513,6 +514,10 @@ export function SessionWorkspace({
     }
   }
 
+  const treatmentMenu = useObjectMenu({ items: draftItems, id: item => item.id, label: item => `${item.title}${item.piezaDental ? ` · Pieza ${item.piezaDental}` : ''}`,
+    actions: item => [{ id: 'detail', label: 'Ver detalle del tratamiento', run: () => setSelectedId(item.id) },
+      ...(item.historialId ? [{ id: 'history', label: 'Abrir historial', run: onOpenHistorial }] : [])] });
+
   function handleExitChecklistAction(target: PatientExitActionTarget) {
     if (target === 'agenda') onSchedulePatient?.();
     if (target === 'caja') onOpenCobro?.();
@@ -525,10 +530,11 @@ export function SessionWorkspace({
 
   return (
     <div className="dc-session-stack">
+      {treatmentMenu.menu}
       <div className="session-board-head">
         <div>
           <span>Sesión actual</span>
-          <strong>{draftItems.length} tratamientos</strong>
+          <strong>{draftItems.length} {draftItems.length === 1 ? 'tratamiento' : 'tratamientos'}</strong>
         </div>
         <div className="session-board-actions">
           <FinishVisitAction
@@ -596,6 +602,7 @@ export function SessionWorkspace({
             {draftItems.map((item) => (
               <button
                 key={item.id}
+                {...treatmentMenu.bindings(item)}
                 type="button"
                 className={`session-treatment-row ${selected?.id === item.id ? 'active' : ''} session-status-${item.status}`}
                 onClick={() => setSelectedId(item.id)}
@@ -931,6 +938,7 @@ export function SessionWorkspace({
           subtitle="Selecciona pieza o superficie y elige qué acción realizar. La selección no registra tratamientos."
           enableQuickTreatments={false}
           userRole={userRole}
+          onPrepareTreatment={canRecord ? selection => { setDentalTarget({ pieza: selection.toothNumber, caras: mapSurfaceToCaras(selection.surface) ?? '' }); setRecordOpen(true); } : undefined}
           onSelectDentalTarget={(selection) =>
             setDentalTarget({
               pieza: selection.toothNumber,

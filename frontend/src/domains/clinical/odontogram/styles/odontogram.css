@@ -679,20 +679,6 @@
   border-top: 1px solid rgba(220, 232, 239, 0.85);
 }
 
-.od-context-menu {
-  position: fixed;
-  width: min(226px, calc(100vw - 16px));
-  max-height: calc(100dvh - 16px);
-  overflow: auto;
-  display: grid;
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid #cfe0ea;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 18px 44px rgba(16, 42, 67, 0.18);
-}
-
 .od-context-menu-heading {
   display: grid;
   gap: 2px;
@@ -709,28 +695,6 @@
   color: var(--od-muted);
   font-size: 11px;
   font-weight: 700;
-}
-
-.od-context-menu button {
-  min-height: 34px;
-  padding: 7px 8px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--od-text);
-  font-size: 12px;
-  font-weight: 720;
-  text-align: left;
-}
-
-.od-context-menu button:hover {
-  background: #f3fbfd;
-  color: var(--od-primary);
-}
-
-.od-context-menu button:disabled {
-  cursor: not-allowed;
-  opacity: 0.48;
 }
 
 .od-legend-chip {
@@ -1282,7 +1246,6 @@ html[data-theme="dark"] .od-action-button.is-ghost {
   color: #a9c3d1;
 }
 
-html[data-theme="dark"] .od-context-menu,
 html[data-theme="dark"] .od-quick-modal,
 html[data-theme="dark"] .od-history-modal {
   background: #0d2534;
@@ -1293,12 +1256,6 @@ html[data-theme="dark"] .od-history-modal {
 html[data-theme="dark"] .od-context-menu-heading,
 html[data-theme="dark"] .od-quick-modal-heading {
   border-bottom-color: #2b5062;
-}
-
-html[data-theme="dark"] .od-context-menu button:hover {
-  background: rgba(91, 220, 240, 0.12);
-  border-color: rgba(91, 220, 240, 0.38);
-  color: #eaffff;
 }
 
 html[data-theme="dark"] .od-modal-backdrop {

@@ -26,5 +26,6 @@ export function BudgetOdontogramFlow({ paciente, presupuesto, userRole, disabled
   return <div className="odontogram-flow-panel"><Odontogram mode="budget" patientName={fullName(paciente)} patientId={paciente.id} budgetId={presupuesto.id} data={data}
     title="Odontograma del presupuesto" subtitle={disabled ? 'Consulta de las piezas de este presupuesto.' : 'Pulsa las piezas o caras para llevarlas al editor. Puedes seleccionar varias y añadir el tratamiento de una vez.'}
     readOnly enableQuickTreatments={false} showLegend={false} showInspector={false}
+    onPrepareTreatment={!disabled ? selection => onSelectPiece?.(Number(selection.toothNumber), selection.surface ? faces[selection.surface] : undefined) : undefined}
     onSelectTooth={selection => { if (!disabled) onSelectPiece?.(Number(selection.toothNumber), selection.surface ? faces[selection.surface] : undefined); }} /></div>;
 }

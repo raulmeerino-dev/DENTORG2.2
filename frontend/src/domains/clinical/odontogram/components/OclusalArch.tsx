@@ -1,3 +1,4 @@
+import { isContextMenuKey, usesNativeContextMenu } from '../../../../design-system/useObjectMenu';
 import type { Arch, SurfaceKey, ToothData } from '../types/odontogram.types';
 import { ToothOclusalSvg } from './ToothOclusalSvg';
 
@@ -37,7 +38,15 @@ export function OclusalArch({
             aria-label={`Seleccionar cara oclusal de pieza ${tooth.number}`}
             onClick={() => onSelectSurface(tooth.number, primarySurface)}
             onDoubleClick={() => onOpenQuickTreatment(tooth.number, primarySurface)}
+            onKeyDown={event => {
+              if (!isContextMenuKey(event) || usesNativeContextMenu(event.target)) return;
+              event.preventDefault(); event.stopPropagation();
+              const rect = event.currentTarget.getBoundingClientRect();
+              onOpenContextMenu(tooth.number, primarySurface, rect.left, rect.bottom);
+            }}
             onContextMenu={(event) => {
+              if (usesNativeContextMenu(event.target)) return;
+              event.currentTarget.focus({ preventScroll: true });
               event.preventDefault();
               onOpenContextMenu(tooth.number, primarySurface, event.clientX, event.clientY);
             }}
