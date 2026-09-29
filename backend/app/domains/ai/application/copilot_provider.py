@@ -84,7 +84,7 @@ class ToolCallingProvider:
                                 "num_ctx": getattr(self.settings, "ollama_context_length", 16384),
                                 "num_predict": getattr(self.settings, "ollama_max_output_tokens", 768),
                             },
-                            "keep_alive": "10m",
+                            "keep_alive": getattr(self.settings, "ollama_keep_alive", "24h"),
                         },
                     )
                     response.raise_for_status()

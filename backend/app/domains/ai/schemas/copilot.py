@@ -121,6 +121,13 @@ class Schedule(StrictModel):
         return self
 
 
+class ScheduleRead(Schedule):
+    include_details: bool = Field(
+        True,
+        description="False si sólo pide cuántas citas hay o contadores por estado; True si necesita nombres, horas o detalle de citas.",
+    )
+
+
 class Slots(Schedule):
     professional_id: UUID
     duration: int = Field(default=30, ge=5, le=480, multiple_of=5)

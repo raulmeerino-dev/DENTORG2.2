@@ -1,4 +1,5 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI
@@ -18,6 +19,7 @@ from app.core.permissions import RequireBilling, RequireStaff
 from app.core.realtime import hub
 from app.core.realtime import router as realtime_router
 from app.domains.ai.api import assistant, dictado
+from app.domains.ai.application.copilot_runtime import preload_local_model
 from app.domains.billing.api import cuentas, facturas, pdf
 from app.domains.clinical.api import consentimientos, documentos, odontograma, recetas, tratamientos
 from app.domains.communications.api import notificaciones, whatsapp
@@ -37,9 +39,13 @@ async def lifespan(app: FastAPI):
     # Startup
     start_backup_scheduler()
     await hub.start()
+    model_preload = asyncio.create_task(preload_local_model(settings))
     try:
         yield
     finally:
+        model_preload.cancel()
+        with suppress(asyncio.CancelledError):
+            await model_preload
         await hub.stop()
 
 

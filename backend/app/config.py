@@ -98,6 +98,8 @@ class Settings(BaseSettings):
     ollama_context_length: int = Field(default=16384, ge=8192, le=131072)
     ollama_max_output_tokens: int = Field(default=768, ge=256, le=4096)
     ollama_thinking: bool = False
+    ollama_keep_alive: str = "24h"
+    ollama_preload: bool = True
     whatsapp_webhook_token: str = ""
     backup_retention_days: int = 180
     backup_external_location: str = ""

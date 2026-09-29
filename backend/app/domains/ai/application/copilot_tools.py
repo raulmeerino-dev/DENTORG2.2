@@ -260,13 +260,13 @@ async def patient_balance(a, db, user, request):
 
 @tool(
     "get_schedule",
-    "Consultar agenda y pendientes operativos en un rango de hasta 31 días. Devuelve totales reales por estado y una muestra de citas con nombres y enlaces. Para más detalle, acota el rango o profesional.",
-    S.Schedule,
+    "Consultar agenda y pendientes operativos en un rango de hasta 31 días. Devuelve totales reales por estado. Para contar usa include_details=false; para nombres/horas usa true (muestra de ocho citas).",
+    S.ScheduleRead,
 )
 async def get_schedule(a, db, user, request):
     rows = await citas.listar_citas(db, user, a.professional_id, a.patient_id, a.start, a.end, None)
     data = []
-    for c in rows[:8]:
+    for c in rows[:8] if a.include_details else []:
         x = plain(c)
         data.append(
             {
@@ -300,7 +300,10 @@ async def get_schedule(a, db, user, request):
         "appointments": data,
         "total": len(rows),
         "counts_by_status": dict(Counter(c.estado_operativo for c in rows)),
-        "detail_scope": "Muestra de las primeras ocho citas, no listado completo. Los totales por estado incluyen todo el rango consultado.",
+        "detail_scope": (
+            "Muestra de las primeras ocho citas, no listado completo. Los totales por estado incluyen todo el rango consultado."
+            if a.include_details else "Sólo contadores de todo el rango consultado; detalle de citas no solicitado."
+        ),
         "pending_checkout": sum(c.pendiente_salida for c in rows),
         "truncated": len(rows) > len(data),
         "source": "/jornada?" + urlencode({"vista": "operativa", "fecha": clinic_datetime(a.start).date().isoformat()}),

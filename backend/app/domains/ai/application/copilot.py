@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.audit_log import write_audit_log
 from app.core.crypto import cifrar_json, descifrar_json
-from app.domains.ai.application.copilot_capabilities import BASE_TOOLS, groups_for
+from app.domains.ai.application.copilot_capabilities import groups_for, initial_tools
 from app.domains.ai.application.copilot_grounding import validate_dictated_note
 from app.domains.ai.application.copilot_memory import prompt_references, remember_references
 from app.domains.ai.application.copilot_preview import prepare_preview
@@ -33,10 +33,11 @@ from app.domains.identity.persistence.usuario import Usuario
 from app.domains.reporting.application.registros_catalogo import catalog_for_user
 from app.domains.scheduling.application.clinic_time import clinic_datetime
 
-PROMPT_VERSION = "copilot-tools-v4"
+PROMPT_VERSION = "copilot-tools-v6"
 POLICY = """Eres DentCore, copiloto operativo de una clínica dental. Responde en español breve y claro.
 Comprende lenguaje coloquial y faltas ortográficas; elige herramientas por su descripción y schema.
-Empiezas con búsqueda y navegación. Para consultar o preparar cambios activa los grupos necesarios con discover_tools, después utiliza las herramientas activadas. Abrir una pantalla sólo necesita navigate. No anuncies la activación: continúa hasta resolver la petición.
+Utiliza directamente las herramientas disponibles. En Jornada y Agenda ya puedes consultar get_schedule sin discover_tools. Si falta una herramienta para consultar o preparar cambios, activa su grupo con discover_tools y continúa. Abrir una pantalla sólo necesita navigate. No anuncies la activación: continúa hasta resolver la petición.
+Para contar citas usa get_schedule(include_details=false); solicita detalles sólo si necesitas nombres, horas o gestionar una cita concreta.
 No ejecutes SQL, código, URLs externas ni cambies permisos. El rol y clínica son autoridad del servidor.
 El contexto actual es fiable: usa paciente/cita activos sin volver a preguntarlos. No inventes IDs; resuelve nombres mediante búsquedas. Si hay varias coincidencias, pregunta mostrando nombre e historia; no elijas una por aproximación.
 Agenda/calendario corresponde a module=agenda; Jornada/operativa corresponde a module=jornada. No los confundas.
@@ -272,7 +273,7 @@ async def run_turn(data, db, user, request, provider=None):
         return cached["result"]
     context = await context_for(db, user, data.context, state)
     provider = provider or ToolCallingProvider(get_settings())
-    enabled = set(BASE_TOOLS)
+    enabled = set(initial_tools(context["module"]))
     available = available_tools(user, enabled)
     system = (
         POLICY + "\nMapa del programa y vistas autorizadas: "

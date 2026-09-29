@@ -92,6 +92,7 @@ async def test_ollama_respects_resource_budget_and_rejects_truncated_generation(
         llm_provider="ollama", ollama_model="local-model", ollama_timeout_seconds=5,
         ollama_base_url="http://localhost:11434",
         ollama_context_length=8192, ollama_max_output_tokens=512,
+        ollama_keep_alive="24h",
     )
     real_client = httpx.AsyncClient
 
@@ -99,6 +100,7 @@ async def test_ollama_respects_resource_budget_and_rejects_truncated_generation(
         payload = json.loads(request.content)
         assert payload["options"] == {"temperature": 0, "num_ctx": 8192, "num_predict": 512}
         assert payload["think"] is False
+        assert payload["keep_alive"] == "24h"
         return httpx.Response(200, json={
             "done_reason": "length", "message": {"content": "Respuesta incompleta"},
         })

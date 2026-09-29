@@ -79,6 +79,8 @@ $env:OLLAMA_BASE_URL="http://127.0.0.1:11434"
 $env:OLLAMA_MODEL="qwen3.5:4b"
 $env:OLLAMA_CONTEXT_LENGTH="16384"
 $env:OLLAMA_THINKING="false"
+$env:OLLAMA_KEEP_ALIVE="24h"
+$env:OLLAMA_PRELOAD="true"
 $env:OPENAI_MODEL="gpt-4o-mini"
 ```
 
@@ -90,6 +92,8 @@ ollama run qwen3.5:4b
 ```
 
 El estado interno se puede comprobar en `GET /api/assistant/llm-health`. El copiloto en `auto` selecciona OpenAI si existe `OPENAI_API_KEY`, y Ollama en caso contrario. Para asegurar ejecución local, usa `LLM_PROVIDER=ollama`. Un fallo deja visible el error y permite reintentar; no cambia silenciosamente de proveedor. El modelo de DentCore es independiente del modelo configurado para Codex CLI.
+
+El backend precarga el modelo local en segundo plano y lo mantiene en memoria durante 24 horas desde el último uso para evitar recargas entre consultas. La precarga no envía datos de pacientes ni bloquea el arranque. Puede desactivarse con `OLLAMA_PRELOAD=false` y reducirse la reserva con `OLLAMA_KEEP_ALIVE=10m`. Jornada y Agenda tienen disponible la lectura de citas desde la primera llamada del modelo. Ver [mediciones locales de latencia](docs/ai-latency-validation.md).
 
 ## Verificacion
 

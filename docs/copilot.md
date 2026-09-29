@@ -12,7 +12,7 @@ Una nota confirmada sin cita se muestra entre las notas de hoy en Sesión y su e
 
 ## Arquitectura
 
-El modelo comienza cada petición con cuatro herramientas: búsqueda de pacientes, profesionales, navegación y descubrimiento de capacidades. `discover_tools` activa sólo los grupos necesarios y permitidos durante ese turno. La selección la hace el LLM mediante una llamada nativa, sin clasificador por palabras ni respuesta simulada. `copilot_workspace.py` comparte destinos reales con la navegación y obtiene las vistas/estados de Registros desde su catálogo canónico filtrado por rol.
+El modelo comienza cada petición con búsqueda de pacientes, profesionales, navegación y descubrimiento de capacidades. En Jornada y Agenda también dispone directamente de `get_schedule`, una lectura frecuente que evita una ronda de descubrimiento. `discover_tools` activa los demás grupos necesarios y permitidos durante ese turno. La selección la hace el LLM mediante una llamada nativa, sin clasificador por palabras ni respuesta simulada. `copilot_workspace.py` comparte destinos reales con la navegación y obtiene las vistas/estados de Registros desde su catálogo canónico filtrado por rol.
 
 La conversación continúa al navegar. Al cambiar de paciente se detienen consultas pendientes y se retiran los borradores anteriores; el siguiente turno utiliza el contexto visible validado. Se recuerdan hasta ocho referencias ordenadas por tipo (pacientes, profesionales, tratamientos y citas), sin repetir los informes clínicos completos. Nombres ambiguos siguen exigiendo selección; importes y disponibilidad se vuelven a consultar. El profesional propio procede de la cuenta del servidor.
 
@@ -26,13 +26,15 @@ Consultas y navegación se ejecutan directamente. Citas, estados de visita, nota
 
 Las conversaciones se guardan cifradas y caducan a los 30 minutos. El siguiente acceso purga el contenido caducado; los eventos de auditoría no guardan prompts ni contenido clínico en claro. La migración 0048 añade una tabla y la conserva durante un rollback de aplicación; volver a subir la revisión es idempotente. Una propuesta caducada exige prepararla de nuevo.
 
-El contexto conserva las tres últimas intervenciones de diálogo; los resultados completos de herramientas antiguas se vuelven a consultar cuando hacen falta. La agenda devuelve totales de todo el rango y una muestra explícita de ocho citas con nombres y horas de la clínica, evitando saturar al modelo con listados densos. Las fechas sin hora representan días completos para las consultas; reservar una cita sigue exigiendo una hora explícita. «Hoy» se calcula desde el reloj de la clínica, independientemente del día abierto en Agenda.
+El contexto conserva las tres últimas intervenciones de diálogo; los resultados completos de herramientas antiguas se vuelven a consultar cuando hacen falta. La agenda devuelve totales de todo el rango y, cuando se pide detalle, una muestra explícita de ocho citas con nombres y horas de la clínica. Para contar, `include_details=false` omite ese detalle y conserva los mismos totales calculados por el servicio, reduciendo la espera y los datos enviados al modelo. Las fechas sin hora representan días completos para las consultas; reservar una cita sigue exigiendo una hora explícita. «Hoy» se calcula desde el reloj de la clínica, independientemente del día abierto en Agenda.
 
 ### Ollama local
 
 El modelo local predeterminado es `qwen3.5:4b`, con `OLLAMA_THINKING=false`, usando el [control documentado de Ollama](https://docs.ollama.com/capabilities/thinking). Debe estar instalado (`ollama pull qwen3.5:4b`). En la prueba local con RTX 3060 Laptop de 6 GB se comparó con Qwen 2.5 7B y Qwen 3 4B; se eligió junto con la selección gradual de herramientas, no sólo por velocidad. El modelo de Codex CLI sigue siendo independiente. No hay cambio automático de proveedor ni envío a servicios externos.
 
 `OLLAMA_CONTEXT_LENGTH` (16384 por defecto) reserva espacio para política, herramientas y resultados; reducirlo demasiado puede hacer que Ollama trunque instrucciones. `OLLAMA_MAX_OUTPUT_TOKENS` (768 por defecto) acota cada generación; las respuestas truncadas se rechazan antes de preparar acciones. Los límites de inferencia no garantizan una latencia concreta: depende del hardware, la carga y el modelo.
+
+`OLLAMA_PRELOAD=true` precarga el modelo seleccionado en segundo plano al arrancar el backend, sólo si el proveedor efectivo es Ollama. Se envía una petición vacía con el mismo contexto de inferencia; no se leen ni envían pacientes. Un fallo no impide usar DentCore y el trabajo pendiente se cancela al apagar el backend. `OLLAMA_KEEP_ALIVE=24h` conserva el modelo entre consultas, reservando su memoria GPU; puede reducirse o desactivarse la precarga en equipos compartidos. La reserva es un plazo de inactividad, no una garantía frente a reinicios o presión de memoria. Ver [mediciones y comparación de modelos](ai-latency-validation.md).
 
 ## Capacidades y límites
 

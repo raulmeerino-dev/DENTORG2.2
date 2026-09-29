@@ -358,6 +358,24 @@ async def test_model_discovers_only_needed_tools_for_each_request(db_session):
     assert error.value.status_code == 403
 
 
+@pytest.mark.parametrize("module", ["jornada", "agenda"])
+async def test_schedule_workspace_exposes_read_without_discovering_write_tools(db_session, module):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient).model_copy(update={"context": S.CopilotContext(module=module)})
+
+    class DirectSchedule(ScriptedModel):
+        async def complete(self, system, messages, tools):
+            names = {tool["name"] for tool in tools}
+            assert "get_schedule" in names and "navigate" in names
+            assert not names & {"create_appointment", "register_payment", "clinical_note"}
+            return await super().complete(system, messages, tools)
+
+    provider = DirectSchedule([("get_schedule", {"start": "2026-09-29", "end": "2026-09-29"})])
+    result = await copilot.run_turn(request, db_session, user, None, provider)
+    assert provider.count == 2 and not result["unavailable"]
+    assert result["sources"] and result["proposal"] is None
+
+
 async def test_unsupplied_note_content_never_becomes_a_confirmation(db_session):
     user, patient, *_ = await fixture(db_session)
     request = turn(patient).model_copy(update={"text": "Apunta control sin molestias"})
@@ -522,7 +540,8 @@ async def test_provider_outage_has_no_simulated_fallback(db_session):
     assert result["navigation"] is None and await note_count(db_session, patient) == 0
 
 
-async def test_dense_schedule_has_real_totals_and_bounded_named_details(db_session):
+@pytest.mark.parametrize("include_details", [True, False])
+async def test_dense_schedule_has_real_totals_and_bounded_named_details(db_session, include_details):
     user, patient, doctor, _ = await fixture(db_session)
     start = datetime(2026, 9, 25, 8, tzinfo=timezone.utc)
     for i in range(35):
@@ -534,16 +553,20 @@ async def test_dense_schedule_has_real_totals_and_bounded_named_details(db_sessi
         ))
     await db_session.commit()
     # A day is sufficient for a read: the model need not invent a time or ask for it.
-    args = S.Schedule(start="2026-09-25", end="2026-09-25", patient_id=patient.id)
+    args = S.ScheduleRead(start="2026-09-25", end="2026-09-25", patient_id=patient.id, include_details=include_details)
     assert args.start.tzinfo and args.start.hour == 0
     assert args.end.hour == 23 and args.end.minute == 59
     result = await TOOLS["get_schedule"].handler(args, db_session, user, None)
     assert result["total"] == 35 and result["truncated"]
     assert result["counts_by_status"] == {"confirmada": 30, "finalizada": 5}
     assert result["pending_checkout"] == 5
-    assert len(result["appointments"]) == 8
-    assert result["appointments"][0]["patient"] == "Paciente Copilot"
-    assert result["appointments"][0]["professional"] == doctor.nombre
+    if include_details:
+        assert len(result["appointments"]) == 8
+        assert result["appointments"][0]["patient"] == "Paciente Copilot"
+        assert result["appointments"][0]["professional"] == doctor.nombre
+    else:
+        assert result["appointments"] == result["workflow"] == []
+        assert "Sólo contadores" in result["detail_scope"]
 
 
 async def test_cancelled_inference_releases_session_and_allows_retry(db_session):

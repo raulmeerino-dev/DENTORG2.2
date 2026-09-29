@@ -1,6 +1,14 @@
 """Progressive tool disclosure chosen by the model, never by keyword routing."""
 
 BASE_TOOLS = frozenset({"navigate", "search_patients", "search_professionals", "discover_tools"})
+
+
+def initial_tools(module):
+    # The visible workspace supplies context without classifying user wording.
+    # Expose the common read directly; write tools still require discovery.
+    return BASE_TOOLS | ({"get_schedule"} if module in {"jornada", "agenda"} else set())
+
+
 TOOL_GROUPS = {
     "agenda": ("Consultar citas, buscar huecos, preparar citas y gestionar llegada/atención/salida", {
         "get_schedule", "find_available_slots", "create_appointment", "reschedule_appointment",
