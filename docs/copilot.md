@@ -4,6 +4,8 @@ El acceso global es el icono de destellos de la cabecera, junto a En sala; tambi
 
 Las consultas pueden detenerse y reintentarse. Una respuesta tardía a una consulta cerrada no navega ni altera la interfaz. Durante una confirmación se mantiene abierto el resultado hasta verificarlo; los reintentos utilizan el mismo identificador y no duplican el cambio. Los resúmenes clínicos incorporan las seis últimas notas revisadas, con fecha, profesional, origen y enlace al historial; los textos largos se identifican como extractos, no como el historial completo.
 
+Las respuestas a consultas permanecen en el chat. Si el modelo también propone una vista relacionada, se ofrece como enlace para evitar que la navegación cierre y oculte la respuesta. Las peticiones de abrir una pantalla mantienen la navegación directa; las navegaciones ligadas a un guardado siguen esperando su confirmación.
+
 Una consulta detenida libera inmediatamente el editor y cancela la inferencia y la transacción de lectura/preparación del servidor. El límite de 90 segundos incluye las esperas de base de datos. Las confirmaciones de escritura conservan su transacción y recibo aunque se pierda la conexión. La interfaz muestra el tiempo de espera y permite detener sin que una respuesta antigua afecte a la siguiente petición.
 
 Una nota confirmada sin cita se muestra entre las notas de hoy en Sesión y su enlace abre ese contexto. No crea una visita ficticia ni una fila de tratamiento en el historial. Las notas vinculadas a una cita conservan el acceso a su visita.
@@ -43,3 +45,7 @@ El modelo local predeterminado es `qwen3.5:4b`, con `OLLAMA_THINKING=false`, usa
 ## Validación
 
 `tests/test_copilot.py` usa PostgreSQL y servicios reales con inferencia sustituida para comprobar autorización, aislamiento, confirmación/cancelación, reintentos, caducidad, precios cambiados, importe cero y rollback multietapa. `test_copilot_provider.py` comprueba transporte y continuidad de Responses. `Copilot.test.tsx` comprueba contexto, revisión y reintentos de interfaz. La evaluación con modelo real se hace aparte sobre datos sintéticos y nunca se presenta como cubierta por estos dobles de inferencia.
+
+Revisión local del 29/09/2026: API, web y Ollama estaban activos. La primera consulta con `qwen3.5:4b` respondió en unos 14 segundos incluyendo la carga del modelo. Se reprodujo una consulta de citas cuya respuesta quedaba oculta por navegación automática; se corrigió conservando la respuesta y ofreciendo la vista relacionada como fuente. Pasaron 35 pruebas de backend del copiloto y 8 de interfaz, además de Ruff. En navegador real se verificaron respuesta, navegación directa y consulta de agenda con la respuesta visible.
+
+Incidencia de exactitud pendiente de esta revisión: ante una consulta del total general de facturas pendientes, el modelo sumó tres filas de una página parcial y las presentó como total. `search_records` ofrece el recuento de la consulta y hasta ocho filas, pero no un agregado económico global. Esa respuesta no se considera validada ni está resuelta por la corrección de navegación; requiere mejorar el alcance de los datos y la comprobación de totales antes de confiar en resúmenes económicos globales del asistente.

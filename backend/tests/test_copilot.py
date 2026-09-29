@@ -191,6 +191,34 @@ async def test_navigation_and_request_retry_are_idempotent(db_session):
     assert error.value.status_code == 409
 
 
+@pytest.mark.parametrize("sequential", [False, True])
+async def test_read_answer_keeps_related_view_optional(db_session, sequential):
+    user, patient, *_ = await fixture(db_session)
+    request = turn(patient)
+    request.text = "Consulta la agenda de hoy. ¿Cuántas citas hay?"
+
+    class ScheduleModel(ScriptedModel):
+        async def complete(self, system, messages, tools):
+            self.count += 1
+            calls = [
+                ("get_schedule", {"start": "2026-09-29", "end": "2026-09-29"}),
+                ("navigate", {"module": "agenda", "day": "2026-09-29"}),
+            ]
+            batch = calls[self.count - 1:self.count] if sequential else calls if self.count == 1 else []
+            return {
+                "role": "assistant",
+                "content": "" if batch else "Hoy no hay citas programadas.",
+                "calls": [{"id": str(uuid4()), "name": name, "arguments": args} for name, args in batch],
+            }
+
+    result = await copilot.run_turn(request, db_session, user, None, ScheduleModel())
+    assert result["message"] == "Hoy no hay citas programadas."
+    assert result["navigation"] is None and result["proposal"] is None
+    assert any(source["path"] == "/jornada?fecha=2026-09-29&vista=agenda" for source in result["sources"])
+    # The source stays a user action on retries too, never an automatic redirect.
+    assert await copilot.run_turn(request, db_session, user, None, ScriptedModel(fail=True)) == result
+
+
 @pytest.mark.parametrize("decision", ["confirm", "cancel"])
 async def test_note_requires_confirmation_and_retries_never_duplicate(db_session, decision):
     user, patient, *_ = await fixture(db_session)

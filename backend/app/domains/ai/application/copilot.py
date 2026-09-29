@@ -33,7 +33,7 @@ from app.domains.identity.persistence.usuario import Usuario
 from app.domains.reporting.application.registros_catalogo import catalog_for_user
 from app.domains.scheduling.application.clinic_time import clinic_datetime
 
-PROMPT_VERSION = "copilot-tools-v3"
+PROMPT_VERSION = "copilot-tools-v4"
 POLICY = """Eres DentCore, copiloto operativo de una clínica dental. Responde en español breve y claro.
 Comprende lenguaje coloquial y faltas ortográficas; elige herramientas por su descripción y schema.
 Empiezas con búsqueda y navegación. Para consultar o preparar cambios activa los grupos necesarios con discover_tools, después utiliza las herramientas activadas. Abrir una pantalla sólo necesita navigate. No anuncies la activación: continúa hasta resolver la petición.
@@ -42,6 +42,7 @@ El contexto actual es fiable: usa paciente/cita activos sin volver a preguntarlo
 Agenda/calendario corresponde a module=agenda; Jornada/operativa corresponde a module=jornada. No los confundas.
 Ejemplos semánticos: «ponme el calendario» → navigate(module="agenda"); «ver la operativa de hoy» → navigate(module="jornada"). El destino solicitado puede ser distinto del módulo actual.
 «Ponme el calendario», «enséñame la agenda», «abre», «llévame» piden ABRIR una vista: usa navigate directamente, con day si procede; no consultes citas antes. En cambio «qué citas quedan», «cuántas hay», «resume» piden DATOS: consulta get_schedule y responde aquí, sin navegar.
+Si combinas datos consultados y navigate, el destino se ofrece como enlace junto a la respuesta, sin abrirse automáticamente. Di «acceso preparado», nunca «vista abierta». Menciona la fecha consultada; no llames «hoy» a otra fecha.
 HOY es siempre today en el contexto validado; mañana/ayer se calculan desde today. selected_day es sólo el día abierto en pantalla, que puede ser distinto de hoy: úsalo sólo si pide «este día» o «el día seleccionado». Seis meses son meses de calendario. Cinco de la tarde=17:00. Para consultar un día basta la fecha; no preguntes una hora. Para reservar, si falta hora/profesional busca opciones o pregunta; no reserves un hueco por tu cuenta.
 Puedes combinar consultas y preparar varios pasos de una tarea. Las herramientas de escritura sólo PREPARAN propuestas: no digas que se guardó hasta recibir confirmación ejecutada del servidor. Un 'sí' escrito no sustituye el botón de confirmación. Una operación fallida no es un éxito.
 Si pide guardar y después abrir una vista, llama también a navigate en este turno. El servidor aplaza esa navegación hasta confirmar el guardado; no hace falta esperar otro mensaje. Completa TODOS los pasos solicitados antes de terminar.
@@ -305,6 +306,8 @@ async def run_turn(data, db, user, request, provider=None):
     ]
     messages = history + [{"role": "user", "content": data.text}]
     steps, sources, navigation, traces, seen = [], [], None, [], set()
+    has_read_results = False
+    navigation_only = False
     unavailable = False
     selection_required = None
     answer = "No se ha ejecutado ninguna acción. Prueba una petición más concreta."
@@ -350,6 +353,8 @@ async def run_turn(data, db, user, request, provider=None):
                             }
                         else:
                             result = await tool.handler(args, db, user, request)
+                            if name not in {"navigate", "discover_tools", "search_patients", "search_professionals"}:
+                                has_read_results = True
                             if name == "discover_tools":
                                 enabled.update(result["available_tools"])
                                 available = available_tools(user, enabled)
@@ -403,8 +408,10 @@ async def run_turn(data, db, user, request, provider=None):
                     len(message["calls"]) == 1
                     and message["calls"][0]["name"] == "navigate"
                     and navigation
+                    and not has_read_results
                 ):
                     answer = "Vista abierta."
+                    navigation_only = True
                     break
             else:
                 answer = "He llegado al límite de pasos. Revisa los resultados y concreta el siguiente paso."
@@ -433,6 +440,11 @@ async def run_turn(data, db, user, request, provider=None):
             "label": steps[0]["label"] if len(steps) == 1 else f"Confirmar {len(steps)} cambios",
         }
         answer = "Propuesta preparada. Revisa los datos antes de confirmar."
+    elif navigation and not navigation_only:
+        # A data answer must stay visible. Automatic navigation closes the chat;
+        # offer the related view as a source instead of hiding the response.
+        sources.insert(0, {"label": "Abrir vista relacionada", "path": navigation})
+        navigation = None
     result = {
         "message": answer[:4000],
         "proposal": proposal,
