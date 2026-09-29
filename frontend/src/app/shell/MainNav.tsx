@@ -24,6 +24,8 @@ export default function MainNav() {
   const [compact, setCompact] = useSidebarPreference();
   const { user, logout } = useAuth();
   const location = useLocation();
+  const agendaActive = location.pathname === '/agenda' || (location.pathname === '/jornada' && new URLSearchParams(location.search).get('vista') === 'agenda');
+  const sectionLabel = agendaActive ? 'Agenda' : WORKFLOW_ITEMS.find(item => item.route && location.pathname.startsWith(item.route))?.label ?? 'DentCore';
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuAnchor = useRef<HTMLButtonElement>(null);
   const clinics = useQuery({ queryKey: ['clinicas', user?.clinica_id], queryFn: getClinicas, enabled: userMenuOpen && user?.rol !== 'paciente', staleTime: 300_000 });
@@ -46,7 +48,6 @@ export default function MainNav() {
         {(['daily', 'secondary'] as const).map(group => <div className={`dc-nav-group dc-nav-group-${group}`} key={group} role="group" aria-label={group === 'daily' ? 'Trabajo diario' : 'Consulta y administración'}>
         {navItems.filter(item => (item.group ?? 'daily') === group).map(item => {
           const Icon = icons[item.id] ?? CalendarDays;
-          const agendaActive = location.pathname === '/agenda' || (location.pathname === '/jornada' && new URLSearchParams(location.search).get('vista') === 'agenda');
           const active = item.id === 'agenda' ? agendaActive : item.id === 'hoy' ? !agendaActive && ['/jornada', '/hoy', '/whatsapp'].some(path => location.pathname.startsWith(path)) : location.pathname.startsWith(item.route!);
           const jornadaParams = new URLSearchParams(location.pathname === '/jornada' ? location.search : '');
           if (item.id === 'agenda' || item.id === 'hoy') jornadaParams.set('vista', item.id === 'agenda' ? 'agenda' : 'operativa');
@@ -60,7 +61,7 @@ export default function MainNav() {
       </button></div>
     </aside>
     <header className="dc-topbar">
-      <div className="dc-global-context"><h1>{WORKFLOW_ITEMS.find(item => item.route && location.pathname.startsWith(item.route))?.label ?? 'DentCore'}</h1><ToolbarSlot name="module" /></div>
+      <div className="dc-global-context"><h1>{sectionLabel}</h1><ToolbarSlot name="module" /></div>
       <div className="dc-topbar-actions">
         {user?.rol !== 'paciente' && <EnSala />}
         {user?.rol !== 'paciente' && <button type="button" className="dc-icon-button dc-assistant-access" aria-label="Abrir asistente IA" aria-haspopup="dialog" aria-keyshortcuts="Control+Space Meta+Space" title="Asistente IA · Ctrl / ⌘ Espacio" onClick={() => window.dispatchEvent(new Event('dentcore:open-assistant'))}><Sparkles size={18} aria-hidden="true" /></button>}

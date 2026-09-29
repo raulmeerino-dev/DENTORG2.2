@@ -9,6 +9,7 @@ import type { UserRole } from '../api/types';
 import Layout from './shell/Layout';
 import RealtimeSync from '../shared/realtime/RealtimeSync';
 import JornadaWorkspace from '../domains/scheduling/workspace/JornadaWorkspace';
+import { WorkspaceLoading } from '../design-system/WorkspaceLoading';
 import LoginPage from '../domains/identity/LoginPage';
 import PortalInvitePage from '../domains/patient-portal/invitation';
 import { administrationHref } from '../domains/administration/tabs';
@@ -38,7 +39,7 @@ const PATIENT_ROLES: UserRole[] = ['paciente'];
 function Protected({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
-  if (isLoading) return <div className="loading-page">Cargando sesión...</div>;
+  if (isLoading) return <WorkspaceLoading label="Cargando sesión…" />;
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location }} replace />;
   return children;
 }
@@ -53,7 +54,7 @@ function RoleProtected({ roles, children }: { roles: UserRole[]; children: React
 
 function LazyRoute({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<div className="loading-page">Cargando módulo…</div>}>
+    <Suspense fallback={<WorkspaceLoading />}>
       {children}
     </Suspense>
   );

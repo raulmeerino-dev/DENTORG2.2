@@ -8,7 +8,8 @@ import { getReportKpis } from "../../../api/reporting";
 import { getApiErrorMessage } from "../../../api/errors";
 import { ToolbarContribution } from "../../../design-system/ToolbarSlots";
 import { ContextToolbar } from "../../../design-system/ContextToolbar";
-import { StatusChip } from "../../../design-system";
+import { StatusChip, EmptyState } from "../../../design-system";
+import { WorkspaceLoading } from "../../../design-system/WorkspaceLoading";
 import { formatDate, money } from "../../../shared/format";
 import { clinicDate } from "../../../shared/time/clinicTime";
 import { PatientCheckout } from "../checkout/PatientCheckout";
@@ -177,7 +178,7 @@ export default function CajaPage() {
                 </button>
               </p>
             )}
-            {selectedQuery.isLoading && <p role="status">Cargando…</p>}
+            {selectedQuery.isLoading && <WorkspaceLoading label="Cargando movimientos…" />}
             {view === "cuentas" && (
               <table className="dentcore-table">
                 <thead>
@@ -193,7 +194,7 @@ export default function CajaPage() {
                 <tbody>
                   {accounts.data?.items.map((a) => (
                     <tr key={a.id}>
-                      <td>
+                      <td className="cash-patient">
                         <Link to={`/pacientes?paciente_id=${a.id}`}>
                           {[a.apellidos, a.nombre].filter(Boolean).join(", ")}
                         </Link>
@@ -235,7 +236,7 @@ export default function CajaPage() {
                   {payments.data?.rows.map((r) => (
                     <tr key={r.id}>
                       <td>{formatDate(String(r.cells.fecha ?? ""))}</td>
-                      <td>{r.cells.paciente}</td>
+                      <td className="cash-patient">{r.cells.paciente}</td>
                       <td>
                         {r.cells.tipo === "anticipo" ? "Anticipo" : "Cobro"}
                       </td>
@@ -284,7 +285,7 @@ export default function CajaPage() {
                       <td>
                         {f.serie}-{f.numero}
                       </td>
-                      <td>
+                      <td className="cash-patient">
                         <Link to={`/pacientes?paciente_id=${f.paciente_id}`}>
                           {f.paciente?.apellidos}, {f.paciente?.nombre}
                         </Link>
@@ -295,7 +296,7 @@ export default function CajaPage() {
                       <td>
                         <StatusChip
                           tone={
-                            f.estado === "pagada"
+                            f.estado === "pagada" || f.estado === "cobrada"
                               ? "success"
                               : f.estado === "anulada"
                                 ? "neutral"
@@ -332,11 +333,7 @@ export default function CajaPage() {
             {!selectedQuery.isLoading &&
               !selectedQuery.isError &&
               total === 0 && (
-                <p className="cash-empty">
-                  {view === "cuentas"
-                    ? "No hay cuentas pendientes en esta búsqueda."
-                    : "Sin movimientos en este filtro."}
-                </p>
+                <EmptyState title={view === "cuentas" ? "No hay cuentas pendientes" : "No hay movimientos"} description="Prueba otra búsqueda o ajusta los filtros de esta vista." />
               )}
           </>
         )}

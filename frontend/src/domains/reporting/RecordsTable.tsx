@@ -31,7 +31,7 @@ export function RecordsTable({ columns, rows, query, onSort, returnTo, loading, 
   onOpenAudit?: (id: string) => void;
 }) {
   return <div className="records-table-scroll" tabIndex={0} role="region" aria-label="Resultados de consulta" aria-busy={loading}>
-    <table className="records-table">
+    <table className="dentcore-table records-table">
       <thead><tr>{columns.map(column => <th key={column.key} scope="col" data-column={column.key} data-type={column.type} className={['money', 'number'].includes(column.type) ? 'numeric' : undefined} aria-sort={query.sort_by === column.key ? query.sort_dir === 'asc' ? 'ascending' : 'descending' : undefined}>
         {column.sortable ? <button type="button" onClick={() => onSort(column.key)} aria-label={`Ordenar por ${column.label}`}>
           {column.label}{query.sort_by === column.key ? query.sort_dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} /> : <ArrowUpDown size={12} />}

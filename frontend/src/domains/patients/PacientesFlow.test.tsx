@@ -346,7 +346,7 @@ describe('Flujo integración cross-módulo', () => {
 
     // Modal abierto con descripción y pieza prepobladas desde linea pres-1
     expect(await screen.findByText(/Nuevo pedido de laboratorio/i)).toBeInTheDocument();
-    const desc = screen.getByLabelText(/Descripcion/) as HTMLInputElement;
+    const desc = screen.getByLabelText(/Descripción/) as HTMLInputElement;
     expect(desc.value).toBe('Corona zirconio');
     const pieza = screen.getByLabelText(/Pieza dental/) as HTMLInputElement;
     expect(pieza.value).toBe('16');

@@ -30,7 +30,7 @@
 .agenda-left-panel .dc-pending-call-panel td:nth-child(3) { grid-column: 1; }
 .agenda-left-panel .dc-pending-call-panel td:last-child { grid-column: 2; grid-row: 2 / 4; align-self: center; }
 .agenda-left-panel .dc-pending-call-panel button { font-size: 10px; padding: 4px 6px; min-height: 28px; }
-.agenda-button-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: auto; padding-top: 8px; }
+.agenda-button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 4px; margin-top: auto; padding-top: 8px; }
 .agenda-button-grid button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 4px; min-height: 28px; font-size: 10px; border: 1px solid var(--dc-border); background: var(--dc-surface); border-radius: 4px; }
 .agenda-search-bar { display: flex; flex-wrap: wrap; gap: 4px; }
 .agenda-search-bar input { width: 100%; }
@@ -63,6 +63,7 @@
 
 .agenda-dentcore .appointment-modal { display: block; }
 .agenda-dentcore .appointment-form-grid { margin-top: var(--dc-space-3); }
+.appointment-overlap-warning { display: grid; gap: 6px; padding: 10px 12px; border-left: 3px solid var(--dc-warning); background: var(--dc-warning-soft); font-size: 12px; overflow-wrap: anywhere; }
 .agenda-dentcore .patient-live-results { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; height: auto; max-height: 180px; grid-auto-rows: min-content; overflow: auto; align-content: start; }
 .agenda-dentcore .patient-live-results button { max-width: none; width: 100%; }
 .agenda-dentcore .patient-live-results strong { white-space: normal; overflow-wrap: anywhere; }

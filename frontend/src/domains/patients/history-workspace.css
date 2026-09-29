@@ -29,6 +29,7 @@
 .patient-history-table th { height: 30px; padding: 4px 7px; text-align: left; background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border-strong); color: var(--dc-muted); font-size: 11px; font-weight: 600; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
 .patient-history-row > td { height: 33px; padding: 3px 7px; border-bottom: 1px solid var(--dc-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 .patient-history-row > td:first-child { padding: 2px; overflow: visible; }
+.patient-history-row > .ph-professional { white-space: normal; overflow-wrap: anywhere; }
 .patient-history-row { cursor: pointer; }
 .patient-history-row:hover > td { background: var(--dc-surface-hover); }
 .patient-history-row.is-expanded > td { background: var(--dc-primary-soft); }
@@ -57,7 +58,7 @@
 .patient-history .patient-history-expand, .patient-history .patient-history-note { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 25px; min-height: 25px; padding: 0; border: 0; background: transparent; color: var(--dc-muted); border-radius: 3px; cursor: pointer; }
 .patient-history-expand:hover, .patient-history-note:hover { color: var(--dc-primary); background: var(--dc-primary-soft); }
 .patient-history-concept { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.patient-history-concept > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.patient-history-concept > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
 .patient-history-note { width: 21px; height: 22px; margin-left: auto; }
 .patient-history .patient-history-invoice { display: block; max-width: 100%; min-height: 25px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; border: 0; background: transparent; color: var(--dc-primary); font: inherit; padding: 3px 0; cursor: pointer; text-decoration: underline; }
 .patient-history-detail-row > td { padding: 0; border-bottom: 1px solid var(--dc-border-strong); }

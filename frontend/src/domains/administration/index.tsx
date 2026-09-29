@@ -432,7 +432,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
             if (file) setImportText(await file.text());
           }} />
           <textarea aria-label="Contenido CSV para importar" value={importText} onChange={(e) => setImportText(e.target.value)} />
-          <button disabled={importar.isPending || !importText.trim()} onClick={() => importar.mutate()}>{importar.isPending ? 'Importando…' : 'Importar'}</button>
+          <button className="primary-action" disabled={importar.isPending || !importText.trim()} onClick={() => importar.mutate()}>{importar.isPending ? 'Importando…' : 'Importar'}</button>
           {importar.data && <p>Creados: {importar.data.creados}. Errores: {importar.data.errores.length}</p>}
         </section>
       )}

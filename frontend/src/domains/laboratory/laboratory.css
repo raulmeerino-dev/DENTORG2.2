@@ -1,0 +1,17 @@
+.laboratorio-modal { width: min(720px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-lg); background: var(--dc-surface); color: var(--dc-text); box-shadow: var(--dc-shadow-menu); }
+.laboratorio-form { display: flex; flex-direction: column; gap: 12px; }
+.laboratorio-form .modal-titlebar { border: 0; border-bottom: 1px solid var(--dc-border); border-radius: 0; margin: 0; padding: 12px 16px; background: var(--dc-surface); }
+.laboratorio-form .modal-titlebar > div { min-width: 0; display: grid; gap: 4px; }
+.laboratorio-form .modal-titlebar small { font-size: 12px; font-weight: 400; color: var(--dc-muted); overflow-wrap: anywhere; }
+.laboratorio-form .modal-titlebar button { flex: none; white-space: nowrap; }
+.laboratorio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0 16px; }
+.laboratorio-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 500; color: var(--dc-text); }
+.laboratorio-grid label.wide { grid-column: 1/-1; }
+.laboratorio-grid :is(input:not([type="checkbox"]), select, textarea) { width: 100%; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); padding: 6px 9px; font: inherit; font-weight: 400; background: var(--dc-surface); color: var(--dc-text); }
+.laboratorio-grid textarea { resize: vertical; min-height: 60px; }
+.laboratorio-grid .checkbox-line { flex-direction: row; align-items: center; min-height: 32px; gap: 8px; }
+.laboratorio-grid input[type="checkbox"] { width: 16px; height: 16px; min-height: 0; margin: 0; }
+.laboratorio-form .modal-actions { padding: 10px 16px; border-top: 1px solid var(--dc-border); margin: 0; }
+.laboratorio-context-hint { margin: 0 16px; padding: 8px 12px; background: var(--dc-info-soft); border-left: 3px solid var(--dc-info); font-size: 12px; }
+.laboratorio-form > .inline-alert { margin-inline: 16px; }
+@media (max-width: 700px) { .laboratorio-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

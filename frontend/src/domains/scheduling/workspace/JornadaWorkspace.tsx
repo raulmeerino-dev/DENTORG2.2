@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getGabinetes } from '../../../api/scheduling';
 import { ContextToolbar, FiltersPopover, ActiveFilterChips, ToolbarSearch } from '../../../design-system/ContextToolbar';
 import { ToolbarContribution, ToolbarSlot } from '../../../design-system/ToolbarSlots';
+import { WorkspaceLoading } from '../../../design-system/WorkspaceLoading';
 import HoyPage from '../day';
 import { AGENDA_STATUS_LEGEND, STATUS_META } from '../agenda/appointmentStatus';
 import { JornadaProvider, useJornada } from './JornadaContext';
@@ -53,7 +54,7 @@ function JornadaContent() {
       }}>Nueva cita</button>
     </ContextToolbar>
     <div className="jornada-content">
-      {perspective === 'agenda' ? <Suspense fallback={<p role="status">Cargando agenda…</p>}><AgendaPage /></Suspense> : <HoyPage />}
+      {perspective === 'agenda' ? <Suspense fallback={<WorkspaceLoading label="Cargando agenda…" />}><AgendaPage /></Suspense> : <HoyPage />}
     </div>
   </section>;
 }

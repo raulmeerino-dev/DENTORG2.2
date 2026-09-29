@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react';
+import './visits.css';
 import { useMemo } from 'react';
 import { formatDate } from '../../../shared/format';
 import type {
@@ -56,7 +57,7 @@ export function VisitsWorkspace({
       <header className="visits-head">
         <div>
           <span><CalendarDays size={15} aria-hidden="true" /> Visitas del paciente</span>
-          <strong>{visitas.length} dia{visitas.length === 1 ? '' : 's'} con actividad clinica</strong>
+          <strong>{visitas.length} día{visitas.length === 1 ? '' : 's'} con actividad clínica</strong>
         </div>
         <button type="button" onClick={() => onOpenHistorial()}>Abrir historial completo</button>
       </header>
@@ -69,8 +70,8 @@ export function VisitsWorkspace({
           const motivoCita = visita.citas.map((cita) => cita.motivo).filter(Boolean).join(' - ');
           const estadoVisita = visita.citas.length
             ? `${visita.citas.length} cita${visita.citas.length === 1 ? '' : 's'}`
-            : visita.realizados.length ? 'con tratamientos' : 'actividad clinica';
-          const tituloVisita = motivoCita || visita.realizados[0]?.procedimiento || visita.realizados[0]?.tratamiento?.nombre || 'Visita clinica';
+            : visita.realizados.length ? 'con tratamientos' : 'actividad clínica';
+          const tituloVisita = motivoCita || visita.realizados[0]?.procedimiento || visita.realizados[0]?.tratamiento?.nombre || 'Visita clínica';
           const comments = Array.from(new Set(visita.comentarios.filter(Boolean))).slice(0, 3);
           return (
             <article key={visita.id} className="visit-card">
@@ -93,7 +94,7 @@ export function VisitsWorkspace({
                       <small>{[entrada.pieza_dental ? `Pieza ${entrada.pieza_dental}` : null, entrada.caras, entrada.estado].filter(Boolean).join(' - ')}</small>
                     </p>
                   ))}
-                  {!visita.realizados.length && <em>Sin tratamientos realizados registrados ese dia.</em>}
+                  {!visita.realizados.length && <em>Sin tratamientos realizados registrados ese día.</em>}
                 </section>
                 <section>
                   <span>Previsto / pospuesto</span>
@@ -108,7 +109,7 @@ export function VisitsWorkspace({
                 <section className="visit-comments">
                   <span>Comentarios</span>
                   {comments.map((comentario, index) => <p key={`${visita.id}-comment-${index}`}>{comentario}</p>)}
-                  {!comments.length && <em>Sin comentarios clinicos u observaciones de cita.</em>}
+                  {!comments.length && <em>Sin comentarios clínicos u observaciones de cita.</em>}
                 </section>
                 <section className="visit-links">
                   <span>Asociado por fecha</span>
@@ -121,7 +122,7 @@ export function VisitsWorkspace({
                   {[...visita.recetas.slice(0, 1).map((receta) => receta.medicamento), ...visita.documentos.slice(0, 1).map((documento) => documento.descripcion || documento.nombre_original), ...visita.laboratorio.slice(0, 1).map((trabajo) => trabajo.descripcion)].map((item, index) => (
                     <em key={`${visita.id}-assoc-${index}`}>{item}</em>
                   ))}
-                  {proxima && <em>Proxima cita: {formatDate(proxima.fecha_hora)} {getTime(proxima.fecha_hora)} - {proxima.motivo || 'sin motivo'}</em>}
+                  {proxima && <em>Próxima cita: {formatDate(proxima.fecha_hora)} {getTime(proxima.fecha_hora)} - {proxima.motivo || 'sin motivo'}</em>}
                 </section>
               </div>
             </article>
@@ -130,7 +131,7 @@ export function VisitsWorkspace({
         {!visitas.length && (
           <div className="visits-empty">
             <strong>Sin visitas registradas</strong>
-            <span>Cuando haya citas, tratamientos o documentos con fecha se agruparan aqui.</span>
+            <span>Cuando haya citas, tratamientos o documentos con fecha se agruparán aquí.</span>
           </div>
         )}
       </div>

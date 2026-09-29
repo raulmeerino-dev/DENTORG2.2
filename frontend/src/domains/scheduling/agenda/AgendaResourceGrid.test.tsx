@@ -12,11 +12,11 @@ const doctores: Doctor[] = [
 ];
 const cita: Cita = { id: 'visit', paciente_id: 'patient', doctor_id: 'one', gabinete_id: 'room', gabinete_nombre: 'Gabinete 2', fecha_hora: slotIso(day, '09:15'), duracion_min: 30, estado: 'confirmada', motivo: 'Revisión', paciente: { nombre: 'María', apellidos: 'Fernández', telefono: null } };
 
-function setup() {
+function setup(appointments: Cita[] = [cita]) {
   const onCreate = vi.fn(); const onOpenCita = vi.fn(); const onAction = vi.fn();
   const view = render(<AgendaResourceGrid day={day} slots={['09:00', '09:15', '09:20', '09:30', '09:45']} doctorId="" doctores={doctores}
     horarios={Object.fromEntries(doctores.map(doctor => [doctor.id, [{ id: doctor.id, doctor_id: doctor.id, dia_semana: weekdayIndex(day), tipo_dia: 'laborable', bloques: [{ inicio: '09:00', fin: '10:00' }], intervalo_min: 10 }]]))}
-    citas={[cita]} allCitas={[cita]} now={new Date(slotIso(day, '09:00'))} canTreat={() => true} busy={false}
+    citas={appointments} allCitas={appointments} now={new Date(slotIso(day, '09:00'))} canTreat={() => true} busy={false}
     onCreate={onCreate} onOpenCita={onOpenCita} onOpenPatient={vi.fn()} onConfirm={vi.fn()} onAction={onAction} onContext={vi.fn()} />);
   return { ...view, onCreate, onOpenCita, onAction, user: userEvent.setup() };
 }
@@ -38,6 +38,15 @@ describe('Parrilla por profesional', () => {
     const { user, onCreate } = setup();
     await user.click(screen.getByRole('button', { name: 'Nueva cita 09:20 · Dr. Manuel Díaz' }));
     expect(onCreate).toHaveBeenCalledWith({ day, slot: '09:20', doctorId: 'two' });
+  });
+
+  it.each(['anulada', 'falta'])('permite reutilizar el hueco de una cita %s y conserva acceso a su histórico', async estado => {
+    const historical = { ...cita, estado };
+    const { user, onCreate, onOpenCita } = setup([historical]);
+    await user.click(screen.getByRole('button', { name: 'Nueva cita 09:20 · Dra. Elena Ruiz' }));
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith({ day, slot: '09:20', doctorId: 'one' });
+    await user.click(screen.getByRole('article', { name: /Cita de María Fernández, 09:15/ }));
+    expect(onOpenCita).toHaveBeenCalledWith(historical);
   });
 
   it('registrar llegada ejecuta solo la transición y nunca abre una pantalla', async () => {

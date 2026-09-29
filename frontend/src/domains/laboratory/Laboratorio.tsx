@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Dialog } from '../../design-system';
+import './laboratory.css';
 import type { FormEvent } from 'react';
 import type {
   ApiPaciente,
@@ -97,14 +99,13 @@ export function NuevoPedidoLaboratorioModal({
   const canSubmit = Boolean(form.descripcion.trim() && form.doctor_id && form.laboratorio_id) && !saving;
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <Dialog label="Nuevo pedido de laboratorio" onClose={onClose} closeDisabled={saving} className="laboratorio-modal">
       <form
-        className="laboratorio-modal"
-        onMouseDown={(event) => event.stopPropagation()}
+        className="laboratorio-form"
         onSubmit={submit}
       >
         <header className="modal-titlebar">
-          <strong>Nuevo pedido de laboratorio - {fullName(paciente)}</strong>
+          <div><strong>Nuevo pedido de laboratorio</strong><small>{fullName(paciente)}</small></div>
           <button type="button" onClick={onClose}>Cerrar</button>
         </header>
 
@@ -116,7 +117,7 @@ export function NuevoPedidoLaboratorioModal({
         )}
 
         <div className="laboratorio-grid">
-          <label className="wide">Descripcion *
+          <label className="wide">Descripción *
             <input
               autoFocus
               value={form.descripcion}
@@ -184,6 +185,6 @@ export function NuevoPedidoLaboratorioModal({
           <button type="submit" disabled={!canSubmit}>{saving ? 'Creando...' : 'Crear pedido'}</button>
         </footer>
       </form>
-    </div>
+    </Dialog>
   );
 }

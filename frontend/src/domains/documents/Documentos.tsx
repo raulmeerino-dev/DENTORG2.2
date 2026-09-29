@@ -1,3 +1,5 @@
+import { Dialog } from '../../design-system/Dialog';
+import './documents-manager.css';
 import { useMemo, useState } from 'react';
 import type { ChangeEvent, MouseEvent } from 'react';
 import { Folder, FolderPlus, UploadCloud, X } from 'lucide-react';
@@ -13,9 +15,9 @@ type UploadDocumentoData = {
 };
 
 const DOCUMENT_FOLDERS = [
-  { id: 'radiografia', label: 'Radiografias' },
+  { id: 'radiografia', label: 'Radiografías' },
   { id: 'cbct', label: 'TAC / CBCT' },
-  { id: 'escaner', label: 'Escaneres' },
+  { id: 'escaner', label: 'Escáneres' },
   { id: 'fotografia_intraoral', label: 'Fotos intraorales' },
   { id: 'fotografia_extraoral', label: 'Fotos extraorales' },
   { id: 'informe', label: 'Informes' },
@@ -180,7 +182,7 @@ export function DocumentosPanel({
   }
 
   return (
-    <section className="desk-panel documents-workspace">
+    <section className="documents-workspace">
       <div className="panel-caption documents-panel-head">
         <div>
           <strong>Documentos del paciente</strong>
@@ -207,7 +209,7 @@ export function DocumentosPanel({
                     <td>{formatDate(doc.fecha_documento ?? doc.created_at)}</td>
                     <td>
                       <strong>{documentTitle(doc)}</strong>
-                      <small>{doc.nombre_original}</small>
+                      {documentTitle(doc) !== doc.nombre_original && <small>{doc.nombre_original}</small>}
                     </td>
                     <td>{doc.categoria.replaceAll('_', ' ')}</td>
                     <td>{cleanTags(doc.etiquetas).join(', ') || '-'}</td>
@@ -228,12 +230,11 @@ export function DocumentosPanel({
       </div>
 
       {uploadOpen && (
-        <div className="document-upload-backdrop" onMouseDown={closeUpload}>
-          <section className="document-upload-modal" role="dialog" aria-modal="true" aria-label="Subir documento" onMouseDown={(event) => event.stopPropagation()}>
+        <Dialog label="Subir documento" className="document-upload-modal" onClose={closeUpload} closeDisabled={uploading}>
             <header>
               <div>
                 <strong>Subir documento</strong>
-                <span>El archivo quedara guardado en Documentos y consentimientos de la ficha.</span>
+                <span>El archivo quedará guardado en Documentos y consentimientos de la ficha.</span>
               </div>
               <button type="button" aria-label="Cerrar" onClick={closeUpload}><X size={16} strokeWidth={2} /></button>
             </header>
@@ -280,8 +281,7 @@ export function DocumentosPanel({
                 {uploading ? 'Guardando...' : 'Guardar documento'}
               </button>
             </footer>
-          </section>
-        </div>
+        </Dialog>
       )}
     </section>
   );

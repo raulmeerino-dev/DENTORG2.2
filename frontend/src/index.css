@@ -65,7 +65,7 @@ a {
   to { transform: translateX(230%); }
 }
 
-.loading-page, .empty-state {
+.empty-state {
   color: var(--muted);
   padding: 10px;
 }
@@ -271,52 +271,6 @@ a {
   border-top-color: var(--border-light);
   border-left-color: var(--border-light);
   background: var(--panel);
-}
-
-.panel-caption {
-  min-height: 26px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 4px;
-}
-
-.panel-caption span {
-  color: var(--muted);
-}
-
-.budget-panel .odontograma {
-  margin: 4px 0 8px;
-}
-
-.dentcore-table, .data-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: #ededed;
-  font-size: 12px;
-}
-
-.dentcore-table th, .dentcore-table td, .data-table th, .data-table td {
-  height: 22px;
-  border: 1px solid var(--border-mid);
-  padding: 2px 5px;
-  text-align: left;
-  vertical-align: middle;
-}
-
-.dentcore-table th, .data-table th {
-  background: #e2e2e2;
-  color: #111111;
-  font-weight: 700;
-}
-
-.dentcore-table tr:nth-child(even) td, .data-table tr:nth-child(even) td {
-  background: #f3f3f3;
-}
-
-.selected-row td, .dentcore-table tr.selected-row td {
-  background: var(--blue) !important;
-  color: #ffffff;
 }
 
 .num, .hash-cell {
@@ -697,49 +651,6 @@ a {
   background: linear-gradient(#eef2f5, #e2e7ec);
 }
 
-.panel-caption {
-  color: #12283a;
-  border-bottom: 1px solid #c4cbd3;
-}
-
-.panel-caption strong {
-  font-size: 13px;
-}
-
-.panel-caption span {
-  color: #5c6a76;
-}
-
-.dentcore-table, .data-table {
-  background: #f9fbfc;
-  border: 1px solid #9ca7b2;
-}
-
-.dentcore-table th, .data-table th {
-  height: 25px;
-  color: #102330;
-  background: linear-gradient(#f7f9fb, #dce4eb);
-  border-color: #9aa6b1;
-}
-
-.dentcore-table td, .data-table td {
-  background: #ffffff;
-  border-color: #c5cdd5;
-}
-
-.dentcore-table tr:nth-child(even) td, .data-table tr:nth-child(even) td {
-  background: #f5f8fb;
-}
-
-.dentcore-table tr:hover td, .data-table tr:hover td {
-  background: #e9f4ff;
-}
-
-.selected-row td, .dentcore-table tr.selected-row td {
-  background: linear-gradient(90deg, #0d78b4, #1187c9) !important;
-  color: #ffffff;
-}
-
 .treatment-coded-row td:first-child {
   border-left: 5px solid var(--treatment-color, #126ea8);
 }
@@ -911,7 +822,7 @@ a {
   text-transform: capitalize;
 }
 
-.agenda-titlebar-rich button, .horario-caption button, .horario-tools button {
+.agenda-titlebar-rich button {
   min-height: 30px;
   border: 1px solid #b9ccd7;
   border-radius: 8px;
@@ -972,41 +883,6 @@ a {
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 8px 22px rgba(34, 63, 82, .08);
-}
-
-.panel-caption {
-  min-height: 34px;
-  padding: 4px 4px 8px;
-  border-bottom: 1px solid #e3edf2;
-}
-
-.panel-caption strong {
-  color: #0f3146;
-  font-size: 14px;
-}
-
-.dentcore-table, .data-table {
-  overflow: hidden;
-  border: 1px solid #d1dfe7;
-  border-radius: 10px;
-  background: #ffffff;
-  font-size: 12px;
-}
-
-.dentcore-table th, .data-table th {
-  height: 30px;
-  color: #315267;
-  border-color: #d7e3ea;
-  background: #edf6fa;
-}
-
-.dentcore-table td, .data-table td {
-  height: 28px;
-  border-color: #e0e8ee;
-}
-
-.selected-row td, .dentcore-table tr.selected-row td {
-  background: linear-gradient(90deg, #087bb3, #10a1c2) !important;
 }
 
 .odontogram-stage {
@@ -1242,17 +1118,6 @@ a {
   white-space: nowrap;
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(15, 36, 52, .34);
-  backdrop-filter: blur(4px);
-}
-
 .appointment-modal {
   width: min(920px, calc(100vw - 40px));
   max-height: calc(100vh - 44px);
@@ -1276,8 +1141,8 @@ a {
 
 .appointment-modal header strong {
   display: block;
-  color: #0f3146;
-  font-size: 20px;
+  color: var(--dc-text);
+  font-size: 15px;
 }
 
 .appointment-modal header span {
@@ -1465,14 +1330,14 @@ a {
 
 .appointment-form-grid input, .appointment-form-grid select, .appointment-form-grid textarea {
   min-height: 36px;
-  border: 1px solid #bfd0da;
-  border-radius: 10px;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-sm);
   padding: 7px 9px;
-  background: #ffffff;
+  background: var(--dc-surface);
 }
 
 .appointment-form-grid textarea {
-  min-height: 86px;
+  min-height: 64px;
   resize: vertical;
 }
 
@@ -1917,60 +1782,6 @@ a {
   text-align: right;
 }
 
-.context-menu {
-  position: fixed;
-  z-index: 60;
-  min-width: 238px;
-  overflow: hidden;
-  border: 1px solid #b9ccd7;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 20px 50px rgba(11, 44, 65, .22);
-}
-
-.context-menu button {
-  width: 100%;
-  min-height: 32px;
-  display: block;
-  padding: 7px 12px;
-  border: 0;
-  border-bottom: 1px solid #edf3f7;
-  background: #ffffff;
-  text-align: left;
-}
-
-.context-menu strong {
-  display: block;
-  padding: 8px 12px;
-  color: #0f3146;
-  background: #edf8fd;
-  border-bottom: 1px solid #d7e4ec;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.context-menu span {
-  display: block;
-  height: 1px;
-  margin: 4px 0;
-  background: #dbe7ee;
-}
-
-.context-menu button:disabled {
-  color: #7d8a94;
-  background: #f5f8fa;
-}
-
-.context-menu button:hover {
-  color: #064d73;
-  background: #edf8fd;
-}
-
-.context-menu button:disabled:hover {
-  color: #7d8a94;
-  background: #f5f8fa;
-}
-
 .status-programada {
   color: #62420a;
   border-color: #f0c46d;
@@ -2176,7 +1987,7 @@ a {
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 0;
   margin: 10px 0;
 }
 
@@ -2184,8 +1995,8 @@ a {
   display: grid;
   gap: 2px;
   padding: 9px 11px;
-  border: 1px solid #d6e1e7;
-  background: #f7fbfd;
+  border: 0;
+  background: var(--dc-surface);
 }
 
 .kpi-row strong {
@@ -2202,11 +2013,6 @@ a {
   vertical-align: top;
 }
 
-.backup-table td:nth-child(5) {
-  font-family: Consolas, monospace;
-  font-size: .82rem;
-}
-
 @media (max-width: 1180px) {
   .dashboard-metrics, .security-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2221,10 +2027,6 @@ a {
 
 .desk-panel {
   padding: 10px;
-}
-
-.panel-caption {
-  margin-bottom: 8px;
 }
 
 .temporary-patient-banner {
@@ -2590,10 +2392,6 @@ a {
     align-items: flex-start;
     flex-direction: column;
   }
-}
-
-.dentcore-table th, .dentcore-table td, .data-table th, .data-table td {
-  height: 25px;
 }
 
 /* Patient window: rows fluyen según el contenido real. */
@@ -2968,86 +2766,6 @@ html[data-theme="dark"] .history-billing-dentcore {
   opacity: 0.65;
 }
 
-.treatment-editor-panel {
-  align-self: start;
-}
-
-.treatment-editor {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  gap: 8px;
-}
-
-.treatment-editor label {
-  display: grid;
-  gap: 4px;
-  color: #3b5263;
-  font-weight: 700;
-}
-
-.treatment-editor label.wide {
-  grid-column: span 2;
-}
-
-.treatment-editor input, .treatment-editor select {
-  min-height: 30px;
-  border: 1px solid #bfd0da;
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: #ffffff;
-}
-
-.treatment-editor .checkline {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 30px;
-}
-
-.treatment-editor .checkline input {
-  min-height: auto;
-}
-
-.editor-actions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.editor-actions button, .mini-family-list button {
-  min-height: 30px;
-  border: 1px solid #b9ccd7;
-  border-radius: 8px;
-  background: linear-gradient(#ffffff, #edf5f8);
-  font-weight: 700;
-}
-
-.editor-actions button:nth-child(2) {
-  color: #ffffff;
-  border-color: #0f7cad;
-  background: linear-gradient(135deg, #0f7cad, #23a373);
-}
-
-.mini-family-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 10px;
-}
-
-.mini-family-list button {
-  min-height: 26px;
-  padding-inline: 8px;
-  font-size: 11px;
-}
-
-.mini-family-list button.active {
-  color: #ffffff;
-  border-color: #0f7cad;
-  background: #0f7cad;
-}
-
 .settings-overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
@@ -3080,119 +2798,6 @@ html[data-theme="dark"] .history-billing-dentcore {
 
 .settings-kpis span {
   font-weight: 700;
-}
-
-.doctor-color-dot {
-  display: inline-block;
-  width: 24px;
-  height: 16px;
-  border: 1px solid rgba(0, 0, 0, .22);
-  border-radius: 6px;
-  vertical-align: middle;
-}
-
-.doctor-editor input[type="color"] {
-  min-height: 34px;
-  padding: 2px;
-}
-
-.horario-turno-cell {
-  display: grid;
-  grid-template-columns: 18px minmax(88px, 1fr) minmax(88px, 1fr);
-  gap: 5px;
-  align-items: center;
-}
-
-.horario-editor-table {
-  table-layout: fixed;
-}
-
-.horario-col-dia { width: 88px; }
-.horario-col-tipo { width: 106px; }
-.horario-col-turno { width: 228px; }
-.horario-col-intervalo { width: 100px; }
-.horario-col-resumen { width: 150px; }
-.horario-col-accion { width: 90px; }
-
-.horario-editor-table th {
-  white-space: normal;
-  text-align: left;
-  vertical-align: bottom;
-}
-
-.horario-editor-table th:nth-child(3), .horario-editor-table th:nth-child(4), .horario-editor-table th:nth-child(5) {
-  text-align: center;
-}
-
-.horario-editor-table th small {
-  display: block;
-  color: #60717f;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.horario-editor-table input, .horario-editor-table select {
-  width: 100%;
-  min-height: 28px;
-  border: 1px solid #bfd0da;
-  border-radius: 7px;
-  padding: 3px 6px;
-  background: #ffffff;
-}
-
-.horario-editor-table button {
-  min-height: 28px;
-  border: 1px solid #b9ccd7;
-  border-radius: 8px;
-  background: linear-gradient(#ffffff, #edf5f8);
-  font-weight: 700;
-}
-
-.horario-turno-toggle {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #345064;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.horario-turno-toggle input {
-  min-height: auto;
-}
-
-.horario-caption {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.horario-caption select {
-  min-width: 220px;
-  min-height: 30px;
-  border: 1px solid #bfd0da;
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: #fff;
-}
-
-.horario-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 10px;
-}
-
-.horario-summary-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 2px 8px;
-  border: 1px solid #c8d7e0;
-  border-radius: 999px;
-  color: #315267;
-  background: #f4f9fc;
-  font-weight: 800;
-  white-space: nowrap;
 }
 
 .agenda-empty-day {
@@ -3422,12 +3027,6 @@ html[data-theme="dark"] .history-billing-dentcore {
 .offline-pill {
   color: #7a1d23;
   background: #ffe1e4;
-}
-
-.stock-alert-row td {
-  color: #971b2f;
-  background: #fff1f3;
-  font-weight: 700;
 }
 
 .bi-bars {
@@ -3706,63 +3305,8 @@ html[data-theme="dark"] .history-billing-dentcore {
   }
 }
 
-.budget-workbench {
-  display: grid;
-  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
-  gap: 10px;
-  margin: 10px 0;
-}
-
-.budget-workbench aside {
-  display: grid;
-  gap: 6px;
-}
-
-.budget-workbench input, .budget-line-editor input {
-  min-height: 30px;
-  border: 1px solid #bfd0da;
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: #ffffff;
-}
-
 .budget-treatment-picker {
   min-height: 0;
-}
-
-.budget-line-editor {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) 80px 90px 80px 110px;
-  align-content: start;
-  gap: 8px;
-}
-
-.budget-line-editor label {
-  display: grid;
-  gap: 4px;
-  color: #3b5263;
-  font-weight: 700;
-}
-
-.budget-actions {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-
-.budget-actions button {
-  min-height: 32px;
-  border: 1px solid #b9ccd7;
-  border-radius: 8px;
-  background: linear-gradient(#ffffff, #edf5f8);
-  font-weight: 700;
-}
-
-.budget-actions button:first-child, .budget-actions button:nth-child(3) {
-  color: #ffffff;
-  border-color: #0f7cad;
-  background: linear-gradient(135deg, #0f7cad, #23a373);
 }
 
 .upload-strip {
@@ -3779,16 +3323,6 @@ html[data-theme="dark"] .history-billing-dentcore {
   border-radius: 8px;
   padding: 4px 8px;
   background: #fff;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: rgba(12, 24, 35, 0.38);
-  display: grid;
-  place-items: center;
-  padding: 18px;
 }
 
 .document-modal {
@@ -4118,12 +3652,12 @@ html[data-theme="dark"] .fichero-screen, html[data-theme="dark"] .desk-panel, ht
   box-shadow: 0 18px 40px rgba(0, 0, 0, .28);
 }
 
-html[data-theme="dark"] .agenda-titlebar, html[data-theme="dark"] .panel-caption, html[data-theme="dark"] .modal-titlebar {
+html[data-theme="dark"] .agenda-titlebar, html[data-theme="dark"] .modal-titlebar {
   border-color: #2d465a;
   background: linear-gradient(90deg, #172638, #102030);
 }
 
-html[data-theme="dark"] .appointment-modal footer button, html[data-theme="dark"] .slot-search-modal header button, html[data-theme="dark"] .slot-search-grid button, html[data-theme="dark"] .slot-results button, html[data-theme="dark"] .budget-actions button {
+html[data-theme="dark"] .appointment-modal footer button, html[data-theme="dark"] .slot-search-modal header button, html[data-theme="dark"] .slot-search-grid button, html[data-theme="dark"] .slot-results button {
   border-color: #36516a;
   color: #eaf2f8;
   background: linear-gradient(#243648, #172638);
@@ -4136,7 +3670,7 @@ html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="
   background: #101b28;
 }
 
-html[data-theme="dark"] .dentcore-table, html[data-theme="dark"] .data-table, html[data-theme="dark"] .patient-live-results, html[data-theme="dark"] .slot-results, html[data-theme="dark"] .appointment-info span, html[data-theme="dark"] .agenda-day-flow span, html[data-theme="dark"] .temporary-patient-box {
+html[data-theme="dark"] .patient-live-results, html[data-theme="dark"] .slot-results, html[data-theme="dark"] .appointment-info span, html[data-theme="dark"] .agenda-day-flow span, html[data-theme="dark"] .temporary-patient-box {
   border-color: #2f4a60;
   color: #dcebf5;
   background: #101b28;
@@ -4261,13 +3795,13 @@ html[data-theme="dark"] .invoice-picker-table td small, html[data-theme="dark"] 
   color: #a8bac8;
 }
 
-html[data-theme="dark"] .dentcore-table th, html[data-theme="dark"] .data-table th, html[data-theme="dark"] .history-ledger-table thead th, html[data-theme="dark"] .agenda-slot-row time {
+html[data-theme="dark"] .agenda-slot-row time {
   color: #bfeeff;
   border-color: #2e465a;
   background: #1b3042;
 }
 
-html[data-theme="dark"] .dentcore-table td, html[data-theme="dark"] .data-table td, html[data-theme="dark"] .agenda-slot-row {
+html[data-theme="dark"] .agenda-slot-row {
   border-color: #24394b;
 }
 
@@ -4277,11 +3811,11 @@ html[data-theme="dark"] .agenda-appointment, html[data-theme="dark"] .patient-li
   background: #17283a;
 }
 
-html[data-theme="dark"] .agenda-appointment strong, html[data-theme="dark"] .agenda-appointment span, html[data-theme="dark"] .agenda-appointment em, html[data-theme="dark"] .agenda-titlebar strong, html[data-theme="dark"] .agenda-titlebar-rich span, html[data-theme="dark"] .appointment-modal header strong, html[data-theme="dark"] .slot-search-modal header strong, html[data-theme="dark"] .panel-caption strong, html[data-theme="dark"] .doctor-picker, html[data-theme="dark"] .slot-search-grid label, html[data-theme="dark"] .appointment-form-grid label, html[data-theme="dark"] .appointment-status-field, html[data-theme="dark"] .budget-line-editor label {
+html[data-theme="dark"] .agenda-appointment strong, html[data-theme="dark"] .agenda-appointment span, html[data-theme="dark"] .agenda-appointment em, html[data-theme="dark"] .agenda-titlebar strong, html[data-theme="dark"] .agenda-titlebar-rich span, html[data-theme="dark"] .appointment-modal header strong, html[data-theme="dark"] .slot-search-modal header strong, html[data-theme="dark"] .doctor-picker, html[data-theme="dark"] .slot-search-grid label, html[data-theme="dark"] .appointment-form-grid label, html[data-theme="dark"] .appointment-status-field {
   color: #eaf2f8;
 }
 
-html[data-theme="dark"] .panel-caption span, html[data-theme="dark"] .appointment-modal header span, html[data-theme="dark"] .slot-search-modal header span, html[data-theme="dark"] .patient-live-results span, html[data-theme="dark"] .temporary-patient-box span {
+html[data-theme="dark"] .appointment-modal header span, html[data-theme="dark"] .slot-search-modal header span, html[data-theme="dark"] .patient-live-results span, html[data-theme="dark"] .temporary-patient-box span {
   color: #a9c4d6;
 }
 
@@ -4303,11 +3837,6 @@ html[data-theme="dark"] .appointment-status-pill.active {
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
 }
 
-html[data-theme="dark"] .dentcore-table tbody td, html[data-theme="dark"] .data-table tbody td {
-  color: #dcebf5;
-  background: #101b28;
-}
-
 html[data-theme="dark"] .agenda-appointment small {
   color: #eaf2f8;
   background: color-mix(in srgb, var(--state-color, var(--doctor-color, #38bdf8)) 24%, #132234);
@@ -4323,7 +3852,7 @@ html[data-theme="dark"] a {
   color: #7dd3fc;
 }
 
-html[data-theme="dark"] .page, html[data-theme="dark"] .loading-page, html[data-theme="dark"] .empty-state, html[data-theme="dark"] .mobile-portal {
+html[data-theme="dark"] .page, html[data-theme="dark"] .empty-state, html[data-theme="dark"] .mobile-portal {
   color: var(--ink);
   background: transparent;
 }
@@ -4340,7 +3869,7 @@ html[data-theme="dark"] .patient-loading-strip span{
     #172636;
 }
 
-html[data-theme="dark"] :is(input, select, textarea, .budget-workbench input, .budget-workbench select, .budget-line-editor input, .upload-strip input, .upload-strip select, .document-editor-grid input, .document-editor-grid select, .document-editor-grid textarea, .horario-editor-table input, .horario-editor-table select, .horario-caption select, .treatment-editor input, .treatment-editor select, .movement-form select, .admin-extras input, .admin-extras textarea, .stock-input, .mobile-portal-head select, .mobile-portal-tabs button, .portal-list-row button, .portal-sign-actions button, .portal-sign-canvas) {
+html[data-theme="dark"] :is(input, select, textarea, .budget-workbench input, .budget-workbench select, .budget-line-editor input, .upload-strip input, .upload-strip select, .document-editor-grid input, .document-editor-grid select, .document-editor-grid textarea, .horario-caption select, .treatment-editor input, .treatment-editor select, .movement-form select, .admin-extras input, .admin-extras textarea, .stock-input, .mobile-portal-head select, .mobile-portal-tabs button, .portal-list-row button, .portal-sign-actions button, .portal-sign-canvas) {
   color: var(--ink);
   background: var(--surface-0);
   border-color: var(--line-strong);
@@ -4351,7 +3880,7 @@ html[data-theme="dark"] ::placeholder {
   color: var(--ink-dim);
 }
 
-html[data-theme="dark"] :is(.secondary-button, .primary-button, .editor-actions button, .mini-family-list button, .horario-editor-table button, .budget-actions button, .mobile-cita-actions button) {
+html[data-theme="dark"] :is(.secondary-button, .primary-button, .editor-actions button, .mini-family-list button, .budget-actions button, .mobile-cita-actions button) {
   color: var(--ink);
   background: linear-gradient(#25384b, #192a3c);
   border-color: var(--line-strong);
@@ -4364,25 +3893,25 @@ html[data-theme="dark"] :is(.mini-family-list button.active) {
   border-color: var(--accent);
 }
 
-html[data-theme="dark"] :is(.dentcore-table, .tabla-pacientes, .tabla-wrapper, .billing-table, .backup-table, .horario-editor-table, .treatment-table, .data-table) {
+html[data-theme="dark"] :is(.tabla-pacientes, .tabla-wrapper, .billing-table) {
   color: var(--ink);
   background: var(--surface-1);
   border-color: var(--line-soft);
 }
 
-html[data-theme="dark"] :is(.dentcore-table th, .tabla-pacientes th, .billing-table th, .backup-table th, .horario-editor-table th, .treatment-table th, .data-table th) {
+html[data-theme="dark"] :is(.tabla-pacientes th, .billing-table th) {
   color: #bfeeff;
   background: var(--surface-3);
   border-color: var(--line-soft);
 }
 
-html[data-theme="dark"] :is(.dentcore-table td, .tabla-pacientes td, .billing-table td, .backup-table td, .horario-editor-table td, .treatment-table td, .data-table td, .tabla-row) {
+html[data-theme="dark"] :is(.tabla-pacientes td, .billing-table td, .tabla-row) {
   color: var(--ink);
   background: var(--surface-1);
   border-color: var(--line-soft);
 }
 
-html[data-theme="dark"] :is(.dentcore-table tbody tr:hover td, .tabla-row:hover, .patient-live-results button:hover, .patient-live-results button.active) {
+html[data-theme="dark"] :is(.tabla-row:hover, .patient-live-results button:hover, .patient-live-results button.active) {
   color: #ecfbff;
   background: #1d3448;
 }
@@ -4408,10 +3937,6 @@ html[data-theme="dark"] :is(.online-pill, .form-success) {
 html[data-theme="dark"] :is(.document-modal, .appointment-modal, .slot-search-modal, .patient-edit-modal) {
   color: var(--ink);
   background: var(--surface-1);
-}
-
-html[data-theme="dark"] .modal-backdrop {
-  background: rgba(3, 8, 13, .72);
 }
 
 html[data-theme="dark"] .signature-box canvas {
@@ -5804,67 +5329,9 @@ html[data-theme="dark"] .whatsapp-action {
   cursor: not-allowed;
 }
 
-.presupuesto-selector {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 8px 0 4px;
-  align-items: center;
-}
-
-.presupuesto-pill {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  border-radius: 999px;
-  border: 1.5px solid #c8dae4;
-  background: var(--surface-muted);
-  color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color 0.12s, background 0.12s, box-shadow 0.12s;
-  white-space: nowrap;
-}
-
-.presupuesto-pill:hover {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 8%, var(--surface-muted));
-}
-
-.presupuesto-pill.active {
-  border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 12%, #ffffff);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
-}
-
 .presupuesto-pill-aceptado.active { border-color: #16a34a; background: #f0fdf4; box-shadow: 0 0 0 3px #bbf7d0; }
 .presupuesto-pill-rechazado.active { border-color: #dc2626; background: #fef2f2; box-shadow: 0 0 0 3px #fecaca; }
 .presupuesto-pill-facturado.active { border-color: #7c3aed; background: #faf5ff; box-shadow: 0 0 0 3px #ddd6fe; }
-
-.presupuesto-pill .pp-num { font-weight: 900; }
-.presupuesto-pill .pp-estado {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--muted);
-}
-.presupuesto-pill .pp-date, .presupuesto-pill .pp-total, .presupuesto-pill .pp-accepted {
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.presupuesto-pill .pp-total {
-  font-weight: 800;
-  color: #17364b;
-}
-
-.presupuesto-pill .pp-accepted {
-  color: #15803d;
-  font-weight: 900;
-}
 
 .presupuesto-pill-nuevo {
   border-style: dashed;
@@ -5878,19 +5345,6 @@ html[data-theme="dark"] .whatsapp-action {
 }
 
 /* ── Budget header redesign ─────────────────────────── */
-.budget-header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
-.budget-num {
-  font-size: 1rem;
-  font-weight: 900;
-}
 
 /* ── Budget table totals row ────────────────────────── */
 .budget-totals-row td {
@@ -5951,18 +5405,12 @@ html[data-theme="dark"] .whatsapp-action {
   border-color: #0f7cad !important;
 }
 
-html[data-theme="dark"] .presupuesto-pill {
-  border-color: #2c3e4a;
-  background: #1a2933;
-  color: #cde4ef;
-}
-
 html[data-theme="dark"] .budget-workflow-header {
   background: #0a1720;
   border-color: #1e3345;
 }
 
-html[data-theme="dark"] .budget-workflow-header strong, html[data-theme="dark"] .presupuesto-pill .pp-total {
+html[data-theme="dark"] .budget-workflow-header strong {
   color: #e0f2fe;
 }
 
@@ -5980,12 +5428,6 @@ html[data-theme="dark"] .budget-closed-notice button {
   background: #0a1720;
   border-color: #8a6514;
   color: #fde68a;
-}
-
-html[data-theme="dark"] .presupuesto-pill.active {
-  border-color: #5bc8f5;
-  background: #0f2333;
-  box-shadow: 0 0 0 3px rgba(91,200,245,0.15);
 }
 
 html[data-theme="dark"] .linea-estado-aceptado {
@@ -6013,134 +5455,6 @@ html[data-theme="dark"] .status-pick-btn {
   background: #1a2933;
   border-color: #2c3e4a;
   color: #cde4ef;
-}
-
-/* ── Budget panel header (full redesign) ──────────────── */
-.budget-panel-header {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #d8e5ec;
-  background: linear-gradient(#f7fbfd, #eef5fa);
-  border-radius: 10px 10px 0 0;
-}
-
-.budget-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.budget-num {
-  font-size: 1rem;
-  font-weight: 900;
-  color: #0f3146;
-}
-
-.budget-estado-pill {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.budget-date {
-  color: #60717f;
-  font-size: 0.82rem;
-}
-
-.budget-panel-kpis {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.budget-panel-kpis span {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  font-size: 0.82rem;
-}
-
-.budget-panel-kpis em {
-  font-style: normal;
-  font-size: 0.7rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  color: #60717f;
-  letter-spacing: 0.04em;
-}
-
-.budget-panel-kpis span strong, .budget-panel-kpis span:not(em) {
-  font-weight: 700;
-  color: #0f3146;
-}
-
-.budget-panel-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid #ddeaf1;
-}
-
-.budget-panel-actions button {
-  min-height: 30px;
-  padding: 4px 12px;
-  border: 1px solid #b9ccd7;
-  border-radius: 8px;
-  background: linear-gradient(#ffffff, #edf5f8);
-  color: #17364b;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
-}
-
-.budget-panel-actions button:hover:not(:disabled) {
-  border-color: #0f7cad;
-  background: #e8f6fc;
-}
-
-.budget-panel-actions button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.budget-panel-actions .btn-accept {
-  border-color: #22c55e;
-  background: linear-gradient(#f0fdf4, #dcfce7);
-  color: #15803d;
-}
-
-.budget-panel-actions .btn-accept:hover:not(:disabled) {
-  background: #bbf7d0;
-}
-
-.budget-panel-actions .btn-invoice {
-  border-color: #0f7cad;
-  background: linear-gradient(#eff8fd, #daf0fa);
-  color: #075985;
-}
-
-.budget-panel-actions .btn-invoice:hover:not(:disabled) {
-  background: #bae6fd;
-}
-
-.budget-panel-actions .btn-reject {
-  border-color: #fca5a5;
-  background: linear-gradient(#fff5f5, #fee2e2);
-  color: #dc2626;
-}
-
-.budget-panel-actions .btn-reject:hover:not(:disabled) {
-  background: #fecaca;
 }
 
 /* ── Odontograma legend chips ─────────────────────────── */
@@ -6186,48 +5500,8 @@ html[data-theme="dark"] .status-pick-btn {
 }
 
 /* ── Presupuesto selector ─────────────────────────────── */
-.presupuesto-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid #d8e5ec;
-  background: #f7fbfd;
-}
 
 /* dark mode additions */
-html[data-theme="dark"] .budget-panel-header {
-  background: linear-gradient(#0e1e2a, #0a1720);
-  border-color: #1e3345;
-}
-
-html[data-theme="dark"] .budget-panel-actions button {
-  background: linear-gradient(#1a2933, #111e28);
-  border-color: #2c3e4a;
-  color: #cde4ef;
-}
-
-html[data-theme="dark"] .budget-panel-actions button:hover:not(:disabled) {
-  background: #0f2333;
-  border-color: #5bc8f5;
-}
-
-html[data-theme="dark"] .budget-num {
-  color: #e0f2fe;
-}
-
-html[data-theme="dark"] .budget-panel-kpis em {
-  color: #7aa5bb;
-}
-
-html[data-theme="dark"] .budget-panel-kpis span {
-  color: #cde4ef;
-}
-
-html[data-theme="dark"] .presupuesto-selector {
-  background: #0a1720;
-  border-color: #1e3345;
-}
 
 html[data-theme="dark"] .legend-chip {
   background: #1a2933;
@@ -6251,19 +5525,13 @@ html[data-theme="dark"] .legend-chip {
   max-height: 260px;
 }
 
-.budget-treatment-picker, .budget-line-editor {
+.budget-treatment-picker {
   min-width: 0;
 }
 
 @media (max-width: 980px) {
-  .odontograma-page-budget, .budget-workbench {
+  .odontograma-page-budget {
     grid-template-columns: 1fr;
-  }
-
-  .budget-line-editor {
-    grid-template-columns: minmax(180px, 1fr) 80px 90px 80px 100px;
-    overflow-x: auto;
-    padding-bottom: 4px;
   }
 }
 
@@ -6326,41 +5594,14 @@ html[data-theme="dark"] .legend-chip {
 
 /* UX consolidation: keep the app operational and calm. */
 
-.budget-step-panel summary, .budget-secondary-menu summary, .admin-create-panel summary {
+.admin-create-panel summary {
   cursor: pointer;
-  font-weight: 850;
-  color: #005f80;
+  font-weight: 600;
+  color: var(--dc-text);
 }
 
 .budget-primary-actions {
   align-items: center;
-}
-
-.budget-secondary-menu {
-  position: relative;
-}
-
-.budget-secondary-menu > div {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 20;
-  min-width: 180px;
-  display: grid;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid #bed3df;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 12px 26px rgba(15, 45, 66, .16);
-}
-
-.budget-step-panel {
-  margin-top: 8px;
-}
-
-.budget-step-panel > summary {
-  padding: 6px 2px;
 }
 
 .admin-create-panel {
@@ -6369,12 +5610,6 @@ html[data-theme="dark"] .legend-chip {
 
 .admin-create-panel form {
   margin-top: 10px;
-}
-
-html[data-theme="dark"] .budget-secondary-menu > div {
-  background: #132a3a;
-  border-color: #31566c;
-  color: #eaf2f8;
 }
 
 html[data-theme="dark"] .patient-header, html[data-theme="dark"] .patient-header .patient-live-results, html[data-theme="dark"] .patient-header .patient-finder input {
@@ -6831,7 +6066,7 @@ html[data-theme="dark"] .mini-odontogram-footer b {
 
 
 
-.status-chip, .status-pill, .appointment-state, .linea-estado-badge, .budget-estado-pill {
+.status-chip, .status-pill, .appointment-state, .linea-estado-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -6844,32 +6079,13 @@ html[data-theme="dark"] .mini-odontogram-footer b {
   text-transform: none;
 }
 
-.compact-table, .page-shell .dentcore-table {
+.compact-table {
   border-collapse: separate;
   border-spacing: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 9px;
   background: #ffffff;
-}
-
-.page-shell .dentcore-table th {
-  border-bottom: 1px solid var(--line);
-  background: #eef5f8;
-  color: #24475c;
-  font-size: 0.74rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-}
-
-.page-shell .dentcore-table td {
-  border-color: #ecf2f5;
-  background: #fff;
-}
-
-.page-shell .dentcore-table tr:hover td {
-  background: #f7fbfd;
 }
 
 .page-shell button:not(.dentcore-nav-button) {
@@ -6934,28 +6150,19 @@ html[data-theme="dark"] .mini-odontogram-footer b {
 }
 
 /* Presupuestos */
-.budget-workflow-header, .budget-panel-header, .budget-step-panel, .budget-workbench {
+.budget-workflow-header {
   border-radius: var(--radius-md);
   border-color: var(--line);
   background: #fff;
 }
 
-.budget-panel-header {
-  box-shadow: var(--shadow-subtle);
-}
-
-.budget-panel-actions button {
-  border-radius: 8px;
-  box-shadow: none;
-}
-
-.budget-secondary-menu summary, .secondary-clinic-panel summary, .odontogram-support-panel summary, .history-ledger-details summary {
+.secondary-clinic-panel summary, .odontogram-support-panel summary, .history-ledger-details summary {
   cursor: pointer;
   color: #0b4d63;
   font-weight: 900;
 }
 
-.budget-treatment-picker, .budget-line-editor {
+.budget-treatment-picker {
   border-color: var(--line);
   border-radius: var(--radius-md);
   background: #fbfdfe;
@@ -7082,8 +6289,8 @@ html[data-theme="dark"] .mini-odontogram-footer b {
 
 .admin-create-panel summary {
   cursor: pointer;
-  font-weight: 900;
-  color: #0b4d63;
+  font-weight: 600;
+  color: var(--dc-text);
 }
 
 html[data-theme="dark"] .page-shell, html[data-theme="dark"] .file-tabs, html[data-theme="dark"] .admin-extras .toolbar {
@@ -7091,7 +6298,7 @@ html[data-theme="dark"] .page-shell, html[data-theme="dark"] .file-tabs, html[da
   border-color: var(--line);
 }
 
-html[data-theme="dark"] .page-shell .desk-panel, html[data-theme="dark"] .odontogram-support-panel, html[data-theme="dark"] .secondary-clinic-panel, html[data-theme="dark"] .budget-workflow-header, html[data-theme="dark"] .budget-panel-header, html[data-theme="dark"] .budget-step-panel, html[data-theme="dark"] .budget-workbench, html[data-theme="dark"] .budget-treatment-picker, html[data-theme="dark"] .budget-line-editor {
+html[data-theme="dark"] .page-shell .desk-panel, html[data-theme="dark"] .odontogram-support-panel, html[data-theme="dark"] .secondary-clinic-panel, html[data-theme="dark"] .budget-workflow-header, html[data-theme="dark"] .budget-treatment-picker {
   background: var(--surface);
   border-color: var(--line);
 }
@@ -7099,17 +6306,6 @@ html[data-theme="dark"] .page-shell .desk-panel, html[data-theme="dark"] .odonto
 html[data-theme="dark"] .treatment-subtabs, html[data-theme="dark"] .history-filter-tabs, html[data-theme="dark"] .agenda-slot-content, html[data-theme="dark"] .admin-create-panel {
   background: var(--surface-soft);
   border-color: var(--line);
-}
-
-html[data-theme="dark"] .page-shell .dentcore-table, html[data-theme="dark"] .page-shell .dentcore-table td {
-  background: #0d1a24;
-  border-color: #213948;
-}
-
-html[data-theme="dark"] .page-shell .dentcore-table th {
-  background: #132b3a;
-  border-color: #29485a;
-  color: #cfe6ef;
 }
 
 .page, .page-shell, .fichero-screen, .admin-extras {
@@ -7168,29 +6364,11 @@ html[data-theme="dark"] .page-shell .dentcore-table th {
   overflow-x: hidden;
 }
 
-.budget-panel, .budget-workflow-header, .budget-panel-header {
+.budget-workflow-header {
   min-width: 0;
 }
 
-.budget-panel-header {
-  display: grid;
-  gap: 10px;
-}
-
-.budget-header-top {
-  align-items: start;
-}
-
-.budget-panel-actions {
-  justify-content: flex-start;
-  overflow: visible;
-}
-
-.budget-workbench {
-  grid-template-columns: minmax(280px, 0.9fr) minmax(280px, 1.1fr);
-}
-
-.budget-panel > .dentcore-table, .complete-history-timeline {
+.complete-history-timeline {
   width: 100%;
   max-width: 100%;
 }
@@ -7238,10 +6416,6 @@ html[data-theme="dark"] .page-shell .dentcore-table th {
 }
 
 @media (max-width: 1080px) {
-
-  .budget-workbench {
-    grid-template-columns: 1fr;
-  }
 
   .admin-report-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7514,16 +6688,16 @@ html[data-theme="dark"] .patient-comment-help {
 }
 
 .receta-grid input, .receta-grid select, .receta-grid textarea {
-  border: 1px solid #b8d3df;
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 0.85rem;
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-sm);
+  padding: 6px 9px;
+  font-size: var(--dc-font-body);
   font-family: inherit;
-  background: #ffffff;
-  color: #07314f;
+  background: var(--dc-surface);
+  color: var(--dc-text);
   text-transform: none;
   letter-spacing: 0;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .receta-grid textarea {
@@ -7755,67 +6929,6 @@ html[data-theme="dark"] .recetas-list button:hover {
   border-color: #58c8d3;
   color: #58c8d3;
 }
-.laboratorio-modal {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 18px;
-  width: min(760px, 96vw);
-  max-height: 92vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 18px 40px rgba(7, 49, 79, 0.25);
-}
-
-.laboratorio-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.laboratorio-grid label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #07314f;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.laboratorio-grid label.wide {
-  grid-column: 1 / -1;
-}
-
-.laboratorio-grid input, .laboratorio-grid select, .laboratorio-grid textarea {
-  border: 1px solid #b8d3df;
-  border-radius: 8px;
-  padding: 7px 10px;
-  font-size: 0.85rem;
-  font-family: inherit;
-  background: #ffffff;
-  color: #07314f;
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
-}
-
-.laboratorio-grid textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
-.laboratorio-context-hint {
-  margin: 0;
-  padding: 8px 12px;
-  background: #eef4f8;
-  border-left: 3px solid #0f9faf;
-  border-radius: 6px;
-  font-size: 0.85rem;
-  color: #07314f;
-}
 
 /* Banners de aviso compactos (modern) */
 .laboratorio-vencidos-banner {
@@ -7852,27 +6965,6 @@ html[data-theme="dark"] .recetas-list button:hover {
 .trabajo-pendiente-acciones button {
   font-size: 0.72rem;
   padding: 4px 8px;
-}
-
-html[data-theme="dark"] .laboratorio-modal {
-  background: #132b3a;
-  color: #cfe6ef;
-}
-
-html[data-theme="dark"] .laboratorio-grid label {
-  color: #cfe6ef;
-}
-
-html[data-theme="dark"] .laboratorio-grid input, html[data-theme="dark"] .laboratorio-grid select, html[data-theme="dark"] .laboratorio-grid textarea {
-  background: #0e2230;
-  border-color: #29485a;
-  color: #cfe6ef;
-}
-
-html[data-theme="dark"] .laboratorio-context-hint {
-  background: #1a2f3c;
-  color: #cfe6ef;
-  border-left-color: #58c8d3;
 }
 
 html[data-theme="dark"] .laboratorio-vencidos-banner {
@@ -8257,10 +7349,6 @@ html[data-theme="dark"] .history-ledger-empty {
   color: #a32121;
 }
 
-.budget-panel-header {
-  border-left: 4px solid #0f9faf;
-}
-
 .budget-primary-actions > button:first-child {
   background: #0f8ea0;
   border-color: #0f8ea0;
@@ -8353,18 +7441,9 @@ html[data-theme="dark"] .history-ledger-empty {
   border: 0;
 }
 
-.history-ledger-item, .admin-create-panel, .budget-workflow-header, .budget-panel-header, .budget-step-panel, .budget-workbench, .budget-treatment-picker, .budget-line-editor {
+.history-ledger-item, .admin-create-panel, .budget-workflow-header, .budget-treatment-picker {
   border-color: transparent;
   box-shadow: none;
-}
-
-.dentcore-table th {
-  border-color: transparent;
-  background: #edf5f8;
-}
-
-.dentcore-table td {
-  border-color: rgba(35, 70, 90, 0.07);
 }
 
 .history-filter-tabs, .treatment-subtabs, .desk-tabs, .file-tabs, .admin-extras .toolbar {
@@ -8411,23 +7490,11 @@ html[data-theme="dark"] .history-ledger-group > header strong, html[data-theme="
   color: #e6f3f7;
 }
 
-html[data-theme="dark"] .dentcore-table th {
-  background: rgba(22, 36, 47, 0.95);
-}
-
-html[data-theme="dark"] .dentcore-table td {
-  border-color: rgba(177, 206, 220, 0.08);
-}
-
 /* Las cards dentro de las columnas NO tienen reglas de grid-column/row */
 
 /* Ficha sin titlebar redundante: el grid debe tener solo tabs + contenido. */
 
 /* Documentos: gestor por carpetas, sin odontograma ni controles clinicos. */
-.documents-workspace {
-  display: grid;
-  gap: 12px;
-}
 
 .documents-panel-head {
   display: flex;
@@ -8448,66 +7515,7 @@ html[data-theme="dark"] .dentcore-table td {
   justify-content: center;
   gap: 7px;
   padding: 0 12px;
-  font-weight: 900;
-}
-
-.document-folder-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 10px;
-}
-
-.document-folder-card {
-  min-width: 0;
-  overflow: hidden;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: var(--clean-shadow-soft, 0 7px 18px rgba(15, 49, 70, 0.045));
-}
-
-.document-folder-card > header {
-  min-height: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  background: #f4fafb;
-  color: #14384f;
-  font-weight: 900;
-}
-
-.document-folder-card > header span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.document-folder-card > header b {
-  min-width: 26px;
-  border-radius: 999px;
-  padding: 3px 8px;
-  background: #e3f8fb;
-  color: #087184;
-  text-align: center;
-}
-
-.document-folder-card table {
-  margin: 0;
-  box-shadow: none;
-}
-
-.document-folder-card td strong, .document-folder-card td small {
-  display: block;
-  max-width: 280px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.document-folder-card td small {
-  color: #6b7c89;
-  font-size: 0.72rem;
+  font-weight: 500;
 }
 
 .document-empty-state {
@@ -8515,27 +7523,16 @@ html[data-theme="dark"] .dentcore-table td {
   align-content: center;
 }
 
-.document-upload-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 75;
-  display: grid;
-  place-items: center;
-  padding: 22px;
-  background: rgba(15, 36, 52, 0.34);
-  backdrop-filter: blur(4px);
-}
-
 .document-upload-modal {
-  width: min(720px, calc(100vw - 42px));
+  width: min(620px, calc(100vw - 32px));
   max-height: calc(100vh - 42px);
   overflow: auto;
   display: grid;
   gap: 12px;
-  border-radius: 16px;
-  background: #ffffff;
+  border-radius: var(--dc-radius-lg);
+  background: var(--dc-surface);
   padding: 16px;
-  box-shadow: 0 28px 70px rgba(11, 44, 65, 0.26);
+  box-shadow: var(--dc-shadow-menu);
 }
 
 .document-upload-modal > header, .document-upload-modal > footer {
@@ -8551,12 +7548,12 @@ html[data-theme="dark"] .dentcore-table td {
 }
 
 .document-upload-modal > header strong {
-  color: #0f3146;
-  font-size: 1.05rem;
+  color: var(--dc-text);
+  font-size: 16px;
 }
 
 .document-upload-modal > header span {
-  color: #637b8c;
+  color: var(--dc-muted);
   font-size: 0.82rem;
 }
 
@@ -8564,8 +7561,8 @@ html[data-theme="dark"] .dentcore-table td {
   width: 34px;
   height: 34px;
   border: 0;
-  border-radius: 10px;
-  background: #f1f6f8;
+  border-radius: var(--dc-radius-sm);
+  background: var(--dc-surface-soft);
 }
 
 .document-upload-file {
@@ -8573,11 +7570,11 @@ html[data-theme="dark"] .dentcore-table td {
   display: grid;
   place-items: center;
   gap: 6px;
-  border: 1px dashed #9ec8d7;
-  border-radius: 14px;
-  background: #f7fcfd;
-  color: #0b6f82;
-  font-weight: 900;
+  border: 1px dashed var(--dc-border-strong);
+  border-radius: var(--dc-radius-sm);
+  background: var(--dc-surface-soft);
+  color: var(--dc-primary);
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -8598,19 +7595,19 @@ html[data-theme="dark"] .dentcore-table td {
 .document-upload-grid label, .document-new-folder-input {
   display: grid;
   gap: 5px;
-  color: #36566a;
+  color: var(--dc-text);
   font-size: 0.78rem;
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .document-upload-grid input, .document-upload-grid select, .document-new-folder-input input {
   width: 100%;
-  min-height: 36px;
-  border: 1px solid #c8dce5;
-  border-radius: 10px;
-  background: #ffffff;
+  min-height: var(--dc-control-height);
+  border: 1px solid var(--dc-border);
+  border-radius: var(--dc-radius-sm);
+  background: var(--dc-surface);
   padding: 0 10px;
-  color: #102f42;
+  color: var(--dc-text);
 }
 
 .document-new-folder {
@@ -9067,9 +8064,9 @@ html[data-theme="dark"] .history-ledger-items {
 
 .clinical-session-context {
   align-content: start;
-  max-height: 100%;
-  overflow: auto;
-  padding-right: 2px;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 
 .session-board-head {
@@ -9088,10 +8085,10 @@ html[data-theme="dark"] .history-ledger-items {
 
 .session-board-head span, .session-context-card > span {
   color: var(--text-muted);
-  font-size: 0.72rem;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .session-board-head strong, .session-context-card > strong {
@@ -9109,11 +8106,11 @@ html[data-theme="dark"] .history-ledger-items {
   align-items: center;
   justify-content: center;
   min-height: 31px;
-  border: 1px solid color-mix(in srgb, var(--primary) 38%, var(--border));
+  border: 1px solid var(--dc-border);
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
-  color: color-mix(in srgb, var(--primary) 82%, var(--text));
-  font-weight: 850;
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  font-weight: 500;
 }
 
 .session-add-panel {
@@ -9267,9 +8264,9 @@ html[data-theme="dark"] .history-ledger-items {
   display: grid;
   gap: 3px;
   margin: 0;
-  padding: 14px;
-  border-radius: var(--radius);
-  background: var(--surface-soft);
+  padding: var(--dc-space-3);
+  border-radius: 0;
+  background: var(--dc-surface);
   color: var(--text-muted);
 }
 
@@ -9429,9 +8426,10 @@ html[data-theme="dark"] .history-ledger-items {
   gap: 8px;
   align-items: center;
   min-width: 0;
-  padding: 7px 8px;
-  border-radius: var(--radius);
-  background: var(--surface-soft);
+  padding: 8px 0;
+  border-radius: 0;
+  background: var(--dc-surface);
+  border-bottom: 1px solid var(--dc-border);
 }
 
 .patient-exit-item > div {
@@ -9442,9 +8440,10 @@ html[data-theme="dark"] .history-ledger-items {
 
 .patient-exit-item strong, .patient-exit-item small {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .patient-exit-item strong {
@@ -9507,11 +8506,12 @@ html[data-theme="dark"] .history-ledger-items {
   display: grid;
   gap: 6px;
   min-width: 0;
-  padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--surface) 86%, var(--surface-soft));
+  padding: var(--dc-space-3);
+  border: 0;
+  border-radius: 0;
+  background: var(--dc-surface);
   color: var(--text);
+  border-bottom: 1px solid var(--dc-border);
 }
 
 .session-context-card small, .session-context-list p {
@@ -9552,11 +8552,13 @@ html[data-theme="dark"] .history-ledger-items {
 
 .session-context-list strong {
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
   color: var(--text);
   font-size: 0.8rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-weight: 500;
 }
 
 .session-context-details {
@@ -9603,187 +8605,6 @@ html[data-theme="dark"] .patient-exit-item small {
 
 .session-odontogram-support .odontogram-workspace, .session-odontogram-support .odontogram-flow {
   margin-top: 8px;
-}
-
-.visits-workspace {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-.visits-head {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: #f7fbfc;
-}
-
-.visits-head div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.visits-head span {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  color: #60788b;
-  font-size: 0.78rem;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.visits-head strong {
-  color: #082f43;
-  font-size: 1.05rem;
-}
-
-.visits-head button {
-  min-height: 34px;
-  border: 0;
-  border-radius: 9px;
-  background: #0f8ea0;
-  color: #fff;
-  font-weight: 850;
-}
-
-.visits-list {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-.visit-card {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(18, 53, 72, 0.05);
-}
-
-.visit-card > header {
-  display: grid;
-  grid-template-columns: minmax(120px, 0.25fr) auto minmax(0, 1fr) auto;
-  gap: 8px 10px;
-  align-items: start;
-  min-width: 0;
-}
-
-.visit-card time {
-  color: #075e70;
-  font-size: 0.82rem;
-  font-weight: 850;
-}
-
-.visit-card > header > span {
-  justify-self: start;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: #eaf5f8;
-  color: #075e70;
-  font-size: 0.72rem;
-  font-weight: 850;
-}
-
-.visit-card > header div {
-  min-width: 0;
-}
-
-.visit-card strong, .visit-card p, .visit-card small, .visit-card em {
-  min-width: 0;
-}
-
-.visit-card > header strong {
-  display: block;
-  color: #082f43;
-}
-
-.visit-card > header p {
-  margin: 2px 0 0;
-  color: #60788b;
-  font-size: 0.78rem;
-}
-
-.visit-card > header button {
-  min-height: 30px;
-  border: 0;
-  border-radius: 9px;
-  background: #edf8fb;
-  color: #075e70;
-  font-size: 0.74rem;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
-.visit-body {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  min-width: 0;
-}
-
-.visit-body section {
-  display: grid;
-  align-content: start;
-  gap: 6px;
-  min-width: 0;
-  padding-top: 8px;
-  border-top: 1px solid #e6eef2;
-}
-
-.visit-body section > span {
-  color: #60788b;
-  font-size: 0.72rem;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.visit-body p {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  color: #15384b;
-  font-size: 0.82rem;
-}
-
-.visit-body small, .visit-body em {
-  color: #60788b;
-  font-size: 0.76rem;
-  font-style: normal;
-}
-
-.visit-links p {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.visit-links small {
-  padding: 4px 7px;
-  border-radius: 999px;
-  background: #f2f7f9;
-  color: #385567;
-  font-weight: 800;
-}
-
-.visits-empty {
-  display: grid;
-  gap: 4px;
-  padding: 18px;
-  border-radius: 12px;
-  background: #f7fbfc;
-  color: #60788b;
-}
-
-.visits-empty strong {
-  color: #082f43;
 }
 
 .clinical-list {
@@ -9966,29 +8787,29 @@ html[data-theme="dark"] .clinical-subtabs button.active, html[data-theme="dark"]
 }
 
 /* Encabezados de panel con regla acentuada arriba. */
-html[data-theme="dark"] :is(.panel-caption, .clinical-list article > header, .consent-panel > header, .lista-header) {
+html[data-theme="dark"] :is(.clinical-list article > header, .consent-panel > header, .lista-header) {
   background: transparent !important;
   border-bottom: 1px solid var(--dm-line) !important;
   color: var(--dm-ink) !important;
 }
 
-html[data-theme="dark"] :is(.panel-caption strong, .clinical-list article > header strong, .lista-header strong, h1, h2, h3, h4) {
+html[data-theme="dark"] :is(.clinical-list article > header strong, .lista-header strong, h1, h2, h3, h4) {
   color: #f1fbff !important;
 }
 
-html[data-theme="dark"] :is(.panel-caption span, .clinical-list article > header span, .lista-header span, .panel-caption small) {
+html[data-theme="dark"] :is(.clinical-list article > header span, .lista-header span) {
   color: var(--dm-ink-muted) !important;
 }
 
 /* ─── Tablas con tinte cian en la cabecera y mejor contraste de filas ─── */
-html[data-theme="dark"] :is(.dentcore-table, .data-table, .billing-table, .treatment-table, .tabla-pacientes, .horario-editor-table, .backup-table) {
+html[data-theme="dark"] :is(.billing-table, .tabla-pacientes) {
   background: transparent !important;
   border: 1px solid var(--dm-line) !important;
   border-radius: 10px;
   overflow: hidden;
 }
 
-html[data-theme="dark"] :is(.dentcore-table th, .data-table th, .billing-table th, .treatment-table th, .tabla-pacientes th, .horario-editor-table th, .backup-table th, .history-ledger-table thead th) {
+html[data-theme="dark"] :is(.billing-table th, .tabla-pacientes th) {
   background: linear-gradient(180deg, rgba(56, 189, 248, 0.12), rgba(22, 41, 58, 0.85)) !important;
   color: #c5e9fb !important;
   font-weight: 800;
@@ -9998,17 +8819,17 @@ html[data-theme="dark"] :is(.dentcore-table th, .data-table th, .billing-table t
   border-color: var(--dm-line) !important;
 }
 
-html[data-theme="dark"] :is(.dentcore-table td, .data-table td, .billing-table td, .treatment-table td, .tabla-pacientes td, .horario-editor-table td, .backup-table td) {
+html[data-theme="dark"] :is(.billing-table td, .tabla-pacientes td) {
   background: transparent !important;
   border-color: var(--dm-line) !important;
   color: var(--dm-ink) !important;
 }
 
-html[data-theme="dark"] :is(.dentcore-table tbody tr:nth-child(even) td, .data-table tbody tr:nth-child(even) td, .billing-table tbody tr:nth-child(even) td, .treatment-table tbody tr:nth-child(even) td, .tabla-pacientes tbody tr:nth-child(even) td) {
+html[data-theme="dark"] :is(.billing-table tbody tr:nth-child(even) td, .tabla-pacientes tbody tr:nth-child(even) td) {
   background: rgba(22, 41, 58, 0.45) !important;
 }
 
-html[data-theme="dark"] :is(.dentcore-table tbody tr:hover td, .data-table tbody tr:hover td, .billing-table tbody tr:hover td, .treatment-table tbody tr:hover td, .tabla-pacientes tbody tr:hover td) {
+html[data-theme="dark"] :is(.billing-table tbody tr:hover td, .tabla-pacientes tbody tr:hover td) {
   background: rgba(56, 189, 248, 0.10) !important;
   color: #f1fbff !important;
 }
@@ -10082,10 +8903,6 @@ html[data-theme="dark"] :is(.danger-button, button.danger) {
 }
 
 /* ─── Modales con backdrop más oscuro y card claramente elevada ─── */
-html[data-theme="dark"] .modal-backdrop {
-  background: rgba(3, 8, 14, 0.72) !important;
-  backdrop-filter: blur(4px);
-}
 
 html[data-theme="dark"] :is(.appointment-modal, .slot-search-modal, .document-modal, .patient-full-modal, .patient-edit-modal, .invoice-creation-shell) {
   background: linear-gradient(180deg, #18293a, #122230) !important;
@@ -10226,29 +9043,29 @@ html:not([data-theme="dark"]) .clinical-subtabs button.active, html:not([data-th
   box-shadow: 0 4px 12px rgba(14, 165, 233, 0.10);
 }
 
-html:not([data-theme="dark"]) :is(.panel-caption, .clinical-list article > header, .consent-panel > header, .lista-header) {
+html:not([data-theme="dark"]) :is(.clinical-list article > header, .consent-panel > header, .lista-header) {
   background: transparent !important;
   border-bottom: 1px solid var(--lm-line) !important;
   color: var(--lm-ink) !important;
 }
 
-html:not([data-theme="dark"]) :is(.panel-caption strong, .clinical-list article > header strong, .lista-header strong) {
+html:not([data-theme="dark"]) :is(.clinical-list article > header strong, .lista-header strong) {
   color: #042439 !important;
 }
 
-html:not([data-theme="dark"]) :is(.panel-caption span, .clinical-list article > header span, .lista-header span, .panel-caption small) {
+html:not([data-theme="dark"]) :is(.clinical-list article > header span, .lista-header span) {
   color: var(--lm-ink-muted) !important;
 }
 
 /* Tablas con cabecera azulada y filas zebra. */
-html:not([data-theme="dark"]) :is(.dentcore-table, .data-table, .billing-table, .treatment-table, .tabla-pacientes, .horario-editor-table, .backup-table) {
+html:not([data-theme="dark"]) :is(.billing-table, .tabla-pacientes) {
   background: #ffffff !important;
   border: 1px solid var(--lm-line) !important;
   border-radius: 10px;
   overflow: hidden;
 }
 
-html:not([data-theme="dark"]) :is(.dentcore-table th, .data-table th, .billing-table th, .treatment-table th, .tabla-pacientes th, .horario-editor-table th, .backup-table th, .history-ledger-table thead th) {
+html:not([data-theme="dark"]) :is(.billing-table th, .tabla-pacientes th) {
   background: linear-gradient(180deg, rgba(14, 165, 233, 0.10), #f4f8fb) !important;
   color: #075985 !important;
   font-weight: 800;
@@ -10258,17 +9075,17 @@ html:not([data-theme="dark"]) :is(.dentcore-table th, .data-table th, .billing-t
   border-color: var(--lm-line) !important;
 }
 
-html:not([data-theme="dark"]) :is(.dentcore-table td, .data-table td, .billing-table td, .treatment-table td, .tabla-pacientes td, .horario-editor-table td, .backup-table td) {
+html:not([data-theme="dark"]) :is(.billing-table td, .tabla-pacientes td) {
   background: transparent !important;
   border-color: var(--lm-line) !important;
   color: var(--lm-ink) !important;
 }
 
-html:not([data-theme="dark"]) :is(.dentcore-table tbody tr:nth-child(even) td, .data-table tbody tr:nth-child(even) td, .billing-table tbody tr:nth-child(even) td, .treatment-table tbody tr:nth-child(even) td, .tabla-pacientes tbody tr:nth-child(even) td) {
+html:not([data-theme="dark"]) :is(.billing-table tbody tr:nth-child(even) td, .tabla-pacientes tbody tr:nth-child(even) td) {
   background: #f7fbfd !important;
 }
 
-html:not([data-theme="dark"]) :is(.dentcore-table tbody tr:hover td, .data-table tbody tr:hover td, .billing-table tbody tr:hover td, .treatment-table tbody tr:hover td, .tabla-pacientes tbody tr:hover td) {
+html:not([data-theme="dark"]) :is(.billing-table tbody tr:hover td, .tabla-pacientes tbody tr:hover td) {
   background: rgba(14, 165, 233, 0.07) !important;
   color: #042439 !important;
 }
@@ -10341,10 +9158,6 @@ html:not([data-theme="dark"]) :is(.danger-button, button.danger) {
 }
 
 /* Modales con backdrop tenue y elevación clara. */
-html:not([data-theme="dark"]) .modal-backdrop {
-  background: rgba(15, 37, 53, 0.32) !important;
-  backdrop-filter: blur(3px);
-}
 
 html:not([data-theme="dark"]) :is(.appointment-modal, .slot-search-modal, .document-modal, .patient-full-modal, .patient-edit-modal, .invoice-creation-shell) {
   background: #ffffff !important;
@@ -10396,7 +9209,7 @@ html:not([data-theme="dark"]) hr {
 
 /* Dark clinical polish: odontogram/presupuesto workspace */
 
-html[data-theme="dark"] .budget-panel, html[data-theme="dark"] .budget-workbench, html[data-theme="dark"] .budget-treatment-picker, html[data-theme="dark"] .budget-line-editor, html[data-theme="dark"] .budget-step-panel {
+html[data-theme="dark"] .budget-treatment-picker {
   background: linear-gradient(180deg, #0d2534, #091f2c) !important;
   border-color: var(--clinical-dark-line) !important;
   color: #edfaff !important;
@@ -10408,17 +9221,7 @@ html[data-theme="dark"] .treatment-badge {
   color: #ffe7a1 !important;
 }
 
-html[data-theme="dark"] .budget-workbench input, html[data-theme="dark"] .budget-workbench select, html[data-theme="dark"] .budget-line-editor input, html[data-theme="dark"] .budget-line-editor select {
-  background: #071a25 !important;
-  border-color: #3a667c !important;
-  color: #eefaff !important;
-}
-
-html[data-theme="dark"] .budget-line-editor input:focus, html[data-theme="dark"] .budget-line-editor select:focus, html[data-theme="dark"] .budget-workbench input:focus, html[data-theme="dark"] .budget-workbench select:focus {
-  border-color: var(--clinical-dark-cyan) !important;
-}
-
-html[data-theme="dark"] .budget-secondary-menu summary, html[data-theme="dark"] .secondary-clinic-panel summary, html[data-theme="dark"] .odontogram-support-panel summary, html[data-theme="dark"] .history-ledger-details summary {
+html[data-theme="dark"] .secondary-clinic-panel summary, html[data-theme="dark"] .odontogram-support-panel summary, html[data-theme="dark"] .history-ledger-details summary {
   color: #72e8f8 !important;
 }
 
@@ -10454,7 +9257,7 @@ html[data-theme="dark"] .secondary-clinic-panel, html[data-theme="dark"] .odonto
 }
 
 /* Cards: radio y separación coherentes. */
-.clinical-list article, .consent-panel, .workspace-section, .billing-panel, .first-visit-panel, .budget-panel, .historial-facturacion-workspace, .session-add-panel {
+.clinical-list article, .consent-panel, .workspace-section, .billing-panel, .first-visit-panel, .historial-facturacion-workspace, .session-add-panel {
   border-radius: 12px !important;
 }
 
@@ -10620,14 +9423,14 @@ button {
 }
 
 /* Presupuesto y factura: recorrido visible sin cambiar reglas de negocio. */
-.budget-flow-strip, .invoice-flow-strip {
+.invoice-flow-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   padding-top: 8px;
 }
 
-.budget-flow-strip span, .invoice-flow-strip span {
+.invoice-flow-strip span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -10642,7 +9445,7 @@ button {
   white-space: nowrap;
 }
 
-.budget-flow-strip b, .invoice-flow-strip b {
+.invoice-flow-strip b {
   display: inline-grid;
   place-items: center;
   width: 18px;
@@ -10653,13 +9456,13 @@ button {
   font-size: 10px;
 }
 
-.budget-flow-strip .done, .invoice-flow-strip .done {
+.invoice-flow-strip .done {
   border-color: #b6e1c6;
   background: #f0fdf4;
   color: #166534;
 }
 
-.budget-flow-strip .current, .invoice-flow-strip .current {
+.invoice-flow-strip .current {
   border-color: #9ccfed;
   background: #eff8ff;
   color: #075985;
@@ -10670,7 +9473,7 @@ button {
   padding: 0 0 8px;
 }
 
-html[data-theme="dark"] .agenda-appointment-actions button, html[data-theme="dark"] .agenda-empty-day button, html[data-theme="dark"] .budget-flow-strip span, html[data-theme="dark"] .invoice-flow-strip span {
+html[data-theme="dark"] .agenda-appointment-actions button, html[data-theme="dark"] .agenda-empty-day button, html[data-theme="dark"] .invoice-flow-strip span {
   border-color: #2f4a60;
   background: rgba(16, 27, 40, 0.72);
   color: #eaf2f8;
@@ -11235,7 +10038,7 @@ html[data-theme="dark"] .treatment-badge {
   color: #f4fbff !important;
 }
 
-html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .visit-links small, html[data-theme="dark"] .session-treatment-source {
+html[data-theme="dark"] .session-treatment-source {
   border: 1px solid var(--patient-dark-line-soft) !important;
   background: rgba(79, 191, 208, 0.10) !important;
   color: #b7e8f2 !important;
@@ -11250,7 +10053,7 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   gap: 8px !important;
 }
 
-:is(.desk-panel, .workspace-section, .billing-panel, .history-billing-dentcore, .agenda-slots, .appointment-modal, .slot-search-modal, .context-menu, .whatsapp-reschedule-panel, .admin-extras .settings-form, .history-ledger-scroll, .visits-head, .visit-card, .clinical-today-panel, .secondary-clinic-panel) {
+:is(.desk-panel, .workspace-section, .billing-panel, .history-billing-dentcore, .agenda-slots, .appointment-modal, .slot-search-modal, .whatsapp-reschedule-panel, .admin-extras .settings-form, .history-ledger-scroll, .clinical-today-panel, .secondary-clinic-panel) {
   border-color: var(--border) !important;
   border-radius: var(--radius) !important;
   background: var(--surface) !important;
@@ -11258,7 +10061,7 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   color: var(--text) !important;
 }
 
-.panel-caption, .modal-titlebar, .history-ledger-toolbar, .whatsapp-page-head {
+.modal-titlebar, .history-ledger-toolbar, .whatsapp-page-head {
   border-color: color-mix(in srgb, var(--border) 76%, transparent) !important;
   background: var(--surface-soft) !important;
   color: var(--text) !important;
@@ -11269,7 +10072,7 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   color: var(--text-muted);
 }
 
-:is(.clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .context-menu button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button) {
+:is(.clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button) {
   min-height: 32px !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-sm) !important;
@@ -11279,7 +10082,7 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   font-weight: 800;
 }
 
-:is(.clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .context-menu button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button):hover:not(:disabled) {
+:is(.clinical-subtabs button, .agenda-appointment-actions button, .panel-caption button, .history-toolbar-actions button, .table-actions button, .whatsapp-page-filters button, .whatsapp-table-actions button, .appointment-modal footer button, .slot-search-modal button):hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--primary) 42%, var(--border)) !important;
   background: color-mix(in srgb, var(--primary) 8%, var(--surface)) !important;
   color: var(--text) !important;
@@ -11351,35 +10154,6 @@ html[data-theme="dark"] .visit-card > header > span, html[data-theme="dark"] .vi
   border-radius: var(--radius-pill) !important;
   background: color-mix(in srgb, var(--info) 10%, var(--surface)) !important;
   color: color-mix(in srgb, var(--info) 80%, var(--text)) !important;
-}
-
-.dentcore-table, .data-table, .history-ledger-table {
-  border-color: var(--border) !important;
-  background: var(--surface) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) th {
-  border-color: var(--border) !important;
-  background: color-mix(in srgb, var(--surface-soft) 82%, var(--surface)) !important;
-  color: var(--text-muted) !important;
-  font-weight: 900;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) td {
-  border-color: color-mix(in srgb, var(--border) 70%, transparent) !important;
-  color: var(--text) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:nth-child(even) td {
-  background: color-mix(in srgb, var(--surface-soft) 62%, var(--surface)) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:hover td {
-  background: color-mix(in srgb, var(--primary) 8%, var(--surface)) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr.selected-row td, :is(.dentcore-table, .data-table, .history-ledger-table) tbody tr[aria-selected="true"] td {
-  background: color-mix(in srgb, var(--primary) 14%, var(--surface)) !important;
 }
 
 .status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado {

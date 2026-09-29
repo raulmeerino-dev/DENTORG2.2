@@ -18,7 +18,7 @@ export function PatientExitChecklistPanel({
   ));
 
   return (
-    <section className={`desk-panel patient-exit-checklist ${ready ? 'is-ready' : 'needs-review'}`} aria-label="Checklist de salida del paciente">
+    <section className={`patient-exit-checklist ${ready ? 'is-ready' : 'needs-review'}`} aria-label="Checklist de salida del paciente">
       <div className="panel-caption patient-exit-head">
         <strong>
           {ready ? <CheckCircle2 size={15} aria-hidden="true" /> : <AlertTriangle size={15} aria-hidden="true" />}

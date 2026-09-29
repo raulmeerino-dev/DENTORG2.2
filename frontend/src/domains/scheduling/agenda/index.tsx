@@ -647,7 +647,7 @@ export default function AgendaPage() {
           {canTreatAppointment(contextMenu.cita) && getVisualStatus(contextMenu.cita) === 'en_sala' && <button onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'atender' })}>Atender</button>}
           {canTreatAppointment(contextMenu.cita) && getVisualStatus(contextMenu.cita) === 'en_atencion' && <button onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'finalizar' })}>Finalizar visita</button>}
           <span />
-          {['programada', 'confirmada', 'en_sala'].includes(getVisualStatus(contextMenu.cita)) && <><button onClick={() => cancelCita(contextMenu.cita, 'anulada')}>Cancelar cita</button>
+          {['programada', 'confirmada', 'en_sala'].includes(getVisualStatus(contextMenu.cita)) && <><button className="dc-menu-danger" onClick={() => cancelCita(contextMenu.cita, 'anulada')}>Cancelar cita</button>
           <button onClick={() => cancelCita(contextMenu.cita, 'falta')}>No asistió</button></>}
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Recordatorio WhatsApp</button>
           <button onClick={() => enviarRecordatorio(contextMenu.cita, 'email')}>Recordatorio email</button>

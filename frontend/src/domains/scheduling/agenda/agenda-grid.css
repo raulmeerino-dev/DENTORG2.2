@@ -21,6 +21,8 @@
 .agenda-resource-cell.outside-hours { background: repeating-linear-gradient(-45deg, var(--dc-surface), var(--dc-surface) 5px, var(--dc-surface-soft) 5px, var(--dc-surface-soft) 6px); }
 .agenda-create-slot { width: 100%; height: 100%; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: transparent; text-align: center; font-size: 12px; cursor: pointer; }
 .agenda-create-slot:hover:not(:disabled), .agenda-create-slot:focus-visible { background: var(--dc-primary-soft); color: var(--dc-primary); }
+.agenda-resource-cell.has-inactive-appointment .agenda-create-slot { position: absolute; right: 0; width: 34px; z-index: 3; color: var(--dc-primary); background: var(--dc-surface-soft); border-left: 1px solid var(--dc-border); }
+.agenda-resource-cell.has-inactive-appointment .agenda-create-slot:hover:not(:disabled) { background: var(--dc-primary-soft); }
 .agenda-resource-appointment { position: absolute; z-index: 2; min-width: 0; padding: 4px 6px; border: 1px solid var(--dc-border); border-left: 3px solid var(--doctor-color); border-radius: 3px; background: var(--dc-surface-soft); color: var(--dc-text); cursor: pointer; overflow: hidden; }
 .agenda-resource-appointment:hover { border-color: var(--dc-primary); }
 .agenda-resource-appointment:focus-visible { outline: 2px solid var(--dc-primary); outline-offset: -2px; z-index: 3; }
@@ -31,6 +33,7 @@
 .agenda-appointment-more:hover { background: var(--dc-surface-hover); }
 .agenda-appointment-more:focus-visible, .agenda-resource-appointment-state button:focus-visible { outline-offset: -2px; }
 .agenda-resource-appointment > p { margin: 1px 0; font-size: 11px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-resource-appointment.is-extended > p { white-space: normal; overflow-wrap: anywhere; max-height: 26px; }
 .agenda-resource-appointment-state { display: flex; align-items: center; gap: 5px; font-size: 10px; line-height: 16px; color: var(--dc-muted); }
 .agenda-resource-appointment-state > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-resource-appointment-state button { margin-left: auto; flex: 0 0 auto; min-height: 22px; padding: 2px 5px; border: 1px solid var(--dc-border); border-radius: 3px; background: var(--dc-surface); color: var(--dc-text); font-size: 10px; line-height: 16px; }

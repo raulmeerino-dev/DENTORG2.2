@@ -110,14 +110,16 @@ export default function RecordsWorkspace({ mode = 'records' }: { mode?: 'records
         {view.export_formats.includes('pdf') && <><button type="button" role="menuitem" disabled={exportDisabled} onClick={() => void exportResults('pdf')}>Exportar PDF</button><button type="button" role="menuitem" disabled={exportDisabled} onClick={() => void exportResults('pdf', true)}>Imprimir</button></>}
       </ToolbarMenu>}
       <FiltersPopover count={RECORD_FILTER_KEYS.filter(key => key !== 'q' && query[key]).length}>
+      {closeFilters => <>
       {view.filters.includes('fecha_desde') && <label>Desde<input type="date" aria-label="Desde" title={view.date_label} max={query.fecha_hasta} value={query.fecha_desde ?? ''} onChange={event => setFilters({ fecha_desde: event.target.value })} /></label>}
       {view.filters.includes('fecha_hasta') && <label>Hasta<input type="date" aria-label="Hasta" title={view.date_label} min={query.fecha_desde} value={query.fecha_hasta ?? ''} onChange={event => setFilters({ fecha_hasta: event.target.value })} /></label>}
       {view.filters.includes('paciente_id') && <RecordLookup label="Paciente" kind="pacientes" value={query.paciente_id ?? ''} onChange={value => setFilters({ paciente_id: value })} scope={scope} />}
       {view.filters.includes('doctor_id') && <RecordLookup label="Profesional" kind="doctores" value={query.doctor_id ?? ''} onChange={value => setFilters({ doctor_id: value })} scope={scope} />}
       {isFiles && view.filters.includes('tipo') && <label>Tipo de archivo<select value={query.tipo ?? ''} onChange={event => setFilters({ tipo: event.target.value })}><option value="">Todos</option>{view.types.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
       {view.filters.includes('estado') && <label>{view.columns.find(column => column.key === 'estado')?.label ?? 'Estado'}{view.states.length > 0 ? <select value={query.estado ?? ''} onChange={event => setFilters({ estado: event.target.value })}><option value="">Todos</option>{view.states.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select> : <input type="text" placeholder="Todos" value={query.estado ?? ''} onChange={event => setFilters({ estado: event.target.value })} />}</label>}
-      {advancedKeys.length > 0 && <button className="records-more-filters" type="button" onClick={() => setAdvancedOpen(true)}><Filter size={14} aria-hidden="true" />Más filtros{advancedCount ? ` (${advancedCount})` : ''}</button>}
+      {advancedKeys.length > 0 && <button className="records-more-filters" type="button" onClick={() => { closeFilters(); setAdvancedOpen(true); }}><Filter size={14} aria-hidden="true" />Más filtros{advancedCount ? ` (${advancedCount})` : ''}</button>}
       {filterCount > 0 && <button type="button" onClick={clearFilters}>Limpiar</button>}
+      </>}
       </FiltersPopover>
       <ActiveFilterChips filters={RECORD_FILTER_KEYS.filter(key => key !== 'q' && query[key]).map(key => ({ key, label: `${key === 'doctor_id' ? 'Profesional' : key === 'paciente_id' ? 'Paciente' : key === 'fecha_desde' ? 'Desde' : key === 'fecha_hasta' ? 'Hasta' : key.replaceAll('_', ' ')}${key.endsWith('_id') ? '' : `: ${query[key]}`}`, onRemove: () => setFilters({ [key]: '' }) }))} />
     </ContextToolbar>

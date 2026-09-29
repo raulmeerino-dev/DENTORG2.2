@@ -4,7 +4,7 @@
 .agenda-date-picker-compact { flex-wrap: nowrap; }
 .agenda-date-picker-compact > button { flex-shrink: 0; }
 @media (max-width: 1100px) { .agenda-date-picker-compact > button > span { display: none; } }
-.agenda-date-popover { padding: 12px; background: var(--dc-surface); color: var(--dc-text); }
+.agenda-date-popover { padding: 12px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-md); background: var(--dc-surface); color: var(--dc-text); box-shadow: var(--dc-shadow-menu); }
 .agenda-month-selectors { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
 .agenda-month-selectors label { display: grid; gap: 3px; font-size: 11px; color: var(--dc-muted); }
 .agenda-month-selectors select { width: 100%; min-width: 0; height: 32px; padding: 4px; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); }

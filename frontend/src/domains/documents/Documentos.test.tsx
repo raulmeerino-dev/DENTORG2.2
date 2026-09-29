@@ -21,8 +21,8 @@ describe('DocumentosPanel', () => {
   it('muestra error visible si la API rechaza la subida', async () => {
     const user = userEvent.setup();
     const onSubir = vi.fn().mockRejectedValue(new Error('Tipo MIME no permitido'));
-    const { container } = renderPanel(onSubir);
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    renderPanel(onSubir);
+    const input = screen.getByLabelText('Seleccionar archivo');
 
     await user.upload(input, new File(['%PDF-1.7 contenido'], 'informe.pdf', { type: 'application/pdf' }));
     await user.click(screen.getByRole('button', { name: /Guardar documento/i }));
@@ -34,8 +34,8 @@ describe('DocumentosPanel', () => {
   it('bloquea formatos no permitidos antes de llamar a la API', async () => {
     const user = userEvent.setup();
     const onSubir = vi.fn();
-    const { container } = renderPanel(onSubir);
-    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    renderPanel(onSubir);
+    const input = screen.getByLabelText('Seleccionar archivo');
 
     fireEvent.change(input, { target: { files: [new File(['texto'], 'notas.txt', { type: 'text/plain' })] } });
     await user.click(screen.getByRole('button', { name: /Guardar documento/i }));

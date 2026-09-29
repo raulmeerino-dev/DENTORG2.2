@@ -1,4 +1,5 @@
 import './administration.css';
+import './settings-editors.css';
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -14,6 +15,8 @@ import { getLaboratorios } from '../../api/laboratory';
 import type { Doctor, HorarioDoctor, TratamientoCatalogo } from '../../api/types';
 import { FICHEROS } from './configuracionTabs';
 import type { FicheroTab } from './configuracionTabs';
+import { Dialog } from '../../design-system';
+import { ToolbarMenu } from '../../design-system/ContextToolbar';
 
 const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -534,7 +537,7 @@ export function ConfiguracionWorkspace({
           <section className="settings-section">
             <div className="settings-caption"><strong>Doctores, auxiliares y colores</strong><AccessPill allowed={isAdmin} /></div>
             <table className="dentcore-table">
-              <thead><tr><th>Color</th><th>Nombre</th><th>Especialidad</th><th>%</th><th>Tipo</th><th>Activo</th></tr></thead>
+              <thead><tr><th>Color</th><th>Nombre</th><th>Especialidad</th><th className="num">%</th><th>Tipo</th><th>Activo</th></tr></thead>
               <tbody>
                 {doctores.map((doctor) => (
                   <tr
@@ -595,7 +598,7 @@ export function ConfiguracionWorkspace({
             </div>
             <div className="treatment-catalog-scroll">
               <table className="dentcore-table">
-                <thead><tr><th>Código</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th>IVA</th><th>Precio</th></tr></thead>
+                <thead><tr><th>Código</th><th>Tratamiento</th><th>Familia</th><th>Pieza</th><th>Caras</th><th className="num">IVA</th><th className="num">Precio</th></tr></thead>
                 <tbody>
                   {filteredTratamientos.map((tratamiento) => (
                     <tr
@@ -626,13 +629,13 @@ export function ConfiguracionWorkspace({
           <section className="settings-section treatment-editor-panel">
             <div className="settings-caption"><strong>{tratamientoForm.id ? 'Editar tratamiento' : 'Nuevo tratamiento'}</strong><AccessPill allowed={canEditTreatments} /></div>
             <div className="treatment-editor">
-              <label>Codigo
+              <label>Código
                 <input value={tratamientoForm.codigo} disabled={!canEditTreatments} onChange={(event) => setTratamientoForm((prev) => ({ ...prev, codigo: event.target.value }))} />
               </label>
               <label className="wide">Nombre
                 <input value={tratamientoForm.nombre} disabled={!canEditTreatments} onChange={(event) => setTratamientoForm((prev) => ({ ...prev, nombre: event.target.value }))} />
               </label>
-              <label>Familia
+              <label className="wide">Familia
                 <select value={tratamientoForm.familia_id || familias[0]?.id || ''} disabled={!canEditTreatments} onChange={(event) => setTratamientoForm((prev) => ({ ...prev, familia_id: event.target.value }))}>
                   {familias.map((familia) => <option key={familia.id} value={familia.id}>{familia.nombre}</option>)}
                 </select>
@@ -643,7 +646,7 @@ export function ConfiguracionWorkspace({
               <label>IVA %
                 <input value={tratamientoForm.iva_porcentaje} disabled={!canEditTreatments} onChange={(event) => setTratamientoForm((prev) => ({ ...prev, iva_porcentaje: event.target.value }))} />
               </label>
-              <label>Duración habitual (min)
+              <label className="wide">Duración habitual (min)
                 <input type="number" min={5} max={480} step={5} placeholder="Predeterminada de la clínica" value={tratamientoForm.duracion_habitual_min} disabled={!canEditTreatments} onChange={event => setTratamientoForm(prev => ({ ...prev, duracion_habitual_min: event.target.value }))} />
               </label>
               <label className="checkline"><input type="checkbox" checked={tratamientoForm.requiere_pieza} disabled={!canEditTreatments} onChange={(event) => setTratamientoForm((prev) => ({ ...prev, requiere_pieza: event.target.checked }))} /> Requiere pieza</label>
@@ -677,12 +680,12 @@ export function ConfiguracionWorkspace({
           <div className="settings-caption horario-caption">
             <strong>Horarios semanales por doctor</strong>
             <AccessPill allowed={isAdmin} />
-            <select value={activeDoctor} onChange={(e) => setDoctorId(e.target.value)}>
+            <select aria-label="Profesional del horario" value={activeDoctor} onChange={(e) => setDoctorId(e.target.value)}>
               {doctores.map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>{doctor.nombre}</option>
               ))}
             </select>
-            <button disabled={!isAdmin || saveAllHorariosMutation.isPending} onClick={() => saveAllHorariosMutation.mutate()}>
+            <button className="primary-action" disabled={!isAdmin || saveAllHorariosMutation.isPending} onClick={() => saveAllHorariosMutation.mutate()}>
               Guardar toda la semana
             </button>
             <button onClick={() => navigate('/agenda')}>Ver agenda</button>
@@ -721,7 +724,7 @@ export function ConfiguracionWorkspace({
                   <tr key={day}>
                     <td>{day}</td>
                     <td>
-                      <select disabled={!isAdmin} value={form.tipo_dia} onChange={(event) => updateHorarioDia(index, { tipo_dia: event.target.value })}>
+                      <select aria-label={`${day} tipo de jornada`} disabled={!isAdmin} value={form.tipo_dia} onChange={(event) => updateHorarioDia(index, { tipo_dia: event.target.value })}>
                         <option value="laborable">Laborable</option>
                         <option value="semilaborable">Semi</option>
                         <option value="festivo">Festivo</option>
@@ -748,7 +751,7 @@ export function ConfiguracionWorkspace({
                       </div>
                     </td>
                     <td>
-                      <select disabled={!isAdmin} value={form.intervalo_min} onChange={(event) => updateHorarioDia(index, { intervalo_min: event.target.value })}>
+                      <select aria-label={`${day} intervalo`} disabled={!isAdmin} value={form.intervalo_min} onChange={(event) => updateHorarioDia(index, { intervalo_min: event.target.value })}>
                         <option value="10">10 min</option>
                         <option value="15">15 min</option>
                         <option value="20">20 min</option>
@@ -860,11 +863,13 @@ export function ConfiguracionWorkspace({
                   <td>{backup.restauracion_probada_at ? new Date(backup.restauracion_probada_at).toLocaleDateString('es-ES') : 'Pendiente'}</td>
                   <td>{backup.retention_days ? `${backup.retention_days} dias` : '-'}</td>
                   <td>{backup.destino_externo ?? 'Local'}</td>
-                  <td className="inline-actions">
+                  <td>
+                    <ToolbarMenu label="Acciones de la copia">
                     <button disabled={!isAdmin || verificarBackupMutation.isPending} onClick={() => verificarBackupMutation.mutate(backup.id)}>Verificar</button>
                     <button disabled={!isAdmin || simularRestauracionMutation.isPending} onClick={() => simularRestauracionMutation.mutate(backup.id)}>Simular</button>
                     <button disabled={!isAdmin || registrarRestauracionMutation.isPending} onClick={() => registrarRestauracionMutation.mutate(backup.id)}>Registrar restauración</button>
                     <button disabled={!isAdmin || descargarBackupMutation.isPending} onClick={() => descargarBackupMutation.mutate(backup.id)}>Descargar</button>
+                    </ToolbarMenu>
                   </td>
                 </tr>
               ))}
@@ -900,8 +905,7 @@ export function ConfiguracionWorkspace({
         </section>
       )}
       {familiaModalOpen && (
-        <div className="modal-backdrop" onMouseDown={() => setFamiliaModalOpen(false)}>
-          <section className="patient-edit-modal" style={{ maxWidth: 360 }} onMouseDown={(e) => e.stopPropagation()}>
+        <Dialog label="Nueva familia de tratamientos" onClose={() => setFamiliaModalOpen(false)} className="patient-edit-modal settings-family-dialog">
             <div className="modal-titlebar">
               <strong>Nueva familia de tratamientos</strong>
               <button type="button" onClick={() => setFamiliaModalOpen(false)}>Cerrar</button>
@@ -936,8 +940,7 @@ export function ConfiguracionWorkspace({
                 Crear familia
               </button>
             </footer>
-          </section>
-        </div>
+        </Dialog>
       )}
     </section>
   );

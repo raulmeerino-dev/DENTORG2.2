@@ -31,7 +31,6 @@
 .settings-form-body textarea { min-height: 160px; resize: vertical; }
 .settings-form-body .settings-caption { margin: calc(-1 * var(--dc-space-3)) calc(-1 * var(--dc-space-3)) 0; }
 .settings-form-body .admin-create-panel { margin: 0; border: 0; border-bottom: 1px solid var(--dc-border); border-radius: 0; box-shadow: none; background: var(--dc-surface); }
-.settings-section .dentcore-table :is(th, td) { padding: var(--dc-space-2) var(--dc-space-3); }
 .settings-section .dentcore-table th { background: var(--dc-surface-soft); }
 .settings-section .treatment-editor { padding: var(--dc-space-3); }
 .settings-section .editor-actions { padding: var(--dc-space-2) var(--dc-space-3); }
@@ -51,6 +50,12 @@
 @media (max-width: 1100px) { .settings-reference-list { grid-template-columns: 1fr; } .settings-reference-list > div:nth-child(odd) { border-right: 0; } .settings-split, .settings-content .inventory-layout { grid-template-columns: minmax(0, 1fr); } .settings-split > :nth-child(even) { border-left: 0; } }
 @media (max-width: 650px) { .settings-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); } .settings-navigation { flex-direction: row; max-height: 48px; border-right: 0; border-bottom: 1px solid var(--dc-border); } .settings-navigation button { white-space: nowrap; } .settings-reference-list > div { grid-template-columns: 1fr; } }
 .inventory-selected-row td { background: var(--dc-primary-soft); }
+.inventory-stock-panel .stock-alert-row td { background: var(--dc-danger-soft); }
+.inventory-stock-panel .stock-alert-row td:nth-child(6) { color: var(--dc-danger); font-weight: 600; }
+.settings-form-body > button { align-self: flex-start; }
+.settings-family-dialog { width: min(360px, calc(100vw - 32px)); }
+.settings-security-summary em { font-size: var(--dc-font-small); font-style: normal; color: var(--dc-muted); }
+.settings-section .stock-input { border-radius: var(--dc-radius-sm); background: var(--dc-surface); font-weight: 400; }
 
 .settings-section .dentcore-table th { overflow-wrap: normal; word-break: normal; }
 .settings-section .horario-editor-table :is(th, td) { padding: 6px; }

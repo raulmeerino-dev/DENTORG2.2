@@ -23,9 +23,9 @@
 .records-feedback--error { background: var(--dc-danger-soft); color: var(--dc-danger); }
 .records-feedback button { margin-left: var(--dc-space-2); }
 .records-table-scroll { flex: 1; min-height: 0; min-width: 0; overflow: auto; scrollbar-gutter: stable; }
-.records-table { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; table-layout: auto; font-size: var(--dc-font-body); }
-.records-table th, .records-table td { text-align: left; vertical-align: middle; padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); max-width: 360px; overflow-wrap: anywhere; }
-.records-table thead th { position: sticky; top: 0; background: var(--dc-surface-soft); z-index: 2; height: 36px; font-size: var(--dc-font-small); font-weight: 600; white-space: nowrap; overflow-wrap: normal; }
+.records-table { min-width: 760px; table-layout: auto; }
+.records-table th, .records-table td { max-width: 360px; overflow-wrap: anywhere; }
+.records-table thead th { z-index: 2; white-space: nowrap; overflow-wrap: normal; }
 .records-table th button { display: inline-flex; align-items: center; gap: var(--dc-space-1); border: 0; background: transparent; padding: 0; min-height: 22px; text-align: inherit; font-size: inherit; color: inherit; font-weight: inherit; white-space: nowrap; }
 .records-table :is([data-type="date"], [data-type="datetime"], [data-column="tipo"]) { white-space: nowrap; }
 .records-table [data-column="paciente"] { min-width: 180px; }
@@ -34,7 +34,6 @@
 .records-table [data-column="clinica"] { min-width: 110px; }
 .records-table th button:hover { color: var(--dc-primary); }
 .records-table .numeric { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.records-table tbody tr:hover { background: var(--dc-surface-hover); }
 .records-table .records-action-column { width: 74px; min-width: 74px; white-space: nowrap; }
 .records-action-column a { display: inline-flex; align-items: center; gap: var(--dc-space-1); color: var(--dc-primary); text-decoration: none; padding-block: 2px; }
 .records-action-column a:hover { text-decoration: underline; }

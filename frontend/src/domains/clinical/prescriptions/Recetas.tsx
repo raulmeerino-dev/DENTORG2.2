@@ -177,7 +177,7 @@ export function RecetaModal({
     [form.plantilla_id, plantillas],
   );
   const providerWarning = providerStatus?.warning
-    ?? 'Receta no certificada. Modo local/mock o proveedor real no configurado.';
+    ?? 'Receta no certificada. Emisión electrónica no disponible en esta configuración.';
   const readyToIssue = Boolean(
     form.doctor_id
     && form.plantilla_id

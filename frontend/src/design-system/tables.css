@@ -1,0 +1,35 @@
+/* Shared data tables. Modules define column widths and semantic row states. */
+:is(.dentcore-table, .data-table, .history-ledger-table) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 0;
+  background: var(--dc-surface);
+  color: var(--dc-text);
+  font-size: var(--dc-font-body);
+}
+:is(.dentcore-table, .data-table, .history-ledger-table) :is(th, td) {
+  height: 36px;
+  padding: 6px var(--dc-space-3);
+  border: 0;
+  border-bottom: 1px solid var(--dc-border);
+  text-align: left;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+:is(.dentcore-table, .data-table, .history-ledger-table) th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--dc-surface-soft);
+  color: var(--dc-muted);
+  font-size: var(--dc-font-small);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+:is(.dentcore-table, .data-table, .history-ledger-table) tbody :where(tr:nth-child(even)) td { background: color-mix(in srgb, var(--dc-surface-soft) 48%, var(--dc-surface)); }
+:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:hover td { background: var(--dc-surface-hover); }
+:is(.dentcore-table, .data-table, .history-ledger-table) tbody :is(tr.selected-row, tr[aria-selected="true"]) td { background: var(--dc-primary-soft); color: var(--dc-text); }
+:is(.dentcore-table, .data-table, .history-ledger-table) .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+:is(.dentcore-table, .data-table, .history-ledger-table) td a { font-weight: 500; }

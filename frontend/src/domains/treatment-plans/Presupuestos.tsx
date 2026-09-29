@@ -1,3 +1,5 @@
+import { ToolbarMenu } from '../../design-system/ContextToolbar';
+import { StatusChip } from '../../design-system/StatusChip';
 import { Dialog } from '../../design-system/Dialog';
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -30,14 +32,6 @@ import { BudgetOdontogramFlow } from '../clinical/odontogram';
 import { CatalogTreatmentSelector } from '../clinical/treatment-selection/TreatmentSelector';
 import './budget-responsive.css';
 
-const ESTADO_COLOR: Record<string, string> = {
-  parcial: '#b7791f',
-  borrador: '#687480',
-  presentado: '#0f7cad',
-  aceptado: '#16a34a',
-  rechazado: '#dc2626',
-  facturado: '#7c3aed',
-};
 
 export function PresupuestoPanel({
   presupuesto,
@@ -226,23 +220,18 @@ export function PresupuestoPanel({
   ];
 
   return (
-    <section className="desk-panel budget-panel">
+    <section className="budget-panel">
       {/* Redesigned header */}
       <div className="budget-panel-header">
         <div className="budget-header-top">
           <div className="budget-panel-title">
             <strong className="budget-num">Presupuesto #{presupuesto.numero}</strong>
-            <span
-              className="budget-estado-pill"
-              style={{ background: ESTADO_COLOR[presupuesto.estado] ?? '#687480' }}
-            >
-              {presupuesto.estado}
-            </span>
+            <StatusChip tone={presupuesto.estado === 'rechazado' ? 'danger' : ['aceptado', 'facturado'].includes(presupuesto.estado) ? 'success' : presupuesto.estado === 'parcial' ? 'warning' : presupuesto.estado === 'presentado' ? 'info' : 'neutral'}>{presupuesto.estado}</StatusChip>
             <span className="budget-date">{formatDate(presupuesto.fecha)}</span>
           </div>
           <div className="budget-panel-kpis">
             <span>
-              <em>Lineas</em>
+              <em>Líneas</em>
               {presupuesto.lineas.length}
             </span>
             <span>
@@ -263,6 +252,7 @@ export function PresupuestoPanel({
         </div>
         <div className="budget-panel-actions budget-primary-actions">
           <button
+            className="primary-action"
             onClick={() => presentBudget.mutate()}
             disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}
           >
@@ -285,9 +275,7 @@ export function PresupuestoPanel({
             Facturar
           </button>
           <button onClick={abrirPdfPresupuesto}>PDF</button>
-          <details className="budget-secondary-menu">
-            <summary>Mas</summary>
-            <div>
+          <ToolbarMenu label="Más acciones del presupuesto">
               <button
                 onClick={() => acceptBudget.mutate([lineaSeleccionada!.id])}
                 disabled={
@@ -306,18 +294,17 @@ export function PresupuestoPanel({
                 onClick={() => deleteLine.mutate()}
                 disabled={!lineaSeleccionada || lineaSeleccionada.aceptado || deleteLine.isPending || presupuestoCerrado}
               >
-                Borrar linea
+                Borrar línea
               </button>
               <button
                 onClick={() => setRechazarOpen(true)}
                 disabled={rejectBudget.isPending || presupuestoCerrado || acceptedLines.length > 0}
                 title={acceptedLines.length > 0 ? 'Contiene trabajo aceptado. Duplica una alternativa para una nueva propuesta.' : undefined}
-                className="btn-reject"
+                className="danger"
               >
                 Rechazar
               </button>
-            </div>
-          </details>
+          </ToolbarMenu>
         </div>
         <div className="budget-flow-strip" aria-label="Flujo de presupuesto a factura">
           {flowSteps.map((step, index) => (
@@ -377,7 +364,7 @@ export function PresupuestoPanel({
         <div className="budget-workbench">
           <aside className="budget-treatment-picker">
             <CatalogTreatmentSelector items={tratamientos} query={catalogSearch} selectedId={selectedTreatmentId}
-              label="Buscar tratamiento" placeholder="Buscar tratamiento" showPrice catalogInitiallyOpen
+              label="Buscar tratamiento" placeholder="Buscar tratamiento" showPrice
               disabled={presupuestoCerrado} onQueryChange={query => { setCatalogSearch(query); setSelectedTreatmentId(''); setSelectedLineId(null); }}
               onSelect={tratamiento => selectTreatment(tratamiento.id)} />
           </aside>
@@ -410,10 +397,11 @@ export function PresupuestoPanel({
             </label>
             <div className="budget-actions">
               <button
+                className="primary-action"
                 onClick={() => addLine.mutate()}
                 disabled={!selectedTreatment || addLine.isPending || presupuestoCerrado}
               >
-                Anadir
+                Añadir
               </button>
               <button
                 onClick={() =>
@@ -442,8 +430,8 @@ export function PresupuestoPanel({
               <th>Tratamiento</th>
               <th>Pieza</th>
               <th>Caras</th>
-              <th>Dto%</th>
-              <th>Importe</th>
+              <th className="num">Dto%</th>
+              <th className="num">Importe</th>
               <th>Estado</th>
             </tr>
           </thead>

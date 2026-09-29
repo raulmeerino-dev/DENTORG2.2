@@ -20,11 +20,11 @@ export default function CheckoutQueue() {
     {query.isError && <p role="alert">No se pudo cargar la salida. <button onClick={() => void query.refetch()}>Reintentar</button></p>}
     {query.isLoading && <p role="status">Cargando salidas…</p>}
     {accounts.map(account => <article className="jornada-checkout-item" key={account.cita_id} data-cita-id={account.cita_id}>
-      <strong>{account.paciente_nombre}</strong>
-      <small>{account.cargos.filter(c => c.cita_id === account.cita_id).map(c => `${c.concepto}${c.pieza_dental ? ` · ${c.pieza_dental}` : ''} · ${c.importe === null ? 'Sin valorar' : money(c.importe)}`).join(' / ') || 'Visita finalizada sin tratamientos con cargo'}</small>
-      <small>Hoy {money(account.realizado_hoy)} · Anterior {money(account.saldo_anterior)}{Number(account.saldo_favor) > 0 ? ` · A favor ${money(account.saldo_favor)}` : ''}</small>
-      <strong>Pendiente {money(Math.max(0, Number(account.saldo)))}</strong>
-      {!!account.sin_valorar && <small role="status">{account.sin_valorar} cargos por valorar</small>}
+      <strong className="checkout-patient">{account.paciente_nombre}</strong>
+      <small className="checkout-concepts">{account.cargos.filter(c => c.cita_id === account.cita_id).map(c => `${c.concepto}${c.pieza_dental ? ` · ${c.pieza_dental}` : ''} · ${c.importe === null ? 'Sin valorar' : money(c.importe)}`).join(' / ') || 'Visita finalizada sin tratamientos con cargo'}</small>
+      <small className="checkout-summary">Hoy {money(account.realizado_hoy)} · Anterior {money(account.saldo_anterior)}{Number(account.saldo_favor) > 0 ? ` · A favor ${money(account.saldo_favor)}` : ''}</small>
+      <strong className="checkout-balance">Pendiente {money(Math.max(0, Number(account.saldo)))}</strong>
+      {!!account.sin_valorar && <small className="checkout-unpriced" role="status">{account.sin_valorar} cargos por valorar</small>}
       <div className="jornada-inline-actions">
         <button type="button" className="primary-action" onClick={() => setSelected({ patientId: account.paciente_id, citaId: account.cita_id, leavePending: false })}>Cobrar</button>
         <button type="button" onClick={() => setSelected({ patientId: account.paciente_id, citaId: account.cita_id, leavePending: true })}>Dejar pendiente</button>

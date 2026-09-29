@@ -7,6 +7,7 @@ import './design-system/tokens.css'
 import './design-system/compatibility-tokens.css'
 import './design-system/foundation.css'
 import './design-system/components.css'
+import './design-system/tables.css'
 import App from './app/App.tsx'
 
 createRoot(document.getElementById('root')!).render(

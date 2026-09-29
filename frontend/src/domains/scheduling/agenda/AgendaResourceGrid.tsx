@@ -78,8 +78,10 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
               const instant = new Date(slotIso(day, slot)).getTime();
               const occupied = allCitas.some(cita => cita.doctor_id === doctor.id && !['cancelada', 'no_presentado'].includes(getVisualStatus(cita))
                 && new Date(cita.fecha_hora).getTime() <= instant && new Date(cita.fecha_hora).getTime() + cita.duracion_min * 60_000 > instant);
+              const inactiveVisible = citas.some(cita => cita.doctor_id === doctor.id && ['cancelada', 'no_presentado'].includes(getVisualStatus(cita))
+                && new Date(cita.fecha_hora).getTime() <= instant && new Date(cita.fecha_hora).getTime() + cita.duracion_min * 60_000 > instant);
               const working = slotInHorario(slot, horarios[doctor.id]?.find(horario => horario.dia_semana === weekdayIndex(day)));
-              return <div className={`agenda-resource-cell${minute % 60 === 0 ? ' is-hour-start' : minute % 30 === 0 ? ' is-half-hour' : ''}${!working ? ' outside-hours' : ''}${occupied ? ' has-continuation' : ''}${range?.doctorId === doctor.id && minute >= Math.min(range.start, range.end) && minute <= Math.max(range.start, range.end) ? ' is-selecting' : ''}`} key={slot}
+              return <div className={`agenda-resource-cell${minute % 60 === 0 ? ' is-hour-start' : minute % 30 === 0 ? ' is-half-hour' : ''}${!working ? ' outside-hours' : ''}${occupied ? ' has-continuation' : ''}${inactiveVisible && !occupied ? ' has-inactive-appointment' : ''}${range?.doctorId === doctor.id && minute >= Math.min(range.start, range.end) && minute <= Math.max(range.start, range.end) ? ' is-selecting' : ''}`} key={slot}
                 data-doctor-id={doctor.id} data-slot={slot} data-occupied={occupied}
                 style={{ top: (minute - startMinute) * scale, height: (timeline[index + 1] - minute) * scale }}
                 onDragOver={event => event.preventDefault()} onDrop={event => {
@@ -99,6 +101,7 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
             })}
             {appointmentLanes(citas.filter(cita => cita.doctor_id === doctor.id)).map(({ cita, lane, laneCount }) => {
               const status = getVisualStatus(cita); const visual = STATUS_META[status];
+              const inactive = ['cancelada', 'no_presentado'].includes(status);
               const conflicts = appointmentConflicts(cita, allCitas); const timing = appointmentTiming(cita, now, allCitas);
               const flags = appointmentFlags(cita); const lab = cita.laboratorio?.[0]; const labAlerts = buildLabAlerts(cita, day);
               const slot = localAppointmentTime(cita.fecha_hora);
@@ -110,10 +113,10 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
                 ...labAlerts, lab ? `Lab: ${labShortName(lab)}` : ''].filter(Boolean).join(' · ');
               const action: VisitAction | undefined = ['programada', 'confirmada'].includes(status) ? 'llegada' : canTreat(cita) && status === 'en_sala' ? 'atender' : canTreat(cita) && status === 'en_atencion' ? 'finalizar' : undefined;
               const actionLabel = action === 'llegada' ? 'Llegada' : action === 'atender' ? 'Atender' : 'Finalizar visita';
-              return <article className={`agenda-resource-appointment ${visual.className}${conflicts.length ? ' has-overlap' : ''}${!regular ? ' is-short' : ''}`} key={cita.id}
+              return <article className={`agenda-resource-appointment ${visual.className}${conflicts.length ? ' has-overlap' : ''}${!regular ? ' is-short' : ''}${extended ? ' is-extended' : ''}`} key={cita.id}
                 tabIndex={0} aria-label={`Cita de ${patientName(cita)}, ${slot}, ${visual.label}`}
                 title={`${patientName(cita)} · ${slot}–${addMinutes(slot, cita.duracion_min)} · ${cita.motivo ?? ''} · ${statusDetails}`}
-                style={{ '--doctor-color': doctor.color_agenda ?? 'var(--dc-primary)', top: (minutesFromTime(slot) - startMinute) * scale + 1, height: cardHeight, left: `calc(${lane * 100 / laneCount}% + 2px)`, width: `calc(${100 / laneCount}% - 4px)` } as CSSProperties}
+                style={{ '--doctor-color': doctor.color_agenda ?? 'var(--dc-primary)', top: (minutesFromTime(slot) - startMinute) * scale + 1, height: cardHeight, left: `calc(${lane * 100 / laneCount}% + 2px)`, width: `calc(${100 / laneCount}% - ${inactive ? 38 : 4}px)` } as CSSProperties}
                 onClick={() => onOpenCita(cita)} onDoubleClick={() => onOpenPatient(cita)} onContextMenu={event => onContext(event, cita)}
                 onKeyDown={event => { if (event.key === 'Enter' && event.target === event.currentTarget) onOpenCita(cita); }}>
                 <div className="agenda-resource-appointment-title"><strong>{patientName(cita)}</strong><button type="button" className="agenda-appointment-more" aria-label={`Más acciones de ${patientName(cita)}`} onClick={event => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); onContext({ clientX: rect.left, clientY: rect.bottom, preventDefault() {} } as MouseEvent, cita); }}>···</button></div>

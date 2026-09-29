@@ -36,6 +36,18 @@ beforeEach(() => {
 });
 
 describe('RecordsWorkspace', () => {
+  it('closes the filter popover before opening advanced filters', async () => {
+    vi.mocked(getRecordCatalog).mockResolvedValue({ views: [{ ...patients, filters: ['q', 'fecha_desde', 'tipo'] }] });
+    const user = userEvent.setup();
+    renderWorkspace();
+    await screen.findByText('Martina Pérez');
+    await user.click(screen.getByRole('button', { name: 'Filtros' }));
+    await user.click(screen.getByRole('button', { name: 'Más filtros' }));
+    expect(screen.getByRole('dialog', { name: 'Más filtros' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Filtros' })).not.toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
   it('uses only authorized catalog views, columns and exports even for an economic bookmark', async () => {
     renderWorkspace('/registros?vista=facturas&importe_min=100&sort_by=total');
     expect(await screen.findByText('Martina Pérez')).toBeInTheDocument();

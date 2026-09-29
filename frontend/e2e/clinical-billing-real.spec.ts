@@ -48,7 +48,7 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
   await expect(budgetPanel.getByLabel('Pieza', { exact: true })).toHaveValue('36');
   await expect(budgetPanel.getByLabel('Caras', { exact: true })).toHaveValue('O');
   await budgetPanel.getByLabel('Precio', { exact: true }).fill('75');
-  await budgetPanel.getByRole('button', { name: 'Anadir', exact: true }).click();
+  await budgetPanel.getByRole('button', { name: 'Añadir', exact: true }).click();
   await expect(budgetPanel.getByRole('button', { name: 'Aceptar todo', exact: true })).toBeEnabled();
   await budgetPanel.getByRole('button', { name: 'Aceptar todo', exact: true }).click();
   type Budget = { estado: string; lineas: Array<{ id: string; aceptado: boolean; pasado_trabajo_pendiente: boolean }> };

@@ -192,9 +192,9 @@ export function AdminReportes() {
           <div className="analysis-caption"><strong>{report.label}</strong><span>{reportKind === 'pacientes' ? 'Todos los pacientes · saldo y actividad acumulados' : reportKind === 'laboratorio' ? 'Todos los trabajos pendientes · sin filtro de periodo' : report.description}</span></div>
           <div className="analysis-table-scroll" tabIndex={0} role="region" aria-label={report.label}>
             <table className="dentcore-table">
-              <thead><tr>{Object.keys(customRows[0] ?? { resultado: '' }).map(header => <th key={header}>{header.replaceAll('_', ' ')}</th>)}</tr></thead>
+              <thead><tr>{Object.entries(customRows[0] ?? { resultado: '' }).map(([header, value]) => <th key={header} className={typeof value === 'number' ? 'num' : undefined}>{header.replaceAll('_', ' ')}</th>)}</tr></thead>
               <tbody>
-                {customRows.map((row, index) => <tr key={index}>{Object.values(row).map((value, cellIndex) => <td key={cellIndex}>{typeof value === 'number' ? String(value).replace('.', ',') : value}</td>)}</tr>)}
+                {customRows.map((row, index) => <tr key={index}>{Object.values(row).map((value, cellIndex) => <td key={cellIndex} className={typeof value === 'number' ? 'num' : undefined}>{typeof value === 'number' ? String(value).replace('.', ',') : value}</td>)}</tr>)}
                 {!loading && !hasError && !customRows.length && <tr><td>Sin datos para ese reporte.</td></tr>}
               </tbody>
             </table>

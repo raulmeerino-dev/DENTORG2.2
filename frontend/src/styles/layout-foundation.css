@@ -319,7 +319,7 @@ main, section, article, aside, header, footer, nav, div {
   box-shadow: var(--dc-shadow-soft) !important;
 }
 
-.panel-caption, .toolbar, .modal-titlebar, .history-ledger-toolbar {
+.toolbar, .modal-titlebar, .history-ledger-toolbar {
   min-height: 42px;
   align-items: center;
   gap: 10px;
@@ -330,59 +330,20 @@ main, section, article, aside, header, footer, nav, div {
   color: var(--dc-text) !important;
 }
 
-.panel-caption {
-  flex-wrap: wrap;
-}
-
-.panel-caption strong, .toolbar h1, .modal-titlebar strong {
+.toolbar h1, .modal-titlebar strong {
   overflow: visible;
   line-height: 1.25;
   text-overflow: clip;
   white-space: normal;
 }
 
-.panel-caption span, .toolbar p, .eyebrow, .modal-titlebar span {
+.toolbar p, .eyebrow, .modal-titlebar span {
   color: var(--dc-muted) !important;
   line-height: 1.3;
 }
 
 textarea {
   line-height: 1.45;
-}
-
-
-:is(.dentcore-table, .data-table, .history-ledger-table) {
-  border-collapse: separate !important;
-  border-spacing: 0;
-  background: var(--dc-surface) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) th, :is(.dentcore-table, .data-table, .history-ledger-table) td {
-  height: auto !important;
-  min-height: 34px;
-  padding: 8px 10px !important;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-  vertical-align: middle;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: color-mix(in srgb, var(--dc-surface-soft) 86%, var(--dc-surface)) !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.76rem;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) td {
-  color: var(--dc-text) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) .num, :is(.dentcore-table, .data-table, .history-ledger-table) .hash-cell {
-  white-space: nowrap;
 }
 
 :is(.status-pill, .appointment-state, .treatment-badge, .invoice-state, .pp-estado, .access-pill) {
@@ -612,10 +573,6 @@ textarea {
 /* 22. Modals and popovers                                             */
 /* ------------------------------------------------------------------ */
 
-.modal-backdrop {
-  padding: 18px !important;
-}
-
 :is(.appointment-modal, .slot-search-modal, .patient-edit-modal, .document-modal, .patient-documents-drawer) {
   max-width: calc(100vw - 36px) !important;
   max-height: calc(var(--app-window-height) - 36px) !important;
@@ -710,10 +667,6 @@ textarea {
 
   .dashboard-metrics {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
-  }
-
-  .modal-backdrop {
-    padding: 9px !important;
   }
 
   :is(.appointment-modal, .slot-search-modal, .patient-edit-modal, .document-modal, .patient-documents-drawer) {
@@ -1309,14 +1262,6 @@ html[data-theme="dark"] :is(input, select, textarea) {
 }
 
 /* Tables and active states */
-:is(.dentcore-table, .data-table, .history-ledger-table) th {
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-muted) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) td {
-  border-color: var(--dc-border) !important;
-}
 
 button.active, [aria-selected="true"] {
   box-shadow: none !important;
@@ -1393,15 +1338,8 @@ html[data-theme="dark"] :is(.admin-extras) {
   margin-inline: auto !important;
 }
 
-.loading-page, .empty-state, .inline-alert, .form-error, .form-success {
+.empty-state, .inline-alert, .form-error, .form-success {
   border-radius: var(--dc-radius) !important;
-}
-
-.loading-page {
-  min-height: 220px;
-  display: grid;
-  place-items: center;
-  color: var(--dc-muted) !important;
 }
 
 .inline-alert {
@@ -1416,11 +1354,11 @@ label {
   color: var(--dc-text);
 }
 
-:is(.form-box, .doctor-picker, .patient-finder label, .settings-form label, .treatment-editor label, .appointment-form-grid label, .slot-search-grid label) {
+:is(.form-box, .doctor-picker, .patient-finder label, .settings-form label, .appointment-form-grid label, .slot-search-grid label) {
   gap: 5px !important;
   color: var(--dc-muted) !important;
   font-size: 0.78rem !important;
-  font-weight: 700 !important;
+  font-weight: 500;
   letter-spacing: 0 !important;
   text-transform: none !important;
 }
@@ -1461,14 +1399,14 @@ label {
   padding: 0 !important;
 }
 
-.patient-actions-menu, .context-menu, .staff-clock-popover, .doctor-notifications-popover {
+.patient-actions-menu, .staff-clock-popover, .doctor-notifications-popover {
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
   background: var(--dc-surface) !important;
   box-shadow: var(--dc-shadow-menu) !important;
 }
 
-.toolbar, .panel-caption, .modal-titlebar, .history-ledger-toolbar, .whatsapp-page-head {
+.toolbar, .modal-titlebar, .history-ledger-toolbar, .whatsapp-page-head {
   min-height: 38px !important;
   border: 1px solid var(--dc-border) !important;
   border-radius: var(--dc-radius) !important;
@@ -1491,18 +1429,14 @@ label {
   letter-spacing: 0 !important;
 }
 
-.toolbar p, .eyebrow, .panel-caption span, .modal-titlebar span, .muted, .muted-note, .muted-cell {
+.toolbar p, .eyebrow, .modal-titlebar span, .muted, .muted-note, .muted-cell {
   color: var(--dc-muted) !important;
   font-size: 0.78rem !important;
   letter-spacing: 0 !important;
   text-transform: none !important;
 }
 
-.panel-caption {
-  gap: 8px !important;
-}
-
-.panel-caption strong, .modal-titlebar strong {
+.modal-titlebar strong {
   color: var(--dc-text) !important;
   font-size: 0.9rem !important;
   font-weight: 760 !important;
@@ -1518,55 +1452,6 @@ label {
 
 :is(.desk-panel, .workspace-section, .side-panel, .settings-form) {
   padding: 10px !important;
-}
-
-.dentcore-table, .data-table, .history-ledger-table {
-  width: 100% !important;
-  border-collapse: separate !important;
-  border-spacing: 0 !important;
-  border: 1px solid var(--dc-border) !important;
-  border-radius: var(--dc-radius) !important;
-  overflow: hidden !important;
-  background: var(--dc-surface) !important;
-  color: var(--dc-text) !important;
-  font-size: 0.82rem !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) th, :is(.dentcore-table, .data-table, .history-ledger-table) td {
-  height: 34px !important;
-  border: 0 !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--dc-border) 78%, transparent) !important;
-  padding: 7px 9px !important;
-  vertical-align: middle !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: var(--dc-surface-soft) !important;
-  color: var(--dc-muted) !important;
-  font-size: 0.72rem !important;
-  font-weight: 780 !important;
-  letter-spacing: 0 !important;
-  text-transform: none !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:last-child td {
-  border-bottom: 0 !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:nth-child(even) td {
-  background: color-mix(in srgb, var(--dc-surface-soft) 48%, var(--dc-surface)) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:hover td {
-  background: color-mix(in srgb, var(--dc-primary) 7%, var(--dc-surface)) !important;
-}
-
-:is(.dentcore-table, .data-table, .history-ledger-table) .selected-row td, :is(.dentcore-table, .data-table, .history-ledger-table) tr.selected-row td {
-  background: color-mix(in srgb, var(--dc-primary) 12%, var(--dc-surface)) !important;
-  color: var(--dc-text) !important;
 }
 
 .dentcore-table td :is(button, a), .data-table td :is(button, a) {
@@ -1942,13 +1827,6 @@ label {
   font-size: 0.78rem !important;
 }
 
-.modal-backdrop {
-  display: grid !important;
-  place-items: center !important;
-  padding: 16px !important;
-  background: rgba(15, 23, 42, 0.32) !important;
-}
-
 :is(.appointment-modal, .slot-search-modal, .patient-edit-modal, .document-modal, .patient-documents-drawer, .patient-appointments-modal, .whatsapp-reminder-modal) {
   width: min(860px, calc(100vw - 32px)) !important;
   max-width: calc(100vw - 32px) !important;
@@ -2064,10 +1942,6 @@ html[data-theme="dark"] :is(.dentcore-table, .data-table, .history-ledger-table)
     overflow-x: auto !important;
     overflow-y: hidden !important;
     scrollbar-width: thin;
-  }
-
-  .modal-backdrop {
-    padding: 8px !important;
   }
 
   :is(.appointment-modal, .slot-search-modal, .patient-edit-modal, .document-modal, .patient-documents-drawer, .patient-appointments-modal, .whatsapp-reminder-modal) {

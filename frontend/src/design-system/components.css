@@ -1,4 +1,5 @@
-.dc-dialog-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: #12202e80; }
+.dc-dialog-backdrop, .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: #12202e80; }
+html[data-theme="dark"] :is(.dc-dialog-backdrop, .modal-backdrop) { background: #03080eb8; }
 .dc-dialog-backdrop > [role="dialog"] { max-width: 100%; max-height: calc(100dvh - 32px); overflow: auto; }
 
 /* Positioning belongs to the shared layer, even when legacy menu skins set insets. */
@@ -18,6 +19,9 @@
   z-index: var(--dc-layer-popover);
 }
 [data-floating-layer]::backdrop { background: transparent; pointer-events: none; }
+.panel-caption { display: flex; align-items: center; flex-wrap: wrap; gap: var(--dc-space-2); min-height: 40px; padding: var(--dc-space-2) var(--dc-space-3); border: 0; border-bottom: 1px solid var(--dc-border); border-radius: 0; background: var(--dc-surface); box-shadow: none; }
+.panel-caption strong { font-size: var(--dc-font-body); font-weight: 650; color: var(--dc-text); }
+.panel-caption span { font-size: 12px; color: var(--dc-muted); }
 .dc-field { display: grid; gap: 6px; margin: 12px 0; font-size: var(--dc-font-body); }
 .dc-field label { font-size: 12px; font-weight: 550; }
 .dc-field-hint, .dc-field-error { font-size: 11px; margin: 0; color: var(--dc-muted); }
@@ -27,19 +31,25 @@
 .dc-status-chip[data-tone="success"] { background: var(--dc-success-soft); color: var(--dc-success); }
 .dc-status-chip[data-tone="warning"] { background: var(--dc-warning-soft); color: var(--dc-warning); }
 .dc-status-chip[data-tone="danger"] { background: var(--dc-danger-soft); color: var(--dc-danger); }
-.dc-empty-state h2 { font-size: 13px; margin: 0 0 4px; }
+.dc-empty-state { display: grid; align-content: start; gap: var(--dc-space-2); padding: var(--dc-space-5) var(--dc-space-3); min-width: 0; }
+.dc-empty-state h2 { font-size: 13px; margin: 0; }
 .dc-empty-state p { color: var(--dc-muted); font-size: 12px; margin: 0; }
+.dc-empty-state-action { margin-top: var(--dc-space-1); }
+.dc-workspace-loading { flex: 1; min-width: 0; padding: var(--dc-space-4); color: var(--dc-muted); font-size: var(--dc-font-body); }
+.dc-workspace-skeleton { display: grid; gap: var(--dc-space-3); margin-top: var(--dc-space-4); }
+.dc-workspace-skeleton > div { height: 36px; border-radius: var(--dc-radius-sm); background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border); }
+.dc-workspace-skeleton > div:first-child { width: 40%; height: 24px; margin-bottom: var(--dc-space-2); }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
 
 /* Shared action skins consume semantic tokens in both themes. */
-:is(.primary-button, .primary-action, .budget-create-button, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary) {
+:is(.primary-button, .primary-action, .btn-primary, .budget-create-button, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary) {
   border: 1px solid var(--dc-primary) !important;
   border-radius: var(--dc-radius-sm);
   background: var(--dc-primary) !important;
   color: var(--dc-on-primary) !important;
   box-shadow: none;
 }
-:is(.primary-button, .primary-action, .budget-create-button, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary):hover:not(:disabled) {
+:is(.primary-button, .primary-action, .btn-primary, .budget-create-button, button[type="submit"], .modal-actions .primary, .whatsapp-reminder-actions .primary):hover:not(:disabled) {
   background: var(--dc-primary-hover) !important;
   border-color: var(--dc-primary-hover) !important;
 }

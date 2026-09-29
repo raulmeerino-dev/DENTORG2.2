@@ -1,3 +1,4 @@
+import { TaskSurface } from '../../design-system/TaskSurface';
 import { getPatientAccount } from '../../api/accounts';
 import { ToolbarContribution } from '../../design-system/ToolbarSlots';
 import { ContextToolbar } from '../../design-system/ContextToolbar';
@@ -197,7 +198,7 @@ function PatientWorkspace() {
   const [dictationContext, setDictationContext] = useState<{ contexto: 'ficha' | 'sesion'; citaId?: string } | null>(null);
   const [pedidoLabContext, setPedidoLabContext] = useState<{ open: boolean; linea: PresupuestoLinea | null }>({ open: false, linea: null });
   const [pedidoLabError, setPedidoLabError] = useState<string | null>(null);
-  const dedicatedTaskOpen = Boolean(designer || recetaModalOpen);
+  const dedicatedTaskOpen = Boolean(designer || recetaModalOpen || documentsDrawerOpen);
   const [patientSearch, setPatientSearch] = useState('');
   const [patientOffset, setPatientOffset] = useState(0);
   const deferredPatientSearch = useDeferredValue(patientSearch);
@@ -1456,18 +1457,10 @@ function PatientWorkspace() {
         />
       )}
       {documentsDrawerOpen && active && (
-        <div className="modal-backdrop" onMouseDown={() => {
+        <TaskSurface title="Documentos y consentimientos" context={fullName(active)} className="dc-patient-documents-task" onClose={() => {
           setDocumentsDrawerOpen(false);
           setDocumentsUploadOpen(false);
         }}>
-          <section className="patient-documents-drawer" onMouseDown={(event) => event.stopPropagation()}>
-            <header className="modal-titlebar">
-              <strong>Documentos y consentimientos</strong>
-              <button type="button" onClick={() => {
-                setDocumentsDrawerOpen(false);
-                setDocumentsUploadOpen(false);
-              }}>Cerrar</button>
-            </header>
             <DocumentosPanel
               pacienteId={active.id}
               documentos={documentosQuery.data ?? []}
@@ -1487,8 +1480,7 @@ function PatientWorkspace() {
               onAbrirPdf={abrirConsentimiento}
               onRevocar={revocarConsentimientoPaciente}
             />}
-          </section>
-        </div>
+        </TaskSurface>
       )}
       {editingPatient && active && (
         <PatientEditModal

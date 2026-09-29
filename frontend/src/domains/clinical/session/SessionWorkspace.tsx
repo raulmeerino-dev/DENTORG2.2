@@ -569,7 +569,7 @@ export function SessionWorkspace({
       </div>
 
       <div className={`dc-session-workbench ${selected ? '' : 'is-empty'}`.trim()}>
-        <section className="desk-panel clinical-session-board">
+        <section className="clinical-session-board">
           {adding && (
             <div className="session-add-panel">
               <CatalogTreatmentSelector items={tratamientos} query={catalogSearch} selectedId={selectedCatalogId}
@@ -635,7 +635,7 @@ export function SessionWorkspace({
           </div>
         </section>
         {selected && (
-          <section className="desk-panel clinical-session-detail">
+          <section className="clinical-session-detail">
             <>
               <div className="session-detail-head">
                 <div className="session-detail-title">

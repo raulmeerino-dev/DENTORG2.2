@@ -85,7 +85,7 @@ describe('NuevoPedidoLaboratorioModal', () => {
         onSubmit={vi.fn()}
       />,
     );
-    const desc = screen.getByLabelText(/Descripcion/) as HTMLInputElement;
+    const desc = screen.getByLabelText(/Descripción/) as HTMLInputElement;
     expect(desc.value).toBe('Corona zirconio');
     const pieza = screen.getByLabelText(/Pieza dental/) as HTMLInputElement;
     expect(pieza.value).toBe('16');
@@ -104,7 +104,7 @@ describe('NuevoPedidoLaboratorioModal', () => {
         onSubmit={onSubmit}
       />,
     );
-    await user.type(screen.getByLabelText(/Descripcion/), 'Corona prov.');
+    await user.type(screen.getByLabelText(/Descripción/), 'Corona prov.');
     await user.selectOptions(screen.getByLabelText(/Laboratorio/), 'lab-1');
     await user.selectOptions(screen.getByLabelText(/Doctor/), 'doc-1');
     await user.click(screen.getByRole('button', { name: /Crear pedido/ }));

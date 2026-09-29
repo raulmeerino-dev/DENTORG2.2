@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { Dialog } from './Dialog';
 import { FloatingPopover } from './FloatingPopover';
+import { ToolbarMenu } from './ContextToolbar';
 
 function Menu({ action }: { action: () => void }) {
   const [open, setOpen] = useState(false);
@@ -19,6 +20,15 @@ function Menu({ action }: { action: () => void }) {
 }
 
 describe('FloatingPopover', () => {
+  it('cierra el menú de toolbar al ejecutar una acción con teclado', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn();
+    render(<ToolbarMenu label="Acciones de la copia"><button onClick={action}>Descargar</button></ToolbarMenu>);
+    await user.click(screen.getByRole('button', { name: 'Acciones de la copia' }));
+    await user.keyboard('{Enter}');
+    expect(action).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
   it('permite navegar por teclado y Escape cierra sólo el menú dentro de un diálogo', async () => {
     const user = userEvent.setup();
     const closeDialog = vi.fn();
