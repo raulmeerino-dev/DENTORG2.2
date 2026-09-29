@@ -51,6 +51,7 @@ export function Odontogram({
   readOnly,
   showDemoHeader = false,
   showLegend = true,
+  showInspector = true,
   enableQuickTreatments,
   quickTreatments,
   onChange,
@@ -348,7 +349,7 @@ export function Odontogram({
               {showLegend ? <OdontogramLegend data={teeth} compact /> : null}
             </div>
 
-            <OdontogramaSidePanel
+            {showInspector && <OdontogramaSidePanel
               tooth={selectedTooth}
               selectedSurface={selectedSurface}
               readOnly={isReadOnly}
@@ -356,7 +357,7 @@ export function Odontogram({
               onSelectSurface={(surface) => handleSelectSurface(selectedTooth.number, surface)}
               onApplyStatus={applyStatus}
               onClearSurface={clearSelectedSurface}
-            />
+            />}
           </div>
         </div>
       </section>

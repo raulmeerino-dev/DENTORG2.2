@@ -19,7 +19,7 @@ import { generarDocumentoPdfPaciente, getDocumentosPaciente, openDocumentoPacien
 import { getCitas } from '../../api/scheduling';
 import { getDoctores } from '../../api/identity';
 import { getTratamientosCatalogo } from '../../api/treatmentCatalog';
-import { formatDate, money } from '../../shared/format';
+import { money } from '../../shared/format';
 import { fullName } from './patientName';
 import { invalidatePatientWorkspaceQueries } from '../../shared/query/queryInvalidation';
 import type { ApiPaciente,Consentimiento,DocumentoPaciente,Factura,HistorialClinico,HistorialSinFacturar,NotaDentalCreateInput,PagoAnticipadoPaciente,Presupuesto,PresupuestoLinea,SesionClinicaItem,SesionClinicaItemCreateInput,SesionClinicaItemUpdateInput,SesionTratamientoRealizadoInput,TrabajoLaboratorioCreateInput } from '../../api/types';
@@ -136,10 +136,6 @@ const PATIENT_PAGE_SIZE = 50;
 
 function isClinicalTab(tab: WorkTab): tab is ClinicalTab {
   return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
-}
-
-function isPresupuestoCerrado(estado?: string | null) {
-  return estado === 'aceptado' || estado === 'facturado' || estado === 'rechazado';
 }
 
 function presupuestoEstadoLabel(estado: string) {
@@ -925,7 +921,6 @@ function PatientWorkspace() {
     const createDisabled = !active || doctoresQuery.isLoading || !doctoresQuery.data?.length || nuevoPresupuesto.isPending;
     const createError = nuevoPresupuesto.error instanceof Error ? nuevoPresupuesto.error.message : null;
     const createLabel = nuevoPresupuesto.isPending ? 'Creando...' : 'Crear nuevo presupuesto';
-    const activeBudgetClosed = isPresupuestoCerrado(presupuesto?.estado);
     const selector = (
       <>
         {(!active || noDoctorsConfigured || createError) && (
@@ -935,27 +930,25 @@ function PatientWorkspace() {
             {active && doctoresQuery.data?.length && createError}
           </div>
         )}
-        <div className="presupuesto-selector" aria-label="Presupuestos del paciente">
+        <div className="dc-budget-selector" aria-label="Presupuestos del paciente">
           {presupuestos.map((p) => {
-            const totalAceptadoPresupuesto = Number(p.total_aceptado ?? 0);
             return (
               <button
                 key={p.id}
                 type="button"
-                className={`presupuesto-pill${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''} presupuesto-pill-${p.estado}`}
+                className={`dc-budget-choice${(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id ? ' active' : ''}`}
+                aria-pressed={(selectedPresupuestoId ?? presupuestos[0]?.id) === p.id}
                 onClick={() => openBudget(p.id)}
               >
                 <span className="pp-num">#{p.numero}</span>
                 <span className="pp-estado">{presupuestoEstadoLabel(p.estado)}</span>
-                <span className="pp-date">{formatDate(p.fecha).slice(0, 5)}</span>
                 <span className="pp-total">Total {money(Number(p.total ?? 0))}</span>
-                {totalAceptadoPresupuesto > 0 && <span className="pp-accepted">Aceptado {money(totalAceptadoPresupuesto)}</span>}
               </button>
             );
           })}
           <button
             type="button"
-            className="presupuesto-pill presupuesto-pill-nuevo"
+            className="dc-budget-choice dc-budget-new"
             aria-label={createLabel}
             title={createLabel}
             onClick={() => nuevoPresupuesto.mutate()}
@@ -964,26 +957,11 @@ function PatientWorkspace() {
             {nuevoPresupuesto.isPending ? 'Creando...' : '+ Nuevo'}
           </button>
         </div>
-        {activeBudgetClosed && presupuesto && (
-          <div className={`budget-closed-notice budget-closed-${presupuesto.estado}`} role="note">
-            <div>
-              <strong>Este presupuesto ya esta {presupuestoEstadoLabel(presupuesto.estado).toLowerCase()}.</strong>
-              <span>Para nuevos tratamientos crea un nuevo presupuesto.</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => nuevoPresupuesto.mutate()}
-              disabled={createDisabled}
-            >
-              {createLabel}
-            </button>
-          </div>
-        )}
       </>
     );
 
     return (
-      <section className="budget-main-workspace budget-context-workspace" aria-label="Presupuestos">
+      <section className="dc-patient-budgets" aria-label="Presupuestos">
         {selector}
         {!presupuesto && !presupuestosQuery.isLoading && (
           <div className="desk-panel empty-state">No hay presupuestos para este paciente.</div>
@@ -993,6 +971,7 @@ function PatientWorkspace() {
             key={presupuesto.id}
             onOpenBudget={(budget) => { queryClient.setQueryData<Presupuesto[]>(['presupuestos', budget.paciente_id], (current = []) => [budget, ...current.filter(item => item.id !== budget.id)]); openBudget(budget.id); }}
             presupuesto={presupuesto}
+            pendingLineIds={trabajosPendientes.filter(item => !item.realizado).map(item => item.presupuesto_linea_id)}
             paciente={active}
             tratamientos={tratamientosQuery.data ?? []}
             userRole={user?.rol}

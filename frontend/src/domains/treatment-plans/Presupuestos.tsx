@@ -1,576 +1,130 @@
-import { ToolbarMenu } from '../../design-system/ContextToolbar';
-import { StatusChip } from '../../design-system/StatusChip';
-import { Dialog } from '../../design-system/Dialog';
-import { useState } from 'react';
-import type { CSSProperties } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
+import { ScanLine, X } from 'lucide-react';
 import { toast } from 'sonner';
-import type {
-  ApiPaciente,
-  Cita,
-  Presupuesto,
-  PresupuestoLinea,
-  TratamientoCatalogo,
-  UserRole,
-} from '../../api/types';
-import {
-  addPresupuestoLinea,
-  aceptarPresupuesto,
-  convertirPresupuestoFactura,
-  deletePresupuestoLinea,
-  openPresupuestoPdf,
-  createPresupuesto,
-  presentarPresupuesto,
-  rechazarPresupuesto,
-  updatePresupuestoLinea,
-} from '../../api/treatmentPlans';
-import { colorForTreatment } from '../clinical/components/treatmentVisual';
+import type { ApiPaciente, Cita, Presupuesto, PresupuestoLinea, TratamientoCatalogo, UserRole } from '../../api/types';
+import { openPresupuestoPdf } from '../../api/treatmentPlans';
+import { getApiErrorMessage } from '../../api/errors';
+import { Dialog } from '../../design-system/Dialog';
 import { formatDate, money } from '../../shared/format';
-import { invalidatePatientWorkspaceQueries } from '../../shared/query/queryInvalidation';
-import { TreatmentBadge } from '../clinical/components/TreatmentBadge';
+import { useSessionDraft } from '../identity/session/sessionDrafts';
 import { BudgetOdontogramFlow } from '../clinical/odontogram';
-import { CatalogTreatmentSelector } from '../clinical/treatment-selection/TreatmentSelector';
+import { BudgetHeader } from './BudgetHeader';
+import { BudgetLineEditor } from './BudgetLineEditor';
+import { BudgetLines } from './BudgetLines';
+import { budgetClosed, budgetTotals, draftFromLine, emptyBudgetDraft, lineEditable, parseBudgetTeeth, validateBudgetDraft, type BudgetLineDraft } from './budgetView';
+import { BudgetBatchError, useBudgetMutations, type BudgetAction } from './useBudgetMutations';
 import './budget-responsive.css';
 
+type Confirmation = { kind: 'accept'; line?: PresupuestoLinea } | { kind: 'delete'; line: PresupuestoLinea } | { kind: 'invoice' | 'reject' };
 
-export function PresupuestoPanel({
-  presupuesto,
-  paciente,
-  tratamientos,
-  userRole,
-  onOpenBudget,
-}: {
-  presupuesto: Presupuesto;
-  paciente: ApiPaciente;
-  tratamientos: TratamientoCatalogo[];
-  userRole?: UserRole | null;
-  onOpenBudget?: (budget: Presupuesto) => void;
+export function PresupuestoPanel({ presupuesto, paciente, tratamientos, userRole, onOpenBudget, pendingLineIds }: {
+  presupuesto: Presupuesto; paciente: ApiPaciente; tratamientos: TratamientoCatalogo[];
+  pendingLineIds?: string[]; userRole?: UserRole | null; onOpenBudget?: (budget: Presupuesto) => void;
 }) {
-  const queryClient = useQueryClient();
-  const [selectedTreatmentId, setSelectedTreatmentId] = useState('');
-  const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
-  const [selectedLineRevision, setSelectedLineRevision] = useState<number | undefined>();
-  const lineaSeleccionada = presupuesto.lineas.find((line) => line.id === selectedLineId) ?? null;
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
-  const [pieza, setPieza] = useState('');
-  const [caras, setCaras] = useState('');
-  const [descuento, setDescuento] = useState('0');
-  const [precioLinea, setPrecioLinea] = useState('');
-  const [catalogSearch, setCatalogSearch] = useState('');
+  const [draftText, setDraftText] = useSessionDraft(`budget-line:${presupuesto.id}`);
+  const draft: BudgetLineDraft = draftText ? JSON.parse(draftText) : emptyBudgetDraft();
+  const setDraft = (value: BudgetLineDraft) => setDraftText(JSON.stringify(value));
   const [mapOpen, setMapOpen] = useState(false);
-  const [rechazarOpen, setRechazarOpen] = useState(false);
-  const [motivoRechazo, setMotivoRechazo] = useState('');
-  const selectedTreatment = tratamientos.find((item) => item.id === selectedTreatmentId);
+  const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
+  const [reason, setReason] = useState('');
+  const [replaceDraft, setReplaceDraft] = useState<BudgetLineDraft | null>(null);
+  const editor = useRef<HTMLDivElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const mutation = useBudgetMutations(presupuesto);
+  const closed = budgetClosed(presupuesto);
+  const totals = budgetTotals(presupuesto);
+  const selected = presupuesto.lineas.find(line => line.id === draft.lineId);
+  const editUnavailable = Boolean(draft.lineId && (!selected || !lineEditable(presupuesto, selected)));
+  const dirty = Boolean(draft.treatmentId || draft.query || draft.teeth || draft.faces || draft.price);
 
-  const invalidate = () => invalidatePatientWorkspaceQueries(queryClient, presupuesto.paciente_id);
-
-  const addLine = useMutation({
-    mutationFn: () => {
-      if (!selectedTreatment) throw new Error('Seleccione tratamiento');
-      return addPresupuestoLinea(presupuesto.id, {
-        tratamiento_id: selectedTreatment.id,
-        pieza_dental: pieza ? Number(pieza) : null,
-        caras: caras || null,
-        precio_unitario: precioLinea || selectedTreatment.precio,
-        descuento_porcentaje: descuento || 0,
-      });
-    },
-    onSuccess: invalidate,
-  });
-
-  const updateLine = useMutation({
-    mutationFn: (
-      patch: Partial<{
-        pieza_dental: number | null;
-        caras: string | null;
-        precio_unitario: string | number;
-        descuento_porcentaje: string | number;
-        aceptado: boolean;
-      }>,
-    ) => {
-      if (!lineaSeleccionada) throw new Error('Seleccione linea');
-      return updatePresupuestoLinea(presupuesto.id, lineaSeleccionada.id, { ...patch, revision: selectedLineRevision });
-    },
-    onSuccess: (line) => { setSelectedLineRevision(line.revision); invalidate(); },
-  });
-
-  const deleteLine = useMutation({
-    mutationFn: () => {
-      if (!lineaSeleccionada) throw new Error('Seleccione linea');
-      return deletePresupuestoLinea(presupuesto.id, lineaSeleccionada.id);
-    },
-    onSuccess: () => {
-      setSelectedLineId(null);
-      invalidate();
-    },
-  });
-
-  const duplicateBudget = useMutation({
-    mutationFn: () => createPresupuesto(paciente.id, presupuesto.doctor_id, presupuesto.lineas),
-    onSuccess: (budget) => {
-      invalidate();
-      onOpenBudget?.(budget);
-      toast.success('Alternativa creada como borrador.');
-    },
-  });
-
-  const presentBudget = useMutation({
-    mutationFn: () => presentarPresupuesto(presupuesto.id),
-    onSuccess: () => {
-      invalidate();
-      toast.success('Presupuesto presentado.');
-    },
-  });
-
-  const acceptBudget = useMutation({
-    mutationFn: (lineIds?: string[]) => aceptarPresupuesto(presupuesto.id, lineIds),
-    onSuccess: () => {
-      invalidate();
-      toast.success('Líneas aceptadas disponibles en Pendientes.');
-    },
-  });
-
-  const rejectBudget = useMutation({
-    mutationFn: (motivo: string | null) => rechazarPresupuesto(presupuesto.id, motivo || null),
-    onSuccess: () => {
-      setRechazarOpen(false);
-      setMotivoRechazo('');
-      invalidate();
-      toast.success('Presupuesto rechazado.');
-    },
-  });
-
-  const invoiceBudget = useMutation({
-    mutationFn: () => convertirPresupuestoFactura(presupuesto.id),
-    onSuccess: () => {
-      invalidate();
-      setInvoiceOpen(false);
-      toast.success('Presupuesto convertido en factura.');
-    },
-  });
-
-  const acceptedLines = presupuesto.lineas.filter((linea) => linea.aceptado);
-  const totalBruto = presupuesto.lineas.reduce((sum, l) => sum + Number(l.precio_unitario), 0);
-  const totalDescuentos = totalBruto - presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
-  const totalNeto = presupuesto.lineas.reduce((sum, l) => sum + Number(l.importe_neto), 0);
-  const totalAceptado = acceptedLines.reduce((sum, l) => sum + Number(l.importe_neto), 0);
-  const presupuestoCerrado = ['aceptado', 'facturado', 'rechazado'].includes(presupuesto.estado);
-  const canInvoiceBudget =
-    acceptedLines.length > 0 && !['facturado', 'rechazado'].includes(presupuesto.estado);
-
-  function loadLine(linea: PresupuestoLinea) {
-    setSelectedLineRevision(linea.revision);
-    setSelectedLineId(linea.id);
-    setPieza(linea.pieza_dental ? String(linea.pieza_dental) : '');
-    setCaras(linea.caras ?? '');
-    setDescuento(String(linea.descuento_porcentaje ?? '0'));
-    setPrecioLinea(String(linea.precio_unitario ?? ''));
-    setSelectedTreatmentId(linea.tratamiento_id);
-    setCatalogSearch(linea.tratamiento?.nombre ?? tratamientos.find(item => item.id === linea.tratamiento_id)?.nombre ?? '');
+  function loadDraft(next: BudgetLineDraft) {
+    if (dirty) { setReplaceDraft(next); return; }
+    setDraft(next);
+    editor.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
-
-  function selectTreatment(id: string) {
-    const tratamiento = tratamientos.find((item) => item.id === id);
-    setSelectedTreatmentId(id);
-    setSelectedLineId(null);
-    setPrecioLinea(tratamiento?.precio ?? '');
-    setCatalogSearch(tratamiento?.nombre ?? '');
+  async function execute(action: BudgetAction) {
+    if (mutation.isPending) return;
+    try {
+      const next = await mutation.mutateAsync(action);
+      if (action.kind === 'add' || action.kind === 'edit') {
+        setDraftText('');
+        toast.success(action.kind === 'edit' ? 'Línea actualizada.' : `${action.lines.length === 1 ? 'Tratamiento añadido' : `${action.lines.length} líneas añadidas`}.`);
+      }
+      if (action.kind === 'delete' && draft.lineId === action.id) setDraftText('');
+      if (action.kind === 'duplicate' && next && mounted.current) onOpenBudget?.(next);
+      if (action.kind === 'accept') toast.success('Líneas aceptadas disponibles en Pendientes.');
+      if (action.kind === 'invoice') toast.success('Factura creada. El cobro se registra por separado.');
+      setConfirmation(null);
+    } catch (error) {
+      if (error instanceof BudgetBatchError && error.saved > 0) setDraft({ ...draft, teeth: error.remaining.map(line => line.pieza_dental).filter(Boolean).join(', ') });
+    }
   }
-
-  function abrirPdfPresupuesto() {
-    void openPresupuestoPdf(presupuesto.id).catch((error) => {
-      toast.error(error instanceof Error ? error.message : 'No se pudo abrir el presupuesto.');
-    });
+  function saveLine() {
+    if (closed || editUnavailable || validateBudgetDraft(draft)) return;
+    const pieces = parseBudgetTeeth(draft.teeth)!;
+    const common = { caras: draft.faces || null, precio_unitario: draft.price, descuento_porcentaje: draft.discount };
+    if (draft.lineId) void execute({ kind: 'edit', id: draft.lineId, patch: { ...common, pieza_dental: pieces[0] ?? null, revision: draft.revision } });
+    else void execute({ kind: 'add', lines: (pieces.length ? pieces : [null]).map(piece => ({ ...common, tratamiento_id: draft.treatmentId, pieza_dental: piece })) });
   }
-
-  const dtoAcum = presupuesto.lineas.reduce((sum, l) => sum + Number(l.descuento_porcentaje ?? 0), 0);
-  const avgDto = presupuesto.lineas.length > 0 ? Math.round(dtoAcum / presupuesto.lineas.length) : 0;
-  const hasPendingWork = acceptedLines.some((linea) => linea.pasado_trabajo_pendiente);
-  const flowSteps = [
-    {
-      key: 'borrador',
-      label: 'Borrador',
-      done: presupuesto.lineas.length > 0,
-      current: presupuesto.estado === 'borrador',
-    },
-    {
-      key: 'presentado',
-      label: 'Presentado',
-      done: ['presentado', 'aceptado', 'facturado'].includes(presupuesto.estado),
-      current: presupuesto.estado === 'presentado',
-    },
-    {
-      key: 'aceptado',
-      label: 'Aceptado',
-      done: acceptedLines.length > 0 || ['aceptado', 'facturado'].includes(presupuesto.estado),
-      current: presupuesto.estado === 'aceptado' && !hasPendingWork,
-    },
-    {
-      key: 'pendiente',
-      label: 'Trabajo pendiente',
-      done: hasPendingWork || presupuesto.estado === 'facturado',
-      current: presupuesto.estado === 'aceptado' && hasPendingWork,
-    },
-    {
-      key: 'factura',
-      label: 'Factura',
-      done: presupuesto.estado === 'facturado',
-      current: presupuesto.estado === 'facturado',
-    },
-  ];
-
-  return (
-    <section className="budget-panel">
-      {/* Redesigned header */}
-      <div className="budget-panel-header">
-        <div className="budget-header-top">
-          <div className="budget-panel-title">
-            <strong className="budget-num">Presupuesto #{presupuesto.numero}</strong>
-            <StatusChip tone={presupuesto.estado === 'rechazado' ? 'danger' : ['aceptado', 'facturado'].includes(presupuesto.estado) ? 'success' : presupuesto.estado === 'parcial' ? 'warning' : presupuesto.estado === 'presentado' ? 'info' : 'neutral'}>{presupuesto.estado}</StatusChip>
-            <span className="budget-date">{formatDate(presupuesto.fecha)}</span>
-          </div>
-          <div className="budget-panel-kpis">
-            <span>
-              <em>Líneas</em>
-              {presupuesto.lineas.length}
-            </span>
-            <span>
-              <em>Total</em>
-              {money(totalNeto)}
-            </span>
-            <span>
-              <em>Aceptado</em>
-              {money(totalAceptado)}
-            </span>
-            {avgDto > 0 && (
-              <span>
-                <em>Dto med.</em>
-                {avgDto}%
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="budget-panel-actions budget-primary-actions">
-          <button
-            className="primary-action"
-            onClick={() => presentBudget.mutate()}
-            disabled={presentBudget.isPending || presupuesto.estado !== 'borrador'}
-          >
-            Presentar
-          </button>
-          <button
-            onClick={() => acceptBudget.mutate(undefined)}
-            disabled={acceptBudget.isPending || !presupuesto.lineas.length || presupuestoCerrado}
-            className="btn-accept"
-          >
-            Aceptar todo
-          </button>
-          <button
-            onClick={() => setInvoiceOpen(true)}
-            disabled={
-              invoiceBudget.isPending || !canInvoiceBudget || !['admin', 'recepcion'].includes(userRole ?? '')
-            }
-            className="btn-invoice"
-          >
-            Facturar
-          </button>
-          <button onClick={abrirPdfPresupuesto}>PDF</button>
-          <ToolbarMenu label="Más acciones del presupuesto">
-              <button
-                onClick={() => acceptBudget.mutate([lineaSeleccionada!.id])}
-                disabled={
-                  !lineaSeleccionada ||
-                  lineaSeleccionada.aceptado ||
-                  acceptBudget.isPending ||
-                  presupuestoCerrado
-                }
-              >
-                Aceptar línea seleccionada
-              </button>
-              <button onClick={() => duplicateBudget.mutate()} disabled={duplicateBudget.isPending}>
-                Duplicar como alternativa
-              </button>
-              <button
-                onClick={() => deleteLine.mutate()}
-                disabled={!lineaSeleccionada || lineaSeleccionada.aceptado || deleteLine.isPending || presupuestoCerrado}
-              >
-                Borrar línea
-              </button>
-              <button
-                onClick={() => setRechazarOpen(true)}
-                disabled={rejectBudget.isPending || presupuestoCerrado || acceptedLines.length > 0}
-                title={acceptedLines.length > 0 ? 'Contiene trabajo aceptado. Duplica una alternativa para una nueva propuesta.' : undefined}
-                className="danger"
-              >
-                Rechazar
-              </button>
-          </ToolbarMenu>
-        </div>
-        <div className="budget-flow-strip" aria-label="Flujo de presupuesto a factura">
-          {flowSteps.map((step, index) => (
-            <span
-              key={step.key}
-              className={`${step.done ? 'done' : ''} ${step.current ? 'current' : ''}`.trim()}
-            >
-              <b>{index + 1}</b>
-              {step.label}
-            </span>
-          ))}
-        </div>
+  function confirmAction() {
+    if (!confirmation) return;
+    if (confirmation.kind === 'accept') void execute({ kind: 'accept', ids: confirmation.line ? [confirmation.line.id] : undefined });
+    else if (confirmation.kind === 'delete') void execute({ kind: 'delete', id: confirmation.line.id });
+    else if (confirmation.kind === 'reject') void execute({ kind: 'reject', reason });
+    else void execute({ kind: 'invoice' });
+  }
+  const confirmTitle = confirmation?.kind === 'accept' ? 'Confirmar aceptación' : confirmation?.kind === 'invoice' ? 'Confirmar facturación' : confirmation?.kind === 'delete' ? 'Eliminar línea' : 'Rechazar presupuesto';
+  const error = mutation.isError ? getApiErrorMessage(mutation.error, 'No se pudo completar la acción.') : null;
+  return <section className="dc-budget-panel">
+    <BudgetHeader budget={presupuesto} patient={paciente} role={userRole} busy={mutation.isPending || dirty}
+      onPresent={() => void execute({ kind: 'present' })} onAccept={() => setConfirmation({ kind: 'accept' })}
+      onInvoice={() => setConfirmation({ kind: 'invoice' })} onDuplicate={() => void execute({ kind: 'duplicate' })}
+      onReject={() => { setReason(''); setConfirmation({ kind: 'reject' }); }}
+      onPdf={() => { void openPresupuestoPdf(presupuesto.id).catch(error => toast.error(getApiErrorMessage(error, 'No se pudo abrir el PDF.'))); }} />
+    {dirty && <p className="dc-budget-draft-note">{closed ? 'El presupuesto se ha cerrado. Este borrador no se ha guardado.' : `${draft.lineId ? 'Edición' : 'Línea'} sin guardar. Guarda o cancela antes de cambiar el estado del presupuesto.`}
+      {closed && <button disabled={mutation.isPending} onClick={() => setDraftText('')}>Descartar borrador</button>}</p>}
+    {error && !confirmation && <p className="inline-alert" role="alert">{error}</p>}
+    <div className="dc-budget-planning-toolbar"><div><strong>Planificación por piezas</strong><span>Selecciona una o varias piezas</span></div>
+      <button type="button" aria-expanded={mapOpen} aria-controls="budget-odontogram" onClick={() => setMapOpen(!mapOpen)}><ScanLine size={16} />{mapOpen ? 'Ocultar odontograma' : closed ? 'Ver odontograma' : 'Abrir odontograma'}</button></div>
+    <div className={`dc-budget-workbench${closed ? ' is-readonly' : ''}`}>
+      {!closed && <div ref={editor} className="dc-budget-editor-column">
+        <BudgetLineEditor draft={draft} treatments={tratamientos} disabled={mutation.isPending || editUnavailable} saving={mutation.isPending} onChange={setDraft} onSave={saveLine}
+          onCancel={() => { setDraftText(''); mutation.reset(); }} />
+        {editUnavailable && <p role="alert">La línea ya no admite cambios. <button onClick={() => setDraftText('')}>Cerrar edición</button></p>}
+        <small className="dc-budget-help dc-budget-draft-help">El borrador se conserva al cambiar de sección. Guarda antes de recargar o cerrar.</small>
+      </div>}
+      <div className="dc-budget-detail-column">
+        {mapOpen && <section id="budget-odontogram" className="dc-budget-map" aria-label="Planificación en odontograma">
+          <BudgetOdontogramFlow paciente={paciente} presupuesto={presupuesto} userRole={userRole}
+            disabled={mutation.isPending || closed || editUnavailable}
+            onSelectPiece={(piece, faces) => {
+              if (closed || mutation.isPending || editUnavailable) return;
+              const pieces = parseBudgetTeeth(draft.teeth) ?? [];
+              setDraft({ ...draft, teeth: draft.lineId ? String(piece) : [...new Set([...pieces, piece])].join(', '), faces: faces ?? draft.faces });
+            }} />
+        </section>}
+        <BudgetLines budget={presupuesto} pendingLineIds={pendingLineIds} selectedId={draft.lineId} disabled={mutation.isPending}
+          onEdit={line => { if (line.id !== draft.lineId) loadDraft(draftFromLine(line)); }}
+          onDuplicate={line => loadDraft(draftFromLine(line, true))}
+          onDelete={line => setConfirmation({ kind: 'delete', line })}
+          onAccept={line => { if (dirty) toast.info('Guarda o cancela la edición antes de aceptar una línea.'); else setConfirmation({ kind: 'accept', line }); }} />
       </div>
-
-      {[
-        addLine,
-        updateLine,
-        deleteLine,
-        presentBudget,
-        acceptBudget,
-        rejectBudget,
-        invoiceBudget,
-        duplicateBudget,
-      ].some((action) => action.isError) && (
-        <p className="inline-alert" role="alert">
-          {[
-            addLine,
-            updateLine,
-            deleteLine,
-            presentBudget,
-            acceptBudget,
-            rejectBudget,
-            invoiceBudget,
-            duplicateBudget,
-          ].find((action) => action.isError)?.error?.message ?? 'No se pudo completar la acción.'}
-        </p>
-      )}
-      <details
-        className="budget-step-panel"
-        open={mapOpen}
-        onToggle={(event) => setMapOpen(event.currentTarget.open)}
-      >
-        <summary>Planificar por piezas · abrir odontograma</summary>
-        {mapOpen && (
-          <BudgetOdontogramFlow
-            paciente={paciente}
-            presupuesto={presupuesto}
-            tratamientos={tratamientos}
-            userRole={userRole}
-          />
-        )}
-      </details>
-
-      {/* Workbench */}
-      <details className="budget-step-panel" open>
-        <summary>Añadir o editar tratamientos desde catálogo</summary>
-        <div className="budget-workbench">
-          <aside className="budget-treatment-picker">
-            <CatalogTreatmentSelector items={tratamientos} query={catalogSearch} selectedId={selectedTreatmentId}
-              label="Buscar tratamiento" placeholder="Buscar tratamiento" showPrice
-              disabled={presupuestoCerrado} onQueryChange={query => { setCatalogSearch(query); setSelectedTreatmentId(''); setSelectedLineId(null); }}
-              onSelect={tratamiento => selectTreatment(tratamiento.id)} />
-          </aside>
-          <div className="budget-line-editor">
-            <label>
-              Tratamiento
-              <input readOnly value={selectedTreatment?.nombre ?? ''} />
-            </label>
-            <label>
-              Pieza
-              <input value={pieza} onChange={(event) => setPieza(event.target.value)} placeholder="FDI" />
-            </label>
-            <label>
-              Caras
-              <input
-                value={caras}
-                onChange={(event) => setCaras(event.target.value.toUpperCase())}
-                placeholder="MOD"
-              />
-            </label>
-            <label>
-              Dto %<input value={descuento} onChange={(event) => setDescuento(event.target.value)} />
-            </label>
-            <label>
-              Precio
-              <input
-                value={precioLinea || selectedTreatment?.precio || ''}
-                onChange={(event) => setPrecioLinea(event.target.value.replace(',', '.'))}
-              />
-            </label>
-            <div className="budget-actions">
-              <button
-                className="primary-action"
-                onClick={() => addLine.mutate()}
-                disabled={!selectedTreatment || addLine.isPending || presupuestoCerrado}
-              >
-                Añadir
-              </button>
-              <button
-                onClick={() =>
-                  updateLine.mutate({
-                    pieza_dental: pieza ? Number(pieza) : null,
-                    caras: caras || null,
-                    precio_unitario: precioLinea || selectedTreatment?.precio || 0,
-                    descuento_porcentaje: descuento || 0,
-                  })
-                }
-                disabled={!lineaSeleccionada || lineaSeleccionada.aceptado || updateLine.isPending || presupuestoCerrado}
-              >
-                Modificar
-              </button>
-            </div>
-          </div>
-        </div>
-      </details>
-
-      {/* Lines table with totals row */}
-      <div className="budget-lines-scroll" role="region" aria-label="Líneas del presupuesto" tabIndex={0}>
-        <table className="dentcore-table">
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Tratamiento</th>
-              <th>Pieza</th>
-              <th>Caras</th>
-              <th className="num">Dto%</th>
-              <th className="num">Importe</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {presupuesto.lineas.map((linea) => (
-              <tr
-                key={linea.id}
-                className={lineaSeleccionada?.id === linea.id ? 'selected-row' : ''}
-                style={{ '--treatment-color': colorForTreatment(linea.tratamiento) } as CSSProperties}
-                onClick={() => loadLine(linea)}
-              >
-                <td>
-                  <TreatmentBadge tratamiento={linea.tratamiento} />
-                </td>
-                <td>{linea.tratamiento?.nombre ?? 'Tratamiento'}</td>
-                <td>{linea.pieza_dental ?? ''}</td>
-                <td>{linea.caras ?? ''}</td>
-                <td className="num">{linea.descuento_porcentaje ? `${linea.descuento_porcentaje}%` : '—'}</td>
-                <td className="num">{money(linea.importe_neto)}</td>
-                <td>
-                  <span
-                    className={`linea-estado-badge linea-estado-${linea.aceptado ? 'aceptado' : 'planificado'}`}
-                  >
-                    {linea.aceptado ? 'Aceptado' : 'Planificado'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          {presupuesto.lineas.length > 0 && (
-            <tfoot className="budget-totals-row">
-              <tr>
-                <td colSpan={5} className="totals-label">
-                  Total bruto
-                </td>
-                <td className="num">{money(totalBruto)}</td>
-                <td />
-              </tr>
-              {totalDescuentos > 0.005 && (
-                <tr>
-                  <td colSpan={5} className="totals-label">
-                    Descuentos
-                  </td>
-                  <td className="num totals-discount">-{money(totalDescuentos)}</td>
-                  <td />
-                </tr>
-              )}
-              <tr className="totals-neto">
-                <td colSpan={5} className="totals-label">
-                  Total neto
-                </td>
-                <td className="num">{money(totalNeto)}</td>
-                <td />
-              </tr>
-              <tr>
-                <td colSpan={5} className="totals-label">
-                  Aceptado
-                </td>
-                <td className="num totals-aceptado">{money(totalAceptado)}</td>
-                <td />
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
-
-      {invoiceOpen && (
-        <Dialog
-          label="Confirmar facturación"
-          onClose={() => setInvoiceOpen(false)}
-          closeDisabled={invoiceBudget.isPending}
-          className="patient-edit-modal"
-        >
-          <div className="modal-titlebar">
-            <strong>Facturar presupuesto #{presupuesto.numero}</strong>
-            <button onClick={() => setInvoiceOpen(false)} disabled={invoiceBudget.isPending}>
-              Cerrar
-            </button>
-          </div>
-          <p>
-            Se facturarán {acceptedLines.length} líneas aceptadas por {money(totalAceptado)}. El cobro se
-            registra por separado.
-          </p>
-          <footer className="modal-actions">
-            <button onClick={() => setInvoiceOpen(false)} disabled={invoiceBudget.isPending}>
-              Cancelar
-            </button>
-            <button
-              className="primary-action"
-              onClick={() => invoiceBudget.mutate()}
-              disabled={invoiceBudget.isPending}
-            >
-              Confirmar factura
-            </button>
-          </footer>
-        </Dialog>
-      )}
-      {rechazarOpen && (
-        <div className="modal-backdrop" onMouseDown={() => setRechazarOpen(false)}>
-          <section
-            className="patient-edit-modal"
-            style={{ maxWidth: 380 }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="modal-titlebar">
-              <strong>Rechazar presupuesto</strong>
-              <button type="button" onClick={() => setRechazarOpen(false)}>
-                Cerrar
-              </button>
-            </div>
-            <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              <label>
-                Motivo (opcional)
-                <input
-                  autoFocus
-                  value={motivoRechazo}
-                  onChange={(e) => setMotivoRechazo(e.target.value)}
-                  placeholder="Precio, otro..."
-                />
-              </label>
-            </div>
-            <footer className="modal-actions">
-              <button type="button" onClick={() => setRechazarOpen(false)}>
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="primary-action"
-                disabled={rejectBudget.isPending}
-                onClick={() => rejectBudget.mutate(motivoRechazo || null)}
-              >
-                Rechazar presupuesto
-              </button>
-            </footer>
-          </section>
-        </div>
-      )}
-    </section>
-  );
+    </div>
+    {replaceDraft && <Dialog label="Cambiar línea en edición" onClose={() => setReplaceDraft(null)} className="dc-budget-dialog">
+      <h3>Cambiar línea en edición</h3><p>Hay cambios sin guardar. Puedes seguir editando o descartarlos para abrir la otra línea.</p>
+      <footer><button onClick={() => setReplaceDraft(null)}>Seguir editando</button><button className="primary-action" onClick={() => { setDraft(replaceDraft); setReplaceDraft(null); editor.current?.scrollIntoView({ block: 'nearest' }); }}>Descartar y cambiar</button></footer>
+    </Dialog>}
+    {confirmation && <Dialog label={confirmTitle} onClose={() => { if (!mutation.isPending) setConfirmation(null); }} closeDisabled={mutation.isPending} className="dc-budget-dialog">
+      <div className="dc-budget-section-title"><h3>{confirmTitle}</h3><button aria-label="Cerrar confirmación" disabled={mutation.isPending} onClick={() => setConfirmation(null)}><X size={16} /></button></div>
+      {confirmation.kind === 'accept' && <p>Se {confirmation.line || presupuesto.lineas.filter(line => !line.aceptado).length === 1 ? 'aceptará' : 'aceptarán'} {confirmation.line ? '1 línea' : `${presupuesto.lineas.filter(line => !line.aceptado).length} líneas`} por {money(confirmation.line ? confirmation.line.importe_neto : totals.pending)} €. Quedarán disponibles en Pendientes y no podrán editarse como propuesta.</p>}
+      {confirmation.kind === 'invoice' && <p>Se facturarán {presupuesto.lineas.filter(line => line.aceptado).length} líneas aceptadas por {money(totals.accepted)} €. El cobro se registra por separado.</p>}
+      {confirmation.kind === 'delete' && <p>Se eliminará «{confirmation.line.tratamiento?.nombre ?? 'Tratamiento'}»{confirmation.line.pieza_dental ? ` de la pieza ${confirmation.line.pieza_dental}` : ''} de este presupuesto.</p>}
+      {confirmation.kind === 'reject' && <label>Motivo (opcional)<textarea value={reason} maxLength={500} onChange={event => setReason(event.target.value)} disabled={mutation.isPending} /></label>}
+      {error && <p className="inline-alert" role="alert">{error}</p>}
+      <footer><button disabled={mutation.isPending} onClick={() => setConfirmation(null)}>Cancelar</button><button className="primary-action" disabled={mutation.isPending} onClick={confirmAction}>{mutation.isPending ? 'Guardando…' : confirmation.kind === 'invoice' ? 'Confirmar factura' : confirmation.kind === 'accept' ? 'Confirmar aceptación' : confirmation.kind === 'delete' ? 'Eliminar línea' : 'Rechazar presupuesto'}</button></footer>
+    </Dialog>}
+  </section>;
 }
 
 export function CitasPacientePanel({ citas }: { citas: Cita[] }) {

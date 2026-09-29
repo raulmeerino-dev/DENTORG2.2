@@ -133,6 +133,7 @@ export type OdontogramProps = {
   readOnly?: boolean;
   showDemoHeader?: boolean;
   showLegend?: boolean;
+  showInspector?: boolean;
   enableQuickTreatments?: boolean;
   quickTreatments?: QuickTreatment[];
   onChange?: (nextData: ToothData[], change: OdontogramChange) => void;

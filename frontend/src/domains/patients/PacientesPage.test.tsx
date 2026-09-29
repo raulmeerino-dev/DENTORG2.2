@@ -520,9 +520,9 @@ describe('PacientesPage structure', () => {
     await waitFor(() => expect(openBudgets).not.toBeDisabled());
     await user.click(openBudgets);
 
-    expect(await screen.findByText(/Este presupuesto ya esta aceptado/i)).toBeInTheDocument();
-    expect(screen.getByText(/Para nuevos tratamientos crea un nuevo presupuesto/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Trabajo aceptado disponible en Clínica/i)).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Añadir tratamiento' })).not.toBeInTheDocument();
     expect(screen.getByText(/Total 1100/i)).toBeInTheDocument();
-    expect(screen.getByText(/Aceptado 210/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Aceptar todo' })).toBeDisabled();
   });
 });
