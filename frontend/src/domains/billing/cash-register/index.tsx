@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useObjectMenu } from "../../../design-system/useObjectMenu";
 import { getPendingAccounts } from "../../../api/accounts";
 import { getFacturas, openFacturaPdf } from "../../../api/billing";
 import { getRecordPage } from "../../../api/records";
@@ -19,6 +20,7 @@ import "./cash-register.css";
 type CashView = "salidas" | "cuentas" | "pagos" | "facturas";
 
 export default function CajaPage() {
+  const navigate = useNavigate();
   const today = clinicDate(new Date());
   const [view, setView] = useState<CashView>("salidas");
   const [search, setSearch] = useState("");
@@ -73,6 +75,20 @@ export default function CajaPage() {
         : invoiceRows.length;
   const selectedQuery =
     view === "cuentas" ? accounts : view === "pagos" ? payments : invoices;
+  const accountMenu = useObjectMenu({ items: view === "cuentas" ? accounts.data?.items ?? [] : [], id: row => row.id, label: row => `${row.nombre} ${row.apellidos}`, actions: row => [
+    { id: "checkout", label: Number(row.saldo) > 0 ? "Cobrar" : "Ver cuenta", run: () => setCheckoutId(row.id) },
+    { id: "patient", label: "Abrir paciente", run: () => navigate(`/pacientes?paciente_id=${row.id}`) },
+  ] });
+  const paymentMenu = useObjectMenu({ items: view === "pagos" ? payments.data?.rows ?? [] : [], id: row => row.id, label: row => `${row.cells.paciente} · ${money(Number(row.cells.importe ?? 0))} €`, actions: row => row.target?.patient_id ? [
+    { id: "account", label: "Ver cuenta", run: () => setCheckoutId(row.target!.patient_id!) },
+    { id: "patient", label: "Abrir paciente", run: () => navigate(`/pacientes?paciente_id=${row.target!.patient_id}`) },
+  ] : [] });
+  function showInvoice(id: string) { void openFacturaPdf(id).catch(e => setError(getApiErrorMessage(e, "No se pudo abrir la factura."))); }
+  const invoiceMenu = useObjectMenu({ items: view === "facturas" ? invoiceRows : [], id: row => row.id, label: row => `Factura ${row.serie}-${row.numero}`, actions: row => [
+    { id: "pdf", label: "Abrir PDF", run: () => showInvoice(row.id) },
+    { id: "account", label: row.estado !== "anulada" && Number(row.pendiente) > 0 ? "Cobrar pendiente" : "Ver cuenta", run: () => setCheckoutId(row.paciente_id) },
+    { id: "patient", label: "Abrir paciente", run: () => navigate(`/pacientes?paciente_id=${row.paciente_id}`) },
+  ] });
   return (
     <section className="cash-workspace" aria-label="Caja">
       <ToolbarContribution slot="module">
@@ -193,7 +209,7 @@ export default function CajaPage() {
                 </thead>
                 <tbody>
                   {accounts.data?.items.map((a) => (
-                    <tr key={a.id}>
+                    <tr key={a.id} {...accountMenu.bindings(a)}>
                       <td className="cash-patient">
                         <Link to={`/pacientes?paciente_id=${a.id}`}>
                           {[a.apellidos, a.nombre].filter(Boolean).join(", ")}
@@ -234,7 +250,7 @@ export default function CajaPage() {
                 </thead>
                 <tbody>
                   {payments.data?.rows.map((r) => (
-                    <tr key={r.id}>
+                    <tr key={r.id} {...paymentMenu.bindings(r)}>
                       <td>{formatDate(String(r.cells.fecha ?? ""))}</td>
                       <td className="cash-patient">{r.cells.paciente}</td>
                       <td>
@@ -280,7 +296,7 @@ export default function CajaPage() {
                 </thead>
                 <tbody>
                   {invoiceRows.slice(page * 50, (page + 1) * 50).map((f) => (
-                    <tr key={f.id}>
+                    <tr key={f.id} {...invoiceMenu.bindings(f)}>
                       <td>{formatDate(f.fecha)}</td>
                       <td>
                         {f.serie}-{f.numero}
@@ -308,19 +324,10 @@ export default function CajaPage() {
                       </td>
                       <td>
                         <button onClick={() => setCheckoutId(f.paciente_id)}>
-                          Ver cuenta / cobrar
+                          {Number(f.pendiente) > 0 && f.estado !== "anulada" ? "Cobrar pendiente" : "Ver cuenta"}
                         </button>{" "}
                         <button
-                          onClick={() =>
-                            void openFacturaPdf(f.id).catch((e) =>
-                              setError(
-                                getApiErrorMessage(
-                                  e,
-                                  "No se pudo abrir la factura.",
-                                ),
-                              ),
-                            )
-                          }
+                          onClick={() => showInvoice(f.id)}
                         >
                           PDF
                         </button>
@@ -352,6 +359,7 @@ export default function CajaPage() {
           </button>
         </footer>
       )}
+      {accountMenu.menu}{paymentMenu.menu}{invoiceMenu.menu}
       {checkoutId && (
         <PatientCheckout
           patientId={checkoutId}

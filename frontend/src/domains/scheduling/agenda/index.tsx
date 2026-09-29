@@ -8,7 +8,8 @@ Home,
 Printer,
 UsersRound
 } from 'lucide-react';
-import type { MouseEvent } from 'react';
+import type { MouseEvent, KeyboardEvent } from 'react';
+import { usesNativeContextMenu } from '../../../design-system/useObjectMenu';
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
 import { useNavigate,useSearchParams } from 'react-router-dom';
 import { cancelarCitaAvanzada, confirmarCita, createCita, getCitas, getGabinetes, getHorarios, getJornadaConfig, marcarFaltaCita, updateCita, marcarLlegadaCita, iniciarAtencionCita, finalizarVisitaCita, createPacienteProvisional } from '../../../api/scheduling';
@@ -65,7 +66,8 @@ export default function AgendaPage() {
     else setLocalModalCita(cita);
   }, [jornada]);
   const [slotDraft, setSlotDraft] = useState<SlotDraft | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; cita: Cita } | null>(null);
+  const [contextView, setContextView] = useState<'actions' | 'reminders'>('actions');
+  const [contextSource, setContextMenu] = useState<{ x: number; y: number; cita: Cita } | null>(null);
   const [showBuscarHueco, setShowBuscarHueco] = useState(false);
   const [showCitasPaciente, setShowCitasPaciente] = useState(false);
   const [cancelCitaModal, setCancelCitaModal] = useState<{ cita: Cita; estado: 'anulada' | 'falta' } | null>(null);
@@ -359,9 +361,14 @@ export default function AgendaPage() {
     navigate(`/pacientes?paciente_id=${cita.paciente_id}`);
   }
 
-  function handleContext(event: MouseEvent, cita: Cita) {
+  function handleContext(event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, cita: Cita) {
+    setContextView('actions');
+    if (usesNativeContextMenu(event.target)) return;
     event.preventDefault();
-    setContextMenu({ x: Math.max(12, Math.min(event.clientX, window.innerWidth - 260)), y: Math.max(12, Math.min(event.clientY, window.innerHeight - 510)), cita });
+    event.stopPropagation();
+    event.currentTarget.focus({ preventScroll: true });
+    const rect = event.currentTarget.getBoundingClientRect();
+    setContextMenu({ x: 'clientX' in event && event.type === 'contextmenu' ? event.clientX : rect.left, y: 'clientY' in event && event.type === 'contextmenu' ? event.clientY : rect.bottom, cita });
   }
 
   function setStatus(cita: Cita, estado: string) {
@@ -458,6 +465,9 @@ export default function AgendaPage() {
   const hasAgendaError = doctoresQuery.isError || pacientesQuery.isError || citasQuery.isError || telefonearQuery.isError || horariosAgendaQuery.isError || gabinetesQuery.isError || configQuery.isError || tratamientosQuery.isError;
   const agendaLoading = doctoresQuery.isLoading || citasQuery.isLoading || horariosAgendaQuery.isLoading;
 
+  const currentContextCita = citas.find(cita => cita.id === contextSource?.cita.id);
+  const contextMenu = contextSource && currentContextCita ? { ...contextSource, cita: currentContextCita } : null;
+  const contextBusy = operationalMutation.isPending || confirmMutation.isPending || cancelMutation.isPending || faltaMutation.isPending || quickUpdate.isPending || recordatorioMutation.isPending;
   return (
     <section className="agenda-dentcore" onClick={() => setContextMenu(null)}>
       <AgendaToolbar
@@ -569,6 +579,7 @@ export default function AgendaPage() {
           onCreate={draft => openNew(draft.slot, draft.pacienteId, draft.day, draft.doctorId, draft)}
           onConfirm={cita => confirmMutation.mutate(cita)}
           onAction={(cita, action) => operationalMutation.mutate({ cita, action })}
+          contextCitaId={contextMenu?.cita.id}
           onContext={handleContext}
           onOpenHorario={user?.rol === 'admin' ? () => navigate(`/admin-extras?tab=agenda${doctorId ? `&doctor_id=${doctorId}` : ''}`) : undefined}
         />
@@ -634,24 +645,31 @@ export default function AgendaPage() {
       )}
 
       {contextMenu && (
-        <FloatingPopover className="context-menu" point={contextMenu} onClose={() => setContextMenu(null)} role="menu" aria-label="Acciones de cita" onClick={(event) => event.stopPropagation()}>
-          <strong>Agenda</strong>
-          <button onClick={() => { setModalCita(contextMenu.cita); setContextMenu(null); }}>Editar cita</button>
-          <button onClick={() => openPatient(contextMenu.cita)}>Abrir ficha del paciente</button>
-          <button onClick={() => reprogramarCita(contextMenu.cita)}>Reprogramar / cambiar hora</button>
-          <button onClick={() => copiarTelefono(contextMenu.cita)}>Copiar telefono</button>
-          <span />
-          {getVisualStatus(contextMenu.cita) === 'programada' && <button onClick={() => confirmMutation.mutate(contextMenu.cita)}>Confirmar cita</button>}
-          {getVisualStatus(contextMenu.cita) === 'confirmada' && <button onClick={() => setStatus(contextMenu.cita, 'programada')}>Pendiente de confirmar</button>}
-          {['programada', 'confirmada'].includes(getVisualStatus(contextMenu.cita)) && <button onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'llegada' })}>Registrar llegada</button>}
-          {canTreatAppointment(contextMenu.cita) && getVisualStatus(contextMenu.cita) === 'en_sala' && <button onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'atender' })}>Atender</button>}
-          {canTreatAppointment(contextMenu.cita) && getVisualStatus(contextMenu.cita) === 'en_atencion' && <button onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'finalizar' })}>Finalizar visita</button>}
-          <span />
-          {['programada', 'confirmada', 'en_sala'].includes(getVisualStatus(contextMenu.cita)) && <><button className="dc-menu-danger" onClick={() => cancelCita(contextMenu.cita, 'anulada')}>Cancelar cita</button>
-          <button onClick={() => cancelCita(contextMenu.cita, 'falta')}>No asistió</button></>}
-          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Recordatorio WhatsApp</button>
-          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'email')}>Recordatorio email</button>
-          <button onClick={() => enviarRecordatorio(contextMenu.cita, 'ambos')}>Recordatorio WhatsApp + email</button>
+        <FloatingPopover className="dc-object-menu" width={280} key={`${contextMenu.cita.id}:${contextView}`} point={contextMenu} onClose={() => setContextMenu(null)} role="menu" aria-label="Acciones de cita" onClick={(event) => event.stopPropagation()}>
+          <strong className="dc-object-menu-title">{contextMenu.cita.paciente?.nombre} {contextMenu.cita.paciente?.apellidos} · {localAppointmentTime(contextMenu.cita.fecha_hora)}</strong>
+          <fieldset className="dc-menu-actions" disabled={contextBusy}>
+          {contextView === 'reminders' ? <>
+            <button type="button" role="menuitem" onClick={() => setContextView('actions')}>Volver a acciones de cita</button>
+          <button type="button" role="menuitem" onClick={() => enviarRecordatorio(contextMenu.cita, 'whatsapp')}>Recordatorio WhatsApp</button>
+          <button type="button" role="menuitem" onClick={() => enviarRecordatorio(contextMenu.cita, 'email')}>Recordatorio email</button>
+          <button type="button" role="menuitem" onClick={() => enviarRecordatorio(contextMenu.cita, 'ambos')}>Recordatorio WhatsApp + email</button>
+          </> : <>
+          <button type="button" role="menuitem" onClick={() => { setModalCita(contextMenu.cita); setContextMenu(null); }}>Abrir cita</button>
+          <button type="button" role="menuitem" onClick={() => openPatient(contextMenu.cita)}>Abrir paciente</button>
+          <button type="button" role="menuitem" onClick={() => reprogramarCita(contextMenu.cita)}>Reprogramar cita</button>
+          <button type="button" role="menuitem" onClick={() => copiarTelefono(contextMenu.cita)}>Copiar teléfono</button>
+          <span className="dc-menu-divider" />
+          {getVisualStatus(contextMenu.cita) === 'programada' && <button type="button" role="menuitem" onClick={() => confirmMutation.mutate(contextMenu.cita)}>Confirmar cita</button>}
+          {getVisualStatus(contextMenu.cita) === 'confirmada' && <button type="button" role="menuitem" onClick={() => setStatus(contextMenu.cita, 'programada')}>Pendiente de confirmar</button>}
+          {['programada', 'confirmada'].includes(getVisualStatus(contextMenu.cita)) && <button type="button" role="menuitem" onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'llegada' })}>Registrar llegada</button>}
+          {canTreatAppointment(contextMenu.cita) && getVisualStatus(contextMenu.cita) === 'en_sala' && <button type="button" role="menuitem" onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'atender' })}>Atender</button>}
+          {canTreatAppointment(contextMenu.cita) && getVisualStatus(contextMenu.cita) === 'en_atencion' && <button type="button" role="menuitem" onClick={() => operationalMutation.mutate({ cita: contextMenu.cita, action: 'finalizar' })}>Finalizar visita</button>}
+          <span className="dc-menu-divider" />
+          {['programada', 'confirmada'].includes(getVisualStatus(contextMenu.cita)) && <button type="button" role="menuitem" onClick={() => setContextView('reminders')}>Enviar recordatorio…</button>}
+          {['programada', 'confirmada', 'en_sala'].includes(getVisualStatus(contextMenu.cita)) && <><button type="button" role="menuitem" className="dc-menu-danger dc-menu-divider" onClick={() => cancelCita(contextMenu.cita, 'anulada')}>Cancelar cita</button>
+          <button type="button" role="menuitem" onClick={() => cancelCita(contextMenu.cita, 'falta')}>No asistió</button></>}
+          </>}
+          </fieldset>
         </FloatingPopover>
       )}
     </section>

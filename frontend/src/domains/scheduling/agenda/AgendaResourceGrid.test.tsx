@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { Cita, Doctor } from '../../../api/types';
@@ -22,6 +22,20 @@ function setup(appointments: Cita[] = [cita]) {
 }
 
 describe('Parrilla por profesional', () => {
+  it('abrir el menú de un hueco no crea una cita y la acción reutiliza su fecha, hora y doctor', async () => {
+    const { user, onCreate } = setup();
+    const slot = screen.getByRole('button', { name: 'Nueva cita 09:20 · Dr. Manuel Díaz' });
+    fireEvent.contextMenu(slot, { clientX: 600, clientY: 700 });
+    expect(onCreate).not.toHaveBeenCalled();
+    expect(screen.getByRole('menu')).toHaveTextContent('09:20 · Dr. Manuel Díaz');
+    await user.click(screen.getByRole('menuitem', { name: 'Nueva cita' }));
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith({ day, slot: '09:20', doctorId: 'two' });
+    fireEvent.keyDown(slot, { key: 'F10', shiftKey: true });
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(slot).toHaveFocus();
+    expect(onCreate).toHaveBeenCalledTimes(1);
+  });
   it('mantiene ocupada toda la duración de una cita que empieza fuera del intervalo habitual', () => {
     const { container } = setup();
     expect(screen.getByText('María Fernández')).toBeInTheDocument();

@@ -9,6 +9,8 @@ import { appointmentTiming } from './appointmentTiming';
 import type { Cita } from '../../../api/types';
 import { StatusChip } from '../../../design-system';
 import { statusMetaForCita } from '../agenda/appointmentStatus';
+import type { HTMLAttributes, ReactNode } from 'react';
+import { useObjectMenu, type ObjectAction } from '../../../design-system/useObjectMenu';
 
 export function AppointmentStatusBadge({ cita }: { cita: Cita }) {
   const state = getVisualStatus(cita);
@@ -27,7 +29,7 @@ export function AppointmentTiming({ cita, now }: { cita: Cita; now?: number }) {
   </span>;
 }
 
-export default function AppointmentActions({ cita, onEdit }: { cita: Cita; onEdit: () => void }) {
+export default function AppointmentActions({ cita, onEdit, children }: { cita: Cita; onEdit: () => void; children?: (bindings: HTMLAttributes<HTMLElement>, controls: ReactNode) => ReactNode }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,14 +43,23 @@ export default function AppointmentActions({ cita, onEdit }: { cita: Cita; onEdi
     mutationFn: (kind: 'confirm' | 'arrive' | 'start') => kind === 'confirm' ? confirmarCita(cita.id) : kind === 'arrive' ? marcarLlegadaCita(cita.id) : iniciarAtencionCita(cita.id),
     onSuccess: (_result, kind) => { invalidatePatientWorkspaceQueries(queryClient, cita.paciente_id); void queryClient.invalidateQueries({ queryKey: ['doctor-notifications'] }); if (kind === 'start') openSession(); },
   });
-  return <div onClick={event => event.stopPropagation()}>
+  const operations: ObjectAction[] = [
+    { id: 'open', label: 'Abrir cita', run: onEdit },
+    { id: 'patient', label: 'Abrir paciente', run: () => navigate(`/pacientes?paciente_id=${cita.paciente_id}`) },
+    ...(state === 'programada' ? [{ id: 'confirm', label: 'Confirmar cita', disabled: action.isPending, run: () => action.mutate('confirm' as const) }] : []),
+    ...(['programada', 'confirmada'].includes(state) ? [{ id: 'arrive', label: 'Registrar llegada', disabled: action.isPending, run: () => action.mutate('arrive' as const) }] : []),
+    ...(['en_sala', 'en_clinica'].includes(state) && clinical ? [{ id: 'start', label: 'Atender', disabled: action.isPending, run: () => action.mutate('start' as const) }] : []),
+    ...(['en_atencion', 'en_tratamiento'].includes(state) && clinical ? [{ id: 'session', label: 'Abrir sesión', run: openSession }] : []),
+  ];
+  const menu = useObjectMenu({ items: [cita], id: item => item.id, label: item => `${item.paciente?.nombre ?? 'Paciente'} ${item.paciente?.apellidos ?? ''}`.trim(), actions: () => operations });
+  const controls = <div onClick={event => event.stopPropagation()}>
     <div className="jornada-inline-actions">
-      {state === 'programada' && <button type="button" disabled={action.isPending} onClick={() => action.mutate('confirm')}>Confirmar</button>}
-      {['programada', 'confirmada'].includes(state) && <button type="button" disabled={action.isPending} onClick={() => action.mutate('arrive')}>Ha llegado</button>}
-      {['en_sala', 'en_clinica'].includes(state) && clinical && <button type="button" disabled={action.isPending} onClick={() => action.mutate('start')}>Atender</button>}
-      {['en_atencion', 'en_tratamiento'].includes(state) && clinical && <button type="button" onClick={openSession}>Abrir sesión</button>}
-      <button type="button" onClick={onEdit}>{cita.estado === 'reschedule_requested' ? 'Reubicar' : 'Ver cita'}</button>
+      {operations.filter(item => !['open', 'patient'].includes(item.id)).map(item => <button key={item.id} type="button" disabled={item.disabled} onClick={item.run}>{item.label}</button>)}
+      <button type="button" onClick={onEdit}>{cita.estado === 'reschedule_requested' ? 'Reubicar' : 'Abrir cita'}</button>
+      {menu.trigger(cita)}
     </div>
     {action.isError && <small role="alert">{getApiErrorMessage(action.error, 'No se pudo actualizar la cita.')}</small>}
+    {menu.menu}
   </div>;
+  return children ? children(menu.bindings(cita), controls) : controls;
 }

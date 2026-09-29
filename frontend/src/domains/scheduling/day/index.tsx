@@ -320,7 +320,7 @@ export default function HoyPage() {
             </thead>
             <tbody>
               {activas.sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora)).map((cita) => (
-                <tr key={cita.id} data-cita-id={cita.id} aria-selected={jornada?.selectedCitaId === cita.id} onClick={() => jornada?.selectCita(cita.id)} className={`hoy-cita-row estado-${getVisualStatus(cita)}${jornada?.selectedCitaId === cita.id ? " is-selected" : ""}`}>
+                <AppointmentActions key={cita.id} cita={cita} onEdit={() => abrirCitaAgenda(cita)}>{(bindings, controls) => <tr {...bindings} data-cita-id={cita.id} aria-selected={jornada?.selectedCitaId === cita.id} onClick={() => jornada?.selectCita(cita.id)} className={`hoy-cita-row estado-${getVisualStatus(cita)}${jornada?.selectedCitaId === cita.id ? " is-selected" : ""}`}>
                   <td><strong>{citaHora(cita)}</strong><AppointmentTiming cita={cita} now={now} /></td>
                   <td>
                     <button
@@ -335,9 +335,9 @@ export default function HoyPage() {
                   <td>{cita.motivo ?? '—'}</td>
                   <td><AppointmentStatusBadge cita={cita} />{cita.recordatorio_enviado && <small className="jornada-time-notes">Recordatorio enviado</small>}</td>
                   <td>
-                    <AppointmentActions cita={cita} onEdit={() => abrirCitaAgenda(cita)} />
+                    {controls}
                   </td>
-                </tr>
+                </tr>}</AppointmentActions>
               ))}
               {!citasQuery.isLoading && !activas.length && (
                 <tr className="hoy-empty-row">

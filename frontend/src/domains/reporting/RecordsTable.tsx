@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink } from 'lucide-react';
 import type { RecordColumn, RecordQuery, RecordRow } from '../../api/records';
 import { recordTargetHref } from '../../app/navigation/recordTargets';
@@ -30,6 +31,15 @@ export function RecordsTable({ columns, rows, query, onSort, returnTo, loading, 
   returnTo: string; loading: boolean; failed: boolean;
   onOpenAudit?: (id: string) => void;
 }) {
+  const navigate = useNavigate();
+  function openRow(row: RecordRow) {
+    if (loading || !row.target) return;
+    if (row.target.kind === 'auditoria') onOpenAudit?.(row.target.id);
+    else { const href = recordTargetHref(row.target); if (href) navigate(href, { state: { returnTo } }); }
+  }
+  const menu = useObjectMenu({ items: rows, id: row => row.id,
+    label: row => [row.cells.numero ?? row.cells.concepto, row.cells.paciente ?? row.cells.nombre].filter(Boolean).join(' · ') || 'Registro',
+    actions: row => row.target ? [{ id: 'open', label: row.target.kind === 'documento' ? 'Abrir documento' : 'Abrir detalle', icon: <ExternalLink size={15} />, disabled: loading, run: () => openRow(row) }] : [] });
   return <div className="records-table-scroll" tabIndex={0} role="region" aria-label="Resultados de consulta" aria-busy={loading}>
     <table className="dentcore-table records-table">
       <thead><tr>{columns.map(column => <th key={column.key} scope="col" data-column={column.key} data-type={column.type} className={['money', 'number'].includes(column.type) ? 'numeric' : undefined} aria-sort={query.sort_by === column.key ? query.sort_dir === 'asc' ? 'ascending' : 'descending' : undefined}>
@@ -40,7 +50,7 @@ export function RecordsTable({ columns, rows, query, onSort, returnTo, loading, 
       <tbody>
         {rows.map(row => {
           const target = row.target ? recordTargetHref(row.target) : null;
-          return <tr key={row.id}>{columns.map(column => <td key={column.key} data-column={column.key} data-type={column.type} className={['money', 'number'].includes(column.type) ? 'numeric' : undefined}>
+          return <tr key={row.id} {...(row.target ? menu.bindings(row) : {})}>{columns.map(column => <td key={column.key} data-column={column.key} data-type={column.type} className={['money', 'number'].includes(column.type) ? 'numeric' : undefined}>
             {column.type === 'status' ? <span className="records-state">{recordCellText(row.cells[column.key], column.type)}</span> : recordCellText(row.cells[column.key], column.type)}
           </td>)}<td className="records-action-column">{row.target?.kind === 'auditoria' ? onOpenAudit && <button type="button" aria-label="Abrir detalle" disabled={loading} onClick={() => onOpenAudit(row.target!.id)}>Abrir</button> : target && <Link to={target} state={{ returnTo }} aria-label="Abrir detalle" aria-disabled={loading} tabIndex={loading ? -1 : undefined} onClick={event => { if (loading) event.preventDefault(); }}>Abrir<ExternalLink size={12} aria-hidden="true" /></Link>}</td></tr>;
         })}
@@ -49,5 +59,6 @@ export function RecordsTable({ columns, rows, query, onSort, returnTo, loading, 
         </td></tr>}
       </tbody>
     </table>
+    {menu.menu}
   </div>;
 }

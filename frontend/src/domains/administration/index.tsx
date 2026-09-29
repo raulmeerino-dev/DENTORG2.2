@@ -14,6 +14,7 @@ import { AdminReportes } from './AdminReportes';
 import { ConfiguracionWorkspace } from './ConfiguracionWorkspace';
 import type { FicheroTab } from './configuracionTabs';
 import './administration.css';
+import { useObjectMenu } from '../../design-system/useObjectMenu';
 
 type Tab = AdminTabId;
 type MovimientoTipo = 'entrada' | 'salida' | 'ajuste' | 'consumo_factura';
@@ -242,6 +243,8 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
     crearPedido.mutate();
   }
 
+  const productMenu = useObjectMenu({ items: inventarioQuery.data ?? [], id: product => product.id, label: product => product.nombre,
+    actions: product => [{ id: 'movements', label: 'Ver movimientos', run: () => setProductoActivoId(product.id) }] });
   return (
     <section className="settings-workspace" aria-label={sectionLabel}>
       <ToolbarContribution slot="module">
@@ -293,7 +296,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                 {(inventarioQuery.data ?? []).map((producto) => {
                   const proveedor = (proveedoresQuery.data ?? []).find((item) => item.id === producto.proveedor_id);
                   return (
-                    <tr key={producto.id} aria-selected={productoActivoId === producto.id} className={productoActivoId === producto.id ? 'inventory-selected-row' : producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
+                    <tr key={producto.id} {...productMenu.bindings(producto)} aria-selected={productoActivoId === producto.id} className={productoActivoId === producto.id ? 'inventory-selected-row' : producto.stock_act < producto.stock_min ? 'stock-alert-row' : ''}>
                       <td><strong>{producto.nombre}</strong><span className="muted-cell">{producto.sku || producto.unidad}</span></td>
                       <td>{producto.categoria || '-'}</td>
                       <td>{proveedor?.nombre || '-'}</td>
@@ -304,7 +307,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
                         if (value !== producto.stock_act) actualizarProducto.mutate({ id: producto.id, stock_act: value, revision: Number(event.currentTarget.dataset.revision) || undefined });
                       }} /></td>
                       <td>{producto.stock_act < producto.stock_min ? 'Bajo mínimo' : 'OK'}</td>
-                      <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Movimientos</button></td>
+                      <td><button type="button" onClick={() => setProductoActivoId(producto.id)}>Ver movimientos</button></td>
                     </tr>
                   );
                 })}
@@ -312,6 +315,7 @@ export default function AdminExtrasPage({ mode = 'settings' }: { mode?: 'setting
             </table>
           </section>
 
+          {productMenu.menu}
           <div className="settings-section settings-form-body inventory-side">
             <details className="admin-create-panel">
               <summary>Nuevo producto</summary>

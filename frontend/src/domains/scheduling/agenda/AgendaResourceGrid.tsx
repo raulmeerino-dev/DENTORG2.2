@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { CSSProperties, MouseEvent } from 'react';
+import type { CSSProperties, MouseEvent, KeyboardEvent } from 'react';
+import { isContextMenuKey, useObjectMenu } from '../../../design-system/useObjectMenu';
 import type { Cita, Doctor } from '../../../api/types';
 import type { HorariosPorDoctor, SlotDraft } from './agendaTypes';
 import { addMinutes, localAppointmentTime, minutesFromTime, slotInHorario, slotIso, todayIso, weekdayIndex } from './agendaTime';
@@ -12,13 +13,14 @@ import './agenda-grid.css';
 
 type VisitAction = 'llegada' | 'atender' | 'finalizar';
 
-export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, citas, allCitas, now, canTreat, busy, onOpenCita, onOpenPatient, onCreate, onConfirm, onAction, onContext, onOpenHorario }: {
+export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, citas, allCitas, now, canTreat, busy, onOpenCita, onOpenPatient, onCreate, onConfirm, onAction, onContext, onOpenHorario, contextCitaId }: {
+  contextCitaId?: string;
   day: string; slots: string[]; doctorId: string; doctores: Doctor[]; horarios: HorariosPorDoctor;
   citas: Cita[]; allCitas: Cita[]; now: Date; canTreat: (cita: Cita) => boolean; busy: boolean;
   onOpenCita: (cita: Cita) => void; onOpenPatient: (cita: Cita) => void;
   onCreate: (draft: SlotDraft) => void; onConfirm: (cita: Cita) => void;
   onAction: (cita: Cita, action: VisitAction) => void;
-  onContext: (event: MouseEvent, cita: Cita) => void; onOpenHorario?: () => void;
+  onContext: (event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>, cita: Cita) => void; onOpenHorario?: () => void;
 }) {
   const [range, setRange] = useState<{ doctorId: string; start: number; end: number } | null>(null);
   const [rangeError, setRangeError] = useState('');
@@ -56,6 +58,13 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
   minutes.add(endMinute);
   const timeline = Array.from(minutes).filter(minute => minute >= startMinute && minute <= endMinute).sort((a, b) => a - b);
   const height = (endMinute - startMinute) * scale;
+  const freeSlots = visibleDoctors.flatMap(doctor => timeline.slice(0, -1).map(minute => ({ day, slot: addMinutes('00:00', minute), doctorId: doctor.id, doctorName: doctor.nombre, active: doctor.activo }))).filter(slot => {
+    const instant = new Date(slotIso(slot.day, slot.slot)).getTime();
+    return !allCitas.some(cita => cita.doctor_id === slot.doctorId && !['cancelada', 'no_presentado'].includes(getVisualStatus(cita))
+      && new Date(cita.fecha_hora).getTime() <= instant && new Date(cita.fecha_hora).getTime() + cita.duracion_min * 60_000 > instant);
+  });
+  const slotMenu = useObjectMenu({ items: freeSlots, id: slot => `${slot.day}:${slot.doctorId}:${slot.slot}`, label: slot => `${slot.slot} · ${slot.doctorName}`,
+    actions: slot => [{ id: 'new', label: 'Nueva cita', disabled: busy || !slot.active, run: () => onCreate({ day: slot.day, slot: slot.slot, doctorId: slot.doctorId }) }] });
 
   return <section className="agenda-resource-workspace" aria-label="Agenda por profesional">
     <div className="dc-agenda-status-legend" aria-label="Leyenda de estados de cita">
@@ -96,6 +105,8 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
                 {!occupied && <button type="button" className="agenda-create-slot" disabled={!doctor.activo || busy} title={working ? `${slot} · Hueco libre. Pulsa o arrastra para elegir duración.` : `${slot} · Fuera del horario habitual`} aria-label={`Nueva cita ${slot} · ${doctor.nombre}`} onPointerDown={event => { if (event.button !== 0) return; setRangeError(''); setRange({ doctorId: doctor.id, start: minute, end: minute }); }}
                   onPointerEnter={event => { if (event.buttons === 1 && range?.doctorId === doctor.id) setRange({ ...range, end: minute }); }}
                   onPointerUp={() => finishRange(doctor)}
+                  onContextMenu={slotMenu.bindings({ day, slot, doctorId: doctor.id, doctorName: doctor.nombre, active: doctor.activo }).onContextMenu}
+                  onKeyDown={slotMenu.bindings({ day, slot, doctorId: doctor.id, doctorName: doctor.nombre, active: doctor.activo }).onKeyDown}
                   onClick={event => { if (event.detail === 0) onCreate({ day, slot, doctorId: doctor.id }); }}>{working ? '+' : ''}</button>}
               </div>;
             })}
@@ -114,12 +125,13 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
               const action: VisitAction | undefined = ['programada', 'confirmada'].includes(status) ? 'llegada' : canTreat(cita) && status === 'en_sala' ? 'atender' : canTreat(cita) && status === 'en_atencion' ? 'finalizar' : undefined;
               const actionLabel = action === 'llegada' ? 'Llegada' : action === 'atender' ? 'Atender' : 'Finalizar visita';
               return <article className={`agenda-resource-appointment ${visual.className}${conflicts.length ? ' has-overlap' : ''}${!regular ? ' is-short' : ''}${extended ? ' is-extended' : ''}`} key={cita.id}
+                data-context-active={contextCitaId === cita.id || undefined}
                 tabIndex={0} aria-label={`Cita de ${patientName(cita)}, ${slot}, ${visual.label}`}
                 title={`${patientName(cita)} · ${slot}–${addMinutes(slot, cita.duracion_min)} · ${cita.motivo ?? ''} · ${statusDetails}`}
                 style={{ '--doctor-color': doctor.color_agenda ?? 'var(--dc-primary)', top: (minutesFromTime(slot) - startMinute) * scale + 1, height: cardHeight, left: `calc(${lane * 100 / laneCount}% + 2px)`, width: `calc(${100 / laneCount}% - ${inactive ? 38 : 4}px)` } as CSSProperties}
                 onClick={() => onOpenCita(cita)} onDoubleClick={() => onOpenPatient(cita)} onContextMenu={event => onContext(event, cita)}
-                onKeyDown={event => { if (event.key === 'Enter' && event.target === event.currentTarget) onOpenCita(cita); }}>
-                <div className="agenda-resource-appointment-title"><strong>{patientName(cita)}</strong><button type="button" className="agenda-appointment-more" aria-label={`Más acciones de ${patientName(cita)}`} onClick={event => { event.stopPropagation(); const rect = event.currentTarget.getBoundingClientRect(); onContext({ clientX: rect.left, clientY: rect.bottom, preventDefault() {} } as MouseEvent, cita); }}>···</button></div>
+                onKeyDown={event => { if (isContextMenuKey(event)) onContext(event, cita); else if (event.key === 'Enter' && event.target === event.currentTarget) onOpenCita(cita); }}>
+                <div className="agenda-resource-appointment-title"><strong>{patientName(cita)}</strong><button type="button" className="agenda-appointment-more" aria-label={`Más acciones de ${patientName(cita)}`} onClick={event => { event.stopPropagation(); onContext(event, cita); }}>···</button></div>
                 {regular && <p><time>{slot}–{addMinutes(slot, cita.duracion_min)}</time> · <span>{cita.motivo || 'Cita dental'}</span></p>}
                 {extended && lab && <span className="agenda-resource-lab">Lab: {labShortName(lab)}</span>}
                 {regular && <div className="agenda-resource-appointment-state" title={statusDetails}>
@@ -134,5 +146,6 @@ export function AgendaResourceGrid({ day, slots, doctorId, doctores, horarios, c
         </div>
       </div>
     </div>}
+    {slotMenu.menu}
   </section>;
 }
