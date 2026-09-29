@@ -61,7 +61,7 @@ test('dos ordenadores: llegada, agenda, borrador, conflicto, reconexión y aisla
     await expect.poll(() => messages.some(m => m.type === 'ready')).toBe(true);
     const peerRow = doctor.locator(`[data-cita-id="${appointment.id}"]`).first();
     await expect(peerRow).toBeVisible();
-    await reception.locator(`[data-cita-id="${appointment.id}"]`).first().getByRole('button', { name: 'Ha llegado', exact: true }).click();
+    await reception.locator(`[data-cita-id="${appointment.id}"]`).first().getByRole('button', { name: 'Registrar llegada', exact: true }).click();
     await expect(peerRow).toContainText(/En sala|En clínica/, { timeout: 5000 });
     expect(messages.some(m => m.event === 'appointment.updated' && m.id === appointment.id)).toBe(true);
     await doctor.screenshot({ path: info.outputPath('doctor-llegada-realtime.png'), fullPage: true });

@@ -73,7 +73,7 @@ test('Jornada real: recepción → sala → atención → finalización → sali
     await reception.keyboard.press('Escape');
     const receptionRow = reception.locator(`[data-cita-id="${data.appointment.id}"]`).first();
     const receptionUrl = reception.url();
-    await receptionRow.getByRole('button', { name: 'Ha llegado', exact: true }).click();
+    await receptionRow.getByRole('button', { name: 'Registrar llegada', exact: true }).click();
     await expect.poll(async () => (await read()).estado_operativo).toBe('en_sala');
     expect(reception.url()).toBe(receptionUrl);
     const arrived = await read();

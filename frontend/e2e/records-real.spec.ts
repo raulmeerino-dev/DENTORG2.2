@@ -188,7 +188,7 @@ test('Registros: factura seleccionada en historial y presupuesto original dentro
   const planReturn = page.url();
   await page.getByRole('link', { name: 'Abrir detalle', exact: true }).nth(plans.rows.indexOf(plan)).click();
   await expect(page).toHaveURL(new RegExp(`presupuesto_id=${plan.target.id}`));
-  await expect(page.locator('.budget-num')).toHaveText(`Presupuesto #${original.numero}`);
+  await expect(page.getByRole('heading', { name: `Presupuesto #${original.numero}`, exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Volver a Registros', exact: true }).click();
   await expect(page).toHaveURL(planReturn);
 });

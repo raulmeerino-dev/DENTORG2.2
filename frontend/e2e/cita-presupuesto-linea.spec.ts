@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const API_BASE = 'http://127.0.0.1:8011/api';
+const API_BASE = process.env.DENTCORE_E2E_API_URL ?? 'http://127.0.0.1:8011/api';
 const patient = {
   id: 'pac-1',
   codigo: '#0091312',

@@ -94,6 +94,8 @@ El lector de CSV/XLSX usa únicamente la biblioteca estándar de Python. Busca e
 
 Para revisar densidad visual, después de `seed_records.py`, ejecutar `seed_ui_density.py` con el mismo entorno aislado. Añade el paciente sintético `UIQA María de los Ángeles`, con nombre largo, 24 líneas de presupuesto, 60 entradas clínicas de importe cero y 16 PDFs con nombres extensos. No elimina datos existentes; rechaza bases remotas y entornos de producción. Sirve para comprobar wrapping, tablas y scroll a 1366×768, 1440×900 y 1920×1080.
 
+`ui-context-real.spec.ts` se activa con `DENTCORE_UI_E2E=1` después de esa siembra. Revisa la cabecera única y las cuatro áreas del paciente, clic derecho, botón de acciones, Shift+F10, Escape y retorno de foco. Mide los viewports reales 1366×768, 1440×900, 1920×1080 y 1366×600, comprueba que el menú queda dentro de la ventana y que abrirlo/navegar no produce escrituras de negocio. Guarda una captura por resolución. La revisión es de lectura y requiere que el paciente UIQA conserve un presupuesto borrador con al menos dos líneas.
+
 ## Ensayo de restauración
 
 Crear una segunda base vacía llamada `dentcore_restore_<identificador>_test`. En `backend`, con la clave del backup disponible:
