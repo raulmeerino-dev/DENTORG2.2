@@ -262,7 +262,7 @@ vi.mock('../../api/treatmentCatalog', () => ({
 function LocationProbe() {
   const location = useLocation();
   const navigate = useNavigate();
-  return <><span data-testid="location-probe">{location.pathname}{location.search}</span><button type="button" onClick={() => navigate('/pacientes?paciente_id=pac-2')}>Abrir paciente B desde navegación global</button></>;
+  return <><span data-testid="location-probe">{location.pathname}{location.search}</span><button type="button" onClick={() => navigate('/pacientes?paciente_id=pac-2')}>Abrir paciente B desde navegación global</button><button onClick={() => navigate(-1)}>Atrás en navegador</button><button onClick={() => navigate(1)}>Adelante en navegador</button></>;
 }
 
 function renderPage(initialEntries = ['/pacientes']) {
@@ -376,15 +376,20 @@ describe('PacientesPage structure', () => {
     await waitFor(() => expect(window.sessionStorage.getItem('dentcore_selected_patient_id')).toBe('pac-2'));
   });
 
-  it('uses three main tabs and keeps patient documents in ficha context', async () => {
+  it('separates clinical work and budgets into four main tabs and keeps documents in ficha', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await screen.findByRole('button', { name: /^Ficha$/i });
-    const mainTabs = screen.getByRole('navigation');
+    const mainTabs = screen.getByRole('navigation', { name: 'Áreas del paciente' });
     expect(within(mainTabs).getByRole('button', { name: /^Ficha$/i })).toBeInTheDocument();
-    expect(within(mainTabs).queryByRole('button', { name: /^Presupuestos$/i })).not.toBeInTheDocument();
-    expect(within(mainTabs).getByRole('button', { name: /^Tratamientos$/i })).toBeInTheDocument();
+    expect(within(mainTabs).getByRole('button', { name: /^Presupuestos$/i })).toBeInTheDocument();
+    expect(within(mainTabs).getAllByRole('button').map(button => button.textContent)).toEqual(['Ficha', 'Clínica', 'Presupuestos', 'Historial']);
+    expect(screen.getByRole('heading', { name: 'Cesar Gutierrez Velez', level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Ubicación del paciente' })).toHaveTextContent('Pacientes/Cesar Gutierrez Velez');
+    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('H 91312');
+    expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('600000000');
+    expect(within(mainTabs).getByRole('button', { name: /^Clínica$/i })).toBeInTheDocument();
     expect(within(mainTabs).getByRole('button', { name: /^Historial$/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /^Nueva cita$/i })).toHaveLength(1);
     expect(screen.getByRole('button', { name: /^Documentos\s+\d+$/i })).toBeInTheDocument();
@@ -392,9 +397,11 @@ describe('PacientesPage structure', () => {
     expect(screen.getByTestId('mini-odontogram')).toBeInTheDocument();
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Ver detalle en Tratamientos/i }));
+    await user.click(screen.getByRole('button', { name: /Ver detalle en Clínica/i }));
     expect(await screen.findByText(/Odontograma diagnóstico/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Volver a tratamientos' }));
+    expect(within(mainTabs).getByRole('button', { name: 'Clínica' })).toHaveAttribute('aria-current', 'page');
+    expect(within(mainTabs).getByRole('button', { name: 'Presupuestos' })).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Volver a clínica' }));
     await user.click(screen.getByRole('button', { name: /^Ficha$/i }));
     expect(await screen.findByText(/Documentos y consentimientos/i)).toBeInTheDocument();
 
@@ -409,12 +416,13 @@ describe('PacientesPage structure', () => {
     const user = userEvent.setup();
     renderPage();
 
-    await screen.findByRole('button', { name: /^Tratamientos$/i });
-    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
+    await screen.findByRole('button', { name: /^Clínica$/i });
+    await user.click(screen.getByRole('button', { name: /^Clínica$/i }));
     expect(screen.getByRole('button', { name: /^Diagnóstico$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Pendientes$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Sesión actual$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^Visitas$/i })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Secciones de clínica' })).queryByRole('button', { name: 'Presupuestos' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Realizados$/i })).not.toBeInTheDocument();
 
     await user.click(screen.getAllByRole('button', { name: /^Historial$/i })[0]);
@@ -425,6 +433,33 @@ describe('PacientesPage structure', () => {
 
     await user.click(screen.getByRole('button', { name: /Tratamientos y facturaci/i }));
     await waitFor(() => expect(screen.getByText(/Historial de tratamientos/i)).toBeInTheDocument());
+  });
+
+  it.each(['clinica', 'tratamientos', 'pendiente'])('opens the existing %s route in Clínica', async (area) => {
+    renderPage([`/pacientes?paciente_id=pac-1&tab=${area}`]);
+    const mainTabs = await screen.findByRole('navigation', { name: 'Áreas del paciente' });
+    await waitFor(() => expect(within(mainTabs).getByRole('button', { name: 'Clínica' })).toHaveAttribute('aria-current', 'page'));
+    expect(screen.getByText('Tratamientos pendientes')).toBeVisible();
+    expect(screen.queryByRole('region', { name: /^Presupuestos$/ })).not.toBeInTheDocument();
+  });
+
+  it('restores budget deep links and browser history without mixing clinical navigation', async () => {
+    const user = userEvent.setup();
+    renderPage(['/pacientes?paciente_id=pac-1&tab=visitas', '/pacientes?paciente_id=pac-1&tab=presupuestos&presupuesto_id=pres-1']);
+    const mainTabs = await screen.findByRole('navigation', { name: 'Áreas del paciente' });
+    expect(await screen.findByText(/Presupuesto #1/i)).toBeVisible();
+    expect(within(mainTabs).getByRole('button', { name: 'Presupuestos' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: 'Secciones de clínica' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Atrás en navegador' }));
+    const clinicalTabs = await screen.findByRole('navigation', { name: 'Secciones de clínica' });
+    expect(within(clinicalTabs).getByRole('button', { name: 'Visitas' })).toHaveAttribute('aria-current', 'page');
+    await user.click(screen.getByRole('button', { name: 'Adelante en navegador' }));
+    expect(await screen.findByText(/Presupuesto #1/i)).toBeVisible();
+    expect(screen.queryByRole('navigation', { name: 'Secciones de clínica' })).not.toBeInTheDocument();
+    await user.click(within(mainTabs).getByRole('button', { name: 'Clínica' }));
+    expect(within(await screen.findByRole('navigation', { name: 'Secciones de clínica' })).getByRole('button', { name: 'Visitas' })).toHaveAttribute('aria-current', 'page');
+    await user.click(within(mainTabs).getByRole('button', { name: 'Presupuestos' }));
+    expect(await screen.findByText(/Presupuesto #1/i)).toBeVisible();
   });
 
   it('creates a new budget from the patient action menu and selects it', async () => {
@@ -445,6 +480,8 @@ describe('PacientesPage structure', () => {
 
     await waitFor(() => expect(createPresupuestoMock).toHaveBeenCalledWith('pac-1', 'doc-1'));
     expect(await screen.findByRole('region', { name: /^Presupuestos$/i })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Áreas del paciente' })).getByRole('button', { name: 'Presupuestos' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('navigation', { name: 'Secciones de clínica' })).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Presupuesto #2/i)).toBeInTheDocument());
     await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('presupuesto_id=pres-2'));
     await user.click(screen.getByRole('button', { name: /^#1\s*Presentado/i }));

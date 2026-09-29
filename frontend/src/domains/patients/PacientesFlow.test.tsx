@@ -335,9 +335,9 @@ describe('Flujo integración cross-módulo', () => {
     const user = userEvent.setup();
     renderPage();
 
-    // Voy a Tratamientos -> Pendientes
-    await screen.findByRole('button', { name: /^Tratamientos$/i });
-    await user.click(screen.getByRole('button', { name: /^Tratamientos$/i }));
+    // Voy a Clínica -> Pendientes
+    await screen.findByRole('button', { name: /^Clínica$/i });
+    await user.click(screen.getByRole('button', { name: /^Clínica$/i }));
     await user.click(screen.getByRole('button', { name: /^Pendientes$/i }));
 
     // Botón "+ Lab" en la fila del tratamiento

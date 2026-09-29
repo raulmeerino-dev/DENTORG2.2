@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react';
+import type { MouseEvent } from 'react';
 import type {
   ApiPaciente,
   Cita,
@@ -28,11 +28,10 @@ import { VisitsWorkspace } from './VisitsWorkspace';
 import { TaskSurface } from '../../../design-system/TaskSurface';
 import { PatientTaskContext } from '../../patients/PatientTaskContext';
 
-export type ClinicalTab = 'primera' | 'presupuestos' | 'pendiente' | 'sesion' | 'visitas';
+export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
 
 const CLINICAL_TABS: Array<{ id: ClinicalTab; label: string }> = [
   { id: 'primera', label: 'Diagnóstico' },
-  { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'pendiente', label: 'Pendientes' },
   { id: 'sesion', label: 'Sesión actual' },
   { id: 'visitas', label: 'Visitas' },
@@ -56,7 +55,6 @@ export function ClinicalWorkspace({
   saldoPendiente,
   doctorId,
   doctores,
-  budgetContent,
   tratamientos,
   savingPrimeraVisita,
   onSavePrimeraVisita,
@@ -101,7 +99,6 @@ export function ClinicalWorkspace({
   saldoPendiente: number;
   doctorId?: string | null;
   doctores?: Doctor[];
-  budgetContent?: ReactNode;
   tratamientos: TratamientoCatalogo[];
   savingPrimeraVisita: boolean;
   onSavePrimeraVisita: (data: PrimeraVisitaData, revision?: number) => void;
@@ -144,14 +141,13 @@ export function ClinicalWorkspace({
           </button>
         ))}
       </nav>
-      {activeTab === 'presupuestos' && budgetContent}
 
       {activeTab === 'primera' && (
         <TaskSurface
           title="Primera visita"
           context={paciente ? <PatientTaskContext paciente={paciente} /> : 'Selecciona un paciente'}
           onClose={() => onTabChange('pendiente')}
-          backLabel="Volver a tratamientos"
+          backLabel="Volver a clínica"
           className="dc-firstvisit-task"
         >
           <PrimeraVisitaPanel

@@ -65,3 +65,16 @@ Validación de esta pasada: TypeScript/build y ESLint aprobados; 76 archivos / 4
 En Chrome se recorrieron Jornada (todos y una profesional), Agenda densa y diálogo de cita, ficha con nombre largo, historial de 60 entradas, presupuesto de 24 líneas, las cuatro vistas de Caja, Registros, Archivos con 224 resultados, reportes, ajustes de profesionales y panel del asistente. En Jornada el filtro mostró 12 citas activas, 9 sin confirmar y 2 pacientes en clínica para la profesional seleccionada; se restauró Todos. No se guardaron formularios ni se ejecutaron cobros o cambios clínicos.
 
 Se comprobó la cabecera del paciente a 1024 px: el nombre ocupa dos líneas con 8 px de margen superior dentro de una cabecera de 64 px. A 520 px no existe desbordamiento horizontal del documento y el workspace queda debajo de la cabecera. El contraste de los tokens se comprobó también en oscuro y se restauró el tema claro y el tamaño normal del navegador. Capturas locales de esta pasada en `tmp/screenshots/ui-hierarchy/` (ignoradas por Git); la captura completa de Chrome fue intermitente y se usaron capturas de región para las evidencias disponibles.
+
+## Navegación del paciente — 29 de septiembre de 2026
+
+- Cuatro áreas principales: Ficha, Clínica, Presupuestos e Historial. Clínica conserva Diagnóstico, Pendientes, Sesión actual y Visitas; Presupuestos reutiliza su editor, catálogo y odontograma en un área independiente.
+- Cabecera con breadcrumb pequeño y nombre del paciente como título principal. Historia, edad, teléfono y próxima cita se muestran junto al nombre cuando hay datos. Se retira el título redundante del módulo.
+- Se conservan los enlaces existentes, incluido el alias `tab=tratamientos`, la selección de presupuesto y la última sección clínica al alternar entre áreas. Diagnóstico mantiene visibles las cuatro pestañas principales.
+- No se modifican contratos API, permisos, reglas clínicas o económicas, ni los handlers del editor de presupuestos.
+
+Validación automatizada: 6 archivos / 51 tests aprobados de PacientesPage, PacientesFlow, FichaPaciente, ClinicalWorkspace, TrabajoPendiente y recordTargets. Cubren los cuatro accesos principales, alias, enlace a presupuesto, Atrás/Adelante y creación de presupuesto con APIs simuladas. TypeScript/build y ESLint aprobados; diff sin errores de espacios. Se actualizó el selector de Clínica en el E2E existente; no se repitió el circuito económico real para este cambio de navegación.
+
+En Chrome con API y datos sintéticos reales se revisaron Ficha, Diagnóstico, Pendientes, Sesión actual, Visitas, Presupuestos e Historial. El presupuesto de 24 líneas conserva su estado rechazado y sus acciones bloqueadas; el borrador permite abrir catálogo y odontograma de planificación. Se verificó la recarga del enlace directo a un presupuesto y la vuelta a Visitas después de alternar entre Clínica y Presupuestos. Historial mantiene sus 60 registros. No se guardaron cambios clínicos ni económicos.
+
+Cabecera y pestañas comprobadas con nombre largo a 1365 y 520 px de ancho CSS, sin desbordamiento horizontal del documento; a 520 px las cuatro pestañas caben en una fila. Se restauró el viewport normal. Evidencia local: `tmp/screenshots/patient-navigation/ficha.png` (ignorada por Git); la captura de Chrome sigue siendo intermitente con viewport sobrescrito.

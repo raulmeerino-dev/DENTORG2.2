@@ -65,7 +65,7 @@ test('Circuito real: presupuesto → aceptación → cita → sesión → realiz
     .find(start => appointments.every(cita => start + 10 * 60_000 <= Date.parse(cita.fecha_hora) || start >= Date.parse(cita.fecha_hora) + cita.duracion_min * 60_000));
   expect(slot).toBeDefined();
   await page.goto(`/pacientes?paciente_id=${patient.id}`);
-  await page.getByRole('button', { name: 'Tratamientos', exact: true }).click();
+  await page.getByRole('button', { name: 'Clínica', exact: true }).click();
   await page.getByRole('button', { name: 'Pendientes', exact: true }).click();
   await page.getByRole('table').getByRole('button', { name: 'Dar cita', exact: true }).click();
   const appointmentDialog = page.getByRole('dialog', { name: 'Nueva cita', exact: true });

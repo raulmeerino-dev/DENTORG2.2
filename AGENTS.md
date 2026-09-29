@@ -37,14 +37,17 @@ Registros y Archivos comparten el modelo de lectura semántico de `reporting`; n
 
 Dentro de Pacientes:
 - Ficha
-- Tratamientos
+- Clínica
+- Presupuestos
 - Historial
 
-Dentro de Tratamientos:
-- Primera visita
-- Presupuestos
+Dentro de Clínica:
+- Diagnóstico / Primera visita
 - Pendientes
-- Realizados
+- Sesión actual
+- Visitas
+
+Presupuestos mantiene su listado, editor, estados, catálogo y odontograma de planificación como área independiente de Clínica. Los enlaces `tab=presupuestos` siguen abriendo ese contexto; `tab=tratamientos` se conserva como alias de Clínica.
 
 Funciones ya existentes o avanzadas:
 - Ficha ampliada del paciente
@@ -144,9 +147,10 @@ Reglas:
 
 La pantalla Pacientes es el centro del programa.
 
-Debe mantener solo tres áreas principales:
+Debe mantener cuatro áreas principales:
 - Ficha
-- Tratamientos
+- Clínica
+- Presupuestos
 - Historial
 
 Ficha:
@@ -159,11 +163,16 @@ Ficha:
 - Acciones rápidas.
 - Mini odontograma resumen.
 
-Tratamientos:
-- Primera visita.
-- Presupuestos.
+Clínica:
+- Diagnóstico / Primera visita.
 - Pendientes.
-- Realizados.
+- Sesión actual.
+- Visitas y tratamientos clínicos.
+
+Presupuestos:
+- Listado, edición, líneas y estados.
+- Planificación por pieza / odontograma y catálogo.
+- Separado visualmente de Clínica, manteniendo las relaciones con el trabajo pendiente.
 
 Historial:
 - Timeline completo clínico, económico y documental.

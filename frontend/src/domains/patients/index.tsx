@@ -50,16 +50,17 @@ import { PatientActionsMenu } from './PatientActionsMenu';
 import { buildWhatsAppUrl } from './patientActionUtils';
 import { PatientEditModal } from './PatientEditModal';
 import { PatientFinder } from './PatientFinder';
+import { PatientHeaderContext } from './PatientHeaderContext';
 import { PatientFullViewModal } from './PatientFullViewModal';
 import { PatientForm } from './PatientSummary';
-import { nextPatientAppointment, patientAge, patientAllergies, patientAppointmentLabel } from './patientContext';
+import { nextPatientAppointment, patientAllergies } from './patientContext';
 import { useMinuteClock } from '../../shared/time/useMinuteClock';
 import './patient-workspace.css';
 
 
 export type WorkTab = 'pacientes' | 'clinica' | 'tratamientos' | 'realizados' | 'pendiente' | 'presupuestos' | 'primera' | 'sesion' | 'visitas' | 'historial' | 'citas' | 'facturacion' | 'consentimientos' | 'documentos' | 'laboratorio';
-type MainPatientTab = 'pacientes' | 'clinica' | 'historial';
-type TreatmentTab = ClinicalTab;
+type MainPatientTab = 'pacientes' | 'clinica' | 'presupuestos' | 'historial';
+
 type PatientContextMenu =
   | { x: number; y: number; kind: 'paciente' }
   | { x: number; y: number; kind: 'linea'; linea: PresupuestoLinea }
@@ -128,13 +129,14 @@ const TAB_ICONS: Record<WorkTab, ReactNode> = {
 
 const WORK_TABS: Array<{ id: MainPatientTab; label: string }> = [
   { id: 'pacientes', label: 'Ficha' },
-  { id: 'clinica', label: 'Tratamientos' },
+  { id: 'clinica', label: 'Clínica' },
+  { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'historial', label: 'Historial' },
 ];
 const PATIENT_PAGE_SIZE = 50;
 
-function isTreatmentTab(tab: WorkTab): tab is TreatmentTab {
-  return tab === 'presupuestos' || tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
+function isClinicalTab(tab: WorkTab): tab is ClinicalTab {
+  return tab === 'primera' || tab === 'pendiente' || tab === 'sesion' || tab === 'visitas';
 }
 
 function isPresupuestoCerrado(estado?: string | null) {
@@ -174,8 +176,8 @@ function PatientWorkspace() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialArea = searchParams.get('tab');
-  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'presupuestos' || initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
-  const [treatmentTab, setTreatmentTab] = useState<TreatmentTab>(() => initialArea === 'presupuestos' || initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' ? initialArea : 'pendiente');
+  const [tab, setTab] = useState<WorkTab>(() => initialArea === 'clinica' || initialArea === 'tratamientos' || initialArea === 'presupuestos' || initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
+  const [clinicalTab, setClinicalTab] = useState<ClinicalTab>(() => initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' ? initialArea : 'pendiente');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
   const [documentsUploadOpen, setDocumentsUploadOpen] = useState(false);
   const [treatmentHistoryOpen, setTreatmentHistoryOpen] = useState(false);
@@ -205,7 +207,9 @@ function PatientWorkspace() {
   useEffect(() => {
     // External navigation (including the assistant) must update an already open patient.
     const timer = window.setTimeout(() => {
-      if (initialArea && isTreatmentTab(initialArea as WorkTab)) { setTab('clinica'); setTreatmentTab(initialArea as TreatmentTab); }
+      if (initialArea && isClinicalTab(initialArea as WorkTab)) { setTab('clinica'); setClinicalTab(initialArea as ClinicalTab); }
+      else if (initialArea === 'presupuestos') setTab('presupuestos');
+      else if (initialArea === 'clinica' || initialArea === 'tratamientos') setTab('clinica');
       else if (initialArea === 'historial' || initialArea === 'facturacion' || initialArea === 'realizados') setTab('historial');
       else {
         setTab('pacientes');
@@ -215,13 +219,15 @@ function PatientWorkspace() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [initialArea]);
-  const activeMainTab: MainPatientTab = isTreatmentTab(tab) || tab === 'tratamientos' || tab === 'clinica'
+  const activeMainTab: MainPatientTab = isClinicalTab(tab) || tab === 'tratamientos' || tab === 'clinica'
       ? 'clinica'
       : tab === 'historial' || tab === 'facturacion' || tab === 'realizados'
       ? 'historial'
+      : tab === 'presupuestos'
+      ? 'presupuestos'
       : 'pacientes';
-  const activeTreatmentTab = isTreatmentTab(tab) ? tab : treatmentTab;
-  const firstVisitOpen = activeMainTab === 'clinica' && activeTreatmentTab === 'primera';
+  const activeClinicalTab = isClinicalTab(tab) ? tab : clinicalTab;
+  const firstVisitOpen = activeMainTab === 'clinica' && activeClinicalTab === 'primera';
   const patientSearchTerm = deferredPatientSearch.trim();
   const pacientesQuery = useQuery({
     queryKey: ['pacientes', { q: patientSearchTerm, limit: PATIENT_PAGE_SIZE, offset: patientOffset }],
@@ -371,7 +377,8 @@ function PatientWorkspace() {
         return;
       }
       if (action === 'budgets') {
-        setTreatmentTab('presupuestos'); setTab('clinica');
+        setTab('presupuestos');
+        setSearchParams(current => { const next = new URLSearchParams(current); next.set('tab', 'presupuestos'); return next; }, { replace: true, state: location.state });
         return;
       }
       if (action === 'documents' || action === 'upload_document') {
@@ -400,7 +407,7 @@ function PatientWorkspace() {
       if (timeout !== null) window.clearTimeout(timeout);
       window.removeEventListener('dentcore:patient-fast-action', handlePatientFastAction);
     };
-  }, [dedicatedTaskOpen]);
+  }, [dedicatedTaskOpen, setSearchParams, location.state]);
 
   useEffect(() => {
     if (!active?.id) return;
@@ -428,18 +435,21 @@ function PatientWorkspace() {
       next.set('presupuesto_id', presupuestoId);
       return next;
     }, { replace: true, state: location.state });
-    setTreatmentTab('presupuestos');
-    setTab('clinica');
+    setTab('presupuestos');
   }
 
   function openPatientArea(targetTab: WorkTab) {
     if (targetTab !== 'citas') setSearchParams(current => {
       const next = new URLSearchParams(current);
-      next.set('tab', targetTab === 'clinica' || targetTab === 'tratamientos' ? treatmentTab : targetTab);
+      next.set('tab', targetTab === 'clinica' || targetTab === 'tratamientos' ? clinicalTab : targetTab);
       return next;
     }, { replace: true, state: location.state });
-    if (isTreatmentTab(targetTab)) {
-      setTreatmentTab(targetTab);
+    if (targetTab === 'presupuestos') {
+      setTab('presupuestos');
+      return;
+    }
+    if (isClinicalTab(targetTab)) {
+      setClinicalTab(targetTab);
       setTab('clinica');
       return;
     }
@@ -1017,7 +1027,7 @@ function PatientWorkspace() {
 
   return (
     <div className="dc-patient-workspace">
-      <ToolbarContribution slot="module">{active && <span className="dc-global-patient" title={fullName(active)}>{fullName(active)}</span>}</ToolbarContribution>
+      <ToolbarContribution slot="module">{active && <PatientHeaderContext paciente={active} proximaCita={proximaCita} />}</ToolbarContribution>
       <ContextToolbar className="dc-patient-header" hidden={dedicatedTaskOpen || firstVisitOpen}>
         <PatientFinder
           pacientes={pacientes}
@@ -1039,28 +1049,14 @@ function PatientWorkspace() {
             setTab('pacientes');
           }}
         />
-        <div className="dc-patient-identity" aria-label="Paciente activo">
-          {active ? (
-            <>
-              <small>
-                <b>H {active.num_historial}</b>
-                {patientAge(active) !== null && <> · {patientAge(active)} años</>}
-                {active.telefono && <> · {active.telefono}</>}
-              </small>
-              {proximaCita && <small className="dc-patient-next-appointment">Próxima: {patientAppointmentLabel(proximaCita.fecha_hora)}</small>}
-              {(alergias || totalPendiente > 0) && (
-                <div className="dc-patient-chips">
-                  {alergias && <span className="dc-patient-chip dc-patient-chip-danger" title={`Alérgico: ${alergias}`}>Alergias: {alergias}</span>}
-                  {canManageBilling && totalPendiente > 0 && (
-                    <span className="dc-patient-chip dc-patient-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
-                  )}
-                </div>
-              )}
-            </>
-          ) : (
-            <small className="patient-selector-empty">Sin paciente</small>
-          )}
-        </div>
+        {(alergias || totalPendiente > 0) && (
+          <div className="dc-patient-chips" aria-label="Avisos del paciente">
+            {alergias && <span className="dc-patient-chip dc-patient-chip-danger" title={`Alérgico: ${alergias}`}>Alergias: {alergias}</span>}
+            {canManageBilling && totalPendiente > 0 && (
+              <span className="dc-patient-chip dc-patient-chip-danger" title="Saldo pendiente">{money(totalPendiente)}</span>
+            )}
+          </div>
+        )}
         {(
           <PatientActionsMenu
             paciente={active}
@@ -1106,7 +1102,7 @@ function PatientWorkspace() {
         )}
       </ContextToolbar>
       <section className="dc-patient-view" onClick={() => setContextMenu(null)}>
-        <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen || firstVisitOpen}>
+        <nav className="dc-patient-tabs" aria-label="Áreas del paciente" hidden={dedicatedTaskOpen}>
           {WORK_TABS.map((item) => (
             <button
               key={item.id}
@@ -1162,7 +1158,7 @@ function PatientWorkspace() {
         {activeMainTab === 'clinica' && (
           <ClinicalWorkspace
             focusedPendingId={searchParams.get('tratamiento_id')}
-            activeTab={activeTreatmentTab}
+            activeTab={activeClinicalTab}
             onTabChange={(nextTab) => openPatientArea(nextTab)}
             paciente={active}
             citas={citasPacienteQuery.data ?? []}
@@ -1179,7 +1175,6 @@ function PatientWorkspace() {
             saldoPendiente={totalPendiente}
             doctorId={user?.doctor_id ?? null}
             doctores={doctoresQuery.data ?? []}
-            budgetContent={activeTreatmentTab === 'presupuestos' ? renderPresupuestosContextPanel() : null}
             tratamientos={tratamientosQuery.data ?? []}
             savingPrimeraVisita={guardarPrimeraVisita.isPending}
             onSavePrimeraVisita={(data, revision) => guardarPrimeraVisita.mutate({ data, revision })}
@@ -1216,6 +1211,7 @@ function PatientWorkspace() {
             userRole={user?.rol}
           />
         )}
+        {activeMainTab === 'presupuestos' && renderPresupuestosContextPanel()}
         {activeMainTab === 'historial' && (
           <section className="history-complete-workspace">
             <HistorialCompletoPanel
