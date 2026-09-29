@@ -90,6 +90,10 @@ La suite usa navegador y API reales, sin interceptores. Combina texto, fechas, e
 
 El lector de CSV/XLSX usa únicamente la biblioteca estándar de Python. Busca el Python del entorno `backend/.venv`; `DENTCORE_E2E_PYTHON` permite indicar otro ejecutable. Las descargas, capturas, tiempos y trazas quedan en `frontend/test-results/`. Esta suite requiere su propia variable de activación para no modificar los runtimes de otras pruebas.
 
+## Densidad visual
+
+Para revisar densidad visual, después de `seed_records.py`, ejecutar `seed_ui_density.py` con el mismo entorno aislado. Añade el paciente sintético `UIQA María de los Ángeles`, con nombre largo, 24 líneas de presupuesto, 60 entradas clínicas de importe cero y 16 PDFs con nombres extensos. No elimina datos existentes; rechaza bases remotas y entornos de producción. Sirve para comprobar wrapping, tablas y scroll a 1366×768, 1440×900 y 1920×1080.
+
 ## Ensayo de restauración
 
 Crear una segunda base vacía llamada `dentcore_restore_<identificador>_test`. En `backend`, con la clave del backup disponible:
