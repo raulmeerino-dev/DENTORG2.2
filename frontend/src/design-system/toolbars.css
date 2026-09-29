@@ -1,4 +1,4 @@
-.dc-context-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-height: 56px; flex-shrink: 0; padding: 8px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); min-width: 0; }
+.dc-context-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dc-space-2); min-height: 52px; flex-shrink: 0; padding: var(--dc-space-2) var(--dc-space-3); border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); min-width: 0; }
 .dc-context-toolbar[hidden] { display: none; }
 .dc-context-toolbar button, .dc-context-toolbar select, .dc-context-toolbar input { min-height: 32px; font-size: 12px; }
 .dc-context-toolbar button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }

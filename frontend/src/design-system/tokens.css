@@ -1,7 +1,7 @@
 :root {
-  --dc-bg: #f3f5f7; --dc-bg-elevated: #edf1f4;
-  --dc-surface: #fff; --dc-surface-soft: #f6f8fa; --dc-surface-hover: #eef2f6;
-  --dc-border: #dce2e8; --dc-border-strong: #bec8d3;
+  --dc-bg: #f3f5f8; --dc-bg-elevated: #edf1f6;
+  --dc-surface: #fff; --dc-surface-soft: #f6f8fb; --dc-surface-hover: #edf2f8;
+  --dc-border: #dce3ec; --dc-border-strong: #b8c5d4;
   --dc-text: #263443; --dc-muted: #637386; --dc-muted-2: #8390a0;
   --dc-primary: #2463ad; --dc-primary-hover: #1d528f; --dc-primary-soft: #eaf2fc;
   --dc-on-primary: #fff;
@@ -11,7 +11,10 @@
   --dc-info: #2463ad; --dc-info-soft: #eaf2fc;
   --dc-space-1: 4px; --dc-space-2: 8px; --dc-space-3: 12px; --dc-space-4: 16px; --dc-space-5: 24px;
   --dc-radius-sm: 4px; --dc-radius: 6px; --dc-radius-lg: 8px;
-  --dc-control-height: 32px; --dc-font-small: 11px; --dc-font-body: 13px; --dc-font-heading: 17px;
+  --dc-control-height: 32px; --dc-control-compact: 28px;
+  --dc-font-micro: 11px; --dc-font-small: 12px; --dc-font-body: 13px;
+  --dc-font-section: 14px; --dc-font-heading: 18px; --dc-font-metric: 20px;
+  --dc-weight-medium: 500; --dc-weight-semibold: 600; --dc-weight-heading: 650;
   --dc-shadow-soft: none; --dc-shadow-menu: 0 8px 30px #142c4926;
   --dc-layer-popover: 2000;
   --focus-ring: 0 0 0 2px var(--dc-surface), 0 0 0 4px var(--dc-primary);

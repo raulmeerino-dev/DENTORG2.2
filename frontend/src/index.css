@@ -65,18 +65,6 @@ a {
   to { transform: translateX(230%); }
 }
 
-.empty-state {
-  color: var(--muted);
-  padding: 10px;
-}
-
-.empty-state {
-  border: 1px dashed #b8c7d1;
-  border-radius: 8px;
-  background: #f7fafc;
-  text-align: center;
-}
-
 .error-screen {
   min-height: 360px;
   display: grid;

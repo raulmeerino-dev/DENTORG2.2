@@ -12,7 +12,7 @@
   height: 36px;
   padding: 6px var(--dc-space-3);
   border: 0;
-  border-bottom: 1px solid var(--dc-border);
+  border-bottom: 1px solid color-mix(in srgb, var(--dc-border) 75%, var(--dc-surface));
   text-align: left;
   vertical-align: middle;
   line-height: 1.4;
@@ -22,14 +22,15 @@
   top: 0;
   z-index: 1;
   background: var(--dc-surface-soft);
-  color: var(--dc-muted);
+  color: var(--dc-text);
   font-size: var(--dc-font-small);
   font-weight: 600;
   text-transform: none;
   letter-spacing: 0;
 }
-:is(.dentcore-table, .data-table, .history-ledger-table) tbody :where(tr:nth-child(even)) td { background: color-mix(in srgb, var(--dc-surface-soft) 48%, var(--dc-surface)); }
+:is(.dentcore-table, .data-table, .history-ledger-table) tbody :where(tr:nth-child(even)) td { background: color-mix(in srgb, var(--dc-surface-soft) 30%, var(--dc-surface)); }
 :is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:hover td { background: var(--dc-surface-hover); }
 :is(.dentcore-table, .data-table, .history-ledger-table) tbody :is(tr.selected-row, tr[aria-selected="true"]) td { background: var(--dc-primary-soft); color: var(--dc-text); }
 :is(.dentcore-table, .data-table, .history-ledger-table) .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 :is(.dentcore-table, .data-table, .history-ledger-table) td a { font-weight: 500; }
+:is(.dentcore-table, .data-table, .history-ledger-table) tbody tr:focus-within td { background: var(--dc-primary-soft); }
