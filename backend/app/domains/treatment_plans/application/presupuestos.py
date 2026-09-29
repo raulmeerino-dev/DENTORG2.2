@@ -541,7 +541,9 @@ async def actualizar_linea(
     old_pieza = linea.pieza_dental
     old_caras = linea.caras
     old_tratamiento_id = linea.tratamiento_id
-    for field, value in data.model_dump(exclude_none=True).items():
+    for field, value in data.model_dump(exclude_unset=True).items():
+        if value is None and field not in {"pieza_dental", "caras"}:
+            continue
         setattr(linea, field, normalize_caras(value) if field == "caras" else value)
     await _ensure_no_duplicate_budget_line(
         db,

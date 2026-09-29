@@ -41,7 +41,10 @@ class Presupuesto(UUIDMixin, TimestampMixin, Base):
     paciente: Mapped["Paciente"] = relationship("Paciente", back_populates="presupuestos")  # noqa: F821
     clinica: Mapped["Clinica | None"] = relationship("Clinica")  # noqa: F821
     doctor: Mapped["Doctor"] = relationship("Doctor")  # noqa: F821
-    lineas: Mapped[list["PresupuestoLinea"]] = relationship("PresupuestoLinea", back_populates="presupuesto")
+    lineas: Mapped[list["PresupuestoLinea"]] = relationship(
+        "PresupuestoLinea", back_populates="presupuesto",
+        order_by="(PresupuestoLinea.created_at, PresupuestoLinea.id)",
+    )
 
 
 class PresupuestoLinea(UUIDMixin, TimestampMixin, Base):
