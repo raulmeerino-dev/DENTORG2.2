@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import CurrentUser, RequireAdmin
 from app.database import get_db
-from app.domains.clinical.application import catalogo, historial, sesiones
+from app.domains.clinical.application import catalogo, historial, sesiones, valoraciones
 from app.domains.clinical.schemas.tratamiento import (
     FamiliaCreate,
     FamiliaResponse,
@@ -25,8 +25,23 @@ from app.domains.clinical.schemas.tratamiento import (
     TratamientoResponse,
     TratamientoUpdate,
 )
+from app.domains.clinical.schemas.valoracion import ValoracionCreate
+from app.domains.patients.schemas.paciente import PacienteResponse
 
 router = APIRouter()
+
+
+@router.post("/pacientes/{paciente_id}/valoraciones", response_model=PacienteResponse, status_code=201)
+async def registrar_valoracion(
+    paciente_id: UUID,
+    data: ValoracionCreate,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: CurrentUser,
+) -> PacienteResponse:
+    return await valoraciones.registrar_valoracion(
+        paciente_id=paciente_id, data=data, request=request, db=db, current_user=current_user,
+    )
 
 
 @router.get("/familias", response_model=list[FamiliaResponse])
