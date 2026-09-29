@@ -398,10 +398,11 @@ describe('PacientesPage structure', () => {
     expect(screen.queryByText(/Odontograma actual/i)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /Ver detalle en Clínica/i }));
-    expect(await screen.findByText(/Odontograma diagnóstico/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Diagnóstico' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Iniciar valoración inicial' }));
     expect(within(mainTabs).getByRole('button', { name: 'Clínica' })).toHaveAttribute('aria-current', 'page');
     expect(within(mainTabs).getByRole('button', { name: 'Presupuestos' })).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Volver a clínica' }));
+    await user.click(screen.getByRole('button', { name: 'Volver a diagnóstico' }));
     await user.click(screen.getByRole('button', { name: /^Ficha$/i }));
     expect(await screen.findByText(/Documentos y consentimientos/i)).toBeInTheDocument();
 
@@ -441,6 +442,15 @@ describe('PacientesPage structure', () => {
     await waitFor(() => expect(within(mainTabs).getByRole('button', { name: 'Clínica' })).toHaveAttribute('aria-current', 'page'));
     expect(screen.getByText('Tratamientos pendientes')).toBeVisible();
     expect(screen.queryByRole('region', { name: /^Presupuestos$/ })).not.toBeInTheDocument();
+  });
+
+  it.each(['primera', 'diagnostico'])('opens %s in the patient diagnosis workspace without starting a visit', async (area) => {
+    renderPage([`/pacientes?paciente_id=pac-1&tab=${area}`]);
+    expect(await screen.findByRole('heading', { name: 'Diagnóstico' })).toBeVisible();
+    expect(within(screen.getByRole('navigation', { name: 'Áreas del paciente' })).getByRole('button', { name: 'Clínica' })).toHaveAttribute('aria-current', 'page');
+    expect(within(screen.getByRole('navigation', { name: 'Secciones de clínica' })).getByRole('button', { name: 'Diagnóstico' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.queryByRole('heading', { name: 'Primera visita' })).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Buscar paciente' })).toBeVisible();
   });
 
   it('restores budget deep links and browser history without mixing clinical navigation', async () => {

@@ -42,12 +42,14 @@ Dentro de Pacientes:
 - Historial
 
 Dentro de Clínica:
-- Diagnóstico / Primera visita
+- Diagnóstico: valoración inicial (Primera visita) y valoraciones posteriores
 - Pendientes
 - Sesión actual
 - Visitas
 
 Presupuestos mantiene su listado, editor, estados, catálogo y odontograma de planificación como área independiente de Clínica. Los enlaces `tab=presupuestos` siguen abriendo ese contexto; `tab=tratamientos` se conserva como alias de Clínica.
+
+Diagnóstico abre la consulta de valoraciones; registrar la primera visita es una acción explícita. Las posteriores no sustituyen la inicial. Ver `docs/patient-diagnosis.md`.
 
 Funciones ya existentes o avanzadas:
 - Ficha ampliada del paciente
@@ -164,7 +166,7 @@ Ficha:
 - Mini odontograma resumen.
 
 Clínica:
-- Diagnóstico / Primera visita.
+- Diagnóstico: valoración inicial y valoraciones posteriores.
 - Pendientes.
 - Sesión actual.
 - Visitas y tratamientos clínicos.

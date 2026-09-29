@@ -31,7 +31,6 @@ import { AnticipoModal } from '../billing/patient-account/modals/AnticipoModal';
 import { PatientCheckout } from '../billing/checkout/PatientCheckout';
 import { FacturaManualModal } from '../billing/patient-account/modals/FacturaManualModal';
 import { InvoiceCreationModal } from '../billing/patient-account/modals/FacturaModal';
-import type { PrimeraVisitaData } from '../clinical/first-visit/PrimeraVisita';
 import type { RecetaSubmitPayload } from '../clinical/prescriptions/Recetas';
 import { HistorialRecetasDrawer,RecetaModal } from '../clinical/prescriptions/Recetas';
 import type { ClinicalTab } from '../clinical/session/ClinicalWorkspace';
@@ -175,7 +174,8 @@ function PatientWorkspace() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialArea = searchParams.get('tab');
+  const requestedArea = searchParams.get('tab');
+  const initialArea = requestedArea === 'diagnostico' ? 'primera' : requestedArea;
   const [tab, setTab] = useState<WorkTab>(() => initialArea === 'clinica' || initialArea === 'tratamientos' || initialArea === 'presupuestos' || initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' || initialArea === 'pendiente' || initialArea === 'historial' || initialArea === 'facturacion' ? initialArea : 'pacientes');
   const [clinicalTab, setClinicalTab] = useState<ClinicalTab>(() => initialArea === 'primera' || initialArea === 'visitas' || initialArea === 'sesion' ? initialArea : 'pendiente');
   const [documentsDrawerOpen, setDocumentsDrawerOpen] = useState(false);
@@ -227,7 +227,6 @@ function PatientWorkspace() {
       ? 'presupuestos'
       : 'pacientes';
   const activeClinicalTab = isClinicalTab(tab) ? tab : clinicalTab;
-  const firstVisitOpen = activeMainTab === 'clinica' && activeClinicalTab === 'primera';
   const patientSearchTerm = deferredPatientSearch.trim();
   const pacientesQuery = useQuery({
     queryKey: ['pacientes', { q: patientSearchTerm, limit: PATIENT_PAGE_SIZE, offset: patientOffset }],
@@ -801,24 +800,6 @@ function PatientWorkspace() {
     },
   });
 
-  const guardarPrimeraVisita = useMutation({
-    mutationFn: async ({ data, revision }: { data: PrimeraVisitaData; revision?: number }) => {
-      if (!active) throw new Error('Sin paciente');
-      return updatePaciente(active.id, {
-        revision,
-        datos_salud: {
-          ...(active.datos_salud ?? {}),
-          primera_visita: data,
-        },
-      });
-    },
-    onSuccess: (paciente) => {
-      setActivePatient(paciente, { replace: true });
-      invalidatePatientWorkspace(paciente.id);
-      void pacientesQuery.refetch();
-    },
-  });
-
   function focusPacienteSearch() {
     setTab('pacientes');
     window.setTimeout(() => document.getElementById('patient-search-input')?.focus(), 0);
@@ -1028,7 +1009,7 @@ function PatientWorkspace() {
   return (
     <div className="dc-patient-workspace">
       <ToolbarContribution slot="module">{active && <PatientHeaderContext paciente={active} proximaCita={proximaCita} />}</ToolbarContribution>
-      <ContextToolbar className="dc-patient-header" hidden={dedicatedTaskOpen || firstVisitOpen}>
+      <ContextToolbar className="dc-patient-header" hidden={dedicatedTaskOpen}>
         <PatientFinder
           pacientes={pacientes}
           selectedId={active?.id ?? null}
@@ -1176,8 +1157,6 @@ function PatientWorkspace() {
             doctorId={user?.doctor_id ?? null}
             doctores={doctoresQuery.data ?? []}
             tratamientos={tratamientosQuery.data ?? []}
-            savingPrimeraVisita={guardarPrimeraVisita.isPending}
-            onSavePrimeraVisita={(data, revision) => guardarPrimeraVisita.mutate({ data, revision })}
             onDarCita={darCitaParaTratamiento}
             onContextLinea={(event, linea) => openContext(event, { kind: 'linea', linea })}
             onCrearPedidoLab={(linea) => {

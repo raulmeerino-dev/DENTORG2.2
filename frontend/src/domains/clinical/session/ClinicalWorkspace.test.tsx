@@ -195,8 +195,6 @@ function renderClinical(
       doctorId="doc-1"
       doctores={[{ id: 'doc-1', nombre: 'Dra. Ruiz', activo: true, color_agenda: null }]}
       tratamientos={[tratamiento]}
-      savingPrimeraVisita={false}
-      onSavePrimeraVisita={vi.fn()}
       onDarCita={vi.fn()}
       onContextLinea={vi.fn()}
       onCrearPedidoLab={vi.fn()}
@@ -284,8 +282,6 @@ function renderVisits(overrides: Partial<{
       doctorId="doc-1"
       doctores={[{ id: 'doc-1', nombre: 'Dra. Ruiz', activo: true, color_agenda: null }]}
       tratamientos={[tratamiento]}
-      savingPrimeraVisita={false}
-      onSavePrimeraVisita={vi.fn()}
       onDarCita={vi.fn()}
       onContextLinea={vi.fn()}
       onCrearPedidoLab={vi.fn()}

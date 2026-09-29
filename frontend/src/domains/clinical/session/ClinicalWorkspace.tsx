@@ -21,12 +21,9 @@ import type {
   UserRole,
 } from '../../../api/types';
 import { TrabajoPendientePanel } from '../../treatment-plans/TrabajoPendiente';
-import type { PrimeraVisitaData } from '../first-visit/PrimeraVisita';
-import { PrimeraVisitaPanel } from '../first-visit/PrimeraVisita';
+import { DiagnosticoWorkspace } from '../first-visit/DiagnosticoWorkspace';
 import { SessionWorkspace } from './SessionWorkspace';
 import { VisitsWorkspace } from './VisitsWorkspace';
-import { TaskSurface } from '../../../design-system/TaskSurface';
-import { PatientTaskContext } from '../../patients/PatientTaskContext';
 
 export type ClinicalTab = 'primera' | 'pendiente' | 'sesion' | 'visitas';
 
@@ -56,8 +53,6 @@ export function ClinicalWorkspace({
   doctorId,
   doctores,
   tratamientos,
-  savingPrimeraVisita,
-  onSavePrimeraVisita,
   onDarCita,
   onContextLinea,
   onCrearPedidoLab,
@@ -100,8 +95,6 @@ export function ClinicalWorkspace({
   doctorId?: string | null;
   doctores?: Doctor[];
   tratamientos: TratamientoCatalogo[];
-  savingPrimeraVisita: boolean;
-  onSavePrimeraVisita: (data: PrimeraVisitaData, revision?: number) => void;
   onDarCita: (linea: PresupuestoLinea) => void;
   onContextLinea: (event: MouseEvent, linea: PresupuestoLinea) => void;
   onCrearPedidoLab: (linea: PresupuestoLinea) => void;
@@ -143,20 +136,7 @@ export function ClinicalWorkspace({
       </nav>
 
       {activeTab === 'primera' && (
-        <TaskSurface
-          title="Primera visita"
-          context={paciente ? <PatientTaskContext paciente={paciente} /> : 'Selecciona un paciente'}
-          onClose={() => onTabChange('pendiente')}
-          backLabel="Volver a clínica"
-          className="dc-firstvisit-task"
-        >
-          <PrimeraVisitaPanel
-            paciente={paciente}
-            onSave={onSavePrimeraVisita}
-            saving={savingPrimeraVisita}
-            userRole={userRole}
-          />
-        </TaskSurface>
+        <DiagnosticoWorkspace paciente={paciente} userRole={userRole} />
       )}
       {activeTab === 'pendiente' && (
         <TrabajoPendientePanel
