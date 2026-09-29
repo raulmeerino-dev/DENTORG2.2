@@ -22,14 +22,14 @@
 .jornada-content .hoy-cita-row.is-selected td { background: var(--dc-primary-soft); }
 .jornada-content .hoy-cita-row { cursor: pointer; }
 .jornada-inline-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.jornada-inline-actions button { min-height: 28px; padding: 4px 7px; font-size: 11px; }
+.jornada-inline-actions button { min-height: var(--dc-control-compact); padding: 4px 8px; font-size: var(--dc-font-small); }
 .jornada-time-notes { display: grid; gap: 3px; font-size: 10px; white-space: nowrap; margin-top: 4px; color: var(--dc-muted); }
 .jornada-time-notes .is-late { color: var(--dc-warning); }
 .jornada-time-notes .is-overdue { color: var(--dc-danger); }
 .jornada-checkout { border-top: 1px solid var(--dc-border); padding-top: 12px; margin-top: 12px; }
-.jornada-checkout header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
+.jornada-checkout header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--dc-space-3); font-size: var(--dc-font-section); }
 .jornada-checkout-item { display: grid; gap: 7px; padding: 10px 0; border-top: 1px solid var(--dc-border); }
-.jornada-checkout-item strong { font-size: 12px; }
+.jornada-checkout-item strong { font-size: var(--dc-font-body); }
 .jornada-checkout-item small { color: var(--dc-muted); }
 .checkout-balance { display: grid; gap: 2px; font-variant-numeric: tabular-nums; }
 .checkout-balance > span { color: var(--dc-muted); font-size: var(--dc-font-small); line-height: 1.4; }

@@ -171,7 +171,7 @@ export function PatientActionsMenu({
   return (
     <div className="patient-actions">
       <ActionGroup aria-label="Acciones rapidas del paciente">
-        <button type="button" aria-label="Nueva cita" title="Nueva cita" onClick={handlers.onNuevaCita} disabled={noPatient}>
+        <button type="button" className="primary-action" aria-label="Nueva cita" title="Nueva cita" onClick={handlers.onNuevaCita} disabled={noPatient}>
           <CalendarPlus size={14} strokeWidth={2} aria-hidden="true" />
           <span>Nueva cita</span>
         </button>
@@ -185,7 +185,7 @@ export function PatientActionsMenu({
             <span>Cobrar</span>
           </button>
         )}
-        <button type="button" aria-label="Subir documento" title="Subir documento" onClick={handlers.onSubirDocumento} disabled={noPatient}>
+        <button type="button" className="tertiary-action" aria-label="Subir documento" title="Subir documento" onClick={handlers.onSubirDocumento} disabled={noPatient}>
           <Upload size={14} strokeWidth={2} aria-hidden="true" />
           <span>Subir documento</span>
         </button>

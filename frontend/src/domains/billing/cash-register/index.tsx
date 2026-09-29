@@ -91,7 +91,7 @@ export default function CajaPage() {
           <button
             key={key}
             type="button"
-            className={view === key ? "active" : ""}
+            className={`dc-tab${view === key ? " active" : ""}`}
             aria-pressed={view === key}
             onClick={() => {
               setView(key);

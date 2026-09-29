@@ -472,7 +472,7 @@ export function ConfiguracionWorkspace({
 
       {showTabs && <nav className="settings-config-tabs">
         {FICHEROS.map((item) => (
-          <button key={item} className={tab === item ? 'active' : ''} onClick={() => selectTab(item)}>
+          <button key={item} className={`dc-tab${tab === item ? ' active' : ''}`} onClick={() => selectTab(item)}>
             {item === 'general' && 'General'}
             {item === 'doctores' && 'Doctores'}
             {item === 'tratamientos' && 'Tratamientos'}

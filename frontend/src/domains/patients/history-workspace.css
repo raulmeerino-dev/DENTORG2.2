@@ -3,9 +3,9 @@
 .patient-history { min-width: 0; width: 100%; container-type: inline-size; background: var(--dc-surface); color: var(--dc-text); }
 .patient-history .patient-history-toolbar { padding: 6px 10px; min-height: 42px; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--dc-border); }
 .patient-history-toolbar .dc-toolbar-search { flex: 1 1 230px; max-width: 380px; }
-.patient-history-count { color: var(--dc-muted); font-size: 11px; margin-left: auto; white-space: nowrap; }
+.patient-history-count { color: var(--dc-muted); font-size: var(--dc-font-small); margin-left: auto; white-space: nowrap; }
 .patient-history-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 5px 10px; border-bottom: 1px solid var(--dc-border); }
-.patient-history-filters button, .patient-history-filters select { color: var(--dc-muted); background: transparent; border: 1px solid transparent; border-radius: var(--dc-radius-sm); min-height: 27px; padding: 3px 8px; font: inherit; font-size: 11px; cursor: pointer; }
+.patient-history-filters button, .patient-history-filters select { color: var(--dc-muted); background: transparent; border: 1px solid transparent; border-radius: var(--dc-radius-sm); min-height: var(--dc-control-compact); padding: 3px 8px; font: inherit; font-size: var(--dc-font-small); cursor: pointer; }
 .patient-history-filters select { max-width: 145px; border-color: var(--dc-border); background: var(--dc-surface); }
 .patient-history-filters button[aria-pressed="true"] { color: var(--dc-primary); background: var(--dc-primary-soft); font-weight: 650; }
 .patient-history-filters button:hover { background: var(--dc-surface-hover); }
@@ -26,7 +26,7 @@
 .patient-history-table .ph-state { width: 114px; }
 .patient-history-table .ph-invoice { width: 82px; }
 .patient-history-table .ph-money, .patient-history-table .ph-paid, .patient-history-table .ph-balance { width: 78px; }
-.patient-history-table th { height: 30px; padding: 4px 7px; text-align: left; background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border-strong); color: var(--dc-muted); font-size: 11px; font-weight: 600; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+.patient-history-table th { height: 30px; padding: 4px 7px; text-align: left; background: var(--dc-surface-soft); border-bottom: 1px solid var(--dc-border-strong); color: var(--dc-text); font-size: var(--dc-font-small); font-weight: 600; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
 .patient-history-row > td { height: 33px; padding: 3px 7px; border-bottom: 1px solid var(--dc-border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
 .patient-history-row > td:first-child { padding: 2px; overflow: visible; }
 .patient-history-row > .ph-professional { white-space: normal; overflow-wrap: anywhere; }
@@ -37,7 +37,7 @@
 .patient-history-table .ph-numeric { text-align: right; font-variant-numeric: tabular-nums; }
 .patient-history .has-debt { color: var(--dc-danger); font-weight: 600; }
 .patient-history .has-credit { color: var(--dc-success); }
-.patient-history-account { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); font-size: 11px; }
+.patient-history-account { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 24px; margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface-soft); font-size: var(--dc-font-small); }
 .patient-history-account > div { display: flex; align-items: baseline; gap: 7px; }
 .patient-history-account dt { color: var(--dc-muted); }
 .patient-history-account dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; }
@@ -54,11 +54,11 @@
 .patient-history-detail-table small { display: block; margin-top: 3px; color: var(--dc-muted); white-space: pre-wrap; }
 .patient-history-detail-table button { padding: 0; min-height: 25px; background: transparent; color: var(--dc-primary); border: 0; font: inherit; text-align: left; cursor: pointer; white-space: normal; text-decoration: underline; }
 .patient-history-detail-table .ph-numeric { text-align: right; font-variant-numeric: tabular-nums; }
-.patient-history-help { color: var(--dc-muted); font-size: 11px; margin: 8px 0 0; }
+.patient-history-help { color: var(--dc-muted); font-size: var(--dc-font-small); margin: 8px 0 0; }
 .patient-history .patient-history-expand, .patient-history .patient-history-note { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 25px; min-height: 25px; padding: 0; border: 0; background: transparent; color: var(--dc-muted); border-radius: 3px; cursor: pointer; }
 .patient-history-expand:hover, .patient-history-note:hover { color: var(--dc-primary); background: var(--dc-primary-soft); }
 .patient-history-concept { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.patient-history-concept > span { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
+.patient-history-concept > span { font-weight: var(--dc-weight-medium); min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
 .patient-history-note { width: 21px; height: 22px; margin-left: auto; }
 .patient-history .patient-history-invoice { display: block; max-width: 100%; min-height: 25px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; border: 0; background: transparent; color: var(--dc-primary); font: inherit; padding: 3px 0; cursor: pointer; text-decoration: underline; }
 .patient-history-detail-row > td { padding: 0; border-bottom: 1px solid var(--dc-border-strong); }
@@ -69,12 +69,12 @@
 .patient-history-detail dt { font-size: 10px; color: var(--dc-muted); margin-bottom: 3px; }
 .patient-history-detail dd { margin: 0; white-space: pre-wrap; }
 .patient-history-observation { border-top: 1px solid var(--dc-border); padding-top: 8px; margin-top: 8px; }
-.patient-history-observation strong { font-size: 11px; }
+.patient-history-observation strong { font-size: var(--dc-font-small); }
 .patient-history-observation p { margin: 5px 0 0; line-height: 1.5; white-space: pre-wrap; }
 .patient-history-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .patient-history-detail-actions:empty { display: none; }
-.patient-history-detail-actions button, .patient-history-detail-actions a, .patient-history-pagination button, .patient-history-focus button { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); font: inherit; font-size: 11px; background: var(--dc-surface); color: var(--dc-primary); text-decoration: none; cursor: pointer; }
-.patient-history-pagination { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; font-size: 11px; color: var(--dc-muted); }
+.patient-history-detail-actions button, .patient-history-detail-actions a, .patient-history-pagination button, .patient-history-focus button { display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border: 1px solid var(--dc-border); border-radius: var(--dc-radius-sm); font: inherit; font-size: var(--dc-font-small); background: var(--dc-surface); color: var(--dc-primary); text-decoration: none; cursor: pointer; }
+.patient-history-pagination { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; font-size: var(--dc-font-small); color: var(--dc-muted); }
 .patient-history-pagination > div { display: flex; gap: 6px; }
 .patient-history-pagination button:disabled { opacity: .5; cursor: default; }
 .patient-history-empty { padding: 24px 12px; text-align: center; color: var(--dc-muted); }
@@ -101,7 +101,7 @@
  .patient-history-row > td, .patient-history-table th { padding-left: 4px; padding-right: 4px; }
 }
 @container (max-width: 560px) {
- .patient-history-table { font-size: 11px; }
+ .patient-history-table { font-size: var(--dc-font-small); }
  .patient-history-table .ph-paid { display: none; }
  .patient-history-table .ph-invoice, .patient-history-table .ph-money, .patient-history-table.with-billing td:nth-child(8), .patient-history-table.with-billing td:nth-child(9), .patient-history-table.with-billing th:nth-child(8), .patient-history-table.with-billing th:nth-child(9) { display: none; }
  .patient-history-order > span { display: none; }

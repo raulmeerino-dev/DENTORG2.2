@@ -49,3 +49,19 @@ node node_modules/@playwright/test/cli.js test clinical-billing-real jornada-rea
 ```
 
 Los resultados corresponden al entorno local de pruebas. Esta revisión no certifica despliegue productivo ni sustituye pruebas fiscales o clínicas de aceptación.
+
+## Jerarquía visual compartida — 29 de septiembre de 2026
+
+Segunda pasada centrada en jerarquía y consistencia, sobre los mismos workspaces:
+
+- Escala común: contexto de módulo/paciente de 18 px, secciones de 14 px, cuerpo de 13 px, información secundaria de 12 px y métricas de 20 px; pesos diferenciados en lugar de negrita uniforme.
+- Controles compactos de 32 px y acciones auxiliares de 28 px. Nueva cita destaca en Pacientes; las utilidades documentales y de recepción usan un tratamiento secundario. Se conservan handlers, permisos y datos.
+- Pestañas compartidas con indicador inferior en Pacientes, Tratamientos, Caja y configuración. Se eliminan las reglas anteriores sustituidas, incluidas las de botones y vacíos en hojas legacy.
+- Encabezados de tabla más legibles, separadores suaves, fechas secundarias y nombres de paciente destacados. Los iconos de ordenación y apertura mantienen su ancho incluso en tablas densas.
+- Cabecera adaptable a nombres largos, separación en la ficha, formularios de ajustes y resúmenes de Jornada, Caja, reportes, documentos y asistente. Se mantienen colores de deuda, advertencia y estado.
+
+Validación de esta pasada: TypeScript/build y ESLint aprobados; 76 archivos / 445 tests unitarios aprobados con `node node_modules/vitest/vitest.mjs run --maxWorkers 2`. Tras los ajustes finales de CSS se repitieron build y lint; `git diff --check` correcto.
+
+En Chrome se recorrieron Jornada (todos y una profesional), Agenda densa y diálogo de cita, ficha con nombre largo, historial de 60 entradas, presupuesto de 24 líneas, las cuatro vistas de Caja, Registros, Archivos con 224 resultados, reportes, ajustes de profesionales y panel del asistente. En Jornada el filtro mostró 12 citas activas, 9 sin confirmar y 2 pacientes en clínica para la profesional seleccionada; se restauró Todos. No se guardaron formularios ni se ejecutaron cobros o cambios clínicos.
+
+Se comprobó la cabecera del paciente a 1024 px: el nombre ocupa dos líneas con 8 px de margen superior dentro de una cabecera de 64 px. A 520 px no existe desbordamiento horizontal del documento y el workspace queda debajo de la cabecera. El contraste de los tokens se comprobó también en oscuro y se restauró el tema claro y el tamaño normal del navegador. Capturas locales de esta pasada en `tmp/screenshots/ui-hierarchy/` (ignoradas por Git); la captura completa de Chrome fue intermitente y se usaron capturas de región para las evidencias disponibles.

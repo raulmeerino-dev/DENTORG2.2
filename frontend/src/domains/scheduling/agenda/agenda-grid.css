@@ -1,6 +1,6 @@
 /* Time and professional share a single, internally scrolling coordinate system. */
 .agenda-resource-workspace { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-.agenda-resource-workspace > .dc-agenda-status-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; flex: 0 0 auto; padding: 8px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); font-size: 10px; }
+.agenda-resource-workspace > .dc-agenda-status-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; flex: 0 0 auto; padding: 8px; border-bottom: 1px solid var(--dc-border); background: var(--dc-surface); font-size: var(--dc-font-micro); }
 .dc-agenda-status-legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .dc-agenda-status-legend b { border-radius: 3px; padding: 2px 3px; font-size: 9px; }
 .dc-agenda-status-legend :is(.state-pending, .state-clinic) b { background: var(--dc-warning-soft); color: var(--dc-warning); }
@@ -10,8 +10,8 @@
 .agenda-resource-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: auto; overscroll-behavior: contain; }
 .agenda-resource-grid { width: 100%; }
 .agenda-resource-heading { display: grid; grid-template-columns: var(--agenda-columns); position: sticky; top: 0; z-index: 8; background: var(--dc-surface); border-bottom: 1px solid var(--dc-border); }
-.agenda-resource-heading > * { min-width: 0; padding: 5px 8px; font-size: 11px; border-right: 1px solid var(--dc-border); overflow-wrap: anywhere; }
-.agenda-resource-heading > strong { border-top: 2px solid var(--doctor-color); }
+.agenda-resource-heading > * { min-width: 0; padding: 8px; font-size: var(--dc-font-small); border-right: 1px solid var(--dc-border); overflow-wrap: anywhere; }
+.agenda-resource-heading > strong { border-top: 2px solid var(--doctor-color); font-weight: var(--dc-weight-semibold); }
 .agenda-resource-heading > span { position: sticky; left: 0; z-index: 9; background: var(--dc-surface); }
 .agenda-timeline-body { position: relative; display: grid; grid-template-columns: var(--agenda-columns); }
 .agenda-timeline-hours { position: sticky; left: 0; z-index: 5; background: var(--dc-surface-soft); border-right: 1px solid var(--dc-border); }
@@ -28,11 +28,11 @@
 .agenda-resource-appointment:focus-visible { outline: 2px solid var(--dc-primary); outline-offset: -2px; z-index: 3; }
 .agenda-resource-appointment.has-overlap { border-color: var(--dc-danger); border-left-width: 4px; background: var(--dc-danger-soft); }
 .agenda-resource-appointment-title { display: grid; grid-template-columns: minmax(0, 1fr) 20px; align-items: center; gap: 4px; }
-.agenda-resource-appointment-title strong { font-size: 12px; line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-resource-appointment-title strong { font-size: var(--dc-font-body); line-height: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-appointment-more { display: grid; place-items: center; width: 20px; height: 20px; min-height: 0; padding: 0; border: 0; background: transparent; color: inherit; font-size: 16px; line-height: 1; }
 .agenda-appointment-more:hover { background: var(--dc-surface-hover); }
 .agenda-appointment-more:focus-visible, .agenda-resource-appointment-state button:focus-visible { outline-offset: -2px; }
-.agenda-resource-appointment > p { margin: 1px 0; font-size: 11px; line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agenda-resource-appointment > p { color: var(--dc-muted); margin: 1px 0; font-size: var(--dc-font-micro); line-height: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-resource-appointment.is-extended > p { white-space: normal; overflow-wrap: anywhere; max-height: 26px; }
 .agenda-resource-appointment-state { display: flex; align-items: center; gap: 5px; font-size: 10px; line-height: 16px; color: var(--dc-muted); }
 .agenda-resource-appointment-state > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

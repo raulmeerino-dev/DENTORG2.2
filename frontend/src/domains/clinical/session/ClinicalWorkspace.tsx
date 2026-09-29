@@ -136,7 +136,7 @@ export function ClinicalWorkspace({
           <button
             key={item.id}
             type="button"
-            className={activeTab === item.id ? 'active' : ''}
+            className={`dc-tab${activeTab === item.id ? ' active' : ''}`}
             aria-current={activeTab === item.id ? 'page' : undefined}
             onClick={() => onTabChange(item.id)}
           >

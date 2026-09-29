@@ -8,8 +8,7 @@
 .cash-total strong { font-size: 18px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .cash-total--pending strong { color: var(--dc-danger); }
 .cash-total--paid strong { color: var(--dc-success); }
-.cash-tabs button { min-height: var(--dc-control-height); border-radius: var(--dc-radius-sm); }
-.cash-tabs button.active { color: var(--dc-primary); background: var(--dc-primary-soft); border-color: var(--dc-primary); }
+.cash-tabs { padding-block: var(--dc-space-1); }
 .cash-ledger { flex: 1; min-height: 0; min-width: 0; overflow: auto; scrollbar-gutter: stable; }
 .cash-ledger .dentcore-table { min-width: 780px; width: 100%; }
 .cash-ledger .dentcore-table th { position: sticky; top: 0; z-index: 1; background: var(--dc-surface-soft); }

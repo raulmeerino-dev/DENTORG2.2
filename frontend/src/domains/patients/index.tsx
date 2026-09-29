@@ -1017,7 +1017,7 @@ function PatientWorkspace() {
 
   return (
     <div className="dc-patient-workspace">
-      <ToolbarContribution slot="module">{active && <span className="dc-global-patient" title={fullName(active)}> / {fullName(active)}</span>}</ToolbarContribution>
+      <ToolbarContribution slot="module">{active && <span className="dc-global-patient" title={fullName(active)}>{fullName(active)}</span>}</ToolbarContribution>
       <ContextToolbar className="dc-patient-header" hidden={dedicatedTaskOpen || firstVisitOpen}>
         <PatientFinder
           pacientes={pacientes}
@@ -1110,7 +1110,7 @@ function PatientWorkspace() {
           {WORK_TABS.map((item) => (
             <button
               key={item.id}
-              className={activeMainTab === item.id ? 'active' : ''}
+              className={`dc-tab${activeMainTab === item.id ? ' active' : ''}`}
               aria-current={activeMainTab === item.id ? 'page' : undefined}
               onClick={() => openPatientArea(item.id)}
             >

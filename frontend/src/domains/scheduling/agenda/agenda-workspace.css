@@ -2,7 +2,7 @@
 .agenda-dentcore { width: 100%; height: 100%; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--dc-surface); color: var(--dc-text); gap: 0; padding: 0; }
 .agenda-compact-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--dc-border); flex: 0 0 auto; }
 .agenda-toolbar-actions { display: flex; gap: 5px; margin-left: auto; }
-.agenda-toolbar-actions button, .agenda-date-control button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 28px; padding: 4px 7px; font-size: 11px; font-weight: 500; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); }
+.agenda-toolbar-actions button, .agenda-date-control button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: var(--dc-control-height); padding: 5px 8px; font-size: var(--dc-font-small); font-weight: 500; border: 1px solid var(--dc-border); border-radius: 4px; background: var(--dc-surface); color: var(--dc-text); }
 .agenda-controls-toolbar .dc-toolbar-search { flex-basis: 190px; max-width: 290px; }
 .agenda-controls-toolbar .agenda-toolbar-actions { margin-left: auto; }
 .agenda-controls-toolbar .dc-toolbar-primary { margin-left: 0; }
