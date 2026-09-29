@@ -386,7 +386,7 @@ describe('PacientesPage structure', () => {
     expect(within(mainTabs).getByRole('button', { name: /^Presupuestos$/i })).toBeInTheDocument();
     expect(within(mainTabs).getAllByRole('button').map(button => button.textContent)).toEqual(['Ficha', 'Clínica', 'Presupuestos', 'Historial']);
     expect(screen.getByRole('heading', { name: 'Cesar Gutierrez Velez', level: 1 })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Ubicación del paciente' })).toHaveTextContent('Pacientes/Cesar Gutierrez Velez');
+    expect(screen.queryByRole('navigation', { name: 'Ubicación del paciente' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('H 91312');
     expect(screen.getByLabelText('Paciente activo')).toHaveTextContent('600000000');
     expect(within(mainTabs).getByRole('button', { name: /^Clínica$/i })).toBeInTheDocument();
