@@ -68,6 +68,9 @@ export function FloatingPopover({ anchorRef, point, align = 'end', width = 280, 
         event.stopImmediatePropagation();
         close();
         (anchor ?? previousFocus)?.focus({ preventScroll: true });
+      } else if (props.role === 'menu' && event.key === 'Tab') {
+        close();
+        (anchor ?? previousFocus)?.focus({ preventScroll: true });
       } else if (props.role === 'menu' && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         const items = Array.from(element!.querySelectorAll<HTMLElement>('button:not(:disabled), [role="menuitem"]:not(:disabled)'));
         if (!items.length) return;
@@ -101,6 +104,10 @@ export function FloatingPopover({ anchorRef, point, align = 'end', width = 280, 
       window.visualViewport?.removeEventListener('resize', place);
       window.visualViewport?.removeEventListener('scroll', place);
       if (element.hidePopover && element.matches(':popover-open')) element.hidePopover();
+      // Do not steal focus from a dialog opened by an action, or an outside click.
+      if (element.contains(document.activeElement) && (anchor ?? previousFocus)?.isConnected) {
+        (anchor ?? previousFocus)?.focus({ preventScroll: true });
+      }
     };
   }, [anchorRef, x, y, align, width, maxHeight, props.role]);
 

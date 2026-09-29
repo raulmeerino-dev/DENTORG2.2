@@ -36,3 +36,14 @@
 .context-menu > strong { padding: 6px 10px; font-size: var(--dc-font-small); font-weight: 600; color: var(--dc-muted); }
 .context-menu > span:empty { display: block; height: 1px; margin: 2px 4px; background: var(--dc-border); }
 .context-menu .dc-menu-danger { color: var(--dc-danger); }
+
+.dc-object-menu { display: grid; gap: 2px; padding: 6px; background: var(--dc-surface); color: var(--dc-text); border: 1px solid var(--dc-border); border-radius: var(--dc-radius); box-shadow: var(--dc-shadow-menu); }
+.dc-object-menu-title { padding: 6px 10px; color: var(--dc-muted); font-size: var(--dc-font-small); overflow-wrap: anywhere; }
+.dc-object-menu :is(button[role="menuitem"]) { display: flex; align-items: center; justify-content: flex-start; gap: var(--dc-space-2); width: 100%; min-height: var(--dc-control-height); padding: 6px 10px; text-align: left; white-space: normal; border: 0; background: transparent; font-size: var(--dc-font-small); }
+.dc-object-menu :is(button[role="menuitem"]):hover:not(:disabled) { background: var(--dc-surface-hover); }
+.dc-object-menu :is(button[role="menuitem"]) > svg { flex-shrink: 0; }
+.dc-object-menu .dc-menu-danger { color: var(--dc-danger); }
+.dc-object-menu .dc-menu-divider { border-top: 1px solid var(--dc-border); border-radius: 0; margin-top: 4px; padding-top: 10px; }
+.dc-object-menu-trigger { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: var(--dc-control-height); padding: 4px; }
+[data-context-active="true"] { outline: 2px solid var(--dc-primary); outline-offset: -2px; }
+.dc-menu-actions { display: contents; border: 0; padding: 0; margin: 0; }
